@@ -1,12 +1,12 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray & Zivpn
-#   EDITION: PLATINUM LTS FINAL V.101
-#   Update: Custom UUID/Password + Multi-Port + Ookla
+#   EDITION: PLATINUM LTS FINAL V.101 (FULL RESTORED)
+#   Update: All Features Restored + Custom UUID
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
-# --- 1. SYSTEM OPTIMIZATION (BBR & SWAP 2GB) ---
+# --- 1. SYSTEM OPTIMIZATION ---
 rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* 2>/dev/null
 echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
 echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
@@ -29,36 +29,46 @@ DOMAIN_INIT="vpn-$(tr -dc a-z0-9 </dev/urandom | head -c 5).vip3-tendo.my.id"
 
 XRAY_DIR="/usr/local/etc/xray"
 CONFIG_FILE="/usr/local/etc/xray/config.json"
+RULE_LIST="/usr/local/etc/xray/rule_list.txt"
 USER_DATA="/usr/local/etc/xray/user_data.txt"
 
 clear
 echo "============================================="
 echo "      Auto Script Install X-ray & Zivpn"
-echo "           FINAL PLATINUM EDITION"
+echo "        FULL VERSION - TENDO STORE"
 echo "============================================="
 
-# --- 3. INSTALL DEPENDENCIES & OOKLA SPEEDTEST ---
+# --- 3. INSTALL DEPENDENCIES & OOKLA ---
 apt update -y
-apt install -y curl socat jq openssl uuid-runtime net-tools vnstat wget bc python3 neofetch
+apt install -y curl socat jq openssl uuid-runtime net-tools vnstat wget bc python3 neofetch iproute2 iptables iptables-persistent
 curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | bash
 apt install -y speedtest
 
 mkdir -p $XRAY_DIR /etc/zivpn /root/tendo
 touch $USER_DATA
 
-# --- 4. FETCH SYSTEM INFO ---
+# --- 4. FETCH INFO ---
 IP_VPS=$(curl -s ifconfig.me)
 curl -s ipinfo.io/json | jq -r '.city' > /root/tendo/city
 curl -s ipinfo.io/json | jq -r '.org' > /root/tendo/isp
 curl -s ipinfo.io/json | jq -r '.ip' > /root/tendo/ip
 
 # --- 5. DOMAIN & SSL ---
+curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
+     -H "X-Auth-Email: ${CF_ID}" -H "X-Auth-Key: ${CF_KEY}" \
+     -H "Content-Type: application/json" \
+     --data '{"type":"A","name":"'${DOMAIN_INIT}'","content":"'${IP_VPS}'","ttl":120,"proxied":false}' > /dev/null
+
 echo "$DOMAIN_INIT" > $XRAY_DIR/domain
 openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout $XRAY_DIR/xray.key \
     -out $XRAY_DIR/xray.crt -days 3650 -subj "/CN=$DOMAIN_INIT" >/dev/null 2>&1
 
-# --- 6. XRAY CORE CONFIGURATION (MULTI PROTOCOL/PORT) ---
+# --- 6. XRAY CONFIG (MULTI-PORT) ---
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install >/dev/null 2>&1
+rm -f /usr/local/share/xray/geosite.dat
+wget -q -O /usr/local/share/xray/geosite.dat "https://github.com/tendostore/File-Geo/raw/refs/heads/main/geosite.dat"
+echo "google" > $RULE_LIST
+
 cat > $CONFIG_FILE <<EOF
 {
   "log": { "loglevel": "warning" },
@@ -70,14 +80,36 @@ cat > $CONFIG_FILE <<EOF
     { "port": 443, "protocol": "trojan", "settings": { "clients": [] }, "streamSettings": { "network": "ws", "security": "tls", "tlsSettings": { "certificates": [ { "certificateFile": "$XRAY_DIR/xray.crt", "keyFile": "$XRAY_DIR/xray.key" } ] }, "wsSettings": { "path": "/trojan" } } },
     { "port": 80, "protocol": "trojan", "settings": { "clients": [] }, "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "path": "/trojan" } } }
   ],
-  "outbounds": [{ "protocol": "freedom", "tag": "direct" }]
+  "outbounds": [{ "protocol": "freedom", "tag": "direct" }, { "protocol": "blackhole", "tag": "block" }],
+  "routing": { "domainStrategy": "IPIfNonMatch", "rules": [ { "type": "field", "ip": [ "geoip:private" ], "outboundTag": "block" }, { "type": "field", "domain": ["geosite:google"], "outboundTag": "direct" } ] }
 }
 EOF
 
-# --- 7. START SERVICES ---
-systemctl restart xray && systemctl enable xray
+# --- 7. ZIVPN & IPTABLES ---
+wget -qO /usr/local/bin/zivpn "https://github.com/zahidbd2/udp-zivpn/releases/download/udp-zivpn_1.4.9/udp-zivpn-linux-amd64"
+chmod +x /usr/local/bin/zivpn
+cat > /etc/zivpn/config.json <<EOF
+{ "listen": ":5667", "cert": "$XRAY_DIR/xray.crt", "key": "$XRAY_DIR/xray.key", "obfs": "zivpn", "auth": { "mode": "passwords", "config": [] } }
+EOF
+cat > /etc/systemd/system/zivpn.service <<EOF
+[Unit]
+Description=ZIVPN
+After=network.target
+[Service]
+ExecStart=/usr/local/bin/zivpn server -c /etc/zivpn/config.json
+Restart=always
+[Install]
+WantedBy=multi-user.target
+EOF
 
-# --- 8. BUILD THE FINAL MENU SYSTEM ---
+systemctl daemon-reload && systemctl enable zivpn && systemctl restart zivpn xray
+
+IFACE_NET=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
+iptables -t nat -A PREROUTING -i $IFACE_NET -p udp --dport 6000:19999 -j DNAT --to-destination :5667
+iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5667
+netfilter-persistent save &>/dev/null
+
+# --- 8. MENU SYSTEM (FULL FEATURES) ---
 cat > /usr/bin/menu <<'END_MENU'
 #!/bin/bash
 CYAN='\033[0;36m'; YELLOW='\033[0;33m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
@@ -94,7 +126,7 @@ function header_main() {
     echo -e "│ OS      : $(cat /etc/os-release | grep -w PRETTY_NAME | cut -d'"' -f2)\n│ CITY    : $CITY | ISP : $ISP\n│ DOMAIN  : $DOMAIN | TRAFFIC : $TRAFFIC\n│ UPTIME  : $UPTIME\n└─────────────────────────────────────────────────┘"
 }
 
-function display_style() {
+function display_account() {
     local proto=$1; local u=$2; local id=$3; local exp=$4
     local DMN=$(cat /usr/local/etc/xray/domain); local CTY=$(cat /root/tendo/city); local ISP=$(cat /root/tendo/isp)
     echo -e "————————————————————————————————————————"
@@ -133,56 +165,99 @@ function display_style() {
     echo -e " ————————————————————————————————————————\n         Expired  :  $exp\n ————————————————————————————————————————"
 }
 
+# --- SUB MENUS ---
+
 function xray_menu() {
-    while true; do clear; echo -e "┌────────────────────────────────────────┐\n│           X-RAY MASTER MENU            │\n├────────────────────────────────────────┤\n│ 1.) VMess Account Manager              │\n│ 2.) VLESS Account Manager              │\n│ 3.) Trojan Account Manager             │\n│ x.) Back                               │\n└────────────────────────────────────────┘"
+    while true; do header_main; echo -e "┌────────────────────────────────────────┐\n│           X-RAY MASTER MENU            │\n├────────────────────────────────────────┤\n│ 1.) VMess Account Manager              │\n│ 2.) VLESS Account Manager              │\n│ 3.) Trojan Account Manager             │\n│ x.) Back                               │\n└────────────────────────────────────────┘"
     read -p " Pilih: " opt
     case $opt in
-        1) proto_manager "vmess" 2 3 ;;
-        2) proto_manager "vless" 0 1 ;;
-        3) proto_manager "trojan" 4 5 ;;
+        1) vmess_manager ;; 2) vless_manager ;; 3) trojan_manager ;; x) return ;;
+    esac; done
+}
+
+function vmess_manager() {
+    while true; do clear; echo -e "VMESS MANAGER\n1. Create | 2. Delete | 3. Check Details | x. Back"
+    read -p " Pilih: " opt
+    case $opt in
+        1) read -p " Username: " u; read -p " Custom UUID (Enter for random): " id; [[ -z "$id" ]] && id=$(uuidgen); read -p " Exp (days): " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "+$ex days" +"%Y-%m-%d")
+           jq --arg u "$u" --arg id "$id" '.inbounds[2].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
+           jq --arg u "$u" --arg id "$id" '.inbounds[3].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
+           systemctl restart xray; echo "$u|vmess|$id|$exp" >> $U_DATA; display_account "vmess" "$u" "$id" "$exp"; read -p "Enter..." ;;
+        2) jq -r '.inbounds[2].settings.clients[].email' $CONFIG | nl; read -p "No: " n; idx=$((n-1)); u=$(jq -r ".inbounds[2].settings.clients[$idx].email" $CONFIG); sed -i "/$u|vmess/d" $U_DATA
+           jq "del(.inbounds[2].settings.clients[$idx])" $CONFIG > /tmp/x && jq "del(.inbounds[3].settings.clients[$idx])" /tmp/x > $CONFIG
+           systemctl restart xray; echo "Deleted!"; sleep 1 ;;
+        3) jq -r '.inbounds[2].settings.clients[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r ".inbounds[2].settings.clients[$idx].email" $CONFIG); id=$(jq -r ".inbounds[2].settings.clients[$idx].id" $CONFIG); exp=$(grep "$u|vmess|" $U_DATA | cut -d'|' -f4); display_account "vmess" "$u" "$id" "$exp"; read -p "Enter..." ;;
         x) return ;;
     esac; done
 }
 
-function proto_manager() {
-    local p=$1; local in_tls=$2; local in_ntls=$3
-    while true; do clear; echo -e "${p^^} MANAGER\n1. Create | 2. Delete | 3. Check Details | x. Back"
+function vless_manager() {
+    while true; do clear; echo -e "VLESS MANAGER\n1. Create | 2. Delete | 3. Check Details | x. Back"
     read -p " Pilih: " opt
     case $opt in
-        1) 
-           read -p " Username : " u
-           if [[ "$p" == "trojan" ]]; then
-               read -p " Password (Enter for same as user): " id
-               [[ -z "$id" ]] && id=$u
-           else
-               read -p " UUID (Enter for random): " id
-               [[ -z "$id" ]] && id=$(uuidgen)
-           fi
-           read -p " Exp (days): " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "+$ex days" +"%Y-%m-%d")
-           
-           jq --arg u "$u" --arg id "$id" ".inbounds[$in_tls].settings.clients += [{\"id\":\"$id\",\"password\":\"$id\",\"email\":\"$u\"}]" $CONFIG > /tmp/x && mv /tmp/x $CONFIG
-           jq --arg u "$u" --arg id "$id" ".inbounds[$in_ntls].settings.clients += [{\"id\":\"$id\",\"password\":\"$id\",\"email\":\"$u\"}]" $CONFIG > /tmp/x && mv /tmp/x $CONFIG
-           systemctl restart xray; echo "$u|$p|$id|$exp" >> $U_DATA; display_style "$p" "$u" "$id" "$exp"; read -p "Enter..." ;;
-        2) jq -r ".inbounds[$in_tls].settings.clients[].email" $CONFIG | nl; read -p "No: " n; idx=$((n-1))
-           u=$(jq -r ".inbounds[$in_tls].settings.clients[$idx].email" $CONFIG); sed -i "/$u|$p|/d" $U_DATA
-           jq "del(.inbounds[$in_tls].settings.clients[$idx])" $CONFIG > /tmp/x && jq "del(.inbounds[$in_ntls].settings.clients[$idx])" /tmp/x > $CONFIG
+        1) read -p " Username: " u; read -p " Custom UUID (Enter for random): " id; [[ -z "$id" ]] && id=$(uuidgen); read -p " Exp (days): " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "+$ex days" +"%Y-%m-%d")
+           jq --arg u "$u" --arg id "$id" '.inbounds[0].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
+           jq --arg u "$u" --arg id "$id" '.inbounds[1].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
+           systemctl restart xray; echo "$u|vless|$id|$exp" >> $U_DATA; display_account "vless" "$u" "$id" "$exp"; read -p "Enter..." ;;
+        2) jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "No: " n; idx=$((n-1)); u=$(jq -r ".inbounds[0].settings.clients[$idx].email" $CONFIG); sed -i "/$u|vless/d" $U_DATA
+           jq "del(.inbounds[0].settings.clients[$idx])" $CONFIG > /tmp/x && jq "del(.inbounds[1].settings.clients[$idx])" /tmp/x > $CONFIG
            systemctl restart xray; echo "Deleted!"; sleep 1 ;;
-        3) jq -r ".inbounds[$in_tls].settings.clients[].email" $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1))
-           u=$(jq -r ".inbounds[$in_tls].settings.clients[$idx].email" $CONFIG)
-           id=$(jq -r ".inbounds[$in_tls].settings.clients[$idx].id // .inbounds[$in_tls].settings.clients[$idx].password" $CONFIG)
-           exp=$(grep "$u|$p|" $U_DATA | cut -d'|' -f4); display_style "$p" "$u" "$id" "$exp"; read -p "Enter..." ;;
+        3) jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r ".inbounds[0].settings.clients[$idx].email" $CONFIG); id=$(jq -r ".inbounds[0].settings.clients[$idx].id" $CONFIG); exp=$(grep "$u|vless|" $U_DATA | cut -d'|' -f4); display_account "vless" "$u" "$id" "$exp"; read -p "Enter..." ;;
         x) return ;;
     esac; done
+}
+
+function trojan_manager() {
+    while true; do clear; echo -e "TROJAN MANAGER\n1. Create | 2. Delete | 3. Check Details | x. Back"
+    read -p " Pilih: " opt
+    case $opt in
+        1) read -p " Username: " u; read -p " Custom Password (Enter for same as user): " id; [[ -z "$id" ]] && id=$u; read -p " Exp (days): " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "+$ex days" +"%Y-%m-%d")
+           jq --arg u "$u" --arg id "$id" '.inbounds[4].settings.clients += [{"password":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
+           jq --arg u "$u" --arg id "$id" '.inbounds[5].settings.clients += [{"password":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
+           systemctl restart xray; echo "$u|trojan|$id|$exp" >> $U_DATA; display_account "trojan" "$u" "$id" "$exp"; read -p "Enter..." ;;
+        2) jq -r '.inbounds[4].settings.clients[].email' $CONFIG | nl; read -p "No: " n; idx=$((n-1)); u=$(jq -r ".inbounds[4].settings.clients[$idx].email" $CONFIG); sed -i "/$u|trojan/d" $U_DATA
+           jq "del(.inbounds[4].settings.clients[$idx])" $CONFIG > /tmp/x && jq "del(.inbounds[5].settings.clients[$idx])" /tmp/x > $CONFIG
+           systemctl restart xray; echo "Deleted!"; sleep 1 ;;
+        3) jq -r '.inbounds[4].settings.clients[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r ".inbounds[4].settings.clients[$idx].email" $CONFIG); id=$(jq -r ".inbounds[4].settings.clients[$idx].password" $CONFIG); exp=$(grep "$u|trojan|" $U_DATA | cut -d'|' -f4); display_account "trojan" "$u" "$id" "$exp"; read -p "Enter..." ;;
+        x) return ;;
+    esac; done
+}
+
+function zivpn_menu() {
+    while true; do clear; echo -e "ZIVPN MENU\n1. Create | 2. Delete | x. Back"; read -p "Pilih: " opt
+    case $opt in
+        1) read -p "Pass: " p; read -p "Exp: " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "+$ex days" +"%Y-%m-%d")
+           jq --arg p "$p" '.auth.config += [$p]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn
+           clear; echo -e "ZIVPN ACCOUNT\nPass: $p\nExp: $exp"; read -p "Enter..." ;;
+        2) jq -r '.auth.config[]' /etc/zivpn/config.json | nl; read -p "No: " n; idx=$((n-1)); jq "del(.auth.config[$idx])" /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn ;;
+        x) return ;;
+    esac; done
+}
+
+function routing_menu() {
+    while true; do clear; echo -e "GEOSITE ROUTING\n1. Add Rule | 2. Del Rule | x. Back"; DOMS=$(cat /usr/local/etc/xray/rule_list.txt | xargs); echo "Active: $DOMS"; read -p "Pilih: " opt
+    case $opt in
+        1) read -p "Rule Name (e.g., tiktok): " d; echo "$d" >> /usr/local/etc/xray/rule_list.txt; LIST=$(cat /usr/local/etc/xray/rule_list.txt | awk '{printf "\"geosite:%s\",", $1}' | sed 's/,$//'); jq --argjson d "[$LIST]" '.routing.rules[1].domain = $d' $CONFIG > /tmp/r && mv /tmp/r $CONFIG; systemctl restart xray ;;
+        2) nl /usr/local/etc/xray/rule_list.txt; read -p "No: " n; sed -i "${n}d" /usr/local/etc/xray/rule_list.txt; LIST=$(cat /usr/local/etc/xray/rule_list.txt | awk '{printf "\"geosite:%s\",", $1}' | sed 's/,$//'); jq --argjson d "[$LIST]" '.routing.rules[1].domain = $d' $CONFIG > /tmp/r && mv /tmp/r $CONFIG; systemctl restart xray ;;
+        x) return ;;
+    esac; done
+}
+
+function check_services() {
+    clear; echo "SERVICE STATUS"; services=("xray" "zivpn" "vnstat"); for s in "${services[@]}"; do systemctl is-active --quiet $s && echo "$s: ON" || echo "$s: OFF"; done; read -p "Enter..."
 }
 
 while true; do header_main; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) X-RAY MENU            5.) SPEED TEST\n│ 2.) ZIVPN UDP             6.) RESTART SERVICES\n│ 3.) ROUTING GEOSITE       7.) CHECK SERVICES\n│ 4.) GANTI DOMAIN          x.) EXIT\n└─────────────────────────────────────────────────┘"; read -p " Nomor: " opt
 case $opt in
-    1) xray_menu ;; 4) read -p "Domain: " nd; echo "$nd" > /usr/local/etc/xray/domain; systemctl restart xray ;;
+    1) xray_menu ;; 2) zivpn_menu ;; 3) routing_menu ;;
+    4) read -p "Domain: " nd; echo "$nd" > /usr/local/etc/xray/domain; systemctl restart xray ;;
     5) clear; speedtest --accept-license --accept-gdpr; read -p "Enter..." ;;
-    6) systemctl restart xray; echo "Restarted!"; sleep 1 ;;
+    6) systemctl restart xray zivpn; echo "Restarted!"; sleep 1 ;;
+    7) check_services ;;
     x) exit ;;
 esac; done
 END_MENU
 
 chmod +x /usr/bin/menu
-echo "INSTALASI FINAL SELESAI! KETIK: menu"
+echo "INSTALASI KOMPLIT SELESAI! SEMUA FITUR ADA."
+
