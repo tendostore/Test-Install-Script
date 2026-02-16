@@ -1,10 +1,10 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray Multi-Port
-#   EDITION: PLATINUM LTS FINAL V.400 (NESTED MENU)
+#   EDITION: PLATINUM LTS FINAL V.405 (FIXED ZIVPN UI)
 #   Script BY: Tendo Store
 #   Features: VMess, VLESS, Trojan, Routing, Auto XP
-#   UI: Original Zero Margin Platinum
+#   UI: Original Zero Margin Platinum + ZIVPN GUI
 # ==================================================
 
 # --- 1. SYSTEM OPTIMIZATION ---
@@ -149,7 +149,7 @@ iptables -t nat -A PREROUTING -i $IFACE_NET -p udp --dport 6000:19999 -j DNAT --
 iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5667
 netfilter-persistent save &>/dev/null
 
-# --- 7. MENU SCRIPT (NESTED STRUCTURE) ---
+# --- 7. MENU SCRIPT (NESTED STRUCTURE & ZIVPN FIX) ---
 cat > /usr/bin/menu <<'END_MENU'
 #!/bin/bash
 CYAN='\033[0;36m'; YELLOW='\033[0;33m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
@@ -175,7 +175,7 @@ function header_main() {
     echo -e "│ XRAY : $X_ST | ZIVPN : $Z_ST \n│ —————————————————————————————————————"
     C_VMESS=$(jq '.inbounds[2].settings.clients | length' $CONFIG); C_VLESS=$(jq '.inbounds[0].settings.clients | length' $CONFIG); C_TROJAN=$(jq '.inbounds[3].settings.clients | length' $CONFIG); C_ZIVPN=$(jq '.auth.config | length' /etc/zivpn/config.json)
     echo -e "│              LIST ACCOUNTS\n│ —————————————————————————————————————\n│    VMESS WS      : $C_VMESS  ACCOUNT\n│    VLESS WS      : $C_VLESS  ACCOUNT\n│    TROJAN WS     : $C_TROJAN  ACCOUNT\n│    ZIVPN UDP     : $C_ZIVPN  ACCOUNT"
-    echo -e "│ —————————————————————————————————————\n│ Version   : v.400 ULTIMATE NESTED\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
+    echo -e "│ —————————————————————————————————————\n│ Version   : v.405 ZIVPN FIXED\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
 }
 
 function header_sub() {
@@ -229,7 +229,47 @@ function trojan_menu() {
     esac; done
 }
 
-# --- NEW: X-RAY MAIN MENU CONTAINER ---
+function zivpn_menu_gui() {
+    while true; do
+        header_sub "ZIVPN MANAGER"
+        echo -e "┌─────────────────────────────────────────────────┐"
+        echo -e "│ 1.) Create Account (Add Password)"
+        echo -e "│ 2.) Delete Account"
+        echo -e "│ 3.) Check/List Accounts"
+        echo -e "│ x.) Back"
+        echo -e "└─────────────────────────────────────────────────┘"
+        read -p "Select: " opt
+        case $opt in
+            1)
+                read -p " Enter Password: " pass
+                jq --arg p "$pass" '.auth.config += [$p]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json
+                systemctl restart zivpn
+                echo -e "${GREEN} Password '$pass' added!${NC}"
+                sleep 2
+                ;;
+            2)
+                echo "List Passwords:"
+                jq -r '.auth.config[]' /etc/zivpn/config.json | nl
+                read -p " Select Number to Delete: " num
+                [[ -z "$num" ]] && continue
+                idx=$((num-1))
+                pass_del=$(jq -r ".auth.config[$idx]" /etc/zivpn/config.json)
+                jq "del(.auth.config[$idx])" /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json
+                systemctl restart zivpn
+                echo -e "${RED} Password '$pass_del' Deleted!${NC}"
+                sleep 2
+                ;;
+            3)
+                 echo "Active Passwords:"
+                 jq -r '.auth.config[]' /etc/zivpn/config.json | nl
+                 read -p " Press Enter..."
+                 ;;
+            x) return ;;
+        esac
+    done
+}
+
+# --- X-RAY MAIN MENU CONTAINER ---
 function xray_menu_container() {
     while true; do
         header_sub "X-RAY MANAGER"
@@ -266,10 +306,10 @@ function check_services() {
     echo -e "└─────────────────────────────────────────────────┘"; read -p "Enter...";
 }
 
-while true; do header_main; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) X-RAY MANAGER      5.) ROUTING GEOSITE\n│ 2.) ZIVPN UDP          6.) CEK STATUS SERVICE\n│ 3.) GANTI DOMAIN       7.) SPEEDTEST & TOOLS\n│ 4.) RESTART SERVICES   x.) EXIT\n└─────────────────────────────────────────────────┘"; read -p "Pilih Nomor: " opt
+while true; do header_main; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) X-RAY MANAGER      5.) ROUTING GEOSITE\n│ 2.) ZIVPN MANAGER      6.) CEK STATUS SERVICE\n│ 3.) GANTI DOMAIN       7.) SPEEDTEST & TOOLS\n│ 4.) RESTART SERVICES   x.) EXIT\n└─────────────────────────────────────────────────┘"; read -p "Pilih Nomor: " opt
     case $opt in
         1) xray_menu_container ;; 
-        2) nano /etc/zivpn/config.json; systemctl restart zivpn ;;
+        2) zivpn_menu_gui ;;
         3) read -p "Domain Baru: " nd; echo "$nd" > /usr/local/etc/xray/domain; openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout $XRAY_DIR/xray.key -out $XRAY_DIR/xray.crt -days 3650 -subj "/CN=$nd" >/dev/null 2>&1; systemctl restart xray; echo "Domain Updated!"; sleep 1;;
         4) systemctl restart xray zivpn; echo "Restarted!"; sleep 1 ;;
         5) routing_menu ;;
