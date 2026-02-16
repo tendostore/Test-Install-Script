@@ -1,9 +1,9 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray Multi-Port
-#   EDITION: PLATINUM LTS FINAL V.205 (UI RESTORED)
+#   EDITION: PLATINUM LTS FINAL V.400 (NESTED MENU)
 #   Script BY: Tendo Store
-#   Features: VMess, VLESS, Trojan (Port 443/80 Shared)
+#   Features: VMess, VLESS, Trojan, Routing, Auto XP
 #   UI: Original Zero Margin Platinum
 # ==================================================
 
@@ -31,6 +31,7 @@ DOMAIN_INIT="vpn-$(tr -dc a-z0-9 </dev/urandom | head -c 5).vip3-tendo.my.id"
 
 XRAY_DIR="/usr/local/etc/xray"
 CONFIG_FILE="/usr/local/etc/xray/config.json"
+RULE_LIST="/usr/local/etc/xray/rule_list.txt"
 USER_DATA="/usr/local/etc/xray/user_data.txt"
 
 clear
@@ -75,6 +76,9 @@ chmod 644 $XRAY_DIR/xray.crt
 # --- 5. XRAY CORE & MULTI-PORT CONFIG ---
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install >/dev/null 2>&1
 wget -q -O /usr/local/share/xray/geosite.dat "https://github.com/tendostore/File-Geo/raw/refs/heads/main/geosite.dat"
+
+# Setup Rule List Awal
+echo "google" > $RULE_LIST
 
 # CONFIGURATION MULTI-PORT (FALLBACK)
 cat > $CONFIG_FILE <<EOF
@@ -145,17 +149,17 @@ iptables -t nat -A PREROUTING -i $IFACE_NET -p udp --dport 6000:19999 -j DNAT --
 iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5667
 netfilter-persistent save &>/dev/null
 
-# --- 7. MENU SCRIPT (ORIGINAL PLATINUM UI) ---
+# --- 7. MENU SCRIPT (NESTED STRUCTURE) ---
 cat > /usr/bin/menu <<'END_MENU'
 #!/bin/bash
 CYAN='\033[0;36m'; YELLOW='\033[0;33m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
 BG_RED='\033[41;1;37m'; WHITE='\033[1;37m'
 CONFIG="/usr/local/etc/xray/config.json"
 U_DATA="/usr/local/etc/xray/user_data.txt"
-DOMAIN=$(cat /usr/local/etc/xray/domain)
+XRAY_DIR="/usr/local/etc/xray"
 
 function header_main() {
-    clear; OS=$(cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/PRETTY_NAME="//g' | sed 's/"//g')
+    clear; DOMAIN=$(cat /usr/local/etc/xray/domain); OS=$(cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/PRETTY_NAME="//g' | sed 's/"//g')
     RAM=$(free -m | awk '/Mem:/ {print $3}'); SWAP=$(free -m | awk '/Swap:/ {print $2}'); UPTIME=$(uptime -p | sed 's/up //')
     CITY=$(cat /root/tendo/city 2>/dev/null); ISP=$(cat /root/tendo/isp 2>/dev/null); IP=$(cat /root/tendo/ip 2>/dev/null)
     IFACE=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
@@ -171,7 +175,7 @@ function header_main() {
     echo -e "│ XRAY : $X_ST | ZIVPN : $Z_ST \n│ —————————————————————————————————————"
     C_VMESS=$(jq '.inbounds[2].settings.clients | length' $CONFIG); C_VLESS=$(jq '.inbounds[0].settings.clients | length' $CONFIG); C_TROJAN=$(jq '.inbounds[3].settings.clients | length' $CONFIG); C_ZIVPN=$(jq '.auth.config | length' /etc/zivpn/config.json)
     echo -e "│              LIST ACCOUNTS\n│ —————————————————————————————————————\n│    VMESS WS      : $C_VMESS  ACCOUNT\n│    VLESS WS      : $C_VLESS  ACCOUNT\n│    TROJAN WS     : $C_TROJAN  ACCOUNT\n│    ZIVPN UDP     : $C_ZIVPN  ACCOUNT"
-    echo -e "│ —————————————————————————————————————\n│ Version   : v.205 LTS Multi-Port\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
+    echo -e "│ —————————————————————————————————————\n│ Version   : v.400 ULTIMATE NESTED\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
 }
 
 function header_sub() {
@@ -179,7 +183,7 @@ function header_sub() {
     echo -e "┌─────────────────────────────────────────────────┐\n          ${YELLOW}TENDO STORE - $1${NC}        \n  Current Domain : $DMN\n└─────────────────────────────────────────────────┘"
 }
 
-# --- VMESS MENU (Inbound Index 2) ---
+# --- SUB MENU FUNCTIONS ---
 function vmess_menu() {
     while true; do header_sub "VMESS MENU"; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) Create Account\n│ 2.) Delete Account\n│ 3.) List Accounts\n│ 4.) Check Account Details\n│ x.) Back\n└─────────────────────────────────────────────────┘"; read -p "Pilih: " opt
     case $opt in
@@ -195,7 +199,6 @@ function vmess_menu() {
     esac; done
 }
 
-# --- VLESS MENU (Inbound Index 0 & 1) ---
 function vless_menu() {
     while true; do header_sub "VLESS MENU"; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) Create Account\n│ 2.) Delete Account\n│ 3.) List Accounts\n│ 4.) Check Account Details\n│ x.) Back\n└─────────────────────────────────────────────────┘"; read -p "Pilih: " opt
     case $opt in
@@ -212,7 +215,6 @@ function vless_menu() {
     esac; done
 }
 
-# --- TROJAN MENU (Inbound Index 3) ---
 function trojan_menu() {
     while true; do header_sub "TROJAN MENU"; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) Create Account\n│ 2.) Delete Account\n│ 3.) List Accounts\n│ 4.) Check Account Details\n│ x.) Back\n└─────────────────────────────────────────────────┘"; read -p "Pilih: " opt
     case $opt in
@@ -227,19 +229,54 @@ function trojan_menu() {
     esac; done
 }
 
-function zivpn_menu() {
-    header_sub "ZIVPN UDP"; echo "Manage via simple menu logic..."; read -p "Press Enter to return..."
+# --- NEW: X-RAY MAIN MENU CONTAINER ---
+function xray_menu_container() {
+    while true; do
+        header_sub "X-RAY MANAGER"
+        echo -e "┌─────────────────────────────────────────────────┐"
+        echo -e "│ 1.) VMESS MENU      (Multi-Port)"
+        echo -e "│ 2.) VLESS MENU      (Multi-Port)"
+        echo -e "│ 3.) TROJAN MENU     (Multi-Port)"
+        echo -e "│ x.) Back to Main Menu"
+        echo -e "└─────────────────────────────────────────────────┘"
+        read -p "Select Option: " opt
+        case $opt in
+            1) vmess_menu ;;
+            2) vless_menu ;;
+            3) trojan_menu ;;
+            x) return ;;
+            *) echo "Invalid option"; sleep 1 ;;
+        esac
+    done
 }
 
-while true; do header_main; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) VMESS MENU         5.) UTILITIES (Speedtest)\n│ 2.) VLESS MENU         6.) RESTART SERVICES\n│ 3.) TROJAN MENU        7.) AUTO XP / CLEANER\n│ 4.) ZIVPN UDP          x.) EXIT\n└─────────────────────────────────────────────────┘"; read -p "Pilih Nomor: " opt
+function routing_menu() {
+    while true; do header_sub "ROUTING GEOSITE"; echo -e "┌─────────────────────────────────────────────────┐\n│            SUPPORTED GEOSITE LIST               \n│ —————————————————————————————————————\n│ rule-gaming, rule-indo, rule-sosmed, google,    \n│ rule-playstore, rule-streaming, rule-umum, tiktok,\n│ rule-ipcheck, rule-doh, rule-malicious, telegram,\n│ rule-ads, rule-speedtest, ecommerce-id, urltest,\n│ category-porn, bank-id, meta, videoconference,  \n│ geolocation-!cn, facebook, spotify, openai, meta,\n│ ehentai, github, microsoft, apple, netflix, cn, \n│ youtube, twitter, bilibili, category-ads-all,   \n│ private, category-media, category-vpnservices,  \n│ category-dev, category-dev-all, meta, category-media-all\n└─────────────────────────────────────────────────┘"; DOMS=$(cat /usr/local/etc/xray/rule_list.txt | xargs)
+        echo -e "┌─────────────────────────────────────────────────┐\n│ Active Rules: ${GREEN}$DOMS${NC}\n│ 1.) Tambah rule geosite\n│ 2.) Hapus rule geosite\n│ x.) Back\n└─────────────────────────────────────────────────┘"; read -p "Pilih: " opt
+        case $opt in
+            1) read -p "Rule: " d; echo "$d" >> /usr/local/etc/xray/rule_list.txt; LIST=$(cat /usr/local/etc/xray/rule_list.txt | awk '{printf "\"geosite:%s\",", $1}' | sed 's/,$//'); jq --argjson d "[$LIST]" '.routing.rules[] |= (if .outboundTag == "direct" and .type == "field" and .domain != null then .domain = $d else . end)' $CONFIG > /tmp/r && mv /tmp/r $CONFIG; systemctl restart xray;;
+            2) nl /usr/local/etc/xray/rule_list.txt; read -p "No: " n; [[ -z "$n" ]] && continue; sed -i "${n}d" /usr/local/etc/xray/rule_list.txt; LIST=$(cat /usr/local/etc/xray/rule_list.txt | awk '{printf "\"geosite:%s\",", $1}' | sed 's/,$//'); jq --argjson d "[$LIST]" '.routing.rules[] |= (if .outboundTag == "direct" and .type == "field" and .domain != null then .domain = $d else . end)' $CONFIG > /tmp/r && mv /tmp/r $CONFIG; systemctl restart xray;;
+            x) return;;
+        esac; done
+}
+
+function check_services() {
+    header_sub "SERVICE STATUS"; echo -e "┌─────────────────────────────────────────────────┐\n│ SERVICES CHECK\n│ —————————————————————————————————————"; services=("xray" "zivpn" "vnstat" "netfilter-persistent" "cron"); names=("Xray VPN Core   " "ZIVPN UDP Server" "Vnstat Monitor  " "Iptables Rules  " "Cron Scheduler  ")
+    for i in "${!services[@]}"; do if systemctl is-active --quiet "${services[$i]}"; then status="${GREEN}ACTIVE (ON)${NC}"; else status="${RED}INACTIVE (OFF)${NC}"; fi; echo -e "│ ${names[$i]} : $status"; done
+    echo -e "└─────────────────────────────────────────────────┘"; read -p "Enter...";
+}
+
+while true; do header_main; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) X-RAY MANAGER      5.) ROUTING GEOSITE\n│ 2.) ZIVPN UDP          6.) CEK STATUS SERVICE\n│ 3.) GANTI DOMAIN       7.) SPEEDTEST & TOOLS\n│ 4.) RESTART SERVICES   x.) EXIT\n└─────────────────────────────────────────────────┘"; read -p "Pilih Nomor: " opt
     case $opt in
-        1) vmess_menu ;; 
-        2) vless_menu ;; 
-        3) trojan_menu ;;
-        4) nano /etc/zivpn/config.json; systemctl restart zivpn ;;
-        5) python3 <(curl -sL https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py) --share; read -p "Enter...";;
-        6) systemctl restart xray zivpn; echo "Restarted!"; sleep 1 ;;
-        7) /usr/bin/xp; /usr/bin/cleaner; echo "Done!"; sleep 1 ;;
+        1) xray_menu_container ;; 
+        2) nano /etc/zivpn/config.json; systemctl restart zivpn ;;
+        3) read -p "Domain Baru: " nd; echo "$nd" > /usr/local/etc/xray/domain; openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout $XRAY_DIR/xray.key -out $XRAY_DIR/xray.crt -days 3650 -subj "/CN=$nd" >/dev/null 2>&1; systemctl restart xray; echo "Domain Updated!"; sleep 1;;
+        4) systemctl restart xray zivpn; echo "Restarted!"; sleep 1 ;;
+        5) routing_menu ;;
+        6) check_services ;;
+        7) header_sub "TOOLS"; echo -e "1. Speedtest\n2. Clean RAM & Cache"; read -p "Opt: " t
+           if [[ $t == 1 ]]; then python3 <(curl -sL https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py) --share; read -p "Enter..."; 
+           elif [[ $t == 2 ]]; then /usr/bin/cleaner; echo "Cleaned!"; sleep 1; fi ;;
         x) exit ;;
     esac; done
 END_MENU
