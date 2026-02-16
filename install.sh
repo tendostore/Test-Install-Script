@@ -1,9 +1,9 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray & Zivpn
-#   EDITION: PLATINUM LTS FINAL V.105 (MERGED)
-#   Script BY: Tendo Store | WhatsApp: +6282224460678
-#   Features: Multi-Protocol, Multi-Port, Grouped Menu
+#   EDITION: PLATINUM LTS FINAL V.107 (FALLBACK TECH)
+#   Update: VLESS & VMESS Share Port 443/80
+#   Features: VLESS, VMESS, ZIVPN, Fallback Support
 # ==================================================
 
 # --- 1. SYSTEM OPTIMIZATION (BBR & SWAP 2GB) ---
@@ -42,7 +42,6 @@ apt update -y
 apt install -y curl socat jq openssl uuid-runtime net-tools vnstat wget \
 gnupg1 bc iproute2 iptables iptables-persistent python3 neofetch
 
-# Silent Login Configuration
 touch /root/.hushlogin
 chmod -x /etc/update-motd.d/* 2>/dev/null
 sed -i '/neofetch/d' /root/.bashrc
@@ -71,7 +70,7 @@ openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout $XRAY_DIR/xray.key \
     -out $XRAY_DIR/xray.crt -days 3650 -subj "/CN=$DOMAIN_INIT" >/dev/null 2>&1
 chmod 644 $XRAY_DIR/xray.key
 chmod 644 $XRAY_DIR/xray.crt
-# --- 5. XRAY CORE CONFIGURATION (VLESS, VMESS, TROJAN) ---
+# --- 5. XRAY CORE CONFIGURATION (FALLBACK ENABLED) ---
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install >/dev/null 2>&1
 rm -f /usr/local/share/xray/geosite.dat
 wget -q -O /usr/local/share/xray/geosite.dat "https://github.com/tendostore/Tendo-Script-Auto-Installer-X-ray-ZIVPN/raw/refs/heads/main/geosite.dat"
@@ -82,24 +81,30 @@ cat > $CONFIG_FILE <<EOF
   "log": { "loglevel": "warning" },
   "inbounds": [
     {
-      "port": 443, "protocol": "vless", "settings": { "clients": [], "decryption": "none" },
+      "port": 443, "protocol": "vless",
+      "settings": {
+        "clients": [], "decryption": "none",
+        "fallbacks": [ { "path": "/vmess", "dest": 8443, "xver": 1 } ]
+      },
       "streamSettings": { "network": "ws", "security": "tls", "tlsSettings": { "certificates": [ { "certificateFile": "$XRAY_DIR/xray.crt", "keyFile": "$XRAY_DIR/xray.key" } ] }, "wsSettings": { "path": "/vless" } }
     },
     {
-      "port": 80, "protocol": "vless", "settings": { "clients": [], "decryption": "none" },
+      "port": 80, "protocol": "vless",
+      "settings": {
+        "clients": [], "decryption": "none",
+        "fallbacks": [ { "path": "/vmess", "dest": 8080, "xver": 1 } ]
+      },
       "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "path": "/vless" } }
     },
     {
-      "port": 8443, "protocol": "vmess", "settings": { "clients": [] },
-      "streamSettings": { "network": "ws", "security": "tls", "tlsSettings": { "certificates": [ { "certificateFile": "$XRAY_DIR/xray.crt", "keyFile": "$XRAY_DIR/xray.key" } ] }, "wsSettings": { "path": "/vmess" } }
-    },
-    {
-      "port": 8080, "protocol": "vmess", "settings": { "clients": [] },
+      "port": 8443, "listen": "127.0.0.1", "protocol": "vmess",
+      "settings": { "clients": [] },
       "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "path": "/vmess" } }
     },
     {
-      "port": 2083, "protocol": "trojan", "settings": { "clients": [] },
-      "streamSettings": { "network": "ws", "security": "tls", "tlsSettings": { "certificates": [ { "certificateFile": "$XRAY_DIR/xray.crt", "keyFile": "$XRAY_DIR/xray.key" } ] }, "wsSettings": { "path": "/trojan" } }
+      "port": 8080, "listen": "127.0.0.1", "protocol": "vmess",
+      "settings": { "clients": [] },
+      "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "path": "/vmess" } }
     }
   ],
   "outbounds": [
@@ -134,7 +139,7 @@ WantedBy=multi-user.target
 EOF
 systemctl daemon-reload && systemctl enable zivpn && systemctl restart zivpn xray
 
-# --- IPTABLES MULTI-PORT LOGIC (CLOUDFLARE) ---
+# --- IPTABLES MULTI-PORT LOGIC ---
 iptables -t nat -F PREROUTING
 iptables -t nat -A PREROUTING -i $IFACE_NET -p udp --dport 6000:19999 -j DNAT --to-destination :5667
 for port in 2052 2082 2086 2095 8880; do iptables -t nat -A PREROUTING -p tcp --dport $port -j REDIRECT --to-port 80; done
@@ -165,10 +170,9 @@ function header_main() {
     echo -e "│ XRAY : $X_ST | ZIVPN : $Z_ST | IPTABLES : $I_ST\n│ —————————————————————————————————————"
     COUNT_VLESS=$(jq '[.inbounds[] | select(.protocol=="vless").settings.clients[]] | length' $CONFIG)
     COUNT_VMESS=$(jq '[.inbounds[] | select(.protocol=="vmess").settings.clients[]] | length' $CONFIG)
-    COUNT_TROJAN=$(jq '[.inbounds[] | select(.protocol=="trojan").settings.clients[]] | length' $CONFIG)
     COUNT_ZIVPN=$(jq '.auth.config | length' /etc/zivpn/config.json)
-    echo -e "│              LIST ACCOUNTS\n│ —————————————————————————————————————\n│    VLESS   : $COUNT_VLESS     |    VMESS   : $COUNT_VMESS\n│    TROJAN  : $COUNT_TROJAN     |    ZIVPN   : $COUNT_ZIVPN"
-    echo -e "│ —————————————————————————————————————\n│ Version   : v.16.02.26 LTS\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
+    echo -e "│              LIST ACCOUNTS\n│ —————————————————————————————————————\n│    VLESS   : $COUNT_VLESS     |    VMESS   : $COUNT_VMESS\n│    ZIVPN   : $COUNT_ZIVPN"
+    echo -e "│ —————————————————————————————————————\n│ Version   : v.107 LTS (Fallback)\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
 }
 
 function header_sub() {
@@ -196,30 +200,16 @@ function xray_vmess_menu() {
     case $opt in
         1) read -p " Username : " u; read -p " UUID (Enter for random): " id; [[ -z "$id" ]] && id=$(uuidgen); read -p " Expired: " ex; [[ -z "$ex" ]] && ex=30; exp_date=$(date -d "+$ex days" +"%Y-%m-%d")
            jq --arg u "$u" --arg id "$id" '(.inbounds[] | select(.protocol=="vmess")).settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray; echo "$u|$id|$exp_date" >> $U_DATA; DMN=$(cat /usr/local/etc/xray/domain); CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
-           tls_json='{"v":"2","ps":"'${u}'","add":"'${DMN}'","port":"8443","id":"'${id}'","aid":"0","net":"ws","path":"/vmess","type":"none","host":"'${DMN}'","tls":"tls"}'; none_json='{"v":"2","ps":"'${u}'","add":"'${DMN}'","port":"8080","id":"'${id}'","aid":"0","net":"ws","path":"/vmess","type":"none","host":"'${DMN}'","tls":"none"}'
+           # VMess sekarang menggunakan Port 443 via Fallback
+           tls_json='{"v":"2","ps":"'${u}'","add":"'${DMN}'","port":"443","id":"'${id}'","aid":"0","net":"ws","path":"/vmess","type":"none","host":"'${DMN}'","tls":"tls"}'; none_json='{"v":"2","ps":"'${u}'","add":"'${DMN}'","port":"80","id":"'${id}'","aid":"0","net":"ws","path":"/vmess","type":"none","host":"'${DMN}'","tls":"none"}'
            vtls="vmess://$(echo $tls_json | base64 -w 0)"; vnone="vmess://$(echo $none_json | base64 -w 0)"
-           clear; echo -e "————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DMN\nPort TLS       : 8443,2053,2087,2096\nPort none TLS  : 80,8080,8880,2052,2095\nid             : $id\nEncryption     : auto\nNetwork        : ws\nPath ws        : /vmess\nExpired On     : $ex Days ($exp_date)\n————————————————————————————————————\n            VMESS WS TLS\n————————————————————————————————————\n$vtls\n————————————————————————————————————\n          VMESS WS NO TLS\n————————————————————————————————————\n$vnone\n————————————————————————————————————"; read -n 1 -s -r -p "Enter...";;
+           clear; echo -e "————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DMN\nPort TLS       : 443,2053,2087,2096\nPort none TLS  : 80,8880,2052,2095\nid             : $id\nEncryption     : auto\nNetwork        : ws\nPath ws        : /vmess\nExpired On     : $ex Days ($exp_date)\n————————————————————————————————————\n            VMESS WS TLS\n————————————————————————————————————\n$vtls\n————————————————————————————————————\n          VMESS WS NO TLS\n————————————————————————————————————\n$vnone\n————————————————————————————————————"; read -n 1 -s -r -p "Enter...";;
         2) jq -r '[.inbounds[] | select(.protocol=="vmess").settings.clients[]] | .[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r "[.inbounds[] | select(.protocol==\"vmess\").settings.clients[]] | .[$idx].email" $CONFIG); sed -i "/$u|/d" $U_DATA; jq "(.inbounds[] | select(.protocol==\"vmess\")).settings.clients |= del(.[$idx])" $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray;;
         3) header_sub; jq -r '[.inbounds[] | select(.protocol=="vmess").settings.clients[]] | .[].email' $CONFIG | nl; read -p "Enter...";;
         4) header_sub; jq -r '[.inbounds[] | select(.protocol=="vmess").settings.clients[]] | .[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r "[.inbounds[] | select(.protocol==\"vmess\").settings.clients[]] | .[$idx].email" $CONFIG); id=$(jq -r "[.inbounds[] | select(.protocol==\"vmess\").settings.clients[]] | .[$idx].id" $CONFIG); DMN=$(cat /usr/local/etc/xray/domain); exp_d=$(grep "^$u|" $U_DATA | cut -d'|' -f3); [[ -z "$exp_d" ]] && exp_d="Unknown"; CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
-           tls_json='{"v":"2","ps":"'${u}'","add":"'${DMN}'","port":"8443","id":"'${id}'","aid":"0","net":"ws","path":"/vmess","type":"none","host":"'${DMN}'","tls":"tls"}'; none_json='{"v":"2","ps":"'${u}'","add":"'${DMN}'","port":"8080","id":"'${id}'","aid":"0","net":"ws","path":"/vmess","type":"none","host":"'${DMN}'","tls":"none"}'
+           tls_json='{"v":"2","ps":"'${u}'","add":"'${DMN}'","port":"443","id":"'${id}'","aid":"0","net":"ws","path":"/vmess","type":"none","host":"'${DMN}'","tls":"tls"}'; none_json='{"v":"2","ps":"'${u}'","add":"'${DMN}'","port":"80","id":"'${id}'","aid":"0","net":"ws","path":"/vmess","type":"none","host":"'${DMN}'","tls":"none"}'
            vtls="vmess://$(echo $tls_json | base64 -w 0)"; vnone="vmess://$(echo $none_json | base64 -w 0)"
-           clear; echo -e "————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DMN\nPort TLS       : 8443,2053,2087,2096\nPort none TLS  : 80,8080,8880,2052,2095\nid             : $id\nEncryption     : auto\nNetwork        : ws\nPath ws        : /vmess\nExpired On     : $exp_d\n————————————————————————————————————\n            VMESS WS TLS\n————————————————————————————————————\n$vtls\n————————————————————————————————————\n          VMESS WS NO TLS\n————————————————————————————————————\n$vnone\n————————————————————————————————————"; read -n 1 -s -r -p "Enter...";;
-        x) return;; esac; done
-}
-
-function xray_trojan_menu() {
-    while true; do header_sub; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) Create TROJAN\n│ 2.) Delete TROJAN\n│ 3.) List TROJAN\n│ 4.) Check TROJAN Details\n│ x.) Back\n└─────────────────────────────────────────────────┘"; read -p "Pilih: " opt
-    case $opt in
-        1) read -p " Username : " u; read -p " Password (Enter for random): " id; [[ -z "$id" ]] && id=$(uuidgen); read -p " Expired: " ex; [[ -z "$ex" ]] && ex=30; exp_date=$(date -d "+$ex days" +"%Y-%m-%d")
-           jq --arg u "$u" --arg id "$id" '(.inbounds[] | select(.protocol=="trojan")).settings.clients += [{"password":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray; echo "$u|$id|$exp_date" >> $U_DATA; DMN=$(cat /usr/local/etc/xray/domain); CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
-           trlink="trojan://${id}@${DMN}:2083?security=tls&headerType=none&type=ws&host=${DMN}&path=/trojan&sni=${DMN}#${u}"
-           clear; echo -e "————————————————————————————————————\n               TROJAN\n————————————————————————————————————\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DMN\nPort TLS       : 2083,2053,2087,2096\nPassword       : $id\nNetwork        : ws\nPath ws        : /trojan\nExpired On     : $ex Days ($exp_date)\n————————————————————————————————————\n            TROJAN WS TLS\n————————————————————————————————————\n$trlink\n————————————————————————————————————"; read -n 1 -s -r -p "Enter...";;
-        2) jq -r '[.inbounds[] | select(.protocol=="trojan").settings.clients[]] | .[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r "[.inbounds[] | select(.protocol==\"trojan\").settings.clients[]] | .[$idx].email" $CONFIG); sed -i "/$u|/d" $U_DATA; jq "(.inbounds[] | select(.protocol==\"trojan\")).settings.clients |= del(.[$idx])" $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray;;
-        3) header_sub; jq -r '[.inbounds[] | select(.protocol=="trojan").settings.clients[]] | .[].email' $CONFIG | nl; read -p "Enter...";;
-        4) header_sub; jq -r '[.inbounds[] | select(.protocol=="trojan").settings.clients[]] | .[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r "[.inbounds[] | select(.protocol==\"trojan\").settings.clients[]] | .[$idx].email" $CONFIG); id=$(jq -r "[.inbounds[] | select(.protocol==\"trojan\").settings.clients[]] | .[$idx].password" $CONFIG); DMN=$(cat /usr/local/etc/xray/domain); exp_d=$(grep "^$u|" $U_DATA | cut -d'|' -f3); [[ -z "$exp_d" ]] && exp_d="Unknown"; CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
-           trlink="trojan://${id}@${DMN}:2083?security=tls&headerType=none&type=ws&host=${DMN}&path=/trojan&sni=${DMN}#${u}"
-           clear; echo -e "————————————————————————————————————\n               TROJAN\n————————————————————————————————————\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DMN\nPort TLS       : 2083,2053,2087,2096\nPassword       : $id\nNetwork        : ws\nPath ws        : /trojan\nExpired On     : $exp_d\n————————————————————————————————————\n            TROJAN WS TLS\n————————————————————————————————————\n$trlink\n————————————————————————————————————"; read -n 1 -s -r -p "Enter...";;
+           clear; echo -e "————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DMN\nPort TLS       : 443,2053,2087,2096\nPort none TLS  : 80,8880,2052,2095\nid             : $id\nEncryption     : auto\nNetwork        : ws\nPath ws        : /vmess\nExpired On     : $exp_d\n————————————————————————————————————\n            VMESS WS TLS\n————————————————————————————————————\n$vtls\n————————————————————————————————————\n          VMESS WS NO TLS\n————————————————————————————————————\n$vnone\n————————————————————————————————————"; read -n 1 -s -r -p "Enter...";;
         x) return;; esac; done
 }
 
@@ -228,12 +218,11 @@ function xray_menu_manager() {
     echo -e "┌─────────────────────────────────────────────────┐"
     echo -e "│ 1.) VLESS MANAGER"
     echo -e "│ 2.) VMESS MANAGER"
-    echo -e "│ 3.) TROJAN MANAGER"
     echo -e "│ x.) BACK"
     echo -e "└─────────────────────────────────────────────────┘"
     read -p "Pilih: " opt
     case $opt in
-        1) xray_vless_menu ;; 2) xray_vmess_menu ;; 3) xray_trojan_menu ;;
+        1) xray_vless_menu ;; 2) xray_vmess_menu ;;
         x) return;; esac; done
 }
 
@@ -264,7 +253,7 @@ function check_services() {
     echo -e "└─────────────────────────────────────────────────┘"; read -p "Enter...";
 }
 
-while true; do header_main; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) XRAY ACCOUNT (VLESS/VMESS/TROJAN)\n│ 2.) ZIVPN UDP ACCOUNT\n│ 3.) RESTART SERVICES\n│ 4.) ROUTING GEOSITE\n│ 5.) GANTI DOMAIN\n│ 6.) SPEED TEST\n│ 7.) CHECK SERVICES\n│ x.) EXIT\n└─────────────────────────────────────────────────┘"; read -p "Pilih Nomor: " opt
+while true; do header_main; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) XRAY ACCOUNT (VLESS/VMESS)\n│ 2.) ZIVPN UDP ACCOUNT\n│ 3.) RESTART SERVICES\n│ 4.) ROUTING GEOSITE\n│ 5.) GANTI DOMAIN\n│ 6.) SPEED TEST\n│ 7.) CHECK SERVICES\n│ x.) EXIT\n└─────────────────────────────────────────────────┘"; read -p "Pilih Nomor: " opt
     case $opt in
         1) xray_menu_manager ;; 2) zivpn_menu ;; 3) systemctl restart xray zivpn; echo "Restarted!"; sleep 1 ;;
         4) routing_menu ;;
