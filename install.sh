@@ -1,77 +1,78 @@
 #!/bin/bash
 
-# ==========================================
-# Auto Installer X-ray (Vmess, Vless, Trojan)
-# Created for: Tendo
-# Ports: 443 (TLS) & 80 (Non-TLS)
-# ==========================================
+# ==================================================
+# X-RAY AUTO INSTALLER (MULTI-PORT & MULTI-PROTOCOL)
+# Created for: User Request
+# Protocols: Vmess, Vless, Trojan
+# Ports: 443 (TLS/SSL) & 80 (Non-TLS)
+# ==================================================
 
-# Warna untuk output
-red='\e[1;31m'
-green='\e[0;32m'
-NC='\e[0m'
+# --- Warna ---
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-# Cek Root
+# --- Cek Root ---
 if [ "${EUID}" -ne 0 ]; then
-		echo -e "${red}Script ini harus dijalankan sebagai root!${NC}"
-		exit 1
-fi
-
-clear
-echo -e "${green}======================================${NC}"
-echo -e "${green}   AUTO INSTALLER X-RAY FOR TENDO     ${NC}"
-echo -e "${green}   Vmess | Vless | Trojan (443 & 80)  ${NC}"
-echo -e "${green}======================================${NC}"
-echo ""
-
-# 1. Input Domain
-read -p "Masukkan Domain Anda (contoh: vps.tendo.com): " domain
-if [ -z "$domain" ]; then
-    echo -e "${red}Domain tidak boleh kosong!${NC}"
+    echo -e "${RED}Error: Script ini harus dijalankan sebagai root!${NC}"
     exit 1
 fi
 
-echo -e "${green}[+] Memulai Instalasi...${NC}"
+clear
+echo -e "${BLUE}=================================================${NC}"
+echo -e "${GREEN}   INSTALLER X-RAY VMESS VLESS TROJAN (FULL)     ${NC}"
+echo -e "${YELLOW}   Support: Port 443 (TLS) & Port 80 (Non-TLS)   ${NC}"
+echo -e "${BLUE}=================================================${NC}"
+echo ""
+
+# --- 1. Input Domain ---
+read -p "Masukkan Domain/Subdomain Anda (contoh: vps.domain.com): " domain
+if [ -z "$domain" ]; then
+    echo -e "${RED}Domain tidak boleh kosong!${NC}"
+    exit 1
+fi
+echo -e "${GREEN}[INFO] Domain diset ke: $domain${NC}"
 sleep 1
 
-# 2. Update & Install Dependencies
-echo -e "${green}[+] Update Repository & Install Dependencies...${NC}"
+# --- 2. Update & Install Dependencies ---
+echo -e "${YELLOW}[PROCESS] Update sistem dan install dependencies...${NC}"
 apt update -y
 apt install curl socat certbot cron -y
 
-# 3. Stop Port 80 (Untuk Certbot)
-echo -e "${green}[+] Menyiapkan Port 80 untuk Certbot...${NC}"
+# --- 3. Persiapan Port 80 (Stop Web Server Lain) ---
+echo -e "${YELLOW}[PROCESS] Mematikan service di port 80 untuk Certbot...${NC}"
 systemctl stop nginx 2>/dev/null
 systemctl stop apache2 2>/dev/null
 systemctl stop xray 2>/dev/null
 
-# 4. Install X-ray Core (Official)
-echo -e "${green}[+] Menginstall X-ray Core Official...${NC}"
+# --- 4. Install X-ray Core Official ---
+echo -e "${YELLOW}[PROCESS] Menginstall X-ray Core terbaru...${NC}"
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
 
-# 5. Generate SSL Certificate
-echo -e "${green}[+] Request SSL Certificate untuk $domain ...${NC}"
+# --- 5. Generate SSL/TLS Certificate ---
+echo -e "${YELLOW}[PROCESS] Request sertifikat SSL untuk $domain...${NC}"
 certbot certonly --standalone --preferred-challenges http --agree-tos --register-unsafely-without-email -d $domain
 
-# Cek apakah sertifikat berhasil dibuat
-crt_path="/etc/letsencrypt/live/$domain/fullchain.pem"
-key_path="/etc/letsencrypt/live/$domain/privkey.pem"
+# Cek path sertifikat
+crt="/etc/letsencrypt/live/$domain/fullchain.pem"
+key="/etc/letsencrypt/live/$domain/privkey.pem"
 
-if [ ! -f "$crt_path" ]; then
-    echo -e "${red}Gagal membuat sertifikat SSL! Pastikan domain sudah diarahkan ke IP VPS ini.${NC}"
+if [ ! -f "$crt" ]; then
+    echo -e "${RED}[ERROR] Gagal membuat sertifikat SSL!${NC}"
+    echo -e "${RED}Pastikan A Record domain $domain sudah mengarah ke IP VPS ini.${NC}"
     exit 1
 fi
 
-# Beri izin akses ke folder sertifikat
+echo -e "${GREEN}[SUCCESS] Sertifikat SSL berhasil dibuat!${NC}"
 chmod -R 755 /etc/letsencrypt/live/
 chmod -R 755 /etc/letsencrypt/archive/
 
-# 6. Generate UUID
+# --- 6. Konfigurasi X-ray (Config.json) ---
+echo -e "${YELLOW}[PROCESS] Membuat file konfigurasi X-ray...${NC}"
 uuid=$(xray uuid)
-echo -e "${green}[+] UUID Generated: $uuid${NC}"
 
-# 7. Tulis Konfigurasi X-ray (Full Config)
-echo -e "${green}[+] Menulis Konfigurasi X-ray...${NC}"
 cat > /usr/local/etc/xray/config.json <<EOF
 {
   "log": {
@@ -90,7 +91,7 @@ cat > /usr/local/etc/xray/config.json <<EOF
             "id": "$uuid",
             "flow": "xtls-rprx-vision",
             "level": 0,
-            "email": "tendo@vless"
+            "email": "vless-tls"
           }
         ],
         "decryption": "none",
@@ -103,11 +104,6 @@ cat > /usr/local/etc/xray/config.json <<EOF
             "path": "/vmess",
             "dest": 3002,
             "xver": 1
-          },
-          {
-            "path": "/trojan-ws",
-            "dest": 3003,
-            "xver": 1
           }
         ]
       },
@@ -117,8 +113,8 @@ cat > /usr/local/etc/xray/config.json <<EOF
         "tlsSettings": {
           "certificates": [
             {
-              "certificateFile": "$crt_path",
-              "keyFile": "$key_path"
+              "certificateFile": "$crt",
+              "keyFile": "$key"
             }
           ],
           "alpn": [
@@ -126,6 +122,32 @@ cat > /usr/local/etc/xray/config.json <<EOF
             "http/1.1"
           ]
         }
+      }
+    },
+    {
+      "tag": "vless-nontls",
+      "port": 80,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "$uuid",
+            "level": 0,
+            "email": "vless-nontls"
+          }
+        ],
+        "decryption": "none",
+        "fallbacks": [
+          {
+            "path": "/vmess",
+            "dest": 3002,
+            "xver": 1
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "none"
       }
     },
     {
@@ -138,7 +160,7 @@ cat > /usr/local/etc/xray/config.json <<EOF
           {
             "password": "$uuid",
             "level": 0,
-            "email": "tendo@trojan"
+            "email": "trojan-tls"
           }
         ]
       },
@@ -160,7 +182,7 @@ cat > /usr/local/etc/xray/config.json <<EOF
           {
             "id": "$uuid",
             "level": 0,
-            "email": "tendo@vmess"
+            "email": "vmess-ws"
           }
         ]
       },
@@ -169,27 +191,6 @@ cat > /usr/local/etc/xray/config.json <<EOF
         "security": "none",
         "wsSettings": {
           "acceptProxyProtocol": true,
-          "path": "/vmess"
-        }
-      }
-    },
-    {
-      "tag": "vmess-nontls",
-      "port": 80,
-      "protocol": "vmess",
-      "settings": {
-        "clients": [
-          {
-            "id": "$uuid",
-            "level": 0,
-            "email": "tendo@vmess80"
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "ws",
-        "security": "none",
-        "wsSettings": {
           "path": "/vmess"
         }
       }
@@ -208,29 +209,37 @@ cat > /usr/local/etc/xray/config.json <<EOF
 }
 EOF
 
-# 8. Setup Auto Renewal (Cron)
-echo -e "${green}[+] Mengatur Auto-Renewal Sertifikat...${NC}"
+# --- 7. Setup Auto Renewal SSL ---
+echo -e "${YELLOW}[PROCESS] Mengatur auto-renewal sertifikat...${NC}"
 # Hapus cron lama jika ada
 crontab -l | grep -v "certbot renew" | crontab -
-# Tambah cron baru (Stop xray -> Renew -> Start xray)
+# Tambah cron baru
 (crontab -l 2>/dev/null; echo "0 0 1 * * certbot renew --quiet --pre-hook \"systemctl stop xray\" --post-hook \"systemctl start xray\"") | crontab -
 
-# 9. Restart X-ray
-echo -e "${green}[+] Merestart Service X-ray...${NC}"
+# --- 8. Restart Service ---
+echo -e "${YELLOW}[PROCESS] Restarting X-ray Service...${NC}"
 systemctl restart xray
 systemctl enable xray
 
-# 10. Output Informasi Akun
+# Cek status
+if systemctl is-active --quiet xray; then
+    echo -e "${GREEN}[SUCCESS] X-ray Running!${NC}"
+else
+    echo -e "${RED}[ERROR] X-ray gagal berjalan. Cek log: /var/log/xray/error.log${NC}"
+fi
+
+# --- 9. Tampilkan Detail Akun ---
 clear
-echo -e "${green}======================================${NC}"
-echo -e "${green}      INSTALASI SELESAI (TENDO)       ${NC}"
-echo -e "${green}======================================${NC}"
+echo -e "${BLUE}=================================================${NC}"
+echo -e "${GREEN}          INSTALASI SELESAI (SUKSES)             ${NC}"
+echo -e "${BLUE}=================================================${NC}"
+echo -e "Domain      : $domain"
+echo -e "IP Address  : $(curl -s ifconfig.me)"
+echo -e "UUID        : $uuid"
+echo -e "Path Vmess  : /vmess"
+echo -e "${BLUE}=================================================${NC}"
 echo ""
-echo -e "Domain     : $domain"
-echo -e "UUID       : $uuid"
-echo -e "Path Vmess : /vmess"
-echo ""
-echo -e "${green}[1] VLESS XTLS (Port 443)${NC}"
+echo -e "${YELLOW}--- [1] VLESS TLS (Port 443) ---${NC}"
 echo -e "Address: $domain"
 echo -e "Port: 443"
 echo -e "ID: $uuid"
@@ -239,15 +248,23 @@ echo -e "Encryption: none"
 echo -e "Network: tcp"
 echo -e "Security: tls"
 echo ""
-echo -e "${green}[2] TROJAN TCP (Port 443 Fallback)${NC}"
+echo -e "${YELLOW}--- [2] VLESS NON-TLS (Port 80) ---${NC}"
+echo -e "Address: $domain"
+echo -e "Port: 80"
+echo -e "ID: $uuid"
+echo -e "Encryption: none"
+echo -e "Network: tcp"
+echo -e "Security: none"
+echo ""
+echo -e "${YELLOW}--- [3] TROJAN TLS (Port 443) ---${NC}"
 echo -e "Address: $domain"
 echo -e "Port: 443"
 echo -e "Password: $uuid"
 echo -e "Network: tcp"
 echo -e "Security: tls"
-echo -e "Sni: $domain"
+echo -e "SNI: $domain"
 echo ""
-echo -e "${green}[3] VMESS WS TLS (Port 443 Fallback)${NC}"
+echo -e "${YELLOW}--- [4] VMESS WS TLS (Port 443) ---${NC}"
 echo -e "Address: $domain"
 echo -e "Port: 443"
 echo -e "ID: $uuid"
@@ -255,7 +272,7 @@ echo -e "Network: ws"
 echo -e "Path: /vmess"
 echo -e "Security: tls"
 echo ""
-echo -e "${green}[4] VMESS WS Non-TLS (Port 80)${NC}"
+echo -e "${YELLOW}--- [5] VMESS WS NON-TLS (Port 80) ---${NC}"
 echo -e "Address: $domain"
 echo -e "Port: 80"
 echo -e "ID: $uuid"
@@ -263,5 +280,5 @@ echo -e "Network: ws"
 echo -e "Path: /vmess"
 echo -e "Security: none"
 echo ""
-echo -e "${green}======================================${NC}"
-echo -e "Script Full Install Selesai."
+echo -e "${BLUE}=================================================${NC}"
+echo -e "Simpan data di atas. Script by Gemini AI."
