@@ -1,10 +1,10 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray Multi-Port
-#   EDITION: PLATINUM LTS FINAL V.1000 (SNIFFING FIX)
+#   EDITION: PLATINUM LTS FINAL V.1100 (FIREWALL FIX)
 #   Script BY: Tendo Store
 #   Features: VMess, VLESS, Trojan, ZIVPN, Features
-#   UI: Original Zero Margin + ZIVPN Main Menu
+#   UI: Original Zero Margin + Full Iptables Rules
 # ==================================================
 
 # --- COLORS FOR INSTALLATION ---
@@ -25,7 +25,7 @@ function print_success() {
 clear
 echo -e "${BLUE}=============================================${NC}"
 echo -e "      ${YELLOW}AUTO SCRIPT INSTALLER BY TENDO${NC}"
-echo -e "      ${GREEN}EDITION: PLATINUM LTS V.1000${NC}"
+echo -e "      ${GREEN}EDITION: PLATINUM LTS V.1100${NC}"
 echo -e "${BLUE}=============================================${NC}"
 echo -e "Starting Installation..."
 sleep 2
@@ -98,7 +98,32 @@ chmod 644 $XRAY_DIR/xray.key
 chmod 644 $XRAY_DIR/xray.crt
 print_success "Domain: $DOMAIN_INIT"
 
-# --- 5. XRAY CORE & MULTI-PORT CONFIG ---
+# --- 5. FIREWALL & IPTABLES SETUP (NEW FIX) ---
+print_status "Configuring Firewall & Iptables"
+# Reset Rules
+iptables -F
+iptables -X
+iptables -t nat -F
+iptables -t nat -X
+iptables -P INPUT ACCEPT
+iptables -P FORWARD ACCEPT
+iptables -P OUTPUT ACCEPT
+
+# Allow SSH, HTTP, HTTPS
+iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+
+# Allow ZIVPN Ports
+iptables -A INPUT -p udp --dport 53 -j ACCEPT
+iptables -A INPUT -p udp --dport 5667 -j ACCEPT
+iptables -A INPUT -p udp --dport 6000:19999 -j ACCEPT
+
+# Save Rules
+netfilter-persistent save >/dev/null 2>&1
+print_success "Firewall Configured"
+
+# --- 6. XRAY CORE & MULTI-PORT CONFIG ---
 print_status "Installing X-Ray Core & Applying VMess Fix"
 # Force Reinstall Core to ensure fresh binary
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install >/dev/null 2>&1
@@ -165,9 +190,9 @@ cat > $CONFIG_FILE <<EOF
   "routing": { "domainStrategy": "IPIfNonMatch", "rules": [ { "type": "field", "ip": [ "geoip:private" ], "outboundTag": "block" }, { "type": "field", "domain": ["geosite:google"], "outboundTag": "direct" } ] }
 }
 EOF
-print_success "X-Ray Core Configured with Sniffing"
+print_success "X-Ray Core Configured"
 
-# --- 6. ZIVPN CONFIG ---
+# --- 7. ZIVPN CONFIG ---
 print_status "Installing ZIVPN UDP"
 wget -qO /usr/local/bin/zivpn "https://github.com/zahidbd2/udp-zivpn/releases/download/udp-zivpn_1.4.9/udp-zivpn-linux-amd64"
 chmod +x /usr/local/bin/zivpn
@@ -194,7 +219,7 @@ iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5667
 netfilter-persistent save >/dev/null 2>&1
 print_success "ZIVPN UDP Installed"
 
-# --- 7. MENU SCRIPT ---
+# --- 8. MENU SCRIPT ---
 print_status "Generating Menu & Features"
 cat > /usr/bin/menu <<'END_MENU'
 #!/bin/bash
@@ -221,7 +246,7 @@ function header_main() {
     echo -e "│ XRAY : $X_ST | ZIVPN : $Z_ST \n│ —————————————————————————————————————"
     C_VMESS=$(jq '.inbounds[2].settings.clients | length' $CONFIG); C_VLESS=$(jq '.inbounds[0].settings.clients | length' $CONFIG); C_TROJAN=$(jq '.inbounds[3].settings.clients | length' $CONFIG); C_ZIVPN=$(jq '.auth.config | length' /etc/zivpn/config.json)
     echo -e "│              LIST ACCOUNTS\n│ —————————————————————————————————————\n│    VMESS WS      : $C_VMESS  ACCOUNT\n│    VLESS WS      : $C_VLESS  ACCOUNT\n│    TROJAN WS     : $C_TROJAN  ACCOUNT\n│    ZIVPN UDP     : $C_ZIVPN  ACCOUNT"
-    echo -e "│ —————————————————————————————————————\n│ Version   : PLATINUM LTS FINAL V.1000\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
+    echo -e "│ —————————————————————————————————————\n│ Version   : PLATINUM LTS FINAL V.1100\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
 }
 
 function header_sub() {
@@ -405,7 +430,7 @@ function check_services() {
 while true; do header_main; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) VMESS MENU\n│ 2.) VLESS MENU\n│ 3.) TROJAN MENU\n│ 4.) ZIVPN MENU\n│ 5.) FEATURES MENU\n│ 6.) CEK SERVICE\n│ x.) EXIT\n└─────────────────────────────────────────────────┘"; read -p "Pilih Nomor: " opt
     case $opt in
         1) vmess_menu ;; 
-        2) vless_menu ;;
+        2) vless_menu ;; 
         3) trojan_menu ;;
         4) zivpn_menu_gui ;;
         5) features_menu ;;
@@ -415,28 +440,21 @@ while true; do header_main; echo -e "┌─────────────�
 END_MENU
 chmod +x /usr/bin/menu
 
-# --- 8. AUTO XP (Protocol Aware + ZIVPN Support) ---
+# --- 9. AUTO XP & CLEANER & CRON ---
 cat > /usr/bin/xp <<'END_XP'
 #!/bin/bash
 data_file="/usr/local/etc/xray/user_data.txt"
 config_file="/usr/local/etc/xray/config.json"
 zivpn_file="/etc/zivpn/config.json"
 now=$(date +%Y-%m-%d)
-
 while read -r line; do
     [[ -z "$line" ]] && continue
     user=$(echo "$line" | cut -d '|' -f 1)
-    # Password/UUID is in f2
     token=$(echo "$line" | cut -d '|' -f 2) 
     exp_date=$(echo "$line" | cut -d '|' -f 3)
     proto=$(echo "$line" | cut -d '|' -f 4)
-    
-    exp_sec=$(date -d "$exp_date" +%s)
-    now_sec=$(date -d "$now" +%s)
-    
+    exp_sec=$(date -d "$exp_date" +%s); now_sec=$(date -d "$now" +%s)
     if [[ $exp_sec -lt $now_sec ]]; then
-        echo "Deleting $user ($proto)..."
-        
         if [[ "$proto" == "vmess" ]]; then
             jq --arg u "$user" 'del(.inbounds[2].settings.clients[] | select(.email == $u))' $config_file > /tmp/x && mv /tmp/x $config_file
         elif [[ "$proto" == "vless" ]]; then
@@ -445,23 +463,18 @@ while read -r line; do
         elif [[ "$proto" == "trojan" ]]; then
             jq --arg u "$user" 'del(.inbounds[3].settings.clients[] | select(.email == $u))' $config_file > /tmp/x && mv /tmp/x $config_file
         elif [[ "$proto" == "zivpn" ]]; then
-            jq --arg p "$token" 'del(.auth.config[] | select(. == $p))' $zivpn_file > /tmp/z && mv /tmp/z $zivpn_file
-            systemctl restart zivpn
+            jq --arg p "$token" 'del(.auth.config[] | select(. == $p))' $zivpn_file > /tmp/z && mv /tmp/z $zivpn_file; systemctl restart zivpn
         fi
-        
-        sed -i "/^$user|$token|/d" $data_file
-        systemctl restart xray
+        sed -i "/^$user|$token|/d" $data_file; systemctl restart xray
     fi
 done < "$data_file"
 END_XP
 chmod +x /usr/bin/xp
 
-# --- 9. CLEANER & CRON ---
 cat > /usr/bin/cleaner <<'END_CLEAN'
 #!/bin/bash
 sync; echo 3 > /proc/sys/vm/drop_caches; swapoff -a && swapon -a
-rm -rf /var/log/syslog /var/log/btmp /var/log/kern.log /var/log/auth.log
-history -c
+rm -rf /var/log/syslog /var/log/btmp /var/log/kern.log /var/log/auth.log; history -c
 END_CLEAN
 chmod +x /usr/bin/cleaner
 
@@ -471,7 +484,6 @@ echo "0 5 * * * root /sbin/reboot" >> /etc/crontab
 service cron restart
 
 print_success "Menu & Features Generated"
-
 echo -e "${GREEN}=============================================${NC}"
 echo -e "   INSTALLATION SUCCESSFUL!"
 echo -e "   COMMAND: menu"
