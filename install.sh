@@ -1,10 +1,10 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray Multi-Port
-#   EDITION: PLATINUM LTS FINAL V.405 (FIXED ZIVPN UI)
+#   EDITION: PLATINUM LTS FINAL V.600 (FULL FEATURES)
 #   Script BY: Tendo Store
-#   Features: VMess, VLESS, Trojan, Routing, Auto XP
-#   UI: Original Zero Margin Platinum + ZIVPN GUI
+#   Features: VMess, VLESS, Trojan, ZIVPN, Features Menu
+#   UI: Original Zero Margin Platinum + Uniform Output
 # ==================================================
 
 # --- 1. SYSTEM OPTIMIZATION ---
@@ -149,7 +149,7 @@ iptables -t nat -A PREROUTING -i $IFACE_NET -p udp --dport 6000:19999 -j DNAT --
 iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5667
 netfilter-persistent save &>/dev/null
 
-# --- 7. MENU SCRIPT (NESTED STRUCTURE & ZIVPN FIX) ---
+# --- 7. MENU SCRIPT (V.600 FULL) ---
 cat > /usr/bin/menu <<'END_MENU'
 #!/bin/bash
 CYAN='\033[0;36m'; YELLOW='\033[0;33m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
@@ -175,7 +175,7 @@ function header_main() {
     echo -e "│ XRAY : $X_ST | ZIVPN : $Z_ST \n│ —————————————————————————————————————"
     C_VMESS=$(jq '.inbounds[2].settings.clients | length' $CONFIG); C_VLESS=$(jq '.inbounds[0].settings.clients | length' $CONFIG); C_TROJAN=$(jq '.inbounds[3].settings.clients | length' $CONFIG); C_ZIVPN=$(jq '.auth.config | length' /etc/zivpn/config.json)
     echo -e "│              LIST ACCOUNTS\n│ —————————————————————————————————————\n│    VMESS WS      : $C_VMESS  ACCOUNT\n│    VLESS WS      : $C_VLESS  ACCOUNT\n│    TROJAN WS     : $C_TROJAN  ACCOUNT\n│    ZIVPN UDP     : $C_ZIVPN  ACCOUNT"
-    echo -e "│ —————————————————————————————————————\n│ Version   : v.405 ZIVPN FIXED\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
+    echo -e "│ —————————————————————————————————————\n│ Version   : v.600 FULL FEATURE\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
 }
 
 function header_sub() {
@@ -185,24 +185,41 @@ function header_sub() {
 
 # --- SUB MENU FUNCTIONS ---
 function vmess_menu() {
-    while true; do header_sub "VMESS MENU"; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) Create Account\n│ 2.) Delete Account\n│ 3.) List Accounts\n│ 4.) Check Account Details\n│ x.) Back\n└─────────────────────────────────────────────────┘"; read -p "Pilih: " opt
+    while true; do header_sub "VMESS MENU"; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) Create Account (Custom UUID + Non-TLS)\n│ 2.) Delete Account\n│ 3.) List Accounts\n│ 4.) Check Account Details\n│ x.) Back\n└─────────────────────────────────────────────────┘"; read -p "Pilih: " opt
     case $opt in
-        1) read -p " Username : " u; read -p " Expired: " ex; [[ -z "$ex" ]] && ex=30; id=$(uuidgen); exp=$(date -d "+$ex days" +"%Y-%m-%d")
+        1) read -p " Username : " u
+           read -p " UUID (Tekan Enter untuk Random): " uid_in
+           [[ -z "$uid_in" ]] && id=$(uuidgen) || id="$uid_in"
+           read -p " Expired (Days): " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "+$ex days" +"%Y-%m-%d")
            jq --arg u "$u" --arg id "$id" '.inbounds[2].settings.clients += [{"id":$id,"email":$u,"alterId":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray; echo "$u|$id|$exp|vmess" >> $U_DATA
            CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
-           vmess_json='{"add":"'$DOMAIN'","aid":"0","host":"'$DOMAIN'","id":"'$id'","net":"ws","path":"/vmess","port":"443","ps":"'$u'","scy":"auto","sni":"'$DOMAIN'","tls":"tls","type":"","v":"2"}'
-           link="vmess://$(echo -n $vmess_json | base64 -w 0)"
-           clear; echo -e "————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DOMAIN\nPort TLS       : 443\nPort none TLS  : 80\nid             : $id\nalterId        : 0\nSecurity       : auto\nNetwork        : ws\nPath           : /vmess\nExpired On     : $exp\n————————————————————————————————————\n            LINK VMESS\n————————————————————————————————————\n$link\n————————————————————————————————————"; read -n 1 -s -r -p "Enter...";;
+           vmess_tls='{"add":"'$DOMAIN'","aid":"0","host":"'$DOMAIN'","id":"'$id'","net":"ws","path":"/vmess","port":"443","ps":"'$u'","scy":"auto","sni":"'$DOMAIN'","tls":"tls","type":"","v":"2"}'
+           vmess_none='{"add":"'$DOMAIN'","aid":"0","host":"'$DOMAIN'","id":"'$id'","net":"ws","path":"/vmess","port":"80","ps":"'$u'","scy":"auto","sni":"","tls":"","type":"","v":"2"}'
+           link_tls="vmess://$(echo -n $vmess_tls | base64 -w 0)"
+           link_none="vmess://$(echo -n $vmess_none | base64 -w 0)"
+           clear; echo -e "————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DOMAIN\nPort TLS       : 443\nPort none TLS  : 80\nid             : $id\nalterId        : 0\nSecurity       : auto\nNetwork        : ws\nPath           : /vmess\nExpired On     : $exp\n————————————————————————————————————\n            LINK VMESS TLS\n————————————————————————————————————\n$link_tls\n————————————————————————————————————\n            LINK VMESS NON-TLS\n————————————————————————————————————\n$link_none\n————————————————————————————————————"; read -n 1 -s -r -p "Enter...";;
         2) jq -r '.inbounds[2].settings.clients[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r ".inbounds[2].settings.clients[$idx].email" $CONFIG); jq "del(.inbounds[2].settings.clients[$idx])" $CONFIG > /tmp/x && mv /tmp/x $CONFIG; sed -i "/^$u|.*|vmess/d" $U_DATA; systemctl restart xray; echo "Deleted $u"; sleep 1;;
         3) header_sub "VMESS LIST"; jq -r '.inbounds[2].settings.clients[].email' $CONFIG | nl; read -p "Enter...";;
+        4) header_sub "CHECK VMESS"; jq -r '.inbounds[2].settings.clients[].email' $CONFIG | nl; read -p "Select No: " n; [[ -z "$n" ]] && continue; idx=$((n-1))
+           u=$(jq -r ".inbounds[2].settings.clients[$idx].email" $CONFIG); id=$(jq -r ".inbounds[2].settings.clients[$idx].id" $CONFIG)
+           exp=$(grep "^$u|" $U_DATA | grep "|vmess" | cut -d '|' -f 3); [[ -z "$exp" ]] && exp="Unlimited"
+           CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
+           vmess_tls='{"add":"'$DOMAIN'","aid":"0","host":"'$DOMAIN'","id":"'$id'","net":"ws","path":"/vmess","port":"443","ps":"'$u'","scy":"auto","sni":"'$DOMAIN'","tls":"tls","type":"","v":"2"}'
+           vmess_none='{"add":"'$DOMAIN'","aid":"0","host":"'$DOMAIN'","id":"'$id'","net":"ws","path":"/vmess","port":"80","ps":"'$u'","scy":"auto","sni":"","tls":"","type":"","v":"2"}'
+           link_tls="vmess://$(echo -n $vmess_tls | base64 -w 0)"
+           link_none="vmess://$(echo -n $vmess_none | base64 -w 0)"
+           clear; echo -e "————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DOMAIN\nPort TLS       : 443\nPort none TLS  : 80\nid             : $id\nalterId        : 0\nSecurity       : auto\nNetwork        : ws\nPath           : /vmess\nExpired On     : $exp\n————————————————————————————————————\n            LINK VMESS TLS\n————————————————————————————————————\n$link_tls\n————————————————————————————————————\n            LINK VMESS NON-TLS\n————————————————————————————————————\n$link_none\n————————————————————————————————————"; read -n 1 -s -r -p "Enter...";;
         x) return;;
     esac; done
 }
 
 function vless_menu() {
-    while true; do header_sub "VLESS MENU"; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) Create Account\n│ 2.) Delete Account\n│ 3.) List Accounts\n│ 4.) Check Account Details\n│ x.) Back\n└─────────────────────────────────────────────────┘"; read -p "Pilih: " opt
+    while true; do header_sub "VLESS MENU"; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) Create Account (Custom UUID + Non-TLS)\n│ 2.) Delete Account\n│ 3.) List Accounts\n│ 4.) Check Account Details\n│ x.) Back\n└─────────────────────────────────────────────────┘"; read -p "Pilih: " opt
     case $opt in
-        1) read -p " Username : " u; read -p " Expired: " ex; [[ -z "$ex" ]] && ex=30; id=$(uuidgen); exp=$(date -d "+$ex days" +"%Y-%m-%d")
+        1) read -p " Username : " u
+           read -p " UUID (Tekan Enter untuk Random): " uid_in
+           [[ -z "$uid_in" ]] && id=$(uuidgen) || id="$uid_in"
+           read -p " Expired (Days): " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "+$ex days" +"%Y-%m-%d")
            jq --arg u "$u" --arg id "$id" '.inbounds[0].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
            jq --arg u "$u" --arg id "$id" '.inbounds[1].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
            systemctl restart xray; echo "$u|$id|$exp|vless" >> $U_DATA
@@ -211,81 +228,62 @@ function vless_menu() {
            clear; echo -e "————————————————————————————————————\n               VLESS\n————————————————————————————————————\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DOMAIN\nPort TLS       : 443\nPort none TLS  : 80\nid             : $id\nEncryption     : none\nNetwork        : ws\nPath           : /vless\nExpired On     : $exp\n————————————————————————————————————\n            VLESS WS TLS\n————————————————————————————————————\n$ltls\n————————————————————————————————————\n          VLESS WS NO TLS\n————————————————————————————————————\n$lnon\n————————————————————————————————————"; read -n 1 -s -r -p "Enter...";;
         2) jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r ".inbounds[0].settings.clients[$idx].email" $CONFIG); jq "del(.inbounds[0].settings.clients[$idx])" $CONFIG > /tmp/x && mv /tmp/x $CONFIG; jq "del(.inbounds[1].settings.clients[$idx])" $CONFIG > /tmp/x && mv /tmp/x $CONFIG; sed -i "/^$u|.*|vless/d" $U_DATA; systemctl restart xray; echo "Deleted $u"; sleep 1;;
         3) header_sub "VLESS LIST"; jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "Enter...";;
+        4) header_sub "CHECK VLESS"; jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "Select No: " n; [[ -z "$n" ]] && continue; idx=$((n-1))
+           u=$(jq -r ".inbounds[0].settings.clients[$idx].email" $CONFIG); id=$(jq -r ".inbounds[0].settings.clients[$idx].id" $CONFIG)
+           exp=$(grep "^$u|" $U_DATA | grep "|vless" | cut -d '|' -f 3); [[ -z "$exp" ]] && exp="Unlimited"
+           CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
+           ltls="vless://${id}@${DOMAIN}:443?path=/vless&security=tls&encryption=none&type=ws&sni=${DOMAIN}#${u}"; lnon="vless://${id}@${DOMAIN}:80?path=/vless&security=none&encryption=none&type=ws#${u}"
+           clear; echo -e "————————————————————————————————————\n               VLESS\n————————————————————————————————————\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DOMAIN\nPort TLS       : 443\nPort none TLS  : 80\nid             : $id\nEncryption     : none\nNetwork        : ws\nPath           : /vless\nExpired On     : $exp\n————————————————————————————————————\n            VLESS WS TLS\n————————————————————————————————————\n$ltls\n————————————————————————————————————\n          VLESS WS NO TLS\n————————————————————————————————————\n$lnon\n————————————————————————————————————"; read -n 1 -s -r -p "Enter...";;
         x) return;;
     esac; done
 }
 
 function trojan_menu() {
-    while true; do header_sub "TROJAN MENU"; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) Create Account\n│ 2.) Delete Account\n│ 3.) List Accounts\n│ 4.) Check Account Details\n│ x.) Back\n└─────────────────────────────────────────────────┘"; read -p "Pilih: " opt
+    while true; do header_sub "TROJAN MENU"; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) Create Account (Custom Password)\n│ 2.) Delete Account\n│ 3.) List Accounts\n│ 4.) Check Account Details\n│ x.) Back\n└─────────────────────────────────────────────────┘"; read -p "Pilih: " opt
     case $opt in
-        1) read -p " Username : " u; read -p " Expired: " ex; [[ -z "$ex" ]] && ex=30; pass=$u; exp=$(date -d "+$ex days" +"%Y-%m-%d")
+        1) read -p " Username : " u
+           read -p " Password (Enter for same as User): " pass_in
+           [[ -z "$pass_in" ]] && pass="$u" || pass="$pass_in"
+           read -p " Expired (Days): " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "+$ex days" +"%Y-%m-%d")
            jq --arg u "$u" --arg p "$pass" '.inbounds[3].settings.clients += [{"password":$p,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray; echo "$u|$pass|$exp|trojan" >> $U_DATA
            CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
            ltls="trojan://${pass}@${DOMAIN}:443?path=/trojan&security=tls&type=ws&sni=${DOMAIN}#${u}"
-           clear; echo -e "————————————————————————————————————\n               TROJAN\n————————————————————————————————————\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DOMAIN\nPort TLS       : 443\nPort none TLS  : 80\nPassword       : $pass\nNetwork        : ws\nPath           : /trojan\nExpired On     : $exp\n————————————————————————————————————\n            LINK TROJAN\n————————————————————————————————————\n$ltls\n————————————————————————————————————"; read -n 1 -s -r -p "Enter...";;
+           lnon="trojan://${pass}@${DOMAIN}:80?path=/trojan&security=none&type=ws#${u}"
+           clear; echo -e "————————————————————————————————————\n               TROJAN\n————————————————————————————————————\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DOMAIN\nPort TLS       : 443\nPort none TLS  : 80\nPassword       : $pass\nNetwork        : ws\nPath           : /trojan\nExpired On     : $exp\n————————————————————————————————————\n            LINK TROJAN TLS\n————————————————————————————————————\n$ltls\n————————————————————————————————————\n            LINK TROJAN NON-TLS\n————————————————————————————————————\n$lnon\n————————————————————————————————————"; read -n 1 -s -r -p "Enter...";;
         2) jq -r '.inbounds[3].settings.clients[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r ".inbounds[3].settings.clients[$idx].email" $CONFIG); jq "del(.inbounds[3].settings.clients[$idx])" $CONFIG > /tmp/x && mv /tmp/x $CONFIG; sed -i "/^$u|.*|trojan/d" $U_DATA; systemctl restart xray; echo "Deleted $u"; sleep 1;;
         3) header_sub "TROJAN LIST"; jq -r '.inbounds[3].settings.clients[].email' $CONFIG | nl; read -p "Enter...";;
+        4) header_sub "CHECK TROJAN"; jq -r '.inbounds[3].settings.clients[].email' $CONFIG | nl; read -p "Select No: " n; [[ -z "$n" ]] && continue; idx=$((n-1))
+           u=$(jq -r ".inbounds[3].settings.clients[$idx].email" $CONFIG); pass=$(jq -r ".inbounds[3].settings.clients[$idx].password" $CONFIG)
+           exp=$(grep "^$u|" $U_DATA | grep "|trojan" | cut -d '|' -f 3); [[ -z "$exp" ]] && exp="Unlimited"
+           CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
+           ltls="trojan://${pass}@${DOMAIN}:443?path=/trojan&security=tls&type=ws&sni=${DOMAIN}#${u}"
+           lnon="trojan://${pass}@${DOMAIN}:80?path=/trojan&security=none&type=ws#${u}"
+           clear; echo -e "————————————————————————————————————\n               TROJAN\n————————————————————————————————————\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DOMAIN\nPort TLS       : 443\nPort none TLS  : 80\nPassword       : $pass\nNetwork        : ws\nPath           : /trojan\nExpired On     : $exp\n————————————————————————————————————\n            LINK TROJAN TLS\n————————————————————————————————————\n$ltls\n————————————————————————————————————\n            LINK TROJAN NON-TLS\n————————————————————————————————————\n$lnon\n————————————————————————————————————"; read -n 1 -s -r -p "Enter...";;
         x) return;;
     esac; done
 }
 
-function zivpn_menu_gui() {
+function features_menu() {
     while true; do
-        header_sub "ZIVPN MANAGER"
+        header_sub "FEATURES MENU"
         echo -e "┌─────────────────────────────────────────────────┐"
-        echo -e "│ 1.) Create Account (Add Password)"
-        echo -e "│ 2.) Delete Account"
-        echo -e "│ 3.) Check/List Accounts"
+        echo -e "│ 1.) Ganti Domain"
+        echo -e "│ 2.) Routing Geosite"
+        echo -e "│ 3.) Restart Service"
+        echo -e "│ 4.) Speed Test"
+        echo -e "│ 5.) Tools (Clean RAM/Cache)"
+        echo -e "│ 6.) Informasi System"
         echo -e "│ x.) Back"
         echo -e "└─────────────────────────────────────────────────┘"
         read -p "Select: " opt
         case $opt in
-            1)
-                read -p " Enter Password: " pass
-                jq --arg p "$pass" '.auth.config += [$p]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json
-                systemctl restart zivpn
-                echo -e "${GREEN} Password '$pass' added!${NC}"
-                sleep 2
-                ;;
-            2)
-                echo "List Passwords:"
-                jq -r '.auth.config[]' /etc/zivpn/config.json | nl
-                read -p " Select Number to Delete: " num
-                [[ -z "$num" ]] && continue
-                idx=$((num-1))
-                pass_del=$(jq -r ".auth.config[$idx]" /etc/zivpn/config.json)
-                jq "del(.auth.config[$idx])" /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json
-                systemctl restart zivpn
-                echo -e "${RED} Password '$pass_del' Deleted!${NC}"
-                sleep 2
-                ;;
-            3)
-                 echo "Active Passwords:"
-                 jq -r '.auth.config[]' /etc/zivpn/config.json | nl
-                 read -p " Press Enter..."
-                 ;;
+            1) read -p "Domain Baru: " nd; echo "$nd" > /usr/local/etc/xray/domain; openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout $XRAY_DIR/xray.key -out $XRAY_DIR/xray.crt -days 3650 -subj "/CN=$nd" >/dev/null 2>&1; systemctl restart xray; echo "Domain Updated!"; sleep 1;;
+            2) routing_menu ;;
+            3) systemctl restart xray zivpn; echo "Services Restarted!"; sleep 1 ;;
+            4) python3 <(curl -sL https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py) --share; read -p "Enter..." ;;
+            5) /usr/bin/cleaner; echo "RAM & Cache Cleaned!"; sleep 1 ;;
+            6) neofetch; echo "IP Public: $(curl -s ifconfig.me)"; read -p "Enter..." ;;
             x) return ;;
-        esac
-    done
-}
-
-# --- X-RAY MAIN MENU CONTAINER ---
-function xray_menu_container() {
-    while true; do
-        header_sub "X-RAY MANAGER"
-        echo -e "┌─────────────────────────────────────────────────┐"
-        echo -e "│ 1.) VMESS MENU      (Multi-Port)"
-        echo -e "│ 2.) VLESS MENU      (Multi-Port)"
-        echo -e "│ 3.) TROJAN MENU     (Multi-Port)"
-        echo -e "│ x.) Back to Main Menu"
-        echo -e "└─────────────────────────────────────────────────┘"
-        read -p "Select Option: " opt
-        case $opt in
-            1) vmess_menu ;;
-            2) vless_menu ;;
-            3) trojan_menu ;;
-            x) return ;;
-            *) echo "Invalid option"; sleep 1 ;;
         esac
     done
 }
@@ -300,44 +298,98 @@ function routing_menu() {
         esac; done
 }
 
+function zivpn_menu_gui() {
+    while true; do
+        header_sub "ZIVPN MANAGER"
+        echo -e "┌─────────────────────────────────────────────────┐"
+        echo -e "│ 1.) Create Account (User & Pass & Exp)"
+        echo -e "│ 2.) Delete Account"
+        echo -e "│ 3.) Check/List Accounts"
+        echo -e "│ x.) Back"
+        echo -e "└─────────────────────────────────────────────────┘"
+        read -p "Select: " opt
+        case $opt in
+            1)
+                read -p " Username : " u
+                read -p " Password : " p
+                read -p " Expired (Days): " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "+$ex days" +"%Y-%m-%d")
+                jq --arg p "$p" '.auth.config += [$p]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json
+                systemctl restart zivpn
+                echo "$u|$p|$exp|zivpn" >> $U_DATA
+                CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
+                IP=$(cat /root/tendo/ip)
+                clear; echo -e "━━━━━━━━━━━━━━━━━━━━━\n  ACCOUNT ZIVPN UDP\n━━━━━━━━━━━━━━━━━━━━━\nPassword   : $p\nCITY       : $CTY\nISP        : $ISP\nIP ISP     : $IP\nDomain     : $DOMAIN\nExpired On : $exp\n━━━━━━━━━━━━━━━━━━━━━"; read -n 1 -s -r -p "Enter...";;
+            2)
+                echo "List Active Users:"
+                grep "|zivpn" $U_DATA | nl
+                read -p " Select Number to Delete: " num
+                [[ -z "$num" ]] && continue
+                raw_line=$(grep "|zivpn" $U_DATA | sed -n "${num}p")
+                user_del=$(echo "$raw_line" | cut -d '|' -f 1)
+                pass_del=$(echo "$raw_line" | cut -d '|' -f 2)
+                jq --arg p "$pass_del" 'del(.auth.config[] | select(. == $p))' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json
+                sed -i "/^$user_del|$pass_del|/d" $U_DATA
+                systemctl restart zivpn
+                echo -e "${RED} Account '$user_del' Deleted!${NC}"
+                sleep 2
+                ;;
+            3)
+                 echo "Select Account to Check:"
+                 grep "|zivpn" $U_DATA | awk -F'|' '{print "User: "$1}' | nl
+                 read -p " Select Number: " num
+                 [[ -z "$num" ]] && continue
+                 raw_line=$(grep "|zivpn" $U_DATA | sed -n "${num}p")
+                 u=$(echo "$raw_line" | cut -d '|' -f 1)
+                 p=$(echo "$raw_line" | cut -d '|' -f 2)
+                 exp=$(echo "$raw_line" | cut -d '|' -f 3)
+                 CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
+                 IP=$(cat /root/tendo/ip)
+                 clear; echo -e "━━━━━━━━━━━━━━━━━━━━━\n  ACCOUNT ZIVPN UDP\n━━━━━━━━━━━━━━━━━━━━━\nPassword   : $p\nCITY       : $CTY\nISP        : $ISP\nIP ISP     : $IP\nDomain     : $DOMAIN\nExpired On : $exp\n━━━━━━━━━━━━━━━━━━━━━"; read -n 1 -s -r -p "Enter...";;
+            x) return ;;
+        esac
+    done
+}
+
 function check_services() {
     header_sub "SERVICE STATUS"; echo -e "┌─────────────────────────────────────────────────┐\n│ SERVICES CHECK\n│ —————————————————————————————————————"; services=("xray" "zivpn" "vnstat" "netfilter-persistent" "cron"); names=("Xray VPN Core   " "ZIVPN UDP Server" "Vnstat Monitor  " "Iptables Rules  " "Cron Scheduler  ")
     for i in "${!services[@]}"; do if systemctl is-active --quiet "${services[$i]}"; then status="${GREEN}ACTIVE (ON)${NC}"; else status="${RED}INACTIVE (OFF)${NC}"; fi; echo -e "│ ${names[$i]} : $status"; done
     echo -e "└─────────────────────────────────────────────────┘"; read -p "Enter...";
 }
 
-while true; do header_main; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) X-RAY MANAGER      5.) ROUTING GEOSITE\n│ 2.) ZIVPN MANAGER      6.) CEK STATUS SERVICE\n│ 3.) GANTI DOMAIN       7.) SPEEDTEST & TOOLS\n│ 4.) RESTART SERVICES   x.) EXIT\n└─────────────────────────────────────────────────┘"; read -p "Pilih Nomor: " opt
+while true; do header_main; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) VMESS MENU\n│ 2.) VLESS MENU\n│ 3.) TROJAN MENU\n│ 4.) FEATURES MENU\n│ 5.) CEK SERVICE\n│ x.) EXIT\n└─────────────────────────────────────────────────┘"; read -p "Pilih Nomor: " opt
     case $opt in
-        1) xray_menu_container ;; 
-        2) zivpn_menu_gui ;;
-        3) read -p "Domain Baru: " nd; echo "$nd" > /usr/local/etc/xray/domain; openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout $XRAY_DIR/xray.key -out $XRAY_DIR/xray.crt -days 3650 -subj "/CN=$nd" >/dev/null 2>&1; systemctl restart xray; echo "Domain Updated!"; sleep 1;;
-        4) systemctl restart xray zivpn; echo "Restarted!"; sleep 1 ;;
-        5) routing_menu ;;
-        6) check_services ;;
-        7) header_sub "TOOLS"; echo -e "1. Speedtest\n2. Clean RAM & Cache"; read -p "Opt: " t
-           if [[ $t == 1 ]]; then python3 <(curl -sL https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py) --share; read -p "Enter..."; 
-           elif [[ $t == 2 ]]; then /usr/bin/cleaner; echo "Cleaned!"; sleep 1; fi ;;
+        1) vmess_menu ;; 
+        2) vless_menu ;;
+        3) trojan_menu ;;
+        4) features_menu ;;
+        5) check_services ;;
         x) exit ;;
     esac; done
 END_MENU
 chmod +x /usr/bin/menu
 
-# --- 8. AUTO XP (Protocol Aware) ---
+# --- 8. AUTO XP (Protocol Aware + ZIVPN Support) ---
 cat > /usr/bin/xp <<'END_XP'
 #!/bin/bash
 data_file="/usr/local/etc/xray/user_data.txt"
 config_file="/usr/local/etc/xray/config.json"
+zivpn_file="/etc/zivpn/config.json"
 now=$(date +%Y-%m-%d)
+
 while read -r line; do
     [[ -z "$line" ]] && continue
     user=$(echo "$line" | cut -d '|' -f 1)
+    # Password/UUID is in f2
+    token=$(echo "$line" | cut -d '|' -f 2) 
     exp_date=$(echo "$line" | cut -d '|' -f 3)
     proto=$(echo "$line" | cut -d '|' -f 4)
+    
     exp_sec=$(date -d "$exp_date" +%s)
     now_sec=$(date -d "$now" +%s)
     
     if [[ $exp_sec -lt $now_sec ]]; then
         echo "Deleting $user ($proto)..."
+        
         if [[ "$proto" == "vmess" ]]; then
             jq --arg u "$user" 'del(.inbounds[2].settings.clients[] | select(.email == $u))' $config_file > /tmp/x && mv /tmp/x $config_file
         elif [[ "$proto" == "vless" ]]; then
@@ -345,8 +397,12 @@ while read -r line; do
             jq --arg u "$user" 'del(.inbounds[1].settings.clients[] | select(.email == $u))' $config_file > /tmp/x && mv /tmp/x $config_file
         elif [[ "$proto" == "trojan" ]]; then
             jq --arg u "$user" 'del(.inbounds[3].settings.clients[] | select(.email == $u))' $config_file > /tmp/x && mv /tmp/x $config_file
+        elif [[ "$proto" == "zivpn" ]]; then
+            jq --arg p "$token" 'del(.auth.config[] | select(. == $p))' $zivpn_file > /tmp/z && mv /tmp/z $zivpn_file
+            systemctl restart zivpn
         fi
-        sed -i "/^$user|/d" $data_file
+        
+        sed -i "/^$user|$token|/d" $data_file
         systemctl restart xray
     fi
 done < "$data_file"
