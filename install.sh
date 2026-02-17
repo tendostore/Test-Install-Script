@@ -1,10 +1,10 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray Multi-Port
-#   EDITION: PLATINUM LTS FINAL V.1100 (FIREWALL FIX)
+#   EDITION: PLATINUM LTS FINAL V.1200 (TIME SYNC FIX)
 #   Script BY: Tendo Store
 #   Features: VMess, VLESS, Trojan, ZIVPN, Features
-#   UI: Original Zero Margin + Full Iptables Rules
+#   UI: Original Zero Margin + ZIVPN Main Menu
 # ==================================================
 
 # --- COLORS FOR INSTALLATION ---
@@ -25,13 +25,20 @@ function print_success() {
 clear
 echo -e "${BLUE}=============================================${NC}"
 echo -e "      ${YELLOW}AUTO SCRIPT INSTALLER BY TENDO${NC}"
-echo -e "      ${GREEN}EDITION: PLATINUM LTS V.1100${NC}"
+echo -e "      ${GREEN}EDITION: PLATINUM LTS V.1200${NC}"
 echo -e "${BLUE}=============================================${NC}"
 echo -e "Starting Installation..."
 sleep 2
 
-# --- 1. SYSTEM OPTIMIZATION ---
-print_status "Optimizing System (BBR & Swap)"
+# --- 1. SYSTEM OPTIMIZATION & TIME SYNC (CRITICAL FIX) ---
+print_status "Optimizing System & Syncing Time"
+# Fix Time Sync (Crucial for VMess)
+apt install ntpdate -y >/dev/null 2>&1
+ntpdate pool.ntp.org >/dev/null 2>&1
+timedatectl set-ntp true
+date -s "$(wget -qSO- --max-redirect=0 google.com 2>&1 | grep Date: | cut -d' ' -f5-8)Z" >/dev/null 2>&1
+
+# BBR & Swap
 rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* 2>/dev/null
 echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
 echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
@@ -46,7 +53,7 @@ mkswap /swapfile >/dev/null 2>&1
 swapon /swapfile >/dev/null 2>&1
 sed -i '/swapfile/d' /etc/fstab
 echo '/swapfile none swap sw 0 0' >> /etc/fstab
-print_success "System Optimization"
+print_success "System Optimized & Time Synced"
 
 # --- 2. SETUP VARIABLES ---
 CF_ID="mbuntoncity@gmail.com"
@@ -59,8 +66,12 @@ CONFIG_FILE="/usr/local/etc/xray/config.json"
 RULE_LIST="/usr/local/etc/xray/rule_list.txt"
 USER_DATA="/usr/local/etc/xray/user_data.txt"
 
-# --- 3. INSTALL DEPENDENCIES ---
-print_status "Installing Dependencies"
+# --- 3. INSTALL DEPENDENCIES & KILL CONFLICTS ---
+print_status "Installing Dependencies & Cleaning Ports"
+# Kill conflict apps
+systemctl stop nginx apache2 >/dev/null 2>&1
+apt remove --purge nginx apache2 -y >/dev/null 2>&1
+
 apt update -y >/dev/null 2>&1
 apt install -y curl socat jq openssl uuid-runtime net-tools vnstat wget \
 gnupg1 bc iproute2 iptables iptables-persistent python3 neofetch cron >/dev/null 2>&1
@@ -98,7 +109,7 @@ chmod 644 $XRAY_DIR/xray.key
 chmod 644 $XRAY_DIR/xray.crt
 print_success "Domain: $DOMAIN_INIT"
 
-# --- 5. FIREWALL & IPTABLES SETUP (NEW FIX) ---
+# --- 5. FIREWALL & IPTABLES SETUP ---
 print_status "Configuring Firewall & Iptables"
 # Reset Rules
 iptables -F
@@ -246,7 +257,7 @@ function header_main() {
     echo -e "│ XRAY : $X_ST | ZIVPN : $Z_ST \n│ —————————————————————————————————————"
     C_VMESS=$(jq '.inbounds[2].settings.clients | length' $CONFIG); C_VLESS=$(jq '.inbounds[0].settings.clients | length' $CONFIG); C_TROJAN=$(jq '.inbounds[3].settings.clients | length' $CONFIG); C_ZIVPN=$(jq '.auth.config | length' /etc/zivpn/config.json)
     echo -e "│              LIST ACCOUNTS\n│ —————————————————————————————————————\n│    VMESS WS      : $C_VMESS  ACCOUNT\n│    VLESS WS      : $C_VLESS  ACCOUNT\n│    TROJAN WS     : $C_TROJAN  ACCOUNT\n│    ZIVPN UDP     : $C_ZIVPN  ACCOUNT"
-    echo -e "│ —————————————————————————————————————\n│ Version   : PLATINUM LTS FINAL V.1100\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
+    echo -e "│ —————————————————————————————————————\n│ Version   : PLATINUM LTS FINAL V.1200\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
 }
 
 function header_sub() {
@@ -440,21 +451,28 @@ while true; do header_main; echo -e "┌─────────────�
 END_MENU
 chmod +x /usr/bin/menu
 
-# --- 9. AUTO XP & CLEANER & CRON ---
+# --- 8. AUTO XP (Protocol Aware + ZIVPN Support) ---
 cat > /usr/bin/xp <<'END_XP'
 #!/bin/bash
 data_file="/usr/local/etc/xray/user_data.txt"
 config_file="/usr/local/etc/xray/config.json"
 zivpn_file="/etc/zivpn/config.json"
 now=$(date +%Y-%m-%d)
+
 while read -r line; do
     [[ -z "$line" ]] && continue
     user=$(echo "$line" | cut -d '|' -f 1)
+    # Password/UUID is in f2
     token=$(echo "$line" | cut -d '|' -f 2) 
     exp_date=$(echo "$line" | cut -d '|' -f 3)
     proto=$(echo "$line" | cut -d '|' -f 4)
-    exp_sec=$(date -d "$exp_date" +%s); now_sec=$(date -d "$now" +%s)
+    
+    exp_sec=$(date -d "$exp_date" +%s)
+    now_sec=$(date -d "$now" +%s)
+    
     if [[ $exp_sec -lt $now_sec ]]; then
+        echo "Deleting $user ($proto)..."
+        
         if [[ "$proto" == "vmess" ]]; then
             jq --arg u "$user" 'del(.inbounds[2].settings.clients[] | select(.email == $u))' $config_file > /tmp/x && mv /tmp/x $config_file
         elif [[ "$proto" == "vless" ]]; then
@@ -463,18 +481,23 @@ while read -r line; do
         elif [[ "$proto" == "trojan" ]]; then
             jq --arg u "$user" 'del(.inbounds[3].settings.clients[] | select(.email == $u))' $config_file > /tmp/x && mv /tmp/x $config_file
         elif [[ "$proto" == "zivpn" ]]; then
-            jq --arg p "$token" 'del(.auth.config[] | select(. == $p))' $zivpn_file > /tmp/z && mv /tmp/z $zivpn_file; systemctl restart zivpn
+            jq --arg p "$token" 'del(.auth.config[] | select(. == $p))' $zivpn_file > /tmp/z && mv /tmp/z $zivpn_file
+            systemctl restart zivpn
         fi
-        sed -i "/^$user|$token|/d" $data_file; systemctl restart xray
+        
+        sed -i "/^$user|$token|/d" $data_file
+        systemctl restart xray
     fi
 done < "$data_file"
 END_XP
 chmod +x /usr/bin/xp
 
+# --- 9. CLEANER & CRON ---
 cat > /usr/bin/cleaner <<'END_CLEAN'
 #!/bin/bash
 sync; echo 3 > /proc/sys/vm/drop_caches; swapoff -a && swapon -a
-rm -rf /var/log/syslog /var/log/btmp /var/log/kern.log /var/log/auth.log; history -c
+rm -rf /var/log/syslog /var/log/btmp /var/log/kern.log /var/log/auth.log
+history -c
 END_CLEAN
 chmod +x /usr/bin/cleaner
 
@@ -484,6 +507,7 @@ echo "0 5 * * * root /sbin/reboot" >> /etc/crontab
 service cron restart
 
 print_success "Menu & Features Generated"
+
 echo -e "${GREEN}=============================================${NC}"
 echo -e "   INSTALLATION SUCCESSFUL!"
 echo -e "   COMMAND: menu"
