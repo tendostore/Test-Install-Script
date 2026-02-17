@@ -1,8 +1,8 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray (WARP Routing) & Zivpn
-#   EDITION: PLATINUM CUSTOM WARP V.3.0
-#   Update: Custom Config.json + Resolv Conf + WireProxy
+#   EDITION: PLATINUM CUSTOM WARP V.3.1 (FIX GEOSITE)
+#   Update: Fix Geosite Download Location & Custom URL
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -48,6 +48,7 @@ CF_ZONE_ID="14f2e85e62d1d73bf0ce1579f1c3300c"
 DOMAIN_INIT="vpn-$(tr -dc a-z0-9 </dev/urandom | head -c 5).vip3-tendo.my.id"
 
 XRAY_DIR="/usr/local/etc/xray"
+XRAY_SHARE="/usr/local/share/xray"
 CONFIG_FILE="/usr/local/etc/xray/config.json"
 RULE_LIST="/usr/local/etc/xray/rule_list.txt"
 # Database Users
@@ -111,8 +112,19 @@ chmod 644 $XRAY_DIR/xray.crt
 # --- 6. XRAY CORE CONFIGURATION (CUSTOM JSON + WARP) ---
 echo -e "\e[1;32m[XRAY] Installing Core & Custom Config...\e[0m"
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install >/dev/null 2>&1
-rm -f /usr/local/share/xray/geosite.dat
-wget -q -O /usr/local/share/xray/geosite.dat "https://github.com/tendostore/File-Geo/raw/refs/heads/main/geosite.dat"
+
+# --- FIX: DOWNLOAD CUSTOM GEOSITE TENDO ---
+echo -e "\e[1;32m[GEOSITE] Downloading Custom Geosite Tendo...\e[0m"
+mkdir -p $XRAY_SHARE
+rm -f $XRAY_SHARE/geosite.dat
+# Menggunakan link custom Anda
+wget -O $XRAY_SHARE/geosite.dat "https://github.com/tendostore/File-Geo/raw/refs/heads/main/geosite.dat"
+if [ -f "$XRAY_SHARE/geosite.dat" ]; then
+    echo -e "\e[1;32m[SUCCESS] Custom Geosite Downloaded Successfully!\e[0m"
+else
+    echo -e "\e[1;31m[ERROR] Failed to download Geosite. Check URL or Network.\e[0m"
+fi
+
 echo "google" > $RULE_LIST
 
 # GENERATE UUID FOR SYSTEM
@@ -123,7 +135,6 @@ UUID_FHGF=$(uuidgen)
 UUID_VLESS_TENDO=$(uuidgen)
 
 # CONFIG JSON: Modified Structure with WARP/Routing
-# Note: UUIDs are generated dynamically for security, replacing the hardcoded ones in the screenshot.
 cat > $CONFIG_FILE <<EOF
 {
   "log": {
@@ -312,7 +323,7 @@ function header_main() {
     echo -e "│ XRAY : $X_ST | ZIVPN : $Z_ST | WARP : $W_ST\n│ —————————————————————————————————————"
     C_VMESS=$(wc -l < $D_VMESS); C_VLESS=$(wc -l < $D_VLESS); C_TROJAN=$(wc -l < $D_TROJAN); C_ZIVPN=$(jq '.auth.config | length' /etc/zivpn/config.json)
     echo -e "│              LIST ACCOUNTS\n│ —————————————————————————————————————\n│    VMESS WS      : $C_VMESS  ACCOUNT\n│    VLESS WS      : $C_VLESS  ACCOUNT\n│    TROJAN WS     : $C_TROJAN  ACCOUNT\n│    ZIVPN UDP     : $C_ZIVPN  ACCOUNT"
-    echo -e "│ —————————————————————————————————————\n│ Version   : v.3.0 WARP\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
+    echo -e "│ —————————————————————————————————————\n│ Version   : v.3.1 WARP\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
 }
 
 function header_sub() {
