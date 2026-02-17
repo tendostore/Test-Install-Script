@@ -1,10 +1,11 @@
 #!/bin/bash
 
 # ==================================================
-# X-RAY AUTO INSTALLER (MULTI-PORT & MULTI-PROTOCOL)
+# X-RAY INSTALLER (ALL WS) + AUTO LINK GENERATOR
 # Created for: User Request
-# Protocols: Vmess, Vless, Trojan
-# Ports: 443 (TLS/SSL) & 80 (Non-TLS)
+# Protocols: Vmess WS, Vless WS, Trojan WS
+# Ports: 443 (TLS) & 80 (Non-TLS)
+# Output: Config JSON & Copy-Paste Links (v2rayNG)
 # ==================================================
 
 # --- Warna ---
@@ -22,8 +23,9 @@ fi
 
 clear
 echo -e "${BLUE}=================================================${NC}"
-echo -e "${GREEN}   INSTALLER X-RAY VMESS VLESS TROJAN (FULL)     ${NC}"
-echo -e "${YELLOW}   Support: Port 443 (TLS) & Port 80 (Non-TLS)   ${NC}"
+echo -e "${GREEN}   INSTALLER X-RAY ALL WEBSOCKET (LINK MODE)     ${NC}"
+echo -e "${YELLOW}   Modes: Vmess-WS, Vless-WS, Trojan-WS          ${NC}"
+echo -e "${YELLOW}   Ports: 443 (SSL) & 80 (HTTP)                  ${NC}"
 echo -e "${BLUE}=================================================${NC}"
 echo ""
 
@@ -39,10 +41,10 @@ sleep 1
 # --- 2. Update & Install Dependencies ---
 echo -e "${YELLOW}[PROCESS] Update sistem dan install dependencies...${NC}"
 apt update -y
-apt install curl socat certbot cron -y
+apt install curl socat certbot cron jq -y
 
-# --- 3. Persiapan Port 80 (Stop Web Server Lain) ---
-echo -e "${YELLOW}[PROCESS] Mematikan service di port 80 untuk Certbot...${NC}"
+# --- 3. Persiapan Port (Stop Service) ---
+echo -e "${YELLOW}[PROCESS] Mematikan service yang bentrok...${NC}"
 systemctl stop nginx 2>/dev/null
 systemctl stop apache2 2>/dev/null
 systemctl stop xray 2>/dev/null
@@ -61,7 +63,7 @@ key="/etc/letsencrypt/live/$domain/privkey.pem"
 
 if [ ! -f "$crt" ]; then
     echo -e "${RED}[ERROR] Gagal membuat sertifikat SSL!${NC}"
-    echo -e "${RED}Pastikan A Record domain $domain sudah mengarah ke IP VPS ini.${NC}"
+    echo -e "${RED}Pastikan IP VPS sudah benar diarahakan di DNS Domain.${NC}"
     exit 1
 fi
 
@@ -70,7 +72,7 @@ chmod -R 755 /etc/letsencrypt/live/
 chmod -R 755 /etc/letsencrypt/archive/
 
 # --- 6. Konfigurasi X-ray (Config.json) ---
-echo -e "${YELLOW}[PROCESS] Membuat file konfigurasi X-ray...${NC}"
+echo -e "${YELLOW}[PROCESS] Membuat konfigurasi X-ray (ALL WS Mode)...${NC}"
 uuid=$(xray uuid)
 
 cat > /usr/local/etc/xray/config.json <<EOF
@@ -82,7 +84,7 @@ cat > /usr/local/etc/xray/config.json <<EOF
   },
   "inbounds": [
     {
-      "tag": "vless-tls",
+      "tag": "inbound-443",
       "port": 443,
       "protocol": "vless",
       "settings": {
@@ -91,18 +93,24 @@ cat > /usr/local/etc/xray/config.json <<EOF
             "id": "$uuid",
             "flow": "xtls-rprx-vision",
             "level": 0,
-            "email": "vless-tls"
+            "email": "vless-vision-main"
           }
         ],
         "decryption": "none",
         "fallbacks": [
           {
-            "dest": 3001,
+            "path": "/vless",
+            "dest": 10001,
             "xver": 1
           },
           {
             "path": "/vmess",
-            "dest": 3002,
+            "dest": 10002,
+            "xver": 1
+          },
+          {
+            "path": "/trojan",
+            "dest": 10003,
             "xver": 1
           }
         ]
@@ -125,7 +133,7 @@ cat > /usr/local/etc/xray/config.json <<EOF
       }
     },
     {
-      "tag": "vless-nontls",
+      "tag": "inbound-80",
       "port": 80,
       "protocol": "vless",
       "settings": {
@@ -133,14 +141,19 @@ cat > /usr/local/etc/xray/config.json <<EOF
           {
             "id": "$uuid",
             "level": 0,
-            "email": "vless-nontls"
+            "email": "vless-tcp-80"
           }
         ],
         "decryption": "none",
         "fallbacks": [
           {
+            "path": "/vless",
+            "dest": 10001,
+            "xver": 1
+          },
+          {
             "path": "/vmess",
-            "dest": 3002,
+            "dest": 10002,
             "xver": 1
           }
         ]
@@ -148,41 +161,45 @@ cat > /usr/local/etc/xray/config.json <<EOF
       "streamSettings": {
         "network": "tcp",
         "security": "none"
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls"]
       }
     },
     {
-      "tag": "trojan-fallback",
-      "port": 3001,
+      "tag": "vless-ws-service",
+      "port": 10001,
       "listen": "127.0.0.1",
-      "protocol": "trojan",
+      "protocol": "vless",
       "settings": {
         "clients": [
           {
-            "password": "$uuid",
-            "level": 0,
-            "email": "trojan-tls"
+            "id": "$uuid",
+            "level": 0
           }
-        ]
+        ],
+        "decryption": "none"
       },
       "streamSettings": {
-        "network": "tcp",
+        "network": "ws",
         "security": "none",
-        "tcpSettings": {
-          "acceptProxyProtocol": true
+        "wsSettings": {
+          "acceptProxyProtocol": true,
+          "path": "/vless"
         }
       }
     },
     {
-      "tag": "vmess-fallback",
-      "port": 3002,
+      "tag": "vmess-ws-service",
+      "port": 10002,
       "listen": "127.0.0.1",
       "protocol": "vmess",
       "settings": {
         "clients": [
           {
             "id": "$uuid",
-            "level": 0,
-            "email": "vmess-ws"
+            "level": 0
           }
         ]
       },
@@ -192,6 +209,28 @@ cat > /usr/local/etc/xray/config.json <<EOF
         "wsSettings": {
           "acceptProxyProtocol": true,
           "path": "/vmess"
+        }
+      }
+    },
+    {
+      "tag": "trojan-ws-service",
+      "port": 10003,
+      "listen": "127.0.0.1",
+      "protocol": "trojan",
+      "settings": {
+        "clients": [
+          {
+            "password": "$uuid",
+            "level": 0
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "acceptProxyProtocol": true,
+          "path": "/trojan"
         }
       }
     }
@@ -211,9 +250,7 @@ EOF
 
 # --- 7. Setup Auto Renewal SSL ---
 echo -e "${YELLOW}[PROCESS] Mengatur auto-renewal sertifikat...${NC}"
-# Hapus cron lama jika ada
 crontab -l | grep -v "certbot renew" | crontab -
-# Tambah cron baru
 (crontab -l 2>/dev/null; echo "0 0 1 * * certbot renew --quiet --pre-hook \"systemctl stop xray\" --post-hook \"systemctl start xray\"") | crontab -
 
 # --- 8. Restart Service ---
@@ -221,64 +258,90 @@ echo -e "${YELLOW}[PROCESS] Restarting X-ray Service...${NC}"
 systemctl restart xray
 systemctl enable xray
 
-# Cek status
 if systemctl is-active --quiet xray; then
-    echo -e "${GREEN}[SUCCESS] X-ray Running!${NC}"
+    echo -e "${GREEN}[SUCCESS] X-ray Running (All WS Mode)!${NC}"
 else
     echo -e "${RED}[ERROR] X-ray gagal berjalan. Cek log: /var/log/xray/error.log${NC}"
 fi
 
-# --- 9. Tampilkan Detail Akun ---
+# --- 9. Generating Links for Client Apps ---
+# VMESS TLS
+vmess_tls_config='{
+  "v": "2",
+  "ps": "VMESS-TLS-443-'${domain}'",
+  "add": "'${domain}'",
+  "port": "443",
+  "id": "'${uuid}'",
+  "aid": "0",
+  "scy": "auto",
+  "net": "ws",
+  "type": "none",
+  "host": "'${domain}'",
+  "path": "/vmess",
+  "tls": "tls",
+  "sni": "'${domain}'"
+}'
+vmess_tls_link="vmess://$(echo $vmess_tls_config | base64 -w 0)"
+
+# VMESS NON-TLS
+vmess_nontls_config='{
+  "v": "2",
+  "ps": "VMESS-HTTP-80-'${domain}'",
+  "add": "'${domain}'",
+  "port": "80",
+  "id": "'${uuid}'",
+  "aid": "0",
+  "scy": "auto",
+  "net": "ws",
+  "type": "none",
+  "host": "'${domain}'",
+  "path": "/vmess",
+  "tls": "",
+  "sni": ""
+}'
+vmess_nontls_link="vmess://$(echo $vmess_nontls_config | base64 -w 0)"
+
+# VLESS TLS
+vless_tls_link="vless://${uuid}@${domain}:443?security=tls&encryption=none&type=ws&host=${domain}&path=/vless&sni=${domain}#VLESS-TLS-443-${domain}"
+
+# VLESS NON-TLS
+vless_nontls_link="vless://${uuid}@${domain}:80?security=none&encryption=none&type=ws&host=${domain}&path=/vless#VLESS-HTTP-80-${domain}"
+
+# TROJAN TLS
+trojan_tls_link="trojan://${uuid}@${domain}:443?security=tls&type=ws&host=${domain}&path=/trojan&sni=${domain}#TROJAN-TLS-443-${domain}"
+
+
+# --- 10. Tampilkan Detail Akun ---
 clear
 echo -e "${BLUE}=================================================${NC}"
-echo -e "${GREEN}          INSTALASI SELESAI (SUKSES)             ${NC}"
+echo -e "${GREEN}      INSTALASI SELESAI - SILAHKAN COPY LINK     ${NC}"
 echo -e "${BLUE}=================================================${NC}"
 echo -e "Domain      : $domain"
-echo -e "IP Address  : $(curl -s ifconfig.me)"
 echo -e "UUID        : $uuid"
-echo -e "Path Vmess  : /vmess"
+echo -e "IP Address  : $(curl -s ifconfig.me)"
 echo -e "${BLUE}=================================================${NC}"
 echo ""
-echo -e "${YELLOW}--- [1] VLESS TLS (Port 443) ---${NC}"
-echo -e "Address: $domain"
-echo -e "Port: 443"
-echo -e "ID: $uuid"
-echo -e "Flow: xtls-rprx-vision"
-echo -e "Encryption: none"
-echo -e "Network: tcp"
-echo -e "Security: tls"
+
+echo -e "${YELLOW}--- [1] VLESS WS TLS (Port 443) ---${NC}"
+echo -e "${GREEN}${vless_tls_link}${NC}"
 echo ""
-echo -e "${YELLOW}--- [2] VLESS NON-TLS (Port 80) ---${NC}"
-echo -e "Address: $domain"
-echo -e "Port: 80"
-echo -e "ID: $uuid"
-echo -e "Encryption: none"
-echo -e "Network: tcp"
-echo -e "Security: none"
+
+echo -e "${YELLOW}--- [2] VMESS WS TLS (Port 443) ---${NC}"
+echo -e "${GREEN}${vmess_tls_link}${NC}"
 echo ""
-echo -e "${YELLOW}--- [3] TROJAN TLS (Port 443) ---${NC}"
-echo -e "Address: $domain"
-echo -e "Port: 443"
-echo -e "Password: $uuid"
-echo -e "Network: tcp"
-echo -e "Security: tls"
-echo -e "SNI: $domain"
+
+echo -e "${YELLOW}--- [3] TROJAN WS TLS (Port 443) ---${NC}"
+echo -e "${GREEN}${trojan_tls_link}${NC}"
 echo ""
-echo -e "${YELLOW}--- [4] VMESS WS TLS (Port 443) ---${NC}"
-echo -e "Address: $domain"
-echo -e "Port: 443"
-echo -e "ID: $uuid"
-echo -e "Network: ws"
-echo -e "Path: /vmess"
-echo -e "Security: tls"
+
+echo -e "${YELLOW}--- [4] VLESS WS NON-TLS (Port 80) ---${NC}"
+echo -e "${GREEN}${vless_nontls_link}${NC}"
 echo ""
+
 echo -e "${YELLOW}--- [5] VMESS WS NON-TLS (Port 80) ---${NC}"
-echo -e "Address: $domain"
-echo -e "Port: 80"
-echo -e "ID: $uuid"
-echo -e "Network: ws"
-echo -e "Path: /vmess"
-echo -e "Security: none"
+echo -e "${GREEN}${vmess_nontls_link}${NC}"
 echo ""
+
 echo -e "${BLUE}=================================================${NC}"
-echo -e "Simpan data di atas. Script by Gemini AI."
+echo -e "Tips: Copy link berwarna hijau di atas, lalu"
+echo -e "Buka v2rayNG/NekoBox -> Import Config from Clipboard."
