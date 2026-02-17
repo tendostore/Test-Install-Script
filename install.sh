@@ -1,11 +1,27 @@
 #!/bin/bash
 # ==================================================
-#   Auto Script Install X-ray Multi-Protocol & Zivpn
-#   EDITION: PLATINUM LTS MIX V.202
+#   Auto Script Install X-ray (WARP Routing) & Zivpn
+#   EDITION: PLATINUM CUSTOM WARP V.3.0
+#   Update: Custom Config.json + Resolv Conf + WireProxy
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
-#   Features: VMess, VLESS, Trojan, ZIVPN, BBR, Auto Domain
-#   Expiry: Lifetime Support
 # ==================================================
+
+# --- 0. PRE-INSTALLATION: FIX DNS RESOLV.CONF ---
+echo -e "\e[1;32m[SYSTEM] Setting up DNS to 9.9.9.9, 1.1.1.1, 8.8.8.8...\e[0m"
+# Unlocking file if locked
+chattr -i /etc/resolv.conf > /dev/null 2>&1
+# Backup existing
+cp /etc/resolv.conf /etc/resolv.conf.bak
+# Remove symlink if exists
+rm -f /etc/resolv.conf
+# Create new resolv.conf
+cat > /etc/resolv.conf <<EOF
+nameserver 9.9.9.9
+nameserver 1.1.1.1
+nameserver 8.8.8.8
+EOF
+# Lock file to prevent changes
+chattr +i /etc/resolv.conf
 
 # --- 1. SYSTEM OPTIMIZATION (BBR & SWAP 2GB) ---
 echo -e "\e[1;32m[SYSTEM] Optimizing System & Memory...\e[0m"
@@ -41,8 +57,8 @@ DATA_TROJAN="/usr/local/etc/xray/trojan.txt"
 
 clear
 echo "============================================="
-echo "   Auto Script Install X-ray (Multi) & Zivpn"
-echo "        BY TENDO STORE - PLATINUM"
+echo "   Auto Script Install X-ray WARP & Zivpn"
+echo "        BY TENDO STORE - CUSTOM MOD"
 echo "============================================="
 
 # --- 3. INSTALL DEPENDENCIES & VISUALS ---
@@ -62,7 +78,16 @@ IFACE_NET=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 systemctl enable vnstat && systemctl restart vnstat
 vnstat -u -i $IFACE_NET >/dev/null 2>&1
 
-# --- 4. DOMAIN & SSL SETUP ---
+# --- 4. INSTALL CLOUDFLARE WARP (WIREPROXY) ---
+echo -e "\e[1;32m[WARP] Installing WARP WireProxy (Port 40000)...\e[0m"
+# Download script
+wget -N https://gitlab.com/fscarmen/warp/-/raw/main/menu.sh
+# Automate Input: 1 (English) -> 13 (Wireproxy) -> 40000 (Port)
+# Menggunakan pipe untuk melewati interaktif menu
+echo -e "1\n13\n40000" | bash menu.sh
+echo -e "\e[1;32m[WARP] Installation logic executed. Proceeding...\e[0m"
+
+# --- 5. DOMAIN & SSL SETUP ---
 echo -e "\e[1;32m[DOMAIN] Setting up Domain & SSL...\e[0m"
 mkdir -p $XRAY_DIR /etc/zivpn /root/tendo
 touch $DATA_VMESS $DATA_VLESS $DATA_TROJAN
@@ -83,8 +108,8 @@ openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout $XRAY_DIR/xray.key \
 chmod 644 $XRAY_DIR/xray.key
 chmod 644 $XRAY_DIR/xray.crt
 
-# --- 5. XRAY CORE CONFIGURATION (MULTI PROTOCOL) ---
-echo -e "\e[1;32m[XRAY] Installing Core & Config...\e[0m"
+# --- 6. XRAY CORE CONFIGURATION (CUSTOM JSON + WARP) ---
+echo -e "\e[1;32m[XRAY] Installing Core & Custom Config...\e[0m"
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install >/dev/null 2>&1
 rm -f /usr/local/share/xray/geosite.dat
 wget -q -O /usr/local/share/xray/geosite.dat "https://github.com/tendostore/File-Geo/raw/refs/heads/main/geosite.dat"
@@ -92,11 +117,18 @@ echo "google" > $RULE_LIST
 
 # GENERATE UUID FOR SYSTEM
 UUID_SYS=$(uuidgen)
+UUID_TENDO=$(uuidgen)
+UUID_TYGG=$(uuidgen)
+UUID_FHGF=$(uuidgen)
+UUID_VLESS_TENDO=$(uuidgen)
 
-# CONFIG JSON: Port 443 (VLESS Fallback) -> Splits to VMess/VLESS/Trojan
+# CONFIG JSON: Modified Structure with WARP/Routing
+# Note: UUIDs are generated dynamically for security, replacing the hardcoded ones in the screenshot.
 cat > $CONFIG_FILE <<EOF
 {
-  "log": { "loglevel": "warning" },
+  "log": {
+    "loglevel": "warning"
+  },
   "inbounds": [
     {
       "tag": "inbound-443",
@@ -104,7 +136,12 @@ cat > $CONFIG_FILE <<EOF
       "protocol": "vless",
       "settings": {
         "clients": [
-          { "id": "$UUID_SYS", "flow": "xtls-rprx-vision", "level": 0, "email": "system" }
+          {
+            "id": "$UUID_SYS",
+            "flow": "xtls-rprx-vision",
+            "level": 0,
+            "email": "system"
+          }
         ],
         "decryption": "none",
         "fallbacks": [
@@ -117,7 +154,9 @@ cat > $CONFIG_FILE <<EOF
         "network": "tcp",
         "security": "tls",
         "tlsSettings": {
-          "certificates": [ { "certificateFile": "$XRAY_DIR/xray.crt", "keyFile": "$XRAY_DIR/xray.key" } ]
+          "certificates": [
+            { "certificateFile": "$XRAY_DIR/xray.crt", "keyFile": "$XRAY_DIR/xray.key" }
+          ]
         }
       }
     },
@@ -141,41 +180,88 @@ cat > $CONFIG_FILE <<EOF
       "port": 10001,
       "listen": "127.0.0.1",
       "protocol": "vmess",
-      "settings": { "clients": [] },
-      "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "acceptProxyProtocol": true, "path": "/vmess" } }
+      "settings": {
+        "clients": [
+          { "id": "$UUID_TENDO", "email": "tendo" },
+          { "id": "$UUID_TYGG", "email": "tygg" },
+          { "id": "$UUID_FHGF", "email": "fhgf" }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": { "acceptProxyProtocol": true, "path": "/vmess" }
+      }
     },
     {
       "tag": "vless_ws",
       "port": 10002,
       "listen": "127.0.0.1",
       "protocol": "vless",
-      "settings": { "clients": [], "decryption": "none" },
-      "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "acceptProxyProtocol": true, "path": "/vless" } }
+      "settings": {
+        "clients": [
+          { "id": "$UUID_VLESS_TENDO", "email": "tendo" }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": { "acceptProxyProtocol": true, "path": "/vless" }
+      }
     },
     {
       "tag": "trojan_ws",
       "port": 10003,
       "listen": "127.0.0.1",
       "protocol": "trojan",
-      "settings": { "clients": [] },
-      "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "acceptProxyProtocol": true, "path": "/trojan" } }
+      "settings": {
+        "clients": [
+          { "password": "fhtggf", "email": "fhtggf" }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": { "acceptProxyProtocol": true, "path": "/trojan" }
+      }
     }
   ],
   "outbounds": [
     { "protocol": "freedom", "tag": "direct" },
-    { "protocol": "blackhole", "tag": "block" }
+    {
+      "tag": "WARP",
+      "protocol": "socks",
+      "settings": {
+        "servers": [ { "address": "127.0.0.1", "port": 40000 } ]
+      }
+    },
+    {
+      "protocol": "freedom",
+      "settings": { "domainStrategy": "ForceIPv4" },
+      "proxySettings": { "tag": "WARP" },
+      "tag": "routing"
+    },
+    { "protocol": "blackhole", "tag": "blocked" }
   ],
-  "routing": { 
-      "domainStrategy": "IPIfNonMatch", 
-      "rules": [ 
-          { "type": "field", "ip": [ "geoip:private" ], "outboundTag": "block" }, 
-          { "type": "field", "domain": ["geosite:google"], "outboundTag": "direct" } 
-      ] 
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      { "inboundTag": [ "api" ], "outboundTag": "api", "type": "field" },
+      { "type": "field", "port": "443", "network": "udp", "outboundTag": "block" },
+      {
+        "domain": [ "geosite:rule-playstore", "geosite:youtube", "geosite:twitter" ],
+        "outboundTag": "routing",
+        "network": "tcp,udp",
+        "type": "field"
+      },
+      { "type": "field", "outboundTag": "blocked", "protocol": [ "bittorrent" ] }
+    ]
   }
 }
 EOF
 
-# --- 6. ZIVPN CONFIGURATION ---
+# --- 7. ZIVPN CONFIGURATION ---
 echo -e "\e[1;32m[ZIVPN] Installing ZIVPN Server...\e[0m"
 wget -qO /usr/local/bin/zivpn "https://github.com/zahidbd2/udp-zivpn/releases/download/udp-zivpn_1.4.9/udp-zivpn-linux-amd64"
 chmod +x /usr/local/bin/zivpn
@@ -200,7 +286,7 @@ iptables -t nat -A PREROUTING -i $IFACE_NET -p udp --dport 6000:19999 -j DNAT --
 iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5667
 netfilter-persistent save &>/dev/null
 
-# --- 7. MAIN MENU SCRIPT (PLATINUM UI UPDATED) ---
+# --- 8. MAIN MENU SCRIPT ---
 cat > /usr/bin/menu <<'END_MENU'
 #!/bin/bash
 CYAN='\033[0;36m'; YELLOW='\033[0;33m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
@@ -222,11 +308,11 @@ function header_main() {
     TRAFFIC=$(echo "scale=2; (($R2 - $R1) + ($T2 - $T1)) * 8 / 409.6 / 1024" | bc)
     echo -e "┌─────────────────────────────────────────────────┐\n          ${BG_RED}          TENDO STORE          ${NC} \n└─────────────────────────────────────────────────┘"
     echo -e "┌─────────────────────────────────────────────────┐\n│ OS      : $OS\n│ RAM     : ${RAM}M\n│ SWAP    : ${SWAP}M\n│ CITY    : $CITY\n│ ISP     : $ISP\n│ IP      : $IP\n│ DOMAIN  : $DOMAIN\n│ UPTIME  : $UPTIME\n│ —————————————————————————————————————\n│ MONTH   : $MON_DATA    [$(date +%B)]\n│ RX      : $M_RX\n│ TX      : $M_TX\n│ —————————————————————————————————————\n│ DAY     : $DAY_DATA    [$(date +%A)]\n│ RX      : $D_RX\n│ TX      : $D_TX\n│ TRAFFIC : $TRAFFIC Mbit/s\n│ —————————————————————————————————————"
-    SX=$(systemctl is-active xray); [[ $SX == "active" ]] && X_ST="${GREEN}ON${NC}" || X_ST="${RED}OFF${NC}"; SZ=$(systemctl is-active zivpn); [[ $SZ == "active" ]] && Z_ST="${GREEN}ON${NC}" || Z_ST="${RED}OFF${NC}"; SI=$(systemctl is-active netfilter-persistent); [[ $SI == "active" ]] && I_ST="${GREEN}ON${NC}" || I_ST="${RED}OFF${NC}"
-    echo -e "│ XRAY : $X_ST | ZIVPN : $Z_ST | IPTABLES : $I_ST\n│ —————————————————————————————————————"
+    SX=$(systemctl is-active xray); [[ $SX == "active" ]] && X_ST="${GREEN}ON${NC}" || X_ST="${RED}OFF${NC}"; SZ=$(systemctl is-active zivpn); [[ $SZ == "active" ]] && Z_ST="${GREEN}ON${NC}" || Z_ST="${RED}OFF${NC}"; SW=$(pgrep -f wireproxy > /dev/null && echo "active"); [[ $SW == "active" ]] && W_ST="${GREEN}ON${NC}" || W_ST="${RED}OFF${NC}"
+    echo -e "│ XRAY : $X_ST | ZIVPN : $Z_ST | WARP : $W_ST\n│ —————————————————————————————————————"
     C_VMESS=$(wc -l < $D_VMESS); C_VLESS=$(wc -l < $D_VLESS); C_TROJAN=$(wc -l < $D_TROJAN); C_ZIVPN=$(jq '.auth.config | length' /etc/zivpn/config.json)
     echo -e "│              LIST ACCOUNTS\n│ —————————————————————————————————————\n│    VMESS WS      : $C_VMESS  ACCOUNT\n│    VLESS WS      : $C_VLESS  ACCOUNT\n│    TROJAN WS     : $C_TROJAN  ACCOUNT\n│    ZIVPN UDP     : $C_ZIVPN  ACCOUNT"
-    echo -e "│ —————————————————————————————————————\n│ Version   : v.2.0.2 MIX\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
+    echo -e "│ —————————————————————————————————————\n│ Version   : v.3.0 WARP\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
 }
 
 function header_sub() {
@@ -239,14 +325,12 @@ function vmess_menu() {
     while true; do header_sub; echo -e "┌─────────────────────────────────────────────────┐\n│           VMESS WEBSOCKET MENU\n│ —————————————————————————————————————\n│ 1.) Create Account Vmess\n│ 2.) Delete Account Vmess\n│ 3.) List Accounts\n│ x.) Back\n└─────────────────────────────────────────────────┘"; read -p "Pilih: " opt
     case $opt in
         1) read -p " Username : " u; read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; exp_date=$(date -d "+$ex days" +"%Y-%m-%d"); id=$(uuidgen)
-           # Inbound index 2 is vmess_ws
            jq --arg u "$u" --arg id "$id" '.inbounds[2].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray; echo "$u|$id|$exp_date" >> $D_VMESS
            DMN=$(cat /usr/local/etc/xray/domain); CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
            json_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
            json_none=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
            clear; echo -e "————————————————————————————————————\n            VMESS ACCOUNT\n————————————————————————————————————\nRemarks        : $u\nDomain         : $DMN\nUUID           : $id\nExpired        : $exp_date\n————————————————————————————————————\nLink TLS       : vmess://$json_tls\nLink None TLS  : vmess://$json_none\n————————————————————————————————————"; read -n 1 -s -r -p "Enter...";;
         2) nl $D_VMESS; read -p "No: " n; [[ -z "$n" ]] && continue; u=$(sed -n "${n}p" $D_VMESS | cut -d'|' -f1); sed -i "${n}d" $D_VMESS
-           # Remove from json by email
            jq --arg u "$u" 'del(.inbounds[2].settings.clients[] | select(.email == $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray;;
         3) header_sub; cat $D_VMESS; read -p "Enter...";;
         x) return;;
@@ -258,7 +342,6 @@ function vless_menu() {
     while true; do header_sub; echo -e "┌─────────────────────────────────────────────────┐\n│           VLESS WEBSOCKET MENU\n│ —————————————————————————————————————\n│ 1.) Create Account Vless\n│ 2.) Delete Account Vless\n│ 3.) List Accounts\n│ x.) Back\n└─────────────────────────────────────────────────┘"; read -p "Pilih: " opt
     case $opt in
         1) read -p " Username : " u; read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; exp_date=$(date -d "+$ex days" +"%Y-%m-%d"); id=$(uuidgen)
-           # Inbound index 3 is vless_ws
            jq --arg u "$u" --arg id "$id" '.inbounds[3].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray; echo "$u|$id|$exp_date" >> $D_VLESS
            DMN=$(cat /usr/local/etc/xray/domain)
            ltls="vless://${id}@${DMN}:443?path=/vless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}"
@@ -276,7 +359,6 @@ function trojan_menu() {
     while true; do header_sub; echo -e "┌─────────────────────────────────────────────────┐\n│           TROJAN WEBSOCKET MENU\n│ —————————————————————————————————————\n│ 1.) Create Account Trojan\n│ 2.) Delete Account Trojan\n│ 3.) List Accounts\n│ x.) Back\n└─────────────────────────────────────────────────┘"; read -p "Pilih: " opt
     case $opt in
         1) read -p " Username : " u; read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; exp_date=$(date -d "+$ex days" +"%Y-%m-%d"); pass="$u"
-           # Inbound index 4 is trojan_ws (uses password, not id)
            jq --arg p "$pass" --arg u "$u" '.inbounds[4].settings.clients += [{"password":$p,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray; echo "$u|$pass|$exp_date" >> $D_TROJAN
            DMN=$(cat /usr/local/etc/xray/domain)
            trlink="trojan://${pass}@${DMN}:443?security=tls&type=ws&host=${DMN}&path=/trojan&sni=${DMN}#${u}"
@@ -301,10 +383,10 @@ function zivpn_menu() {
 
 function routing_menu() {
     while true; do header_sub; echo -e "┌─────────────────────────────────────────────────┐\n│            SUPPORTED GEOSITE LIST               \n│ —————————————————————————————————————\n│ rule-gaming, rule-indo, rule-sosmed, google,    \n│ rule-playstore, rule-streaming, rule-umum, tiktok,\n│ rule-ipcheck, rule-doh, rule-malicious, telegram,\n│ rule-ads, rule-speedtest, ecommerce-id, urltest,\n│ category-porn, bank-id, meta, videoconference,  \n│ geolocation-!cn, facebook, spotify, openai, meta,\n│ ehentai, github, microsoft, apple, netflix, cn, \n│ youtube, twitter, bilibili, category-ads-all,   \n│ private, category-media, category-vpnservices,  \n│ category-dev, category-dev-all, meta, category-media-all\n└─────────────────────────────────────────────────┘"; DOMS=$(cat /usr/local/etc/xray/rule_list.txt | xargs)
-        echo -e "┌─────────────────────────────────────────────────┐\n│ Active Rules: ${GREEN}$DOMS${NC}\n│ 1.) Tambah rule geosite\n│ 2.) Hapus rule geosite\n│ x.) Back\n└─────────────────────────────────────────────────┘"; read -p "Pilih: " opt
+        echo -e "┌─────────────────────────────────────────────────┐\n│ Active Rules: ${GREEN}$DOMS${NC}\n│ NOTE: Rules are directed to WARP (Routing)\n│ 1.) Tambah rule geosite\n│ 2.) Hapus rule geosite\n│ x.) Back\n└─────────────────────────────────────────────────┘"; read -p "Pilih: " opt
         case $opt in
-            1) read -p "Rule: " d; echo "$d" >> /usr/local/etc/xray/rule_list.txt; LIST=$(cat /usr/local/etc/xray/rule_list.txt | awk '{printf "\"geosite:%s\",", $1}' | sed 's/,$//'); jq --argjson d "[$LIST]" '.routing.rules[] |= (if .outboundTag == "direct" then .domain = $d else . end)' $CONFIG > /tmp/r && mv /tmp/r $CONFIG; systemctl restart xray;;
-            2) nl /usr/local/etc/xray/rule_list.txt; read -p "No: " n; [[ -z "$n" ]] && continue; sed -i "${n}d" /usr/local/etc/xray/rule_list.txt; LIST=$(cat /usr/local/etc/xray/rule_list.txt | awk '{printf "\"geosite:%s\",", $1}' | sed 's/,$//'); jq --argjson d "[$LIST]" '.routing.rules[] |= (if .outboundTag == "direct" then .domain = $d else . end)' $CONFIG > /tmp/r && mv /tmp/r $CONFIG; systemctl restart xray;;
+            1) read -p "Rule: " d; echo "$d" >> /usr/local/etc/xray/rule_list.txt; LIST=$(cat /usr/local/etc/xray/rule_list.txt | awk '{printf "\"geosite:%s\",", $1}' | sed 's/,$//'); jq --argjson d "[$LIST]" '.routing.rules[] |= (if .outboundTag == "routing" then .domain = $d else . end)' $CONFIG > /tmp/r && mv /tmp/r $CONFIG; systemctl restart xray;;
+            2) nl /usr/local/etc/xray/rule_list.txt; read -p "No: " n; [[ -z "$n" ]] && continue; sed -i "${n}d" /usr/local/etc/xray/rule_list.txt; LIST=$(cat /usr/local/etc/xray/rule_list.txt | awk '{printf "\"geosite:%s\",", $1}' | sed 's/,$//'); jq --argjson d "[$LIST]" '.routing.rules[] |= (if .outboundTag == "routing" then .domain = $d else . end)' $CONFIG > /tmp/r && mv /tmp/r $CONFIG; systemctl restart xray;;
             x) return;;
         esac; done
 }
@@ -312,6 +394,9 @@ function routing_menu() {
 function check_services() {
     header_sub; echo -e "┌─────────────────────────────────────────────────┐\n│ SERVICES STATUS\n│ —————————————————————————————————————"; services=("xray" "zivpn" "vnstat" "netfilter-persistent"); names=("Xray Core       " "ZIVPN UDP Server" "Vnstat Monitor  " "Iptables Rules  ")
     for i in "${!services[@]}"; do if systemctl is-active --quiet "${services[$i]}"; then status="${GREEN}ACTIVE (ON)${NC}"; else status="${RED}INACTIVE (OFF)${NC}"; fi; echo -e "│ ${names[$i]} : $status"; done
+    # Check WARP WireProxy manually
+    if pgrep -f wireproxy >/dev/null; then w_status="${GREEN}ACTIVE (ON)${NC}"; else w_status="${RED}INACTIVE (OFF)${NC}"; fi
+    echo -e "│ WARP WireProxy  : $w_status"
     echo -e "└─────────────────────────────────────────────────┘"; read -p "Enter...";
 }
 
@@ -330,4 +415,4 @@ while true; do header_main; echo -e "┌─────────────�
 END_MENU
 
 chmod +x /usr/bin/menu
-echo -e "\e[1;32mINSTALASI SUKSES! Ketik: menu\e[0m"
+echo -e "\e[1;32mINSTALASI SUKSES! Config WARP & DNS Applied. Ketik: menu\e[0m"
