@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray Multi-Port
-#   EDITION: PLATINUM LTS FINAL V.17.02.26
+#   EDITION: PLATINUM LTS FINAL V.1000 (SNIFFING FIX)
 #   Script BY: Tendo Store
 #   Features: VMess, VLESS, Trojan, ZIVPN, Features
 #   UI: Original Zero Margin + ZIVPN Main Menu
@@ -25,7 +25,7 @@ function print_success() {
 clear
 echo -e "${BLUE}=============================================${NC}"
 echo -e "      ${YELLOW}AUTO SCRIPT INSTALLER BY TENDO${NC}"
-echo -e "      ${GREEN}EDITION: PLATINUM LTS V.17.02.26${NC}"
+echo -e "      ${GREEN}EDITION: PLATINUM LTS V.1000${NC}"
 echo -e "${BLUE}=============================================${NC}"
 echo -e "Starting Installation..."
 sleep 2
@@ -100,12 +100,13 @@ print_success "Domain: $DOMAIN_INIT"
 
 # --- 5. XRAY CORE & MULTI-PORT CONFIG ---
 print_status "Installing X-Ray Core & Applying VMess Fix"
+# Force Reinstall Core to ensure fresh binary
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install >/dev/null 2>&1
 wget -q -O /usr/local/share/xray/geosite.dat "https://github.com/tendostore/File-Geo/raw/refs/heads/main/geosite.dat"
 
 echo "google" > $RULE_LIST
 
-# FIXED CONFIG: Removed xver:1 to fix VMess connection
+# FIXED CONFIG: ENABLED SNIFFING & CLEAN FALLBACK
 cat > $CONFIG_FILE <<EOF
 {
   "log": { "loglevel": "warning" },
@@ -120,7 +121,16 @@ cat > $CONFIG_FILE <<EOF
           { "dest": 10001 }
         ]
       },
-      "streamSettings": { "network": "ws", "security": "tls", "tlsSettings": { "certificates": [ { "certificateFile": "$XRAY_DIR/xray.crt", "keyFile": "$XRAY_DIR/xray.key" } ] }, "wsSettings": { "path": "/vless" } }
+      "streamSettings": { 
+          "network": "ws", 
+          "security": "tls", 
+          "tlsSettings": { 
+              "certificates": [ { "certificateFile": "$XRAY_DIR/xray.crt", "keyFile": "$XRAY_DIR/xray.key" } ],
+              "alpn": ["http/1.1"]
+          }, 
+          "wsSettings": { "path": "/vless" } 
+      },
+      "sniffing": { "enabled": true, "destOverride": ["http", "tls"] }
     },
     {
       "tag": "vless-nontls", "port": 80, "protocol": "vless",
@@ -132,17 +142,20 @@ cat > $CONFIG_FILE <<EOF
           { "dest": 10001 }
         ]
       },
-      "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "path": "/vless" } }
+      "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "path": "/vless" } },
+      "sniffing": { "enabled": true, "destOverride": ["http", "tls"] }
     },
     {
       "tag": "vmess", "port": 10001, "listen": "127.0.0.1", "protocol": "vmess",
       "settings": { "clients": [] },
-      "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "path": "/vmess" } }
+      "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "path": "/vmess" } },
+      "sniffing": { "enabled": true, "destOverride": ["http", "tls"] }
     },
     {
       "tag": "trojan", "port": 10002, "listen": "127.0.0.1", "protocol": "trojan",
       "settings": { "clients": [] },
-      "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "path": "/trojan" } }
+      "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "path": "/trojan" } },
+      "sniffing": { "enabled": true, "destOverride": ["http", "tls"] }
     }
   ],
   "outbounds": [
@@ -152,7 +165,7 @@ cat > $CONFIG_FILE <<EOF
   "routing": { "domainStrategy": "IPIfNonMatch", "rules": [ { "type": "field", "ip": [ "geoip:private" ], "outboundTag": "block" }, { "type": "field", "domain": ["geosite:google"], "outboundTag": "direct" } ] }
 }
 EOF
-print_success "X-Ray Core Installed"
+print_success "X-Ray Core Configured with Sniffing"
 
 # --- 6. ZIVPN CONFIG ---
 print_status "Installing ZIVPN UDP"
@@ -208,7 +221,7 @@ function header_main() {
     echo -e "│ XRAY : $X_ST | ZIVPN : $Z_ST \n│ —————————————————————————————————————"
     C_VMESS=$(jq '.inbounds[2].settings.clients | length' $CONFIG); C_VLESS=$(jq '.inbounds[0].settings.clients | length' $CONFIG); C_TROJAN=$(jq '.inbounds[3].settings.clients | length' $CONFIG); C_ZIVPN=$(jq '.auth.config | length' /etc/zivpn/config.json)
     echo -e "│              LIST ACCOUNTS\n│ —————————————————————————————————————\n│    VMESS WS      : $C_VMESS  ACCOUNT\n│    VLESS WS      : $C_VLESS  ACCOUNT\n│    TROJAN WS     : $C_TROJAN  ACCOUNT\n│    ZIVPN UDP     : $C_ZIVPN  ACCOUNT"
-    echo -e "│ —————————————————————————————————————\n│ Version   : PLATINUM LTS FINAL V.17.02.26\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
+    echo -e "│ —————————————————————————————————————\n│ Version   : PLATINUM LTS FINAL V.1000\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
 }
 
 function header_sub() {
@@ -392,7 +405,7 @@ function check_services() {
 while true; do header_main; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) VMESS MENU\n│ 2.) VLESS MENU\n│ 3.) TROJAN MENU\n│ 4.) ZIVPN MENU\n│ 5.) FEATURES MENU\n│ 6.) CEK SERVICE\n│ x.) EXIT\n└─────────────────────────────────────────────────┘"; read -p "Pilih Nomor: " opt
     case $opt in
         1) vmess_menu ;; 
-        2) vless_menu ;; 
+        2) vless_menu ;;
         3) trojan_menu ;;
         4) zivpn_menu_gui ;;
         5) features_menu ;;
@@ -463,4 +476,4 @@ echo -e "${GREEN}=============================================${NC}"
 echo -e "   INSTALLATION SUCCESSFUL!"
 echo -e "   COMMAND: menu"
 echo -e "${GREEN}=============================================${NC}"
-rm -f /root/install.sh
+rm -f /root/setup.sh
