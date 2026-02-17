@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray Multi-Port
-#   EDITION: PLATINUM LTS FINAL V.1200 (TIME SYNC FIX)
+#   EDITION: PLATINUM LTS FINAL V.1300 (REBUILD VMESS)
 #   Script BY: Tendo Store
 #   Features: VMess, VLESS, Trojan, ZIVPN, Features
 #   UI: Original Zero Margin + ZIVPN Main Menu
@@ -25,20 +25,18 @@ function print_success() {
 clear
 echo -e "${BLUE}=============================================${NC}"
 echo -e "      ${YELLOW}AUTO SCRIPT INSTALLER BY TENDO${NC}"
-echo -e "      ${GREEN}EDITION: PLATINUM LTS V.1200${NC}"
+echo -e "      ${GREEN}EDITION: PLATINUM LTS V.1300${NC}"
 echo -e "${BLUE}=============================================${NC}"
 echo -e "Starting Installation..."
 sleep 2
 
-# --- 1. SYSTEM OPTIMIZATION & TIME SYNC (CRITICAL FIX) ---
+# --- 1. SYSTEM OPTIMIZATION & TIME SYNC ---
 print_status "Optimizing System & Syncing Time"
-# Fix Time Sync (Crucial for VMess)
 apt install ntpdate -y >/dev/null 2>&1
 ntpdate pool.ntp.org >/dev/null 2>&1
 timedatectl set-ntp true
 date -s "$(wget -qSO- --max-redirect=0 google.com 2>&1 | grep Date: | cut -d' ' -f5-8)Z" >/dev/null 2>&1
 
-# BBR & Swap
 rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* 2>/dev/null
 echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
 echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
@@ -53,7 +51,7 @@ mkswap /swapfile >/dev/null 2>&1
 swapon /swapfile >/dev/null 2>&1
 sed -i '/swapfile/d' /etc/fstab
 echo '/swapfile none swap sw 0 0' >> /etc/fstab
-print_success "System Optimized & Time Synced"
+print_success "System Optimized"
 
 # --- 2. SETUP VARIABLES ---
 CF_ID="mbuntoncity@gmail.com"
@@ -66,9 +64,9 @@ CONFIG_FILE="/usr/local/etc/xray/config.json"
 RULE_LIST="/usr/local/etc/xray/rule_list.txt"
 USER_DATA="/usr/local/etc/xray/user_data.txt"
 
-# --- 3. INSTALL DEPENDENCIES & KILL CONFLICTS ---
-print_status "Installing Dependencies & Cleaning Ports"
-# Kill conflict apps
+# --- 3. INSTALL DEPENDENCIES ---
+print_status "Installing Dependencies"
+# Kill potential conflict ports
 systemctl stop nginx apache2 >/dev/null 2>&1
 apt remove --purge nginx apache2 -y >/dev/null 2>&1
 
@@ -110,8 +108,7 @@ chmod 644 $XRAY_DIR/xray.crt
 print_success "Domain: $DOMAIN_INIT"
 
 # --- 5. FIREWALL & IPTABLES SETUP ---
-print_status "Configuring Firewall & Iptables"
-# Reset Rules
+print_status "Configuring Firewall"
 iptables -F
 iptables -X
 iptables -t nat -F
@@ -119,42 +116,37 @@ iptables -t nat -X
 iptables -P INPUT ACCEPT
 iptables -P FORWARD ACCEPT
 iptables -P OUTPUT ACCEPT
-
-# Allow SSH, HTTP, HTTPS
 iptables -A INPUT -p tcp --dport 22 -j ACCEPT
 iptables -A INPUT -p tcp --dport 80 -j ACCEPT
 iptables -A INPUT -p tcp --dport 443 -j ACCEPT
-
-# Allow ZIVPN Ports
 iptables -A INPUT -p udp --dport 53 -j ACCEPT
 iptables -A INPUT -p udp --dport 5667 -j ACCEPT
 iptables -A INPUT -p udp --dport 6000:19999 -j ACCEPT
-
-# Save Rules
 netfilter-persistent save >/dev/null 2>&1
-print_success "Firewall Configured"
+print_success "Firewall Active"
 
-# --- 6. XRAY CORE & MULTI-PORT CONFIG ---
-print_status "Installing X-Ray Core & Applying VMess Fix"
-# Force Reinstall Core to ensure fresh binary
+# --- 6. XRAY CORE & MULTI-PORT CONFIG (REBUILT VMESS) ---
+print_status "Installing X-Ray & Configuring VMess"
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install >/dev/null 2>&1
 wget -q -O /usr/local/share/xray/geosite.dat "https://github.com/tendostore/File-Geo/raw/refs/heads/main/geosite.dat"
 
 echo "google" > $RULE_LIST
 
-# FIXED CONFIG: ENABLED SNIFFING & CLEAN FALLBACK
+# REBUILT CONFIG: CLEANER FALLBACK STRUCTURE
 cat > $CONFIG_FILE <<EOF
 {
   "log": { "loglevel": "warning" },
   "inbounds": [
     {
-      "tag": "vless-tls", "port": 443, "protocol": "vless",
+      "tag": "vless-tls",
+      "port": 443,
+      "protocol": "vless",
       "settings": {
-        "clients": [], "decryption": "none",
+        "clients": [],
+        "decryption": "none",
         "fallbacks": [
           { "path": "/vmess", "dest": 10001 },
-          { "path": "/trojan", "dest": 10002 },
-          { "dest": 10001 }
+          { "path": "/trojan", "dest": 10002 }
         ]
       },
       "streamSettings": { 
@@ -162,43 +154,67 @@ cat > $CONFIG_FILE <<EOF
           "security": "tls", 
           "tlsSettings": { 
               "certificates": [ { "certificateFile": "$XRAY_DIR/xray.crt", "keyFile": "$XRAY_DIR/xray.key" } ],
-              "alpn": ["http/1.1"]
+              "alpn": ["http/1.1"] 
           }, 
           "wsSettings": { "path": "/vless" } 
       },
       "sniffing": { "enabled": true, "destOverride": ["http", "tls"] }
     },
     {
-      "tag": "vless-nontls", "port": 80, "protocol": "vless",
+      "tag": "vless-nontls",
+      "port": 80,
+      "protocol": "vless",
       "settings": {
-        "clients": [], "decryption": "none",
+        "clients": [],
+        "decryption": "none",
         "fallbacks": [
           { "path": "/vmess", "dest": 10001 },
-          { "path": "/trojan", "dest": 10002 },
-          { "dest": 10001 }
+          { "path": "/trojan", "dest": 10002 }
         ]
       },
-      "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "path": "/vless" } },
+      "streamSettings": { 
+          "network": "ws", 
+          "security": "none", 
+          "wsSettings": { "path": "/vless" } 
+      },
       "sniffing": { "enabled": true, "destOverride": ["http", "tls"] }
     },
     {
-      "tag": "vmess", "port": 10001, "listen": "127.0.0.1", "protocol": "vmess",
+      "tag": "vmess",
+      "port": 10001,
+      "listen": "127.0.0.1",
+      "protocol": "vmess",
       "settings": { "clients": [] },
-      "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "path": "/vmess" } },
-      "sniffing": { "enabled": true, "destOverride": ["http", "tls"] }
+      "streamSettings": { 
+          "network": "ws", 
+          "security": "none", 
+          "wsSettings": { "path": "/vmess" } 
+      }
     },
     {
-      "tag": "trojan", "port": 10002, "listen": "127.0.0.1", "protocol": "trojan",
+      "tag": "trojan",
+      "port": 10002,
+      "listen": "127.0.0.1",
+      "protocol": "trojan",
       "settings": { "clients": [] },
-      "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "path": "/trojan" } },
-      "sniffing": { "enabled": true, "destOverride": ["http", "tls"] }
+      "streamSettings": { 
+          "network": "ws", 
+          "security": "none", 
+          "wsSettings": { "path": "/trojan" } 
+      }
     }
   ],
   "outbounds": [
     { "protocol": "freedom", "tag": "direct" },
     { "protocol": "blackhole", "tag": "block" }
   ],
-  "routing": { "domainStrategy": "IPIfNonMatch", "rules": [ { "type": "field", "ip": [ "geoip:private" ], "outboundTag": "block" }, { "type": "field", "domain": ["geosite:google"], "outboundTag": "direct" } ] }
+  "routing": { 
+      "domainStrategy": "IPIfNonMatch", 
+      "rules": [ 
+          { "type": "field", "ip": [ "geoip:private" ], "outboundTag": "block" }, 
+          { "type": "field", "domain": ["geosite:google"], "outboundTag": "direct" } 
+      ] 
+  }
 }
 EOF
 print_success "X-Ray Core Configured"
@@ -257,7 +273,7 @@ function header_main() {
     echo -e "│ XRAY : $X_ST | ZIVPN : $Z_ST \n│ —————————————————————————————————————"
     C_VMESS=$(jq '.inbounds[2].settings.clients | length' $CONFIG); C_VLESS=$(jq '.inbounds[0].settings.clients | length' $CONFIG); C_TROJAN=$(jq '.inbounds[3].settings.clients | length' $CONFIG); C_ZIVPN=$(jq '.auth.config | length' /etc/zivpn/config.json)
     echo -e "│              LIST ACCOUNTS\n│ —————————————————————————————————————\n│    VMESS WS      : $C_VMESS  ACCOUNT\n│    VLESS WS      : $C_VLESS  ACCOUNT\n│    TROJAN WS     : $C_TROJAN  ACCOUNT\n│    ZIVPN UDP     : $C_ZIVPN  ACCOUNT"
-    echo -e "│ —————————————————————————————————————\n│ Version   : PLATINUM LTS FINAL V.1200\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
+    echo -e "│ —————————————————————————————————————\n│ Version   : PLATINUM LTS FINAL V.1300\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
 }
 
 function header_sub() {
@@ -451,7 +467,7 @@ while true; do header_main; echo -e "┌─────────────�
 END_MENU
 chmod +x /usr/bin/menu
 
-# --- 8. AUTO XP (Protocol Aware + ZIVPN Support) ---
+# --- 9. AUTO XP (Protocol Aware + ZIVPN Support) ---
 cat > /usr/bin/xp <<'END_XP'
 #!/bin/bash
 data_file="/usr/local/etc/xray/user_data.txt"
@@ -492,7 +508,7 @@ done < "$data_file"
 END_XP
 chmod +x /usr/bin/xp
 
-# --- 9. CLEANER & CRON ---
+# --- 10. CLEANER & CRON ---
 cat > /usr/bin/cleaner <<'END_CLEAN'
 #!/bin/bash
 sync; echo 3 > /proc/sys/vm/drop_caches; swapoff -a && swapon -a
