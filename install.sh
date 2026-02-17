@@ -1,8 +1,8 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray (WARP Routing) & Zivpn
-#   EDITION: PLATINUM CUSTOM WARP V.3.1 (FIX GEOSITE)
-#   Update: Fix Geosite Download Location & Custom URL
+#   EDITION: PLATINUM CUSTOM WARP V.3.2 (SYNC ROUTING)
+#   Update: Sync Routing Menu with Config.json
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -125,7 +125,9 @@ else
     echo -e "\e[1;31m[ERROR] Failed to download Geosite. Check URL or Network.\e[0m"
 fi
 
-echo "google" > $RULE_LIST
+# --- SYNC RULE LIST WITH CONFIG ---
+# Default routing rules based on your config.json
+echo -e "rule-playstore\nyoutube\ntwitter" > $RULE_LIST
 
 # GENERATE UUID FOR SYSTEM
 UUID_SYS=$(uuidgen)
@@ -323,7 +325,7 @@ function header_main() {
     echo -e "│ XRAY : $X_ST | ZIVPN : $Z_ST | WARP : $W_ST\n│ —————————————————————————————————————"
     C_VMESS=$(wc -l < $D_VMESS); C_VLESS=$(wc -l < $D_VLESS); C_TROJAN=$(wc -l < $D_TROJAN); C_ZIVPN=$(jq '.auth.config | length' /etc/zivpn/config.json)
     echo -e "│              LIST ACCOUNTS\n│ —————————————————————————————————————\n│    VMESS WS      : $C_VMESS  ACCOUNT\n│    VLESS WS      : $C_VLESS  ACCOUNT\n│    TROJAN WS     : $C_TROJAN  ACCOUNT\n│    ZIVPN UDP     : $C_ZIVPN  ACCOUNT"
-    echo -e "│ —————————————————————————————————————\n│ Version   : v.3.1 WARP\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
+    echo -e "│ —————————————————————————————————————\n│ Version   : v.3.2 WARP-SYNC\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
 }
 
 function header_sub() {
@@ -424,6 +426,3 @@ while true; do header_main; echo -e "┌─────────────�
         x) exit ;;
     esac; done
 END_MENU
-
-chmod +x /usr/bin/menu
-echo -e "\e[1;32mINSTALASI SUKSES! Config WARP & DNS Applied. Ketik: menu\e[0m"
