@@ -4,7 +4,7 @@
 #   EDITION: PLATINUM LTS FINAL V.17.02.26
 #   Script BY: Tendo Store
 #   Features: VMess, VLESS, Trojan, ZIVPN, Features
-#   UI: Original Zero Margin + Clean Install Process
+#   UI: Original Zero Margin + ZIVPN Main Menu
 # ==================================================
 
 # --- COLORS FOR INSTALLATION ---
@@ -20,9 +20,6 @@ function print_status() {
 }
 function print_success() {
     echo -e "${GREEN}[  OK  ]${NC} $1 Completed."
-}
-function print_error() {
-    echo -e "${RED}[ FAIL ]${NC} $1"
 }
 
 clear
@@ -63,7 +60,7 @@ RULE_LIST="/usr/local/etc/xray/rule_list.txt"
 USER_DATA="/usr/local/etc/xray/user_data.txt"
 
 # --- 3. INSTALL DEPENDENCIES ---
-print_status "Installing Dependencies (This may take a while)"
+print_status "Installing Dependencies"
 apt update -y >/dev/null 2>&1
 apt install -y curl socat jq openssl uuid-runtime net-tools vnstat wget \
 gnupg1 bc iproute2 iptables iptables-persistent python3 neofetch cron >/dev/null 2>&1
@@ -102,13 +99,13 @@ chmod 644 $XRAY_DIR/xray.crt
 print_success "Domain: $DOMAIN_INIT"
 
 # --- 5. XRAY CORE & MULTI-PORT CONFIG ---
-print_status "Installing X-Ray Core & Configuring Ports"
+print_status "Installing X-Ray Core & Applying VMess Fix"
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install >/dev/null 2>&1
 wget -q -O /usr/local/share/xray/geosite.dat "https://github.com/tendostore/File-Geo/raw/refs/heads/main/geosite.dat"
 
 echo "google" > $RULE_LIST
 
-# FIXED CONFIG (No xver, Default Fallback)
+# FIXED CONFIG: Removed xver:1 to fix VMess connection
 cat > $CONFIG_FILE <<EOF
 {
   "log": { "loglevel": "warning" },
@@ -184,7 +181,7 @@ iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5667
 netfilter-persistent save >/dev/null 2>&1
 print_success "ZIVPN UDP Installed"
 
-# --- 7. MENU SCRIPT (GENERATING) ---
+# --- 7. MENU SCRIPT ---
 print_status "Generating Menu & Features"
 cat > /usr/bin/menu <<'END_MENU'
 #!/bin/bash
@@ -211,7 +208,7 @@ function header_main() {
     echo -e "│ XRAY : $X_ST | ZIVPN : $Z_ST \n│ —————————————————————————————————————"
     C_VMESS=$(jq '.inbounds[2].settings.clients | length' $CONFIG); C_VLESS=$(jq '.inbounds[0].settings.clients | length' $CONFIG); C_TROJAN=$(jq '.inbounds[3].settings.clients | length' $CONFIG); C_ZIVPN=$(jq '.auth.config | length' /etc/zivpn/config.json)
     echo -e "│              LIST ACCOUNTS\n│ —————————————————————————————————————\n│    VMESS WS      : $C_VMESS  ACCOUNT\n│    VLESS WS      : $C_VLESS  ACCOUNT\n│    TROJAN WS     : $C_TROJAN  ACCOUNT\n│    ZIVPN UDP     : $C_ZIVPN  ACCOUNT"
-    echo -e "│ —————————————————————————————————————\n│ Version   : V.17.02.26 LTS\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
+    echo -e "│ —————————————————————————————————————\n│ Version   : PLATINUM LTS FINAL V.17.02.26\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
 }
 
 function header_sub() {
@@ -395,7 +392,7 @@ function check_services() {
 while true; do header_main; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) VMESS MENU\n│ 2.) VLESS MENU\n│ 3.) TROJAN MENU\n│ 4.) ZIVPN MENU\n│ 5.) FEATURES MENU\n│ 6.) CEK SERVICE\n│ x.) EXIT\n└─────────────────────────────────────────────────┘"; read -p "Pilih Nomor: " opt
     case $opt in
         1) vmess_menu ;; 
-        2) vless_menu ;;
+        2) vless_menu ;; 
         3) trojan_menu ;;
         4) zivpn_menu_gui ;;
         5) features_menu ;;
@@ -466,4 +463,4 @@ echo -e "${GREEN}=============================================${NC}"
 echo -e "   INSTALLATION SUCCESSFUL!"
 echo -e "   COMMAND: menu"
 echo -e "${GREEN}=============================================${NC}"
-rm -f /root/setup.sh
+rm -f /root/install.sh
