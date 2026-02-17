@@ -1,32 +1,25 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray (WARP Routing) & Zivpn
-#   EDITION: PLATINUM CUSTOM WARP V.3.2 (SYNC ROUTING)
-#   Update: Sync Routing Menu with Config.json
+#   EDITION: PLATINUM FINAL V.3.3 (FIXED PERMISSIONS)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
 # --- 0. PRE-INSTALLATION: FIX DNS RESOLV.CONF ---
 echo -e "\e[1;32m[SYSTEM] Setting up DNS to 9.9.9.9, 1.1.1.1, 8.8.8.8...\e[0m"
-# Unlocking file if locked
 chattr -i /etc/resolv.conf > /dev/null 2>&1
-# Backup existing
 cp /etc/resolv.conf /etc/resolv.conf.bak
-# Remove symlink if exists
 rm -f /etc/resolv.conf
-# Create new resolv.conf
 cat > /etc/resolv.conf <<EOF
 nameserver 9.9.9.9
 nameserver 1.1.1.1
 nameserver 8.8.8.8
 EOF
-# Lock file to prevent changes
 chattr +i /etc/resolv.conf
 
 # --- 1. SYSTEM OPTIMIZATION (BBR & SWAP 2GB) ---
 echo -e "\e[1;32m[SYSTEM] Optimizing System & Memory...\e[0m"
 rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* 2>/dev/null
-# Enable TCP BBR
 echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
 echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
 sysctl -p >/dev/null 2>&1
@@ -59,7 +52,7 @@ DATA_TROJAN="/usr/local/etc/xray/trojan.txt"
 clear
 echo "============================================="
 echo "   Auto Script Install X-ray WARP & Zivpn"
-echo "        BY TENDO STORE - CUSTOM MOD"
+echo "        BY TENDO STORE - FINAL VERSION"
 echo "============================================="
 
 # --- 3. INSTALL DEPENDENCIES & VISUALS ---
@@ -84,7 +77,6 @@ echo -e "\e[1;32m[WARP] Installing WARP WireProxy (Port 40000)...\e[0m"
 # Download script
 wget -N https://gitlab.com/fscarmen/warp/-/raw/main/menu.sh
 # Automate Input: 1 (English) -> 13 (Wireproxy) -> 40000 (Port)
-# Menggunakan pipe untuk melewati interaktif menu
 echo -e "1\n13\n40000" | bash menu.sh
 echo -e "\e[1;32m[WARP] Installation logic executed. Proceeding...\e[0m"
 
@@ -117,7 +109,6 @@ bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release
 echo -e "\e[1;32m[GEOSITE] Downloading Custom Geosite Tendo...\e[0m"
 mkdir -p $XRAY_SHARE
 rm -f $XRAY_SHARE/geosite.dat
-# Menggunakan link custom Anda
 wget -O $XRAY_SHARE/geosite.dat "https://github.com/tendostore/File-Geo/raw/refs/heads/main/geosite.dat"
 if [ -f "$XRAY_SHARE/geosite.dat" ]; then
     echo -e "\e[1;32m[SUCCESS] Custom Geosite Downloaded Successfully!\e[0m"
@@ -126,7 +117,6 @@ else
 fi
 
 # --- SYNC RULE LIST WITH CONFIG ---
-# Default routing rules based on your config.json
 echo -e "rule-playstore\nyoutube\ntwitter" > $RULE_LIST
 
 # GENERATE UUID FOR SYSTEM
@@ -300,6 +290,7 @@ iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5667
 netfilter-persistent save &>/dev/null
 
 # --- 8. MAIN MENU SCRIPT ---
+echo -e "\e[1;32m[MENU] Creating Menu Script...\e[0m"
 cat > /usr/bin/menu <<'END_MENU'
 #!/bin/bash
 CYAN='\033[0;36m'; YELLOW='\033[0;33m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
@@ -325,7 +316,7 @@ function header_main() {
     echo -e "│ XRAY : $X_ST | ZIVPN : $Z_ST | WARP : $W_ST\n│ —————————————————————————————————————"
     C_VMESS=$(wc -l < $D_VMESS); C_VLESS=$(wc -l < $D_VLESS); C_TROJAN=$(wc -l < $D_TROJAN); C_ZIVPN=$(jq '.auth.config | length' /etc/zivpn/config.json)
     echo -e "│              LIST ACCOUNTS\n│ —————————————————————————————————————\n│    VMESS WS      : $C_VMESS  ACCOUNT\n│    VLESS WS      : $C_VLESS  ACCOUNT\n│    TROJAN WS     : $C_TROJAN  ACCOUNT\n│    ZIVPN UDP     : $C_ZIVPN  ACCOUNT"
-    echo -e "│ —————————————————————————————————————\n│ Version   : v.3.2 WARP-SYNC\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
+    echo -e "│ —————————————————————————————————————\n│ Version   : v.3.3 FINAL\n│ Script BY : Tendo Store\n│ WhatsApp  : +6282224460678\n│ Expiry In : Lifetime\n└─────────────────────────────────────────────────┘"
 }
 
 function header_sub() {
@@ -426,3 +417,6 @@ while true; do header_main; echo -e "┌─────────────�
         x) exit ;;
     esac; done
 END_MENU
+
+chmod +x /usr/bin/menu
+echo -e "\e[1;32mSELESAI! Instalasi beres. Ketik: menu\e[0m"
