@@ -1,8 +1,8 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray (WARP Routing) & Zivpn
-#   EDITION: PLATINUM ULTIMATE V.4.2 (DESIGN FIX)
-#   Update: Fix Layout, Link Copy, Geosite Table, New Features
+#   EDITION: PLATINUM ULTIMATE V.4.3 (FIX DISPLAY)
+#   Update: Fix Color Codes, Routing Align, Animation
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -13,44 +13,58 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; BLUE='\033[0;34m'; PU
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 
-# --- PROGRESS BAR ---
-function print_install() { echo -e "${YELLOW}➤ $1...${NC}"; sleep 1; }
-function print_success() { echo -e "${GREEN}✔ $1 Berhasil!${NC}"; sleep 0.5; }
-function loading_bar() {
-    local duration=${1}
-    local columns=$(tput cols)
-    local width=$((columns-10))
-    for ((i=0; i<=100; i+=5)); do
-        printf "\r${CYAN}[%-$width.${width}s] %d%%${NC}" $(printf "%0.s#" $(seq 1 $(($i*$width/100)))) $i
-        sleep $(echo "$duration/20" | bc -l)
-    done; echo ""
+# --- ANIMASI INSTALL (SPINNER) ---
+function install_spin() {
+    local pid=$!
+    local delay=0.1
+    local spinstr='|/-\'
+    echo -ne " "
+    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
+        local temp=${spinstr#?}
+        printf " [%c]  " "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\b\b\b\b\b\b"
+    done
+    printf "    \b\b\b\b"
+}
+
+function print_msg() {
+    echo -e "${YELLOW}➤ $1...${NC}"
+}
+
+function print_ok() {
+    echo -e "${GREEN}✔ $1 Selesai!${NC}"
+    sleep 0.5
 }
 
 clear
 echo -e "${CYAN}=================================================${NC}"
 echo -e "${PURPLE}      AUTO INSTALLER X-RAY & ZIVPN ULTIMATE      ${NC}"
 echo -e "${CYAN}=================================================${NC}"
+echo -e "${YELLOW}           Script by Tendo Store                ${NC}"
+echo -e "${CYAN}=================================================${NC}"
 sleep 2
 
 # --- 0. PRE-INSTALLATION ---
-print_install "Setting DNS"
+print_msg "Mengatur DNS Resolver"
 chattr -i /etc/resolv.conf >/dev/null 2>&1
 rm -f /etc/resolv.conf
 echo -e "nameserver 9.9.9.9\nnameserver 1.1.1.1\nnameserver 8.8.8.8" > /etc/resolv.conf
-chattr +i /etc/resolv.conf
+chattr +i /etc/resolv.conf & install_spin
+print_ok "DNS"
 
 # --- 1. OPTIMIZATION ---
-print_install "Optimasi Sistem"
+print_msg "Optimasi Sistem & Swap"
 rm -f /var/lib/apt/lists/lock >/dev/null 2>&1
 echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
 echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
 sysctl -p >/dev/null 2>&1
-
-print_install "Swap Memory 2GB"
 swapoff -a >/dev/null 2>&1; rm -f /swapfile
 dd if=/dev/zero of=/swapfile bs=1024 count=2097152 >/dev/null 2>&1
 chmod 600 /swapfile; mkswap /swapfile >/dev/null 2>&1; swapon /swapfile >/dev/null 2>&1
-echo '/swapfile none swap sw 0 0' >> /etc/fstab
+echo '/swapfile none swap sw 0 0' >> /etc/fstab & install_spin
+print_ok "System Optimized"
 
 # --- 2. VARIABLES ---
 CF_ID="mbuntoncity@gmail.com"
@@ -62,12 +76,12 @@ CONFIG_FILE="/usr/local/etc/xray/config.json"; RULE_LIST="/usr/local/etc/xray/ru
 DATA_VMESS="/usr/local/etc/xray/vmess.txt"; DATA_VLESS="/usr/local/etc/xray/vless.txt"; DATA_TROJAN="/usr/local/etc/xray/trojan.txt"
 
 # --- 3. DEPENDENCIES ---
-print_install "Install Dependencies"
+print_msg "Install Dependencies (Proses agak lama)"
 apt-get update -y >/dev/null 2>&1
 echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
 echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
-apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl socat jq openssl uuid-runtime net-tools vnstat wget gnupg1 bc iproute2 iptables iptables-persistent python3 neofetch cron >/dev/null 2>&1
-loading_bar 5
+apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl socat jq openssl uuid-runtime net-tools vnstat wget gnupg1 bc iproute2 iptables iptables-persistent python3 neofetch cron >/dev/null 2>&1 & install_spin
+print_ok "Dependencies"
 
 touch /root/.hushlogin; chmod -x /etc/update-motd.d/* 2>/dev/null
 sed -i '/neofetch/d' /root/.bashrc; echo "neofetch" >> /root/.bashrc
@@ -77,13 +91,13 @@ IFACE_NET=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 systemctl enable vnstat && systemctl restart vnstat; vnstat -u -i $IFACE_NET >/dev/null 2>&1
 
 # --- 4. WARP ---
-print_install "Install WARP"
+print_msg "Install Cloudflare WARP"
 wget -N https://gitlab.com/fscarmen/warp/-/raw/main/menu.sh >/dev/null 2>&1
-echo -e "1\n13\n40000" | bash menu.sh >/dev/null 2>&1
-loading_bar 3
+echo -e "1\n13\n40000" | bash menu.sh >/dev/null 2>&1 & install_spin
+print_ok "WARP"
 
 # --- 5. DOMAIN ---
-print_install "Setup Domain"
+print_msg "Setup Domain & SSL"
 mkdir -p $XRAY_DIR /etc/zivpn /root/tendo; touch $DATA_VMESS $DATA_VLESS $DATA_TROJAN
 IP_VPS=$(curl -s ifconfig.me)
 curl -s ipinfo.io/json | jq -r '.city' > /root/tendo/city
@@ -98,10 +112,11 @@ curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_re
 echo "$DOMAIN_INIT" > $XRAY_DIR/domain
 openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout $XRAY_DIR/xray.key \
     -out $XRAY_DIR/xray.crt -days 3650 -subj "/CN=$DOMAIN_INIT" >/dev/null 2>&1
-chmod 644 $XRAY_DIR/xray.key; chmod 644 $XRAY_DIR/xray.crt
+chmod 644 $XRAY_DIR/xray.key; chmod 644 $XRAY_DIR/xray.crt & install_spin
+print_ok "Domain Created: $DOMAIN_INIT"
 
 # --- 6. XRAY CONFIG ---
-print_install "Install Xray Core"
+print_msg "Install Xray Core & Config"
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install >/dev/null 2>&1
 mkdir -p $XRAY_SHARE; rm -f $XRAY_SHARE/geosite.dat
 wget -O $XRAY_SHARE/geosite.dat "https://github.com/tendostore/File-Geo/raw/refs/heads/main/geosite.dat" >/dev/null 2>&1
@@ -127,9 +142,10 @@ cat > $CONFIG_FILE <<EOF
   "routing": { "domainStrategy": "IPIfNonMatch", "rules": [ { "inboundTag": [ "api" ], "outboundTag": "api", "type": "field" }, { "type": "field", "port": "443", "network": "udp", "outboundTag": "block" }, { "domain": [], "outboundTag": "routing", "network": "tcp,udp", "type": "field" }, { "type": "field", "outboundTag": "blocked", "protocol": [ "bittorrent" ] } ] }
 }
 EOF
+print_ok "Xray Configured"
 
 # --- 7. ZIVPN ---
-print_install "Install ZIVPN"
+print_msg "Install ZIVPN"
 wget -qO /usr/local/bin/zivpn "https://github.com/zahidbd2/udp-zivpn/releases/download/udp-zivpn_1.4.9/udp-zivpn-linux-amd64"; chmod +x /usr/local/bin/zivpn
 echo '{"listen":":5667","cert":"/usr/local/etc/xray/xray.crt","key":"/usr/local/etc/xray/xray.key","obfs":"zivpn","auth":{"mode":"passwords","config":[]}}' > /etc/zivpn/config.json
 cat > /etc/systemd/system/zivpn.service <<EOF
@@ -148,9 +164,10 @@ systemctl daemon-reload && systemctl enable zivpn && systemctl restart zivpn xra
 iptables -t nat -A PREROUTING -i $IFACE_NET -p udp --dport 6000:19999 -j DNAT --to-destination :5667
 iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5667
 netfilter-persistent save >/dev/null 2>&1
+print_ok "ZIVPN Installed"
 
 # --- 8. MENU SCRIPT ---
-print_install "Membuat Menu"
+print_msg "Finalisasi Menu"
 cat > /usr/bin/menu <<'END_MENU'
 #!/bin/bash
 CYAN='\033[0;36m'; YELLOW='\033[0;33m'; GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'; PURPLE='\033[0;35m'; NC='\033[0m'
@@ -164,15 +181,16 @@ function show_account_xray() {
     local proto=$1; local user=$2; local domain=$3; local uuid=$4; local exp=$5; local link_tls=$6; local link_ntls=$7
     local isp=$(cat /root/tendo/isp); local city=$(cat /root/tendo/city); local ip=$(cat /root/tendo/ip)
 
+    # --- FIX: PENGGUNAAN WARNA YANG BENAR (ECHO -E) ---
     echo -e "${CYAN}┌──────────────────────────────────────────────┐${NC}"
     echo -e "${CYAN}│             ${YELLOW}DETAIL AKUN ${proto^^}${CYAN}            │${NC}"
     echo -e "${CYAN}└──────────────────────────────────────────────┘${NC}"
-    printf "${CYAN}│${NC} %-10s : %s\n" "Remarks" "${YELLOW}$user${NC}"
-    printf "${CYAN}│${NC} %-10s : %s\n" "Domain" "${GREEN}$domain${NC}"
-    printf "${CYAN}│${NC} %-10s : %s\n" "ISP" "${PURPLE}$isp${NC}"
-    printf "${CYAN}│${NC} %-10s : %s\n" "IP" "${PURPLE}$ip${NC}"
-    printf "${CYAN}│${NC} %-10s : %s\n" "UUID" "${WHITE}$uuid${NC}"
-    printf "${CYAN}│${NC} %-10s : %s\n" "Expired" "${RED}$exp${NC}"
+    echo -e "${CYAN}│${NC} Remarks     : ${YELLOW}${user}${NC}"
+    echo -e "${CYAN}│${NC} Domain      : ${GREEN}${domain}${NC}"
+    echo -e "${CYAN}│${NC} ISP         : ${PURPLE}${isp}${NC}"
+    echo -e "${CYAN}│${NC} IP Server   : ${PURPLE}${ip}${NC}"
+    echo -e "${CYAN}│${NC} UUID        : ${WHITE}${uuid}${NC}"
+    echo -e "${CYAN}│${NC} Expired     : ${RED}${exp}${NC}"
     echo -e "${CYAN}├──────────────────────────────────────────────┤${NC}"
     echo -e "${CYAN}│             ${YELLOW}LINK CONFIGURATION${CYAN}               │${NC}"
     echo -e "${CYAN}└──────────────────────────────────────────────┘${NC}"
@@ -193,10 +211,10 @@ function show_account_zivpn() {
     echo -e "${BLUE}┌──────────────────────────────────────────────┐${NC}"
     echo -e "${BLUE}│               ${YELLOW}DETAIL ZIVPN${BLUE}                   │${NC}"
     echo -e "${BLUE}└──────────────────────────────────────────────┘${NC}"
-    printf "${BLUE}│${NC} %-10s : %s\n" "Password" "${YELLOW}$pass${NC}"
-    printf "${BLUE}│${NC} %-10s : %s\n" "Domain" "${GREEN}$domain${NC}"
-    printf "${BLUE}│${NC} %-10s : %s\n" "Expired" "${RED}$exp${NC}"
-    printf "${BLUE}│${NC} %-10s : %s\n" "Ports" "53, 5667, 6000-19999"
+    echo -e "${BLUE}│${NC} Password    : ${YELLOW}${pass}${NC}"
+    echo -e "${BLUE}│${NC} Domain      : ${GREEN}${domain}${NC}"
+    echo -e "${BLUE}│${NC} Expired     : ${RED}${exp}${NC}"
+    echo -e "${BLUE}│${NC} Ports       : ${WHITE}53, 5667, 6000-19999${NC}"
     echo -e "${BLUE}└──────────────────────────────────────────────┘${NC}"
     read -n 1 -s -r -p "Tekan enter untuk kembali..."
 }
@@ -221,9 +239,12 @@ function header_main() {
     echo -e "MONTH   : $MON_DATA"
     echo -e "SPEED   : $TRAFFIC Mbit/s"
     echo -e "${CYAN}─────────────────────────────────────────────${NC}"
-    SX=$(systemctl is-active xray); [[ $SX == "active" ]] && X_ST="${GREEN}ON${NC}" || X_ST="${RED}OFF${NC}"
-    SZ=$(systemctl is-active zivpn); [[ $SZ == "active" ]] && Z_ST="${GREEN}ON${NC}" || Z_ST="${RED}OFF${NC}"
-    SW=$(pgrep -f wireproxy > /dev/null && echo "active"); [[ $SW == "active" ]] && W_ST="${GREEN}ON${NC}" || W_ST="${RED}OFF${NC}"
+    
+    # --- FIX: LOGIKA STATUS AGAR TIDAK ERROR RAW CODE ---
+    if systemctl is-active --quiet xray; then X_ST="${GREEN}ON${NC}"; else X_ST="${RED}OFF${NC}"; fi
+    if systemctl is-active --quiet zivpn; then Z_ST="${GREEN}ON${NC}"; else Z_ST="${RED}OFF${NC}"; fi
+    if pgrep -f wireproxy >/dev/null; then W_ST="${GREEN}ON${NC}"; else W_ST="${RED}OFF${NC}"; fi
+    
     echo -e "STATUS  : XRAY: $X_ST | ZIVPN: $Z_ST | WARP: $W_ST"
     echo -e "${CYAN}─────────────────────────────────────────────${NC}"
 }
@@ -237,8 +258,8 @@ function header_sub() {
 function features_menu() {
     while true; do header_sub
         echo -e "[1] Check Bandwidth (Vnstat)"
-        echo -e "[2] Speedtest VPS (Ookla)"
-        echo -e "[3] Check All Service Status"
+        echo -e "[2] Speedtest by Ookla"
+        echo -e "[3] Restart All Services"
         echo -e "[4] Fitur Routing (Geosite)"
         echo -e "[5] Change Domain VPS"
         echo -e "[6] Clear Cache RAM"
@@ -249,8 +270,8 @@ function features_menu() {
         read -p " Select Menu : " opt
         case $opt in
             1) vnstat -l -i $(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1);;
-            2) python3 <(curl -sL https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py); read -p "Enter...";;
-            3) check_services;;
+            2) wget -qO- https://raw.githubusercontent.com/tendostore/speedtest/main/speedtest | bash; read -p "Enter...";;
+            3) restart_services;;
             4) routing_menu;;
             5) read -p "New Domain: " nd; echo "$nd" > /usr/local/etc/xray/domain; openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout /usr/local/etc/xray/xray.key -out /usr/local/etc/xray/xray.crt -days 3650 -subj "/CN=$nd" >/dev/null 2>&1; systemctl restart xray; echo "Domain Updated!"; sleep 2;;
             6) sync; echo 3 > /proc/sys/vm/drop_caches; echo -e "${GREEN}Cache Cleared!${NC}"; sleep 1;;
@@ -337,18 +358,26 @@ function zivpn_menu() {
 function routing_menu() {
     while true; do header_sub;
     geosites=("rule-gaming" "rule-indo" "rule-sosmed" "google" "rule-playstore" "rule-streaming" "rule-umum" "tiktok" "rule-ipcheck" "rule-doh" "rule-malicious" "telegram" "rule-ads" "rule-speedtest" "ecommerce-id" "urltest" "category-porn" "bank-id" "meta" "videoconference" "geolocation-!cn" "facebook" "spotify" "openai" "ehentai" "github" "microsoft" "apple" "netflix" "cn" "youtube" "twitter" "bilibili" "category-ads-all" "private" "category-media" "category-vpnservices" "category-dev" "category-dev-all" "category-media-all")
-    echo -e "${CYAN}┌───────────────────────────────────────────┐${NC}"
-    echo -e "${CYAN}│          SUPPORTED GEOSITE LIST           │${NC}"
-    echo -e "${CYAN}├───────────────────────────────────────────┤${NC}"
+    echo -e "${CYAN}┌───────────────────────────────────────────────────┐${NC}"
+    echo -e "${CYAN}│              SUPPORTED GEOSITE LIST               │${NC}"
+    echo -e "${CYAN}├───────────────────────────────────────────────────┤${NC}"
+    
+    # --- FIX: COLUMN ALIGNMENT LEBAR ---
     total=${#geosites[@]}; half=$(( (total + 1) / 2 ))
     for (( i=0; i<half; i++ )); do
-        j=$(( i + half )); printf "${CYAN}│${NC} %-2d. %-15.15s" $((i+1)) "${geosites[i]}"
-        if [[ $j -lt $total ]]; then printf "${CYAN}│${NC} %-2d. %-15.15s" $((j+1)) "${geosites[j]}"; fi; echo -e "${CYAN}│${NC}"
+        j=$(( i + half ))
+        # Format: %-26s memberikan 26 karakter spasi, cukup untuk nama panjang
+        printf "${CYAN}│${NC} %-2d. %-20s" $((i+1)) "${geosites[i]}"
+        if [[ $j -lt $total ]]; then
+            printf "${CYAN}│${NC} %-2d. %-20s${CYAN}│${NC}\n" $((j+1)) "${geosites[j]}"
+        else
+            printf "${CYAN}│${NC}%26s${CYAN}│${NC}\n" ""
+        fi
     done
-    echo -e "${CYAN}└───────────────────────────────────────────┘${NC}"
+    echo -e "${CYAN}└───────────────────────────────────────────────────┘${NC}"
     DOMS=$(cat /usr/local/etc/xray/rule_list.txt | xargs)
     echo -e " Active: ${GREEN}$DOMS${NC}"
-    echo -e "${CYAN}─────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}─────────────────────────────────────────────────────${NC}"
     echo -e "[1] Tambah Rule (Ketik Nama Rule)"
     echo -e "[2] Hapus Rule"
     echo -e "[x] Back"
@@ -360,12 +389,37 @@ function routing_menu() {
         esac; done
 }
 
+function restart_services() {
+    header_sub
+    echo -e "Restarting Xray..."
+    systemctl restart xray
+    echo -e "Restarting ZIVPN..."
+    systemctl restart zivpn
+    echo -e "Restarting Vnstat..."
+    systemctl restart vnstat
+    echo -e "${GREEN}All Services Restarted!${NC}"
+    sleep 2
+}
+
 function check_services() {
-    header_sub; echo -e "${CYAN}┌───────────────────────────────────────────┐${NC}\n${CYAN}│              SERVICES STATUS              │${NC}\n${CYAN}├───────────────────────────────────────────┤${NC}"; services=("xray" "zivpn" "vnstat" "netfilter-persistent"); names=("Xray Core" "ZIVPN UDP" "Vnstat" "Iptables")
-    for i in "${!services[@]}"; do if systemctl is-active --quiet "${services[$i]}"; then status="${GREEN}ON${NC}"; else status="${RED}OFF${NC}"; fi; printf "${CYAN}│${NC} %-15s : %-16s${CYAN}│${NC}\n" "${names[$i]}" "$status"; done
-    if pgrep -f wireproxy >/dev/null; then w_status="${GREEN}ON${NC}"; else w_status="${RED}OFF${NC}"; fi
-    printf "${CYAN}│${NC} %-15s : %-16s${CYAN}│${NC}\n" "WARP Proxy" "$w_status"
-    echo -e "${CYAN}└───────────────────────────────────────────┘${NC}"; read -p "Enter...";
+    header_sub
+    echo -e "${CYAN}┌───────────────────────────────────────────┐${NC}"
+    echo -e "${CYAN}│              SERVICES STATUS              │${NC}"
+    echo -e "${CYAN}├───────────────────────────────────────────┤${NC}"
+    
+    # --- FIX: MENGGUNAKAN ECHO -E UNTUK WARNA AGAR TIDAK RAW CODE ---
+    if systemctl is-active --quiet xray; then X_ST="${GREEN}ON${NC}"; else X_ST="${RED}OFF${NC}"; fi
+    if systemctl is-active --quiet zivpn; then Z_ST="${GREEN}ON${NC}"; else Z_ST="${RED}OFF${NC}"; fi
+    if systemctl is-active --quiet vnstat; then V_ST="${GREEN}ON${NC}"; else V_ST="${RED}OFF${NC}"; fi
+    if pgrep -f wireproxy >/dev/null; then W_ST="${GREEN}ON${NC}"; else W_ST="${RED}OFF${NC}"; fi
+    
+    echo -e "${CYAN}│${NC} Xray Core       : $X_ST${NC}"
+    echo -e "${CYAN}│${NC} ZIVPN UDP       : $Z_ST${NC}"
+    echo -e "${CYAN}│${NC} Vnstat Mon      : $V_ST${NC}"
+    echo -e "${CYAN}│${NC} WARP Proxy      : $W_ST${NC}"
+    
+    echo -e "${CYAN}└───────────────────────────────────────────┘${NC}"
+    read -p "Enter..."
 }
 
 while true; do header_main
@@ -389,5 +443,5 @@ while true; do header_main
 END_MENU
 
 chmod +x /usr/bin/menu
-loading_bar 3
-print_success "Instalasi Selesai! Ketik: menu"
+install_spin
+print_ok "Instalasi Selesai! Ketik: menu"
