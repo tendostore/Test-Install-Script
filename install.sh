@@ -1,8 +1,8 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray & Zivpn
-#   EDITION: PLATINUM CLEAN V.5.8 (DOMAIN SELECTION ADDED)
-#   Update: Added Option for Random Domain or Custom Domain
+#   EDITION: PLATINUM CLEAN V.5.9 (DETAILED DASHBOARD)
+#   Update: Added Full System Info (OS, RAM, SWAP, ISP, CITY, UPTIME)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -258,8 +258,11 @@ function show_account_zivpn() {
 
 function header_main() {
     clear; DOMAIN=$(cat /usr/local/etc/xray/domain); OS=$(cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/PRETTY_NAME="//g' | sed 's/"//g')
-    RAM=$(free -m | awk '/Mem:/ {print $3}'); SWAP=$(free -m | awk '/Swap:/ {print $2}'); IP=$(cat /root/tendo/ip)
+    RAM=$(free -m | awk '/Mem:/ {print $2}'); SWAP=$(free -m | awk '/Swap:/ {print $2}'); IP=$(cat /root/tendo/ip)
     IFACE=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
+    CITY=$(cat /root/tendo/city)
+    ISP=$(cat /root/tendo/isp)
+    UPTIME=$(uptime -p | sed 's/up //')
     
     # Traffic Calculation
     RX_DAY=$(vnstat -d -i $IFACE --oneline | awk -F';' '{print $4}')
@@ -275,9 +278,13 @@ function header_main() {
     echo -e "${CYAN}│              ${YELLOW}TENDO STORE ULTIMATE${NC}"
     echo -e "${CYAN}├───────────────────────────────────────────────────────${NC}"
     printf "${CYAN}│${NC} OS      : ${WHITE}%-s${NC}\n" "$OS"
-    printf "${CYAN}│${NC} RAM     : ${WHITE}%-s${NC}\n" "${RAM}MB | SWAP: ${SWAP}MB"
+    printf "${CYAN}│${NC} RAM     : ${WHITE}%-s${NC}\n" "${RAM}MB"
+    printf "${CYAN}│${NC} SWAP    : ${WHITE}%-s${NC}\n" "${SWAP}MB"
+    printf "${CYAN}│${NC} CITY    : ${WHITE}%-s${NC}\n" "$CITY"
+    printf "${CYAN}│${NC} ISP     : ${WHITE}%-s${NC}\n" "$ISP"
+    printf "${CYAN}│${NC} IP      : ${WHITE}%-s${NC}\n" "$IP"
     printf "${CYAN}│${NC} DOMAIN  : ${YELLOW}%-s${NC}\n" "$DOMAIN"
-    printf "${CYAN}│${NC} IP VPS  : ${WHITE}%-s${NC}\n" "$IP"
+    printf "${CYAN}│${NC} UPTIME  : ${WHITE}%-s${NC}\n" "$UPTIME"
     echo -e "${CYAN}├───────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}│${NC} ${PURPLE}TODAY${NC}   : ${GREEN}RX:${NC} $RX_DAY ${CYAN}|${NC} ${RED}TX:${NC} $TX_DAY"
     echo -e "${CYAN}│${NC} ${PURPLE}MONTH${NC}   : ${GREEN}RX:${NC} $RX_MON ${CYAN}|${NC} ${RED}TX:${NC} $TX_MON"
