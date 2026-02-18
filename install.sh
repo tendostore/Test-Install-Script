@@ -98,7 +98,8 @@ curl -s ipinfo.io/json | jq -r '.city' > /root/tendo/city
 curl -s ipinfo.io/json | jq -r '.org' > /root/tendo/isp
 curl -s ipinfo.io/json | jq -r '.ip' > /root/tendo/ip
 
-# --- FIXED: TIMEZONE ASIA/JAKARTA ---
+# --- FIXED: SET TIMEZONE TO ASIA/JAKARTA ---
+# Mengganti deteksi otomatis dengan setting manual Asia/Jakarta sesuai request
 ln -sf /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
 echo "Asia/Jakarta" > /etc/timezone
 print_msg "Timezone set to: Asia/Jakarta"
