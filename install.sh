@@ -2,7 +2,7 @@
 # ==================================================
 #   Auto Script Install X-ray & Zivpn
 #   EDITION: PLATINUM CLEAN V.5.3 (BOX LAYOUT RESTORED)
-#   Update: Restored Full Box Layout (Closed Borders)
+#   Update: Fixed Layout (No Right Borders) & Custom Details
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -150,7 +150,7 @@ print_ok "ZIVPN Installed"
 print_msg "Finalisasi Menu"
 cat > /usr/bin/menu <<'END_MENU'
 #!/bin/bash
-CYAN='\033[0;36m'; YELLOW='\033[0;33m'; GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'; PURPLE='\033[0;35m'; NC='\033[0m'
+CYAN='\033[0;36m'; YELLOW='\033[0;33m'; GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'; PURPLE='\033[0;35m'; WHITE='\033[1;37m'; NC='\033[0m'
 CONFIG="/usr/local/etc/xray/config.json"
 D_VMESS="/usr/local/etc/xray/vmess.txt"
 D_VLESS="/usr/local/etc/xray/vless.txt"
@@ -159,27 +159,46 @@ D_TROJAN="/usr/local/etc/xray/trojan.txt"
 function show_account_xray() {
     clear
     local proto=$1; local user=$2; local domain=$3; local uuid=$4; local exp=$5; local link_tls=$6; local link_ntls=$7
-    local isp=$(cat /root/tendo/isp); local city=$(cat /root/tendo/city); local ip=$(cat /root/tendo/ip)
+    local isp=$(cat /root/tendo/isp); local city=$(cat /root/tendo/city)
+    local path="/${proto,,}"; 
+    if [[ "$proto" == "VMESS" ]]; then path="/vmess"; fi
+    if [[ "$proto" == "VLESS" ]]; then path="/vless"; fi
+    if [[ "$proto" == "TROJAN" ]]; then path="/trojan"; fi
 
-    echo -e "${CYAN}┌───────────────────────────────────────────────────┐${NC}"
-    echo -e "${CYAN}│             ${YELLOW}DETAIL AKUN ${proto^^}${CYAN}            │${NC}"
-    echo -e "${CYAN}├───────────────────────────────────────────────────┤${NC}"
-    printf "${CYAN}│${NC} %-12s : %-34s${CYAN}│${NC}\n" "Remarks" "${YELLOW}$user${NC}"
-    printf "${CYAN}│${NC} %-12s : %-34s${CYAN}│${NC}\n" "Domain" "${GREEN}$domain${NC}"
-    printf "${CYAN}│${NC} %-12s : %-34s${CYAN}│${NC}\n" "ISP" "${PURPLE}$isp${NC}"
-    printf "${CYAN}│${NC} %-12s : %-34s${CYAN}│${NC}\n" "IP" "${PURPLE}$ip${NC}"
-    printf "${CYAN}│${NC} %-12s : %-34s${CYAN}│${NC}\n" "UUID" "${WHITE}$uuid${NC}"
-    printf "${CYAN}│${NC} %-12s : %-34s${CYAN}│${NC}\n" "Expired" "${RED}$exp${NC}"
-    echo -e "${CYAN}├───────────────────────────────────────────────────┤${NC}"
-    echo -e "${CYAN}│             ${YELLOW}LINK CONFIGURATION${CYAN}               │${NC}"
-    echo -e "${CYAN}├───────────────────────────────────────────────────┤${NC}"
-    echo -e "${YELLOW}TLS (443)${NC}"
-    echo -e "${WHITE}${link_tls}${NC}"
-    echo -e "${CYAN}─────────────────────────────────────────────────────${NC}"
-    if [[ -n "$link_ntls" ]]; then
-        echo -e "${YELLOW}NON-TLS (80)${NC}"
-        echo -e "${WHITE}${link_ntls}${NC}"
+    echo -e "————————————————————————————————————"
+    echo -e "               ${proto}"
+    echo -e "————————————————————————————————————"
+    echo -e "Remarks        : ${user}"
+    echo -e "CITY           : ${city}"
+    echo -e "ISP            : ${isp}"
+    echo -e "Domain         : ${domain}"
+    echo -e "Port TLS       : 443"
+    echo -e "Port none TLS  : 80"
+    echo -e "Port any       : 2052,2053,8880"
+    if [[ "$proto" == "TROJAN" ]]; then
+        echo -e "Password       : ${uuid}"
+    else
+        echo -e "id             : ${uuid}"
     fi
+    echo -e "alterId        : 0"
+    echo -e "Security       : auto"
+    echo -e "network        : ws,grpc,upgrade"
+    echo -e "path ws        : ${path}"
+    echo -e "serviceName    : ${proto,,}"
+    echo -e "path upgrade   : /up${proto,,}"
+    echo -e "Expired On     : ${exp}"
+    echo -e "————————————————————————————————————"
+    echo -e "           ${proto} WS TLS"
+    echo -e "————————————————————————————————————"
+    echo -e "${link_tls}"
+    
+    if [[ -n "$link_ntls" ]]; then
+        echo -e "————————————————————————————————————"
+        echo -e "          ${proto} WS NO TLS"
+        echo -e "————————————————————————————————————"
+        echo -e "${link_ntls}"
+    fi
+    echo -e "————————————————————————————————————"
     echo ""
     read -n 1 -s -r -p "Tekan enter untuk kembali..."
 }
@@ -187,14 +206,19 @@ function show_account_xray() {
 function show_account_zivpn() {
     clear
     local pass=$1; local domain=$2; local exp=$3
-    echo -e "${BLUE}┌───────────────────────────────────────────────────┐${NC}"
-    echo -e "${BLUE}│               ${YELLOW}DETAIL ZIVPN${BLUE}                   │${NC}"
-    echo -e "${BLUE}├───────────────────────────────────────────────────┤${NC}"
-    printf "${BLUE}│${NC} %-12s : %-34s${BLUE}│${NC}\n" "Password" "${YELLOW}$pass${NC}"
-    printf "${BLUE}│${NC} %-12s : %-34s${BLUE}│${NC}\n" "Domain" "${GREEN}$domain${NC}"
-    printf "${BLUE}│${NC} %-12s : %-34s${BLUE}│${NC}\n" "Expired" "${RED}$exp${NC}"
-    printf "${BLUE}│${NC} %-12s : %-34s${BLUE}│${NC}\n" "Ports" "${WHITE}53, 5667, 6000-19999${NC}"
-    echo -e "${BLUE}└───────────────────────────────────────────────────┘${NC}"
+    local isp=$(cat /root/tendo/isp); local city=$(cat /root/tendo/city); local ip=$(cat /root/tendo/ip)
+
+    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "  ACCOUNT ZIVPN UDP"
+    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "Password   : ${pass}"
+    echo -e "CITY       : ${city}"
+    echo -e "ISP        : ${isp}"
+    echo -e "IP ISP     : ${ip}"
+    echo -e "Domain     : ${domain}"
+    echo -e "Expired On : ${exp}"
+    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
     read -n 1 -s -r -p "Tekan enter untuk kembali..."
 }
 
@@ -213,30 +237,32 @@ function header_main() {
     R2=$(cat /sys/class/net/$IFACE/statistics/rx_bytes); T2=$(cat /sys/class/net/$IFACE/statistics/tx_bytes)
     TRAFFIC=$(echo "scale=2; (($R2 - $R1) + ($T2 - $T1)) * 8 / 409.6 / 1024" | bc)
 
-    echo -e "${CYAN}┌───────────────────────────────────────────────────────┐${NC}"
-    echo -e "${CYAN}│              ${YELLOW}TENDO STORE ULTIMATE${CYAN}               │${NC}"
-    echo -e "${CYAN}├───────────────────────────────────────────────────────┤${NC}"
-    printf "${CYAN}│${NC} OS      : %-42s${CYAN}│${NC}\n" "$OS"
-    printf "${CYAN}│${NC} RAM     : %-42s${CYAN}│${NC}\n" "${RAM}MB | SWAP: ${SWAP}MB"
-    printf "${CYAN}│${NC} DOMAIN  : %-42s${CYAN}│${NC}\n" "${YELLOW}$DOMAIN${NC}"
-    printf "${CYAN}│${NC} IP VPS  : %-42s${CYAN}│${NC}\n" "$IP"
-    echo -e "${CYAN}├───────────────────────────────────────────────────────┤${NC}"
+    echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}│              ${YELLOW}TENDO STORE ULTIMATE${NC}"
+    echo -e "${CYAN}├───────────────────────────────────────────────────────${NC}"
+    printf "${CYAN}│${NC} OS      : ${WHITE}%-s${NC}\n" "$OS"
+    printf "${CYAN}│${NC} RAM     : ${WHITE}%-s${NC}\n" "${RAM}MB | SWAP: ${SWAP}MB"
+    printf "${CYAN}│${NC} DOMAIN  : ${YELLOW}%-s${NC}\n" "$DOMAIN"
+    printf "${CYAN}│${NC} IP VPS  : ${WHITE}%-s${NC}\n" "$IP"
+    echo -e "${CYAN}├───────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}│${NC} ${PURPLE}TODAY${NC}   : ${GREEN}RX:${NC} $RX_DAY ${CYAN}|${NC} ${RED}TX:${NC} $TX_DAY"
     echo -e "${CYAN}│${NC} ${PURPLE}MONTH${NC}   : ${GREEN}RX:${NC} $RX_MON ${CYAN}|${NC} ${RED}TX:${NC} $TX_MON"
-    printf "${CYAN}│${NC} ${PURPLE}SPEED${NC}   : %-42s${CYAN}│${NC}\n" "${WHITE}$TRAFFIC Mbit/s${NC}"
-    echo -e "${CYAN}├───────────────────────────────────────────────────────┤${NC}"
+    printf "${CYAN}│${NC} ${PURPLE}SPEED${NC}   : ${WHITE}%-s${NC}\n" "$TRAFFIC Mbit/s"
+    echo -e "${CYAN}├───────────────────────────────────────────────────────${NC}"
     
     if systemctl is-active --quiet xray; then X_ST="${GREEN}ON${NC}"; else X_ST="${RED}OFF${NC}"; fi
     if systemctl is-active --quiet zivpn; then Z_ST="${GREEN}ON${NC}"; else Z_ST="${RED}OFF${NC}"; fi
+    # Cek IPTables dengan simple command
+    if iptables -L >/dev/null 2>&1; then I_ST="${GREEN}ON${NC}"; else I_ST="${RED}OFF${NC}"; fi
     
-    printf "${CYAN}│${NC} STATUS  : XRAY: %-36s${CYAN}│${NC}\n" "$X_ST ${CYAN}|${NC} ZIVPN: $Z_ST"
-    echo -e "${CYAN}└───────────────────────────────────────────────────────┘${NC}"
+    printf "${CYAN}│${NC} STATUS  : XRAY: ${WHITE}%-s${NC} ${CYAN}|${NC} ZIVPN: ${WHITE}%-s${NC} ${CYAN}|${NC} IPtables: ${WHITE}%-s${NC}\n" "$X_ST" "$Z_ST" "$I_ST"
+    echo -e "${CYAN}└───────────────────────────────────────────────────────${NC}"
 }
 
 function header_sub() {
-    clear; echo -e "${CYAN}┌───────────────────────────────────────────────────────┐${NC}"
-    echo -e "${CYAN}│              ${YELLOW}TENDO STORE - SUB MENU${CYAN}             │${NC}"
-    echo -e "${CYAN}└───────────────────────────────────────────────────────┘${NC}"
+    clear; echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}│              ${YELLOW}TENDO STORE - SUB MENU${NC}"
+    echo -e "${CYAN}└───────────────────────────────────────────────────────${NC}"
 }
 
 function features_menu() {
@@ -339,19 +365,21 @@ function zivpn_menu() {
 
 function check_services() {
     header_sub
-    echo -e "${CYAN}┌───────────────────────────────────────────────┐${NC}"
-    echo -e "${CYAN}│               SERVICES STATUS                 │${NC}"
-    echo -e "${CYAN}├───────────────────────────────────────────────┤${NC}"
+    echo -e "${CYAN}┌───────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}│               SERVICES STATUS                 ${NC}"
+    echo -e "${CYAN}├───────────────────────────────────────────────${NC}"
     
     if systemctl is-active --quiet xray; then X_ST="${GREEN}ON${NC}"; else X_ST="${RED}OFF${NC}"; fi
     if systemctl is-active --quiet zivpn; then Z_ST="${GREEN}ON${NC}"; else Z_ST="${RED}OFF${NC}"; fi
     if systemctl is-active --quiet vnstat; then V_ST="${GREEN}ON${NC}"; else V_ST="${RED}OFF${NC}"; fi
+    if iptables -L >/dev/null 2>&1; then I_ST="${GREEN}ON${NC}"; else I_ST="${RED}OFF${NC}"; fi
     
-    printf "${CYAN}│${NC} Xray Core       : %-22s${CYAN}│${NC}\n" "$X_ST"
-    printf "${CYAN}│${NC} ZIVPN UDP       : %-22s${CYAN}│${NC}\n" "$Z_ST"
-    printf "${CYAN}│${NC} Vnstat Mon      : %-22s${CYAN}│${NC}\n" "$V_ST"
+    printf "${CYAN}│${NC} Xray Core       : %-22s${NC}\n" "$X_ST"
+    printf "${CYAN}│${NC} ZIVPN UDP       : %-22s${NC}\n" "$Z_ST"
+    printf "${CYAN}│${NC} Vnstat Mon      : %-22s${NC}\n" "$V_ST"
+    printf "${CYAN}│${NC} IPtables        : %-22s${NC}\n" "$I_ST"
     
-    echo -e "${CYAN}└───────────────────────────────────────────────┘${NC}"
+    echo -e "${CYAN}└───────────────────────────────────────────────${NC}"
     read -p "Enter..."
 }
 
@@ -361,12 +389,12 @@ while true; do header_main
     echo -e "${CYAN}│${NC} [3] TROJAN ACCOUNT       [6] CHECK SERVICES"
     echo -e "${CYAN}│${NC} [x] EXIT"
     echo -e "${CYAN}────────────────────────────────────────────────────────${NC}"
-    echo -e "${CYAN}┌───────────────────────────────────────────────────────┐${NC}"
-    echo -e "${CYAN}│${NC}  Version   :  v17.02.26                  ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}  Owner     :  Tendo Store                ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}  Telegram  :  @tendo_32                  ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}  Expiry In :  Lifetime                   ${CYAN}│${NC}"
-    echo -e "${CYAN}└───────────────────────────────────────────────────────┘${NC}"
+    echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}│${NC}  Version   :  v17.02.26                  ${NC}"
+    echo -e "${CYAN}│${NC}  Owner     :  Tendo Store                ${NC}"
+    echo -e "${CYAN}│${NC}  Telegram  :  @tendo_32                  ${NC}"
+    echo -e "${CYAN}│${NC}  Expiry In :  Lifetime                   ${NC}"
+    echo -e "${CYAN}└───────────────────────────────────────────────────────${NC}"
     read -p " Select Menu : " opt
     case $opt in
         1) vmess_menu ;; 2) vless_menu ;; 3) trojan_menu ;;
