@@ -1,8 +1,8 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray & Zivpn
-#   EDITION: PLATINUM CLEAN V.5.1 (NO DNS SETUP)
-#   Update: Removed DNS Resolver Script
+#   EDITION: PLATINUM CLEAN V.5.3 (BOX LAYOUT RESTORED)
+#   Update: Restored Full Box Layout (Closed Borders)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -163,16 +163,16 @@ function show_account_xray() {
 
     echo -e "${CYAN}┌───────────────────────────────────────────────────┐${NC}"
     echo -e "${CYAN}│             ${YELLOW}DETAIL AKUN ${proto^^}${CYAN}            │${NC}"
-    echo -e "${CYAN}└───────────────────────────────────────────────────┘${NC}"
-    printf "${CYAN}│${NC} %-12s : %s\n" "Remarks" "${YELLOW}$user${NC}"
-    printf "${CYAN}│${NC} %-12s : %s\n" "Domain" "${GREEN}$domain${NC}"
-    printf "${CYAN}│${NC} %-12s : %s\n" "ISP" "${PURPLE}$isp${NC}"
-    printf "${CYAN}│${NC} %-12s : %s\n" "IP" "${PURPLE}$ip${NC}"
-    printf "${CYAN}│${NC} %-12s : %s\n" "UUID" "${WHITE}$uuid${NC}"
-    printf "${CYAN}│${NC} %-12s : %s\n" "Expired" "${RED}$exp${NC}"
+    echo -e "${CYAN}├───────────────────────────────────────────────────┤${NC}"
+    printf "${CYAN}│${NC} %-12s : %-34s${CYAN}│${NC}\n" "Remarks" "${YELLOW}$user${NC}"
+    printf "${CYAN}│${NC} %-12s : %-34s${CYAN}│${NC}\n" "Domain" "${GREEN}$domain${NC}"
+    printf "${CYAN}│${NC} %-12s : %-34s${CYAN}│${NC}\n" "ISP" "${PURPLE}$isp${NC}"
+    printf "${CYAN}│${NC} %-12s : %-34s${CYAN}│${NC}\n" "IP" "${PURPLE}$ip${NC}"
+    printf "${CYAN}│${NC} %-12s : %-34s${CYAN}│${NC}\n" "UUID" "${WHITE}$uuid${NC}"
+    printf "${CYAN}│${NC} %-12s : %-34s${CYAN}│${NC}\n" "Expired" "${RED}$exp${NC}"
     echo -e "${CYAN}├───────────────────────────────────────────────────┤${NC}"
     echo -e "${CYAN}│             ${YELLOW}LINK CONFIGURATION${CYAN}               │${NC}"
-    echo -e "${CYAN}└───────────────────────────────────────────────────┘${NC}"
+    echo -e "${CYAN}├───────────────────────────────────────────────────┤${NC}"
     echo -e "${YELLOW}TLS (443)${NC}"
     echo -e "${WHITE}${link_tls}${NC}"
     echo -e "${CYAN}─────────────────────────────────────────────────────${NC}"
@@ -189,11 +189,11 @@ function show_account_zivpn() {
     local pass=$1; local domain=$2; local exp=$3
     echo -e "${BLUE}┌───────────────────────────────────────────────────┐${NC}"
     echo -e "${BLUE}│               ${YELLOW}DETAIL ZIVPN${BLUE}                   │${NC}"
-    echo -e "${BLUE}└───────────────────────────────────────────────────┘${NC}"
-    printf "${BLUE}│${NC} %-12s : %s\n" "Password" "${YELLOW}$pass${NC}"
-    printf "${BLUE}│${NC} %-12s : %s\n" "Domain" "${GREEN}$domain${NC}"
-    printf "${BLUE}│${NC} %-12s : %s\n" "Expired" "${RED}$exp${NC}"
-    printf "${BLUE}│${NC} %-12s : %s\n" "Ports" "${WHITE}53, 5667, 6000-19999${NC}"
+    echo -e "${BLUE}├───────────────────────────────────────────────────┤${NC}"
+    printf "${BLUE}│${NC} %-12s : %-34s${BLUE}│${NC}\n" "Password" "${YELLOW}$pass${NC}"
+    printf "${BLUE}│${NC} %-12s : %-34s${BLUE}│${NC}\n" "Domain" "${GREEN}$domain${NC}"
+    printf "${BLUE}│${NC} %-12s : %-34s${BLUE}│${NC}\n" "Expired" "${RED}$exp${NC}"
+    printf "${BLUE}│${NC} %-12s : %-34s${BLUE}│${NC}\n" "Ports" "${WHITE}53, 5667, 6000-19999${NC}"
     echo -e "${BLUE}└───────────────────────────────────────────────────┘${NC}"
     read -n 1 -s -r -p "Tekan enter untuk kembali..."
 }
@@ -215,22 +215,22 @@ function header_main() {
 
     echo -e "${CYAN}┌───────────────────────────────────────────────────────┐${NC}"
     echo -e "${CYAN}│              ${YELLOW}TENDO STORE ULTIMATE${CYAN}               │${NC}"
-    echo -e "${CYAN}└───────────────────────────────────────────────────────┘${NC}"
-    echo -e " OS      : $OS"
-    echo -e " RAM     : ${RAM}MB | SWAP: ${SWAP}MB"
-    echo -e " DOMAIN  : ${YELLOW}$DOMAIN${NC}"
-    echo -e " IP VPS  : $IP"
-    echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
-    echo -e " ${PURPLE}TODAY${NC}   : ${GREEN}RX:${NC} $RX_DAY ${CYAN}|${NC} ${RED}TX:${NC} $TX_DAY"
-    echo -e " ${PURPLE}MONTH${NC}   : ${GREEN}RX:${NC} $RX_MON ${CYAN}|${NC} ${RED}TX:${NC} $TX_MON"
-    echo -e " ${PURPLE}SPEED${NC}   : ${WHITE}$TRAFFIC Mbit/s${NC}"
-    echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}├───────────────────────────────────────────────────────┤${NC}"
+    printf "${CYAN}│${NC} OS      : %-42s${CYAN}│${NC}\n" "$OS"
+    printf "${CYAN}│${NC} RAM     : %-42s${CYAN}│${NC}\n" "${RAM}MB | SWAP: ${SWAP}MB"
+    printf "${CYAN}│${NC} DOMAIN  : %-42s${CYAN}│${NC}\n" "${YELLOW}$DOMAIN${NC}"
+    printf "${CYAN}│${NC} IP VPS  : %-42s${CYAN}│${NC}\n" "$IP"
+    echo -e "${CYAN}├───────────────────────────────────────────────────────┤${NC}"
+    echo -e "${CYAN}│${NC} ${PURPLE}TODAY${NC}   : ${GREEN}RX:${NC} $RX_DAY ${CYAN}|${NC} ${RED}TX:${NC} $TX_DAY"
+    echo -e "${CYAN}│${NC} ${PURPLE}MONTH${NC}   : ${GREEN}RX:${NC} $RX_MON ${CYAN}|${NC} ${RED}TX:${NC} $TX_MON"
+    printf "${CYAN}│${NC} ${PURPLE}SPEED${NC}   : %-42s${CYAN}│${NC}\n" "${WHITE}$TRAFFIC Mbit/s${NC}"
+    echo -e "${CYAN}├───────────────────────────────────────────────────────┤${NC}"
     
     if systemctl is-active --quiet xray; then X_ST="${GREEN}ON${NC}"; else X_ST="${RED}OFF${NC}"; fi
     if systemctl is-active --quiet zivpn; then Z_ST="${GREEN}ON${NC}"; else Z_ST="${RED}OFF${NC}"; fi
     
-    echo -e " STATUS  : XRAY: $X_ST | ZIVPN: $Z_ST"
-    echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+    printf "${CYAN}│${NC} STATUS  : XRAY: %-36s${CYAN}│${NC}\n" "$X_ST ${CYAN}|${NC} ZIVPN: $Z_ST"
+    echo -e "${CYAN}└───────────────────────────────────────────────────────┘${NC}"
 }
 
 function header_sub() {
@@ -241,14 +241,14 @@ function header_sub() {
 
 function features_menu() {
     while true; do header_sub
-        echo -e "│ [1] Check Bandwidth (Vnstat)"
-        echo -e "│ [2] Speedtest by Ookla (Official)"
-        echo -e "│ [3] Restart All Services"
-        echo -e "│ [4] Change Domain VPS"
-        echo -e "│ [5] Clear Cache RAM"
-        echo -e "│ [6] Auto Reboot"
-        echo -e "│ [7] Information System"
-        echo -e "│ [x] Back"
+        echo -e "${CYAN}│${NC} [1] Check Bandwidth (Vnstat)"
+        echo -e "${CYAN}│${NC} [2] Speedtest by Ookla (Official)"
+        echo -e "${CYAN}│${NC} [3] Restart All Services"
+        echo -e "${CYAN}│${NC} [4] Change Domain VPS"
+        echo -e "${CYAN}│${NC} [5] Clear Cache RAM"
+        echo -e "${CYAN}│${NC} [6] Auto Reboot"
+        echo -e "${CYAN}│${NC} [7] Information System"
+        echo -e "${CYAN}│${NC} [x] Back"
         echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
@@ -266,10 +266,10 @@ function features_menu() {
 
 function vmess_menu() {
     while true; do header_sub
-        echo -e "│ [1] Create Account Vmess"
-        echo -e "│ [2] Delete Account Vmess"
-        echo -e "│ [3] Check Config User"
-        echo -e "│ [x] Back"
+        echo -e "${CYAN}│${NC} [1] Create Account Vmess"
+        echo -e "${CYAN}│${NC} [2] Delete Account Vmess"
+        echo -e "${CYAN}│${NC} [3] Check Config User"
+        echo -e "${CYAN}│${NC} [x] Back"
         echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
@@ -285,10 +285,10 @@ function vmess_menu() {
 
 function vless_menu() {
     while true; do header_sub
-        echo -e "│ [1] Create Account Vless"
-        echo -e "│ [2] Delete Account Vless"
-        echo -e "│ [3] Check Config User"
-        echo -e "│ [x] Back"
+        echo -e "${CYAN}│${NC} [1] Create Account Vless"
+        echo -e "${CYAN}│${NC} [2] Delete Account Vless"
+        echo -e "${CYAN}│${NC} [3] Check Config User"
+        echo -e "${CYAN}│${NC} [x] Back"
         echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
@@ -304,10 +304,10 @@ function vless_menu() {
 
 function trojan_menu() {
     while true; do header_sub
-        echo -e "│ [1] Create Account Trojan"
-        echo -e "│ [2] Delete Account Trojan"
-        echo -e "│ [3] Check Config User"
-        echo -e "│ [x] Back"
+        echo -e "${CYAN}│${NC} [1] Create Account Trojan"
+        echo -e "${CYAN}│${NC} [2] Delete Account Trojan"
+        echo -e "${CYAN}│${NC} [3] Check Config User"
+        echo -e "${CYAN}│${NC} [x] Back"
         echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
@@ -323,10 +323,10 @@ function trojan_menu() {
 
 function zivpn_menu() {
     while true; do header_sub
-        echo -e "│ [1] Create Account ZIVPN"
-        echo -e "│ [2] Delete Account ZIVPN"
-        echo -e "│ [3] Check Config User"
-        echo -e "│ [x] Back"
+        echo -e "${CYAN}│${NC} [1] Create Account ZIVPN"
+        echo -e "${CYAN}│${NC} [2] Delete Account ZIVPN"
+        echo -e "${CYAN}│${NC} [3] Check Config User"
+        echo -e "${CYAN}│${NC} [x] Back"
         echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
@@ -347,20 +347,20 @@ function check_services() {
     if systemctl is-active --quiet zivpn; then Z_ST="${GREEN}ON${NC}"; else Z_ST="${RED}OFF${NC}"; fi
     if systemctl is-active --quiet vnstat; then V_ST="${GREEN}ON${NC}"; else V_ST="${RED}OFF${NC}"; fi
     
-    echo -e "${CYAN}│${NC} Xray Core       : $X_ST"
-    echo -e "${CYAN}│${NC} ZIVPN UDP       : $Z_ST"
-    echo -e "${CYAN}│${NC} Vnstat Mon      : $V_ST"
+    printf "${CYAN}│${NC} Xray Core       : %-22s${CYAN}│${NC}\n" "$X_ST"
+    printf "${CYAN}│${NC} ZIVPN UDP       : %-22s${CYAN}│${NC}\n" "$Z_ST"
+    printf "${CYAN}│${NC} Vnstat Mon      : %-22s${CYAN}│${NC}\n" "$V_ST"
     
     echo -e "${CYAN}└───────────────────────────────────────────────┘${NC}"
     read -p "Enter..."
 }
 
 while true; do header_main
-    echo -e "│ [1] VMESS ACCOUNT        [4] ZIVPN UDP"
-    echo -e "│ [2] VLESS ACCOUNT        [5] FEATURES"
-    echo -e "│ [3] TROJAN ACCOUNT       [6] CHECK SERVICES"
-    echo -e "│ [x] EXIT"
-    echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}│${NC} [1] VMESS ACCOUNT        [4] ZIVPN UDP"
+    echo -e "${CYAN}│${NC} [2] VLESS ACCOUNT        [5] FEATURES"
+    echo -e "${CYAN}│${NC} [3] TROJAN ACCOUNT       [6] CHECK SERVICES"
+    echo -e "${CYAN}│${NC} [x] EXIT"
+    echo -e "${CYAN}────────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}┌───────────────────────────────────────────────────────┐${NC}"
     echo -e "${CYAN}│${NC}  Version   :  v17.02.26                  ${CYAN}│${NC}"
     echo -e "${CYAN}│${NC}  Owner     :  Tendo Store                ${CYAN}│${NC}"
