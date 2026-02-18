@@ -1,8 +1,8 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray & Zivpn
-#   EDITION: PLATINUM CLEAN V.6.0 (ACCOUNT COUNTER)
-#   Update: Added List Accounts (Count) on Dashboard
+#   EDITION: PLATINUM CLEAN V.6.1 (AUTO XP ADDED)
+#   Update: Added Auto Delete Expired Account & Zivpn Tracker
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -60,7 +60,10 @@ CF_ZONE_ID="14f2e85e62d1d73bf0ce1579f1c3300c"
 
 XRAY_DIR="/usr/local/etc/xray"; 
 CONFIG_FILE="/usr/local/etc/xray/config.json"
-DATA_VMESS="/usr/local/etc/xray/vmess.txt"; DATA_VLESS="/usr/local/etc/xray/vless.txt"; DATA_TROJAN="/usr/local/etc/xray/trojan.txt"
+DATA_VMESS="/usr/local/etc/xray/vmess.txt"
+DATA_VLESS="/usr/local/etc/xray/vless.txt"
+DATA_TROJAN="/usr/local/etc/xray/trojan.txt"
+DATA_ZIVPN="/usr/local/etc/xray/zivpn.txt"
 
 # --- 3. DEPENDENCIES ---
 print_msg "Install Dependencies"
@@ -83,7 +86,7 @@ systemctl enable vnstat && systemctl restart vnstat; vnstat -u -i $IFACE_NET >/d
 
 # --- 4. DOMAIN SELECTION ---
 print_msg "Setup Domain & SSL"
-mkdir -p $XRAY_DIR /etc/zivpn /root/tendo; touch $DATA_VMESS $DATA_VLESS $DATA_TROJAN
+mkdir -p $XRAY_DIR /etc/zivpn /root/tendo; touch $DATA_VMESS $DATA_VLESS $DATA_TROJAN $DATA_ZIVPN
 IP_VPS=$(curl -s ifconfig.me)
 
 # Get Geo Info
@@ -181,7 +184,74 @@ iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5667
 netfilter-persistent save >/dev/null 2>&1
 print_ok "ZIVPN Installed"
 
-# --- 7. MENU SCRIPT ---
+# --- 7. AUTO XP SCRIPT (NEW FEATURE) ---
+print_msg "Setup Auto Delete Expired"
+cat > /usr/bin/xp <<'EOF'
+#!/bin/bash
+# Auto Delete Expired Users (Xray & Zivpn)
+# By Tendo Store
+CONFIG="/usr/local/etc/xray/config.json"
+D_VMESS="/usr/local/etc/xray/vmess.txt"
+D_VLESS="/usr/local/etc/xray/vless.txt"
+D_TROJAN="/usr/local/etc/xray/trojan.txt"
+ZIVPN_CONF="/etc/zivpn/config.json"
+D_ZIVPN="/usr/local/etc/xray/zivpn.txt"
+DATE_NOW=$(date +%Y-%m-%d)
+
+# 1. CLEAN VMESS
+if [ -f "$D_VMESS" ]; then
+    while IFS='|' read -r user uuid exp; do
+        if [[ "$exp" < "$DATE_NOW" ]]; then
+            jq --arg u "$user" 'del(.inbounds[2].settings.clients[] | select(.email == $u))' $CONFIG > /tmp/conf && mv /tmp/conf $CONFIG
+            sed -i "/^$user|/d" $D_VMESS
+            echo "Vmess Account Deleted: $user (Expired: $exp)"
+        fi
+    done < $D_VMESS
+fi
+
+# 2. CLEAN VLESS
+if [ -f "$D_VLESS" ]; then
+    while IFS='|' read -r user uuid exp; do
+        if [[ "$exp" < "$DATE_NOW" ]]; then
+            jq --arg u "$user" 'del(.inbounds[3].settings.clients[] | select(.email == $u))' $CONFIG > /tmp/conf && mv /tmp/conf $CONFIG
+            sed -i "/^$user|/d" $D_VLESS
+            echo "Vless Account Deleted: $user (Expired: $exp)"
+        fi
+    done < $D_VLESS
+fi
+
+# 3. CLEAN TROJAN
+if [ -f "$D_TROJAN" ]; then
+    while IFS='|' read -r user uuid exp; do
+        if [[ "$exp" < "$DATE_NOW" ]]; then
+            jq --arg u "$user" 'del(.inbounds[4].settings.clients[] | select(.email == $u))' $CONFIG > /tmp/conf && mv /tmp/conf $CONFIG
+            sed -i "/^$user|/d" $D_TROJAN
+            echo "Trojan Account Deleted: $user (Expired: $exp)"
+        fi
+    done < $D_TROJAN
+fi
+
+# 4. CLEAN ZIVPN UDP
+if [ -f "$D_ZIVPN" ]; then
+    while IFS='|' read -r pass exp; do
+        if [[ "$exp" < "$DATE_NOW" ]]; then
+            jq --arg p "$pass" 'del(.auth.config[] | select(. == $p))' $ZIVPN_CONF > /tmp/zconf && mv /tmp/zconf $ZIVPN_CONF
+            sed -i "/^$pass|/d" $D_ZIVPN
+            echo "Zivpn Account Deleted: $pass (Expired: $exp)"
+        fi
+    done < $D_ZIVPN
+fi
+
+systemctl restart xray zivpn
+EOF
+chmod +x /usr/bin/xp
+
+# Add to Cronjob (Runs every midnight 00:00)
+echo "0 0 * * * root /usr/bin/xp" > /etc/cron.d/xp_auto
+service cron restart >/dev/null 2>&1
+print_ok "Auto Delete Configured"
+
+# --- 8. MENU SCRIPT ---
 print_msg "Finalisasi Menu"
 cat > /usr/bin/menu <<'END_MENU'
 #!/bin/bash
@@ -190,6 +260,7 @@ CONFIG="/usr/local/etc/xray/config.json"
 D_VMESS="/usr/local/etc/xray/vmess.txt"
 D_VLESS="/usr/local/etc/xray/vless.txt"
 D_TROJAN="/usr/local/etc/xray/trojan.txt"
+D_ZIVPN="/usr/local/etc/xray/zivpn.txt"
 
 function show_account_xray() {
     clear
@@ -426,9 +497,10 @@ function zivpn_menu() {
         echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
-            1) read -p " Password: " p; read -p " Expired: " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "$ex days" +"%Y-%m-%d"); jq --arg p "$p" '.auth.config += [$p]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn; DMN=$(cat /usr/local/etc/xray/domain); show_account_zivpn "$p" "$DMN" "$exp";;
-            2) jq -r '.auth.config[]' /etc/zivpn/config.json | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); jq "del(.auth.config[$idx])" /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn;;
-            3) jq -r '.auth.config[]' /etc/zivpn/config.json | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); p=$(jq -r ".auth.config[$idx]" /etc/zivpn/config.json); DMN=$(cat /usr/local/etc/xray/domain); show_account_zivpn "$p" "$DMN" "Unknown";;
+            1) read -p " Password: " p; read -p " Expired: " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "$ex days" +"%Y-%m-%d"); jq --arg p "$p" '.auth.config += [$p]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; 
+               echo "$p|$exp" >> $D_ZIVPN; systemctl restart zivpn; DMN=$(cat /usr/local/etc/xray/domain); show_account_zivpn "$p" "$DMN" "$exp";;
+            2) jq -r '.auth.config[]' /etc/zivpn/config.json | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); p=$(jq -r ".auth.config[$idx]" /etc/zivpn/config.json); sed -i "/^$p|/d" $D_ZIVPN; jq "del(.auth.config[$idx])" /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn;;
+            3) jq -r '.auth.config[]' /etc/zivpn/config.json | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); p=$(jq -r ".auth.config[$idx]" /etc/zivpn/config.json); DMN=$(cat /usr/local/etc/xray/domain); exp=$(grep "^$p|" $D_ZIVPN | cut -d'|' -f2); [[ -z "$exp" ]] && exp="Unknown"; show_account_zivpn "$p" "$DMN" "$exp";;
             x) return;;
         esac; done
 }
@@ -475,5 +547,7 @@ while true; do header_main
 END_MENU
 
 chmod +x /usr/bin/menu
+# Link XP untuk manual run
+ln -s /usr/bin/xp /usr/local/bin/xp 2>/dev/null
 install_spin
 print_ok "Instalasi Selesai! Ketik: menu"
