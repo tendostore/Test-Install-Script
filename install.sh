@@ -1,8 +1,8 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray & Zivpn
-#   EDITION: PLATINUM COMPLETE V.6.4
-#   Update: Full Restore, Trial Mode (Min/Hour), Auto Kill
+#   EDITION: PLATINUM COMPLETE V.6.5 (FIXED DETAILS)
+#   Update: Restore Non-TLS Links & Full Details
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -256,7 +256,7 @@ D_VLESS="/usr/local/etc/xray/vless.txt"
 D_TROJAN="/usr/local/etc/xray/trojan.txt"
 D_ZIVPN="/usr/local/etc/xray/zivpn.txt"
 
-# --- HELPER: DISPLAY ACCOUNT ---
+# --- HELPER: DISPLAY ACCOUNT (RESTORED FULL DETAIL) ---
 function show_account_xray() {
     clear
     local proto=$1; local user=$2; local domain=$3; local uuid=$4; local exp=$5; local link_tls=$6; local link_ntls=$7
@@ -275,6 +275,8 @@ function show_account_xray() {
     echo -e "           ${proto} WS TLS"
     echo -e "————————————————————————————————————"
     echo -e "${link_tls}"
+    
+    # FIXED: Logic to display None TLS if exists
     if [[ -n "$link_ntls" ]]; then
         echo -e "————————————————————————————————————"
         echo -e "          ${proto} WS NO TLS"
@@ -362,7 +364,7 @@ function header_main() {
     echo -e "[3] TROJAN ACCOUNT       [7] CHECK SERVICES"
     echo -e "[4] ZIVPN UDP            [x] EXIT"
     echo -e "${BLUE}──────────────────────────────────────────────────${NC}"
-    echo -e "Version   : v6.4 (Complete)"
+    echo -e "Version   : v6.5 (Complete Fix)"
     echo -e "Owner     : Tendo Store"
     echo -e "Telegram  : @tendo_32"
     echo -e "Expiry In : Lifetime"
@@ -404,7 +406,7 @@ function features_menu() {
     done
 }
 
-# --- TRIAL GENERATOR LOGIC (AUTO DELETE WITH 'at') ---
+# --- TRIAL GENERATOR LOGIC (WITH FULL OUTPUT) ---
 function gen_trial() {
     local type=$1
     echo -e "${YELLOW}Set Trial Duration:${NC}"
@@ -431,14 +433,16 @@ function gen_trial() {
         echo "/usr/bin/del-trial vmess $USER" | at now + $MINUTES minutes >/dev/null 2>&1
         systemctl restart xray
         json_tls=$(echo "{\"v\":\"2\",\"ps\":\"${USER}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${UUID}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
-        show_account_xray "VMESS" "$USER" "$DMN" "$UUID" "$EXP_DATE ($EXP_STR)" "vmess://$json_tls" ""
+        json_none=$(echo "{\"v\":\"2\",\"ps\":\"${USER}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${UUID}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
+        show_account_xray "VMESS" "$USER" "$DMN" "$UUID" "$EXP_DATE ($EXP_STR)" "vmess://$json_tls" "vmess://$json_none"
     elif [[ "$type" == "vless" ]]; then
         jq --arg u "$USER" --arg id "$UUID" '.inbounds[3].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
         echo "$USER|$UUID|$EXP_DATE" >> $D_VLESS
         echo "/usr/bin/del-trial vless $USER" | at now + $MINUTES minutes >/dev/null 2>&1
         systemctl restart xray
         ltls="vless://${UUID}@${DMN}:443?path=/vless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${USER}"
-        show_account_xray "VLESS" "$USER" "$DMN" "$UUID" "$EXP_DATE ($EXP_STR)" "$ltls" ""
+        lnon="vless://${UUID}@${DMN}:80?path=/vless&security=none&encryption=none&host=${DMN}&type=ws#${USER}"
+        show_account_xray "VLESS" "$USER" "$DMN" "$UUID" "$EXP_DATE ($EXP_STR)" "$ltls" "$lnon"
     elif [[ "$type" == "trojan" ]]; then
         jq --arg p "$USER" --arg u "$USER" '.inbounds[4].settings.clients += [{"password":$p,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
         echo "$USER|$USER|$EXP_DATE" >> $D_TROJAN
@@ -472,7 +476,8 @@ function vmess_menu() {
         3) nl $D_VMESS; read -p "No: " n; u=$(sed -n "${n}p" $D_VMESS | cut -d'|' -f1); /usr/bin/del-trial vmess "$u"; echo "Deleted"; sleep 1;;
         4) nl $D_VMESS; read -p "No: " n; u=$(sed -n "${n}p" $D_VMESS | cut -d'|' -f1); id=$(sed -n "${n}p" $D_VMESS | cut -d'|' -f2); ed=$(sed -n "${n}p" $D_VMESS | cut -d'|' -f3); DMN=$(cat /usr/local/etc/xray/domain);
            json_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0);
-           show_account_xray "VMESS" "$u" "$DMN" "$id" "$ed" "vmess://$json_tls" "";;
+           json_none=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
+           show_account_xray "VMESS" "$u" "$DMN" "$id" "$ed" "vmess://$json_tls" "vmess://$json_none";;
         x) return;;
     esac; done
 }
@@ -494,7 +499,8 @@ function vless_menu() {
         3) nl $D_VLESS; read -p "No: " n; u=$(sed -n "${n}p" $D_VLESS | cut -d'|' -f1); /usr/bin/del-trial vless "$u"; echo "Deleted"; sleep 1;;
         4) nl $D_VLESS; read -p "No: " n; u=$(sed -n "${n}p" $D_VLESS | cut -d'|' -f1); id=$(sed -n "${n}p" $D_VLESS | cut -d'|' -f2); ed=$(sed -n "${n}p" $D_VLESS | cut -d'|' -f3); DMN=$(cat /usr/local/etc/xray/domain);
            ltls="vless://${id}@${DMN}:443?path=/vless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}";
-           show_account_xray "VLESS" "$u" "$DMN" "$id" "$ed" "$ltls" "";;
+           lnon="vless://${id}@${DMN}:80?path=/vless&security=none&encryption=none&host=${DMN}&type=ws#${u}"
+           show_account_xray "VLESS" "$u" "$DMN" "$id" "$ed" "$ltls" "$lnon";;
         x) return;;
     esac; done
 }
