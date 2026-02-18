@@ -1,13 +1,13 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray & Zivpn
-#   EDITION: PLATINUM CLEAN V.5.3 (BOX LAYOUT RESTORED)
-#   Update: Fixed Layout (No Right Borders) & Custom Details
+#   EDITION: PLATINUM CLEAN V.5.6 (FINAL RELEASE)
+#   Update: Removed Upgrade Path/GRPC & Set Version v18.02.26
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
 # --- WARNA & UI ---
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; BLUE='\033[0;34m'; PURPLE='\033[0;35m'; CYAN='\033[0;36m'; NC='\033[0m'
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; BLUE='\033[0;34m'; PURPLE='\033[0;35m'; CYAN='\033[0;36m'; NC='\033[0m'; WHITE='\033[1;37m'
 
 # --- ANTI INTERACTIVE ---
 export DEBIAN_FRONTEND=noninteractive
@@ -34,7 +34,7 @@ function print_ok() { echo -e "${GREEN}✔ $1 Selesai!${NC}"; sleep 0.5; }
 
 clear
 echo -e "${CYAN}=================================================${NC}"
-echo -e "${PURPLE}      AUTO INSTALLER X-RAY & ZIVPN CLEAN         ${NC}"
+echo -e "${PURPLE}      AUTO INSTALLER X-RAY & ZIVPN ONLY          ${NC}"
 echo -e "${CYAN}=================================================${NC}"
 echo -e "${YELLOW}           Script by Tendo Store                ${NC}"
 echo -e "${CYAN}=================================================${NC}"
@@ -182,10 +182,9 @@ function show_account_xray() {
     fi
     echo -e "alterId        : 0"
     echo -e "Security       : auto"
-    echo -e "network        : ws,grpc,upgrade"
+    echo -e "network        : ws"
     echo -e "path ws        : ${path}"
     echo -e "serviceName    : ${proto,,}"
-    echo -e "path upgrade   : /up${proto,,}"
     echo -e "Expired On     : ${exp}"
     echo -e "————————————————————————————————————"
     echo -e "           ${proto} WS TLS"
@@ -255,7 +254,7 @@ function header_main() {
     # Cek IPTables dengan simple command
     if iptables -L >/dev/null 2>&1; then I_ST="${GREEN}ON${NC}"; else I_ST="${RED}OFF${NC}"; fi
     
-    printf "${CYAN}│${NC} STATUS  : XRAY: ${WHITE}%-s${NC} ${CYAN}|${NC} ZIVPN: ${WHITE}%-s${NC} ${CYAN}|${NC} IPtables: ${WHITE}%-s${NC}\n" "$X_ST" "$Z_ST" "$I_ST"
+    printf "${CYAN}│${NC} STATUS  : XRAY: %b ${CYAN}|${NC} ZIVPN: %b ${CYAN}|${NC} IPtables: %b\n" "$X_ST" "$Z_ST" "$I_ST"
     echo -e "${CYAN}└───────────────────────────────────────────────────────${NC}"
 }
 
@@ -374,10 +373,10 @@ function check_services() {
     if systemctl is-active --quiet vnstat; then V_ST="${GREEN}ON${NC}"; else V_ST="${RED}OFF${NC}"; fi
     if iptables -L >/dev/null 2>&1; then I_ST="${GREEN}ON${NC}"; else I_ST="${RED}OFF${NC}"; fi
     
-    printf "${CYAN}│${NC} Xray Core       : %-22s${NC}\n" "$X_ST"
-    printf "${CYAN}│${NC} ZIVPN UDP       : %-22s${NC}\n" "$Z_ST"
-    printf "${CYAN}│${NC} Vnstat Mon      : %-22s${NC}\n" "$V_ST"
-    printf "${CYAN}│${NC} IPtables        : %-22s${NC}\n" "$I_ST"
+    printf "${CYAN}│${NC} Xray Core       : %b${NC}\n" "$X_ST"
+    printf "${CYAN}│${NC} ZIVPN UDP       : %b${NC}\n" "$Z_ST"
+    printf "${CYAN}│${NC} Vnstat Mon      : %b${NC}\n" "$V_ST"
+    printf "${CYAN}│${NC} IPtables        : %b${NC}\n" "$I_ST"
     
     echo -e "${CYAN}└───────────────────────────────────────────────${NC}"
     read -p "Enter..."
@@ -390,7 +389,7 @@ while true; do header_main
     echo -e "${CYAN}│${NC} [x] EXIT"
     echo -e "${CYAN}────────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
-    echo -e "${CYAN}│${NC}  Version   :  v17.02.26                  ${NC}"
+    echo -e "${CYAN}│${NC}  Version   :  v18.02.26                  ${NC}"
     echo -e "${CYAN}│${NC}  Owner     :  Tendo Store                ${NC}"
     echo -e "${CYAN}│${NC}  Telegram  :  @tendo_32                  ${NC}"
     echo -e "${CYAN}│${NC}  Expiry In :  Lifetime                   ${NC}"
