@@ -1,8 +1,8 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray & Zivpn
-#   EDITION: PLATINUM CLEAN V.5.6 (FINAL RELEASE)
-#   Update: Removed Upgrade Path/GRPC & Set Version v18.02.26
+#   EDITION: PLATINUM CLEAN V.5.8 (DOMAIN SELECTION ADDED)
+#   Update: Added Option for Random Domain or Custom Domain
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -53,10 +53,11 @@ echo '/swapfile none swap sw 0 0' >> /etc/fstab & install_spin
 print_ok "System Optimized"
 
 # --- 2. VARIABLES ---
+# Cloudflare Credentials (Used only if Option 1 is selected)
 CF_ID="mbuntoncity@gmail.com"
 CF_KEY="96bee4f14ef23e42c4509efc125c0eac5c02e"
 CF_ZONE_ID="14f2e85e62d1d73bf0ce1579f1c3300c"
-DOMAIN_INIT="vpn-$(tr -dc a-z0-9 </dev/urandom | head -c 5).vip3-tendo.my.id"
+
 XRAY_DIR="/usr/local/etc/xray"; 
 CONFIG_FILE="/usr/local/etc/xray/config.json"
 DATA_VMESS="/usr/local/etc/xray/vmess.txt"; DATA_VLESS="/usr/local/etc/xray/vless.txt"; DATA_TROJAN="/usr/local/etc/xray/trojan.txt"
@@ -80,24 +81,58 @@ echo 'echo -e "Welcome Tendo! Type \e[1;32mmenu\e[0m to start."' >> /root/.bashr
 IFACE_NET=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 systemctl enable vnstat && systemctl restart vnstat; vnstat -u -i $IFACE_NET >/dev/null 2>&1
 
-# --- 4. DOMAIN ---
+# --- 4. DOMAIN SELECTION ---
 print_msg "Setup Domain & SSL"
 mkdir -p $XRAY_DIR /etc/zivpn /root/tendo; touch $DATA_VMESS $DATA_VLESS $DATA_TROJAN
 IP_VPS=$(curl -s ifconfig.me)
+
+# Get Geo Info
 curl -s ipinfo.io/json | jq -r '.city' > /root/tendo/city
 curl -s ipinfo.io/json | jq -r '.org' > /root/tendo/isp
 curl -s ipinfo.io/json | jq -r '.ip' > /root/tendo/ip
 
-curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
-     -H "X-Auth-Email: ${CF_ID}" -H "X-Auth-Key: ${CF_KEY}" \
-     -H "Content-Type: application/json" \
-     --data '{"type":"A","name":"'${DOMAIN_INIT}'","content":"'${IP_VPS}'","ttl":120,"proxied":false}' > /dev/null
+clear
+echo -e "${CYAN}=================================================${NC}"
+echo -e "${YELLOW}           PILIHAN JENIS DOMAIN                 ${NC}"
+echo -e "${CYAN}=================================================${NC}"
+echo -e "${CYAN}│${NC} [1] Gunakan Domain Random Tendo (Gratis/Auto)"
+echo -e "${CYAN}│${NC} [2] Gunakan Domain Sendiri (Manual)"
+echo -e "${CYAN}─────────────────────────────────────────────────${NC}"
+read -p " Pilih Opsi (1/2): " dom_opt
 
-echo "$DOMAIN_INIT" > $XRAY_DIR/domain
+if [[ "$dom_opt" == "1" ]]; then
+    # -- OPTION 1: AUTO DOMAIN --
+    echo -e "${YELLOW}Menggunakan Domain Random dari Tendo Store...${NC}"
+    DOMAIN_VAL="vpn-$(tr -dc a-z0-9 </dev/urandom | head -c 5).vip3-tendo.my.id"
+    
+    # Register to Cloudflare
+    curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
+         -H "X-Auth-Email: ${CF_ID}" -H "X-Auth-Key: ${CF_KEY}" \
+         -H "Content-Type: application/json" \
+         --data '{"type":"A","name":"'${DOMAIN_VAL}'","content":"'${IP_VPS}'","ttl":120,"proxied":false}' > /dev/null
+         
+    echo "$DOMAIN_VAL" > $XRAY_DIR/domain
+    echo -e "${GREEN}Domain Terbuat: ${DOMAIN_VAL}${NC}"
+else
+    # -- OPTION 2: OWN DOMAIN --
+    echo -e "${YELLOW}Mode Domain Sendiri${NC}"
+    echo -e "${RED}PENTING: Pastikan anda sudah mengarahkan A Record domain ke IP: ${IP_VPS}${NC}"
+    read -p " Masukan Domain/Subdomain Anda: " user_dom
+    if [[ -z "$user_dom" ]]; then
+        echo -e "${RED}Domain tidak boleh kosong! Script berhenti.${NC}"
+        exit 1
+    fi
+    echo "$user_dom" > $XRAY_DIR/domain
+    DOMAIN_VAL="$user_dom"
+    echo -e "${GREEN}Domain Diset ke: ${DOMAIN_VAL}${NC}"
+fi
+
+# SSL Generator (Valid for both options)
+echo -e "${YELLOW}Generating SSL Certificate...${NC}"
 openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout $XRAY_DIR/xray.key \
-    -out $XRAY_DIR/xray.crt -days 3650 -subj "/CN=$DOMAIN_INIT" >/dev/null 2>&1
+    -out $XRAY_DIR/xray.crt -days 3650 -subj "/CN=$DOMAIN_VAL" >/dev/null 2>&1
 chmod 644 $XRAY_DIR/xray.key; chmod 644 $XRAY_DIR/xray.crt & install_spin
-print_ok "Domain Created: $DOMAIN_INIT"
+print_ok "SSL Configured"
 
 # --- 5. XRAY CONFIG (CLEAN - NO WARP) ---
 print_msg "Install Xray Core & Config"
@@ -264,12 +299,26 @@ function header_sub() {
     echo -e "${CYAN}└───────────────────────────────────────────────────────${NC}"
 }
 
+function change_domain_menu() {
+    header_sub
+    echo -e "${YELLOW}WARNING: Mengganti domain akan memperbarui sertifikat SSL!${NC}"
+    echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+    read -p "Masukan Domain Baru: " nd
+    if [[ -z "$nd" ]]; then return; fi
+    echo -e "${YELLOW}Processing...${NC}"
+    echo "$nd" > /usr/local/etc/xray/domain
+    openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout /usr/local/etc/xray/xray.key -out /usr/local/etc/xray/xray.crt -days 3650 -subj "/CN=$nd" >/dev/null 2>&1
+    systemctl restart xray
+    echo -e "${GREEN}Domain Berhasil Diperbarui menjadi: $nd${NC}"
+    sleep 2
+}
+
 function features_menu() {
     while true; do header_sub
         echo -e "${CYAN}│${NC} [1] Check Bandwidth (Vnstat)"
         echo -e "${CYAN}│${NC} [2] Speedtest by Ookla (Official)"
-        echo -e "${CYAN}│${NC} [3] Restart All Services"
-        echo -e "${CYAN}│${NC} [4] Change Domain VPS"
+        echo -e "${CYAN}│${NC} [3] Check Benchmark VPS (YABS)"
+        echo -e "${CYAN}│${NC} [4] Restart All Services"
         echo -e "${CYAN}│${NC} [5] Clear Cache RAM"
         echo -e "${CYAN}│${NC} [6] Auto Reboot"
         echo -e "${CYAN}│${NC} [7] Information System"
@@ -279,8 +328,8 @@ function features_menu() {
         case $opt in
             1) vnstat -l -i $(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1);;
             2) speedtest; read -p "Enter...";;
-            3) systemctl restart xray zivpn vnstat; echo -e "${GREEN}Services Restarted!${NC}"; sleep 2;;
-            4) read -p "New Domain: " nd; echo "$nd" > /usr/local/etc/xray/domain; openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout /usr/local/etc/xray/xray.key -out /usr/local/etc/xray/xray.crt -days 3650 -subj "/CN=$nd" >/dev/null 2>&1; systemctl restart xray; echo "Domain Updated!"; sleep 2;;
+            3) echo -e "${YELLOW}Running Benchmark...${NC}"; wget -qO- bench.sh | bash; read -p "Enter...";;
+            4) systemctl restart xray zivpn vnstat; echo -e "${GREEN}Services Restarted!${NC}"; sleep 2;;
             5) sync; echo 3 > /proc/sys/vm/drop_caches; echo -e "${GREEN}Cache Cleared!${NC}"; sleep 1;;
             6) echo -e "Set Auto Reboot (00:00 UTC)"; echo "0 0 * * * root reboot" > /etc/cron.d/autoreboot; service cron restart; echo -e "${GREEN}Done!${NC}"; sleep 1;;
             7) neofetch; read -p "Enter...";;
@@ -383,10 +432,10 @@ function check_services() {
 }
 
 while true; do header_main
-    echo -e "${CYAN}│${NC} [1] VMESS ACCOUNT        [4] ZIVPN UDP"
-    echo -e "${CYAN}│${NC} [2] VLESS ACCOUNT        [5] FEATURES"
-    echo -e "${CYAN}│${NC} [3] TROJAN ACCOUNT       [6] CHECK SERVICES"
-    echo -e "${CYAN}│${NC} [x] EXIT"
+    echo -e "${CYAN}│${NC} [1] VMESS ACCOUNT        [5] CHANGE DOMAIN VPS"
+    echo -e "${CYAN}│${NC} [2] VLESS ACCOUNT        [6] FEATURES"
+    echo -e "${CYAN}│${NC} [3] TROJAN ACCOUNT       [7] CHECK SERVICES"
+    echo -e "${CYAN}│${NC} [4] ZIVPN UDP            [x] EXIT"
     echo -e "${CYAN}────────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}│${NC}  Version   :  v18.02.26                  ${NC}"
@@ -397,7 +446,8 @@ while true; do header_main
     read -p " Select Menu : " opt
     case $opt in
         1) vmess_menu ;; 2) vless_menu ;; 3) trojan_menu ;;
-        4) zivpn_menu ;; 5) features_menu ;; 6) check_services ;;
+        4) zivpn_menu ;; 5) change_domain_menu ;; 6) features_menu ;;
+        7) check_services ;;
         x) exit ;;
     esac; done
 END_MENU
