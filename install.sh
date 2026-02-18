@@ -1,8 +1,8 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray & Zivpn
-#   EDITION: PLATINUM CLEAN V.5.9 (DETAILED DASHBOARD)
-#   Update: Added Full System Info (OS, RAM, SWAP, ISP, CITY, UPTIME)
+#   EDITION: PLATINUM CLEAN V.6.0 (ACCOUNT COUNTER)
+#   Update: Added List Accounts (Count) on Dashboard
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -273,6 +273,12 @@ function header_main() {
     R1=$(cat /sys/class/net/$IFACE/statistics/rx_bytes); T1=$(cat /sys/class/net/$IFACE/statistics/tx_bytes); sleep 0.4
     R2=$(cat /sys/class/net/$IFACE/statistics/rx_bytes); T2=$(cat /sys/class/net/$IFACE/statistics/tx_bytes)
     TRAFFIC=$(echo "scale=2; (($R2 - $R1) + ($T2 - $T1)) * 8 / 409.6 / 1024" | bc)
+    
+    # Account Counters
+    ACC_VMESS=$(wc -l < "/usr/local/etc/xray/vmess.txt" 2>/dev/null || echo 0)
+    ACC_VLESS=$(wc -l < "/usr/local/etc/xray/vless.txt" 2>/dev/null || echo 0)
+    ACC_TROJAN=$(wc -l < "/usr/local/etc/xray/trojan.txt" 2>/dev/null || echo 0)
+    ACC_ZIVPN=$(jq '.auth.config | length' /etc/zivpn/config.json 2>/dev/null || echo 0)
 
     echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}│              ${YELLOW}TENDO STORE ULTIMATE${NC}"
@@ -293,10 +299,19 @@ function header_main() {
     
     if systemctl is-active --quiet xray; then X_ST="${GREEN}ON${NC}"; else X_ST="${RED}OFF${NC}"; fi
     if systemctl is-active --quiet zivpn; then Z_ST="${GREEN}ON${NC}"; else Z_ST="${RED}OFF${NC}"; fi
-    # Cek IPTables dengan simple command
     if iptables -L >/dev/null 2>&1; then I_ST="${GREEN}ON${NC}"; else I_ST="${RED}OFF${NC}"; fi
     
     printf "${CYAN}│${NC} STATUS  : XRAY: %b ${CYAN}|${NC} ZIVPN: %b ${CYAN}|${NC} IPtables: %b\n" "$X_ST" "$Z_ST" "$I_ST"
+    echo -e "${CYAN}└───────────────────────────────────────────────────────${NC}"
+    
+    # LIST ACCOUNTS BOX
+    echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}│                   ${YELLOW}LIST ACCOUNTS${NC}"
+    echo -e "${CYAN}├───────────────────────────────────────────────────────${NC}"
+    printf "${CYAN}│${NC} VMESS          : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_VMESS"
+    printf "${CYAN}│${NC} VLESS          : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_VLESS"
+    printf "${CYAN}│${NC} TROJAN         : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_TROJAN"
+    printf "${CYAN}│${NC} ZIVPN          : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_ZIVPN"
     echo -e "${CYAN}└───────────────────────────────────────────────────────${NC}"
 }
 
