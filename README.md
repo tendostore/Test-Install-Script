@@ -9,7 +9,7 @@ Script Auto Install Premium untuk **X-ray Core (Vmess, Vless, Trojan)** dan **Zi
 Jalankan perintah berikut di Terminal VPS Anda (Wajib **Root**):
 
 ```bash
-wget -q -O install.sh [https://raw.githubusercontent.com/tendostore/Test-Install-Script/main/install.sh](https://raw.githubusercontent.com/tendostore/Test-Install-Script/main/install.sh) && chmod +x install.sh && ./install.sh
+wget -q -O install.sh https://raw.githubusercontent.com/tendostore/Test-Install-Script/main/install.sh && chmod +x install.sh && ./install.sh
 ```
 # 🔥 Fitur Utama
 
