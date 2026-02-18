@@ -1,8 +1,8 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray & Zivpn
-#   EDITION: PLATINUM COMPLETE V.6.5 (FIXED DETAILS)
-#   Update: Restore Non-TLS Links & Full Details
+#   EDITION: PLATINUM COMPLETE V.6.6 (AUTO TIMEZONE)
+#   Update: Added Auto Timezone based on Location
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -88,15 +88,28 @@ IFACE_NET=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 systemctl enable vnstat && systemctl restart vnstat; vnstat -u -i $IFACE_NET >/dev/null 2>&1
 print_ok "Dependencies Installed"
 
-# --- 6. DOMAIN & SSL SETUP ---
-print_msg "Setup Domain & SSL"
+# --- 6. DOMAIN, SSL & TIMEZONE SETUP ---
+print_msg "Setup Domain, SSL & Timezone"
 mkdir -p $XRAY_DIR /etc/zivpn /root/tendo; touch $DATA_VMESS $DATA_VLESS $DATA_TROJAN $DATA_ZIVPN
 IP_VPS=$(curl -s ifconfig.me)
 
-# Get Geo Info
+# Get Geo Info & Timezone
 curl -s ipinfo.io/json | jq -r '.city' > /root/tendo/city
 curl -s ipinfo.io/json | jq -r '.org' > /root/tendo/isp
 curl -s ipinfo.io/json | jq -r '.ip' > /root/tendo/ip
+
+# --- NEW: AUTO TIMEZONE LOGIC ---
+TIMEZONE=$(curl -s ipinfo.io/json | jq -r '.timezone')
+if [[ -n "$TIMEZONE" && "$TIMEZONE" != "null" ]]; then
+    ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime
+    echo "$TIMEZONE" > /etc/timezone
+    print_msg "Timezone detected & set to: $TIMEZONE"
+else
+    # Fallback to Jakarta if detection fails
+    ln -sf /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
+    echo "Asia/Jakarta" > /etc/timezone
+    print_msg "Timezone detection failed, defaulting to Asia/Jakarta"
+fi
 
 clear
 echo -e "${CYAN}=================================================${NC}"
@@ -256,7 +269,7 @@ D_VLESS="/usr/local/etc/xray/vless.txt"
 D_TROJAN="/usr/local/etc/xray/trojan.txt"
 D_ZIVPN="/usr/local/etc/xray/zivpn.txt"
 
-# --- HELPER: DISPLAY ACCOUNT (RESTORED FULL DETAIL) ---
+# --- HELPER: DISPLAY ACCOUNT (FULL DETAIL RESTORED) ---
 function show_account_xray() {
     clear
     local proto=$1; local user=$2; local domain=$3; local uuid=$4; local exp=$5; local link_tls=$6; local link_ntls=$7
@@ -276,7 +289,6 @@ function show_account_xray() {
     echo -e "————————————————————————————————————"
     echo -e "${link_tls}"
     
-    # FIXED: Logic to display None TLS if exists
     if [[ -n "$link_ntls" ]]; then
         echo -e "————————————————————————————————————"
         echo -e "          ${proto} WS NO TLS"
@@ -313,6 +325,7 @@ function header_main() {
     RAM=$(free -m | awk '/Mem:/ {print $2}'); SWAP=$(free -m | awk '/Swap:/ {print $2}'); IP=$(cat /root/tendo/ip)
     IFACE=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
     CITY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp); UPTIME=$(uptime -p | sed 's/up //')
+    TIMEZONE=$(cat /etc/timezone 2>/dev/null || echo "Unknown")
     
     # Traffic
     RX_DAY=$(vnstat -d -i $IFACE --oneline | awk -F';' '{print $4}')
@@ -339,6 +352,7 @@ function header_main() {
     echo -e "ISP     : $ISP"
     echo -e "IP      : $IP"
     echo -e "DOMAIN  : $DOMAIN"
+    echo -e "TIMEZONE: $TIMEZONE"
     echo -e "UPTIME  : $UPTIME"
     echo -e "${BLUE}──────────────────────────────────────────────────${NC}"
     echo -e "${BLUE}TODAY   :${NC} ${GREEN}RX: $RX_DAY${NC} | ${RED}TX: $TX_DAY${NC}"
@@ -364,7 +378,7 @@ function header_main() {
     echo -e "[3] TROJAN ACCOUNT       [7] CHECK SERVICES"
     echo -e "[4] ZIVPN UDP            [x] EXIT"
     echo -e "${BLUE}──────────────────────────────────────────────────${NC}"
-    echo -e "Version   : v6.5 (Complete Fix)"
+    echo -e "Version   : v6.6 (Auto Timezone)"
     echo -e "Owner     : Tendo Store"
     echo -e "Telegram  : @tendo_32"
     echo -e "Expiry In : Lifetime"
@@ -406,7 +420,7 @@ function features_menu() {
     done
 }
 
-# --- TRIAL GENERATOR LOGIC (WITH FULL OUTPUT) ---
+# --- TRIAL GENERATOR LOGIC ---
 function gen_trial() {
     local type=$1
     echo -e "${YELLOW}Set Trial Duration:${NC}"
