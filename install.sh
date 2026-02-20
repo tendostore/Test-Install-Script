@@ -50,7 +50,7 @@ echo "============================================="
 # --- 3. INSTALL DEPENDENCIES & VISUALS ---
 apt update -y
 apt install -y curl socat jq openssl uuid-runtime net-tools vnstat wget \
-gnupg1 bc iproute2 iptables iptables-persistent python3 neofetch
+gnupg1 bc iproute2 iptables iptables-persistent python3 neofetch zip unzip
 
 # Silent Login Configuration
 touch /root/.hushlogin
@@ -89,7 +89,10 @@ rm -f /usr/local/share/xray/geosite.dat
 wget -q -O /usr/local/share/xray/geosite.dat "https://github.com/tendostore/File-Geo/raw/refs/heads/main/geosite.dat"
 echo "google" > $RULE_LIST
 
+# PERBAIKAN PERMISSION LOG XRAY DI SINI
 touch $XRAY_DIR/access.log $XRAY_DIR/error.log
+chown nobody:nogroup $XRAY_DIR/access.log $XRAY_DIR/error.log
+chmod 644 $XRAY_DIR/access.log $XRAY_DIR/error.log
 
 cat > $CONFIG_FILE <<EOF
 {
@@ -183,7 +186,6 @@ if [ -f /etc/zivpn/user_data.txt ]; then
 fi
 EOF
 chmod +x /usr/local/bin/auto-kill.sh
-# Check every minute for trial precision
 crontab -l 2>/dev/null | grep -v "/usr/local/bin/auto-kill.sh" | crontab -
 (crontab -l 2>/dev/null; echo "* * * * * /usr/local/bin/auto-kill.sh") | crontab -
 
@@ -205,17 +207,14 @@ tail -F /usr/local/etc/xray/access.log | while read line; do
         user=$(echo "$line" | awk '{print $NF}')
         ip=$(echo "$line" | awk '{print $3}' | cut -d: -f1)
 
-        # Cek apakah user & ip ini sudah login dalam 1 jam terakhir
         if ! grep -q "${user}-${ip}" /tmp/xray_logged_in.txt 2>/dev/null; then
             echo "${user}-${ip}" >> /tmp/xray_logged_in.txt
-            # Auto hapus dari memori setelah 1 jam agar notif bisa masuk lagi nanti
             (sleep 3600 && sed -i "/${user}-${ip}/d" /tmp/xray_logged_in.txt) &
 
             IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
             DOMAIN=$(cat /usr/local/etc/xray/domain 2>/dev/null)
             ISP=$(cat /root/tendo/isp 2>/dev/null)
             
-            # Hitung total IP untuk user ini
             ip_count=$(grep -w "$user" /tmp/xray_logged_in.txt | wc -l)
             
             MSG="IP     : ${IP_VPS}%0ADOMAIN : ${DOMAIN}%0AISP    : ${ISP}%0AUsers Login VLESS%0A${user} | ${ip_count} IP%0A%0ATotal : 1"
@@ -273,6 +272,154 @@ function header_main() {
 function header_sub() {
     clear; DMN=$(cat /usr/local/etc/xray/domain)
     echo -e "┌─────────────────────────────────────────────────┐\n          ${YELLOW}TENDO STORE - SUB MENU${NC}        \n  Current Domain : $DMN\n└─────────────────────────────────────────────────┘"
+}
+
+function backup_restore_menu() {
+    while true; do
+        header_sub
+        echo -e "┌─────────────────────────────────────────────────┐"
+        echo -e "│             BACKUP & RESTORE MENU               "
+        echo -e "│ —————————————————————————————————————"
+        echo -e "│ 1.) Backup Data VPS (Lokal & Telegram)"
+        echo -e "│ 2.) Restore Data VPS"
+        echo -e "│ x.) Back"
+        echo -e "└─────────────────────────────────────────────────┘"
+        read -p "Pilih: " opt
+        case $opt in
+            1)
+                clear
+                echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo -e "                 BACKUP DATA VPS"
+                echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                rm -f /root/tendo/backup.zip
+                echo -e "Mempersiapkan file backup..."
+                zip -r -q /root/tendo/backup.zip /usr/local/etc/xray/config.json /usr/local/etc/xray/user_data.txt /etc/zivpn/config.json /etc/zivpn/user_data.txt /usr/local/etc/xray/domain
+                echo -e "${GREEN}✅ Backup lokal tersimpan di: /root/tendo/backup.zip${NC}"
+
+                TOKEN=$(cat /root/tendo/bot_token 2>/dev/null)
+                CHAT_ID=$(cat /root/tendo/chat_id 2>/dev/null)
+                if [[ -n "$TOKEN" && -n "$CHAT_ID" && "$TOKEN" != "ISI_TOKEN_BOT_DISINI" ]]; then
+                    echo -e "Mengirim file backup ke Telegram..."
+                    curl -s -F chat_id="$CHAT_ID" -F document=@"/root/tendo/backup.zip" -F caption="✅ VPS Backup Data%0A📅 Tanggal: $(date)%0A🌐 Domain: $(cat /usr/local/etc/xray/domain)" "https://api.telegram.org/bot${TOKEN}/sendDocument" > /dev/null
+                    echo -e "${GREEN}✅ Backup juga berhasil dikirim ke Telegram!${NC}"
+                fi
+                read -n 1 -s -r -p "Enter..."
+                ;;
+            2)
+                clear
+                echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo -e "                 RESTORE DATA VPS"
+                echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo -e "Pastikan file backup bernama ${YELLOW}backup.zip${NC} sudah"
+                echo -e "berada di dalam folder direktori ${YELLOW}/root/tendo/${NC}"
+                echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                read -p "Apakah kamu yakin ingin me-restore data? (y/n): " ans
+                if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
+                    if [ -f /root/tendo/backup.zip ]; then
+                        echo -e "Mengekstrak file backup ke dalam sistem..."
+                        unzip -o /root/tendo/backup.zip -d / > /dev/null 2>&1
+                        echo -e "Merestart layanan agar perubahan dapat diterapkan..."
+                        systemctl restart xray
+                        systemctl restart zivpn
+                        echo -e "${GREEN}✅ Restore data berhasil diselesaikan! Service telah di-restart.${NC}"
+                    else
+                        echo -e "${RED}❌ File backup (/root/tendo/backup.zip) tidak ditemukan pada sistem!${NC}"
+                    fi
+                else
+                    echo -e "${RED}❌ Proses restore dibatalkan oleh pengguna.${NC}"
+                fi
+                read -n 1 -s -r -p "Enter..."
+                ;;
+            x) return ;;
+        esac
+    done
+}
+
+function telegram_bot_menu() {
+    while true; do
+        header_sub
+        echo -e "┌─────────────────────────────────────────────────┐"
+        echo -e "│             TELEGRAM BOT MENU                   "
+        echo -e "│ —————————————————————————————————————"
+        echo -e "│ 1.) Make BOT API & CHATID"
+        echo -e "│ 2.) Notification from BOT"
+        echo -e "│ 3.) Backup VPS from BOT"
+        echo -e "│ 4.) Change BOT API & CHATID"
+        echo -e "│ x.) Back"
+        echo -e "└─────────────────────────────────────────────────┘"
+        read -p "Pilih: " opt
+        case $opt in
+            1)
+                clear
+                echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo -e "       TUTORIAL MAKE BOT API & CHAT ID"
+                echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo -e "1. Buka Telegram dan cari bot: @BotFather"
+                echo -e "2. Ketik /newbot lalu ikuti langkahnya sampai"
+                echo -e "   kamu mendapatkan token HTTP API."
+                echo -e "3. Cari bot: @userinfobot atau @get_id_bot"
+                echo -e "4. Klik Start untuk mendapatkan CHAT ID kamu."
+                echo -e "5. Kembali ke menu ini, pilih opsi 4 untuk"
+                echo -e "   memasukkan Token dan Chat ID."
+                echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                read -n 1 -s -r -p "Enter..."
+                ;;
+            2)
+                clear
+                echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo -e "           NOTIFICATION SETTINGS"
+                echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo -e "1.) Aktifkan Notifikasi (Enable)"
+                echo -e "2.) Matikan Notifikasi (Disable)"
+                echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                read -p "Pilih: " n_opt
+                if [[ "$n_opt" == "1" ]]; then
+                    systemctl enable xray-login-notif >/dev/null 2>&1
+                    systemctl start xray-login-notif >/dev/null 2>&1
+                    echo -e "\n${GREEN}Notifikasi Telegram diaktifkan!${NC}"
+                elif [[ "$n_opt" == "2" ]]; then
+                    systemctl disable xray-login-notif >/dev/null 2>&1
+                    systemctl stop xray-login-notif >/dev/null 2>&1
+                    echo -e "\n${RED}Notifikasi Telegram dimatikan!${NC}"
+                fi
+                sleep 2
+                ;;
+            3)
+                clear
+                echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo -e "             BACKUP VPS TO TELEGRAM"
+                echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                TOKEN=$(cat /root/tendo/bot_token 2>/dev/null)
+                CHAT_ID=$(cat /root/tendo/chat_id 2>/dev/null)
+                if [[ -z "$TOKEN" || -z "$CHAT_ID" || "$TOKEN" == "ISI_TOKEN_BOT_DISINI" ]]; then
+                    echo -e "${RED}Gagal! Token atau Chat ID belum disetting.${NC}"
+                    echo -e "Silakan atur di opsi 4 terlebih dahulu."
+                else
+                    echo -e "Sedang mengemas data backup..."
+                    rm -f /root/tendo/backup.zip
+                    zip -r -q /root/tendo/backup.zip /usr/local/etc/xray/config.json /usr/local/etc/xray/user_data.txt /etc/zivpn/config.json /etc/zivpn/user_data.txt /usr/local/etc/xray/domain
+                    echo -e "Mengirim ke Telegram..."
+                    curl -s -F chat_id="$CHAT_ID" -F document=@"/root/tendo/backup.zip" -F caption="✅ VPS Backup Data%0A📅 Tanggal: $(date)%0A🌐 Domain: $(cat /usr/local/etc/xray/domain)" "https://api.telegram.org/bot${TOKEN}/sendDocument" > /dev/null
+                    echo -e "${GREEN}Backup berhasil dikirim ke Telegram kamu!${NC}"
+                fi
+                read -n 1 -s -r -p "Enter..."
+                ;;
+            4)
+                clear
+                echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo -e "           CHANGE BOT API & CHAT ID"
+                echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                read -p " Masukkan Bot Token : " b_token
+                read -p " Masukkan Chat ID   : " c_id
+                echo "$b_token" > /root/tendo/bot_token
+                echo "$c_id" > /root/tendo/chat_id
+                systemctl restart xray-login-notif
+                echo -e "\n ${GREEN}Berhasil menyimpan Token & Chat ID!${NC}"
+                sleep 2
+                ;;
+            x) return ;;
+        esac
+    done
 }
 
 function xray_menu() {
@@ -333,20 +480,15 @@ function check_services() {
     echo -e "└─────────────────────────────────────────────────┘"; read -p "Enter...";
 }
 
-while true; do header_main; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) VLESS ACCOUNT      5.) SPEED TEST\n│ 2.) ZIVPN UDP          6.) RESTART SERVICES\n│ 3.) ROUTING GEOSITE    7.) CHECK SERVICES\n│ 4.) GANTI DOMAIN       8.) SET BOT TELEGRAM\n│ x.) EXIT\n└─────────────────────────────────────────────────┘"; read -p "Pilih Nomor: " opt
+while true; do header_main; echo -e "┌─────────────────────────────────────────────────┐\n│ 1.) VLESS ACCOUNT      5.) SPEED TEST\n│ 2.) ZIVPN UDP          6.) RESTART SERVICES\n│ 3.) ROUTING GEOSITE    7.) CHECK SERVICES\n│ 4.) GANTI DOMAIN       8.) SET BOT TELEGRAM\n│ 9.) BACKUP & RESTORE   x.) EXIT\n└─────────────────────────────────────────────────┘"; read -p "Pilih Nomor: " opt
     case $opt in
         1) xray_menu ;; 2) zivpn_menu ;; 3) routing_menu ;;
         4) read -p "Domain Baru: " nd; echo "$nd" > /usr/local/etc/xray/domain; openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout $XRAY_DIR/xray.key -out $XRAY_DIR/xray.crt -days 3650 -subj "/CN=$nd" >/dev/null 2>&1; systemctl restart xray; echo "Domain Updated!"; sleep 1;;
         5) header_sub; python3 <(curl -sL https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py) --share; read -p "Enter...";;
         6) systemctl restart xray zivpn xray-login-notif; echo "Restarted!"; sleep 1 ;;
         7) check_services ;;
-        8) header_sub; echo -e "┌─────────────────────────────────────────────────┐\n│             SET BOT TELEGRAM\n└─────────────────────────────────────────────────┘"
-           read -p " Masukkan Bot Token : " b_token
-           read -p " Masukkan Chat ID   : " c_id
-           echo "$b_token" > /root/tendo/bot_token
-           echo "$c_id" > /root/tendo/chat_id
-           systemctl restart xray-login-notif
-           echo -e "\n ${GREEN}Berhasil mengatur Bot Telegram!${NC}"; sleep 2;;
+        8) telegram_bot_menu ;;
+        9) backup_restore_menu ;;
         x) exit ;;
     esac; done
 EOF
