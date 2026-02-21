@@ -183,7 +183,7 @@ NOW=$(date +"%s")
 # Xray Auto Delete
 if [ -f /usr/local/etc/xray/user_data.txt ]; then
     rm -f /tmp/xray_restart_flag
-    cat /usr/local/etc/xray/user_data.txt | while IFS="|" read -r user uuid exp; do
+    cat /usr/local/etc/xray/user_data.txt | tr -d '\r' | while IFS="|" read -r user uuid exp; do
         exp_epoch=$(date -d "$exp" +"%s" 2>/dev/null)
         if [[ -n "$exp_epoch" ]] && [[ "$NOW" -ge "$exp_epoch" ]]; then
             idx=$(jq --arg u "$user" '.inbounds[0].settings.clients | map(.email == $u) | index(true)' /usr/local/etc/xray/config.json)
@@ -195,7 +195,9 @@ if [ -f /usr/local/etc/xray/user_data.txt ]; then
         fi
     done
     if [ -f /tmp/xray_restart_flag ]; then
-        systemctl restart xray
+        systemctl stop xray
+        pkill -f xray
+        systemctl start xray
         rm -f /tmp/xray_restart_flag
     fi
 fi
@@ -203,7 +205,7 @@ fi
 # Zivpn Auto Delete
 if [ -f /etc/zivpn/user_data.txt ]; then
     rm -f /tmp/zivpn_restart_flag
-    cat /etc/zivpn/user_data.txt | while IFS="|" read -r pass exp; do
+    cat /etc/zivpn/user_data.txt | tr -d '\r' | while IFS="|" read -r pass exp; do
         exp_epoch=$(date -d "$exp" +"%s" 2>/dev/null)
         if [[ -n "$exp_epoch" ]] && [[ "$NOW" -ge "$exp_epoch" ]]; then
             idx=$(jq --arg p "$pass" '.auth.config | map(. == $p) | index(true)' /etc/zivpn/config.json)
@@ -215,7 +217,9 @@ if [ -f /etc/zivpn/user_data.txt ]; then
         fi
     done
     if [ -f /tmp/zivpn_restart_flag ]; then
-        systemctl restart zivpn
+        systemctl stop zivpn
+        pkill -f zivpn
+        systemctl start zivpn
         rm -f /tmp/zivpn_restart_flag
     fi
 fi
@@ -261,20 +265,29 @@ WantedBy=multi-user.target
 EOF
 systemctl daemon-reload && systemctl enable xray-login-notif >/dev/null 2>&1 && systemctl restart xray-login-notif >/dev/null 2>&1
 
-# Script Notifikasi Login (berjalan sesuai cron menit 'm')
+# Script Notifikasi Login Baru (berjalan sesuai cron menit 'm')
 cat > /usr/local/bin/login-report.sh <<'EOF'
 #!/bin/bash
 TOKEN=$(cat /root/tendo/bot_token 2>/dev/null)
 CHAT_ID=$(cat /root/tendo/chat_id 2>/dev/null)
 if [[ -z "$TOKEN" || -z "$CHAT_ID" || "$TOKEN" == "ISI_TOKEN_BOT_DISINI" ]]; then exit 0; fi
 
-ACTIVE_USERS=$(cat /tmp/xray_logged_in.txt 2>/dev/null | wc -l)
+ACTIVE_USERS=$(cat /tmp/xray_logged_in.txt 2>/dev/null | awk -F'-' '{print $1}' | sort | uniq | wc -l)
 if [[ "$ACTIVE_USERS" -gt 0 ]]; then
     IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
     DOMAIN=$(cat /usr/local/etc/xray/domain 2>/dev/null)
     ISP=$(cat /root/tendo/isp 2>/dev/null)
-    MSG="📊 Laporan Notifikasi Login XRAY%0A🌐 Domain: ${DOMAIN}%0A🖥 IP: ${IP_VPS}%0A🏢 ISP: ${ISP}%0A👥 Total Akun Login: ${ACTIVE_USERS} Koneksi Unik"
-    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" -d text="$(echo -e "$MSG")" > /dev/null 2>&1
+    
+    MSG="IP     : ${IP_VPS}\nDOMAIN : ${DOMAIN}\nISP    : ${ISP}\nUsers Login VLESS\n"
+    
+    for user in $(cat /tmp/xray_logged_in.txt | awk -F'-' '{print $1}' | sort | uniq); do
+        ip_count=$(grep "^${user}-" /tmp/xray_logged_in.txt | wc -l)
+        MSG+="${user} ${ip_count}IP\n"
+    done
+    MSG+="\nTotal : ${ACTIVE_USERS}"
+    
+    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" --data-urlencode text="$(echo -e "$MSG")" > /dev/null 2>&1
+    
     # Reset log setiap laporan terkirim
     rm -f /tmp/xray_logged_in.txt
     touch /tmp/xray_logged_in.txt
@@ -310,7 +323,10 @@ function send_tg_notif() {
     local token=$(cat /root/tendo/bot_token 2>/dev/null)
     local chat_id=$(cat /root/tendo/chat_id 2>/dev/null)
     if [[ -n "$token" && -n "$chat_id" && "$token" != "ISI_TOKEN_BOT_DISINI" ]]; then
-        curl -s -X POST "https://api.telegram.org/bot${token}/sendMessage" -d chat_id="${chat_id}" -d parse_mode="HTML" -d text="$(echo -e "$msg")" > /dev/null 2>&1
+        curl -s -X POST "https://api.telegram.org/bot${token}/sendMessage" \
+             -d chat_id="${chat_id}" \
+             -d parse_mode="HTML" \
+             --data-urlencode text="$msg" > /dev/null 2>&1
     fi
 }
 
@@ -378,7 +394,8 @@ function backup_restore_menu() {
     while true; do
         header_sub
         echo -e " [1] Backup Data VPS (Lokal & Telegram)"
-        echo -e " [2] Restore Data VPS"
+        echo -e " [2] Restore Data VPS (Dari Lokal)"
+        echo -e " [3] Restore Data VPS (Dari Link Direct)"
         echo -e " [x] Back"
         echo -e "${CYAN}─────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
@@ -400,7 +417,7 @@ function backup_restore_menu() {
                 read -n 1 -s -r -p "Enter..."
                 ;;
             2)
-                clear; echo -e "${YELLOW}RESTORE DATA VPS${NC}\n"
+                clear; echo -e "${YELLOW}RESTORE DATA VPS (LOKAL)${NC}\n"
                 echo -e "Pastikan file backup bernama ${YELLOW}backup.zip${NC} sudah"
                 echo -e "berada di dalam folder direktori ${YELLOW}/root/tendo/${NC}\n"
                 read -p "Apakah kamu yakin ingin me-restore data? (y/n): " ans
@@ -415,6 +432,26 @@ function backup_restore_menu() {
                     fi
                 else
                     echo -e "${RED}❌ Proses restore dibatalkan oleh pengguna.${NC}"
+                fi
+                read -n 1 -s -r -p "Enter..."
+                ;;
+            3)
+                clear; echo -e "${YELLOW}RESTORE DATA VPS (LINK DIRECT)${NC}\n"
+                read -p "Masukkan URL/Link Direct file backup (.zip): " link_url
+                if [[ -n "$link_url" ]]; then
+                    echo -e "Mendownload file backup..."
+                    wget -qO /tmp/backup_direct.zip "$link_url"
+                    if unzip -t /tmp/backup_direct.zip &>/dev/null; then
+                        echo -e "Mengekstrak file backup ke dalam sistem..."
+                        unzip -o /tmp/backup_direct.zip -d / > /dev/null 2>&1
+                        systemctl restart xray zivpn
+                        echo -e "${GREEN}✅ Restore data berhasil diselesaikan! Service telah di-restart.${NC}"
+                    else
+                        echo -e "${RED}❌ File backup korup atau link tidak valid!${NC}"
+                    fi
+                    rm -f /tmp/backup_direct.zip
+                else
+                    echo -e "${RED}❌ Link tidak boleh kosong!${NC}"
                 fi
                 read -n 1 -s -r -p "Enter..."
                 ;;
@@ -546,19 +583,63 @@ function xray_menu() {
         1) read -p " Username : " u; read -p " UUID (Enter for random): " id; [[ -z "$id" ]] && id=$(uuidgen); read -p " Expired (Hari): " ex; [[ -z "$ex" ]] && ex=30; exp_date=$(date -d "+$ex days" +"%Y-%m-%d")
            jq --arg u "$u" --arg id "$id" '.inbounds[].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray; echo "$u|$id|$exp_date" >> $U_DATA
            DMN=$(cat /usr/local/etc/xray/domain); CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
-           send_tg_notif "✅ <b>NEW XRAY ACCOUNT</b>%0A━━━━━━━━━━━━━━%0A<b>User:</b> $u%0A<b>Exp:</b> $ex Hari ($exp_date)%0A<b>Domain:</b> $DMN%0A━━━━━━━━━━━━━━"
            ltls="vless://${id}@${DMN}:443?path=/vless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}"; lnon="vless://${id}@${DMN}:80?path=/vless&security=none&encryption=none&host=${DMN}&type=ws#${u}"
-           clear; echo -e "────────────────────────────────────\n               XRAY\n────────────────────────────────────\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DMN\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nid             : $id\nEncryption     : none\nNetwork        : ws\nPath ws        : /vless\nExpired On     : $ex Hari ($exp_date)\n────────────────────────────────────\n            XRAY WS TLS\n────────────────────────────────────\n$ltls\n────────────────────────────────────\n          XRAY WS NO TLS\n────────────────────────────────────\n$lnon\n────────────────────────────────────"; read -n 1 -s -r -p "Enter...";;
+msg="✅ <b>NEW XRAY ACCOUNT</b>
+────────────────────────────────────
+Remarks        : $u
+CITY           : $CTY
+ISP            : $ISP
+Domain         : $DMN
+Port TLS       : 443,8443
+Port none TLS  : 80,8080
+id             : $id
+Encryption     : none
+Network        : ws
+Path ws        : /vless
+Expired On     : $ex Hari ($exp_date)
+────────────────────────────────────
+            XRAY WS TLS
+────────────────────────────────────
+<code>$ltls</code>
+────────────────────────────────────
+          XRAY WS NO TLS
+────────────────────────────────────
+<code>$lnon</code>
+────────────────────────────────────"
+           send_tg_notif "$msg"
+           clear; echo -e "$msg" | sed 's/<b>//g; s/<\/b>//g; s/<code>//g; s/<\/code>//g'; read -n 1 -s -r -p "Enter...";;
         2) id=$(uuidgen); u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"
            echo -e " \n Username (Auto-Random): ${GREEN}$u${NC}"
            read -p " Expired (Menit): " ex_m; [[ -z "$ex_m" ]] && ex_m=10
            exp_date=$(date -d "+$ex_m minutes" +"%Y-%m-%d %H:%M")
            jq --arg u "$u" --arg id "$id" '.inbounds[].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray; echo "$u|$id|$exp_date" >> $U_DATA
            DMN=$(cat /usr/local/etc/xray/domain); CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
-           send_tg_notif "⏳ <b>NEW XRAY TRIAL</b>%0A━━━━━━━━━━━━━━%0A<b>User:</b> $u%0A<b>Exp:</b> $ex_m Menit ($exp_date)%0A<b>Domain:</b> $DMN%0A━━━━━━━━━━━━━━"
            ltls="vless://${id}@${DMN}:443?path=/vless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}"; lnon="vless://${id}@${DMN}:80?path=/vless&security=none&encryption=none&host=${DMN}&type=ws#${u}"
-           clear; echo -e "────────────────────────────────────\n               XRAY TRIAL\n────────────────────────────────────\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DMN\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nid             : $id\nEncryption     : none\nNetwork        : ws\nPath ws        : /vless\nExpired On     : $ex_m Menit ($exp_date)\n────────────────────────────────────\n            XRAY WS TLS\n────────────────────────────────────\n$ltls\n────────────────────────────────────\n          XRAY WS NO TLS\n────────────────────────────────────\n$lnon\n────────────────────────────────────"; read -n 1 -s -r -p "Enter...";;
-        3) jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r ".inbounds[0].settings.clients[$idx].email" $CONFIG); sed -i "/^$u|/d" $U_DATA; jq "del(.inbounds[0].settings.clients[$idx])" $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray;;
+msg="⏳ <b>NEW XRAY TRIAL</b>
+────────────────────────────────────
+Remarks        : $u
+CITY           : $CTY
+ISP            : $ISP
+Domain         : $DMN
+Port TLS       : 443,8443
+Port none TLS  : 80,8080
+id             : $id
+Encryption     : none
+Network        : ws
+Path ws        : /vless
+Expired On     : $ex_m Menit ($exp_date)
+────────────────────────────────────
+            XRAY WS TLS
+────────────────────────────────────
+<code>$ltls</code>
+────────────────────────────────────
+          XRAY WS NO TLS
+────────────────────────────────────
+<code>$lnon</code>
+────────────────────────────────────"
+           send_tg_notif "$msg"
+           clear; echo -e "$msg" | sed 's/<b>//g; s/<\/b>//g; s/<code>//g; s/<\/code>//g'; read -n 1 -s -r -p "Enter...";;
+        3) jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r ".inbounds[0].settings.clients[$idx].email" $CONFIG); sed -i "/^$u|/d" $U_DATA; jq "del(.inbounds[0].settings.clients[$idx])" $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl stop xray; pkill -f xray; systemctl start xray;;
         4) header_sub; jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "Enter...";;
         5) header_sub; jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r ".inbounds[0].settings.clients[$idx].email" $CONFIG); id=$(jq -r ".inbounds[0].settings.clients[$idx].id" $CONFIG); DMN=$(cat /usr/local/etc/xray/domain); exp_d=$(grep "^$u|" $U_DATA | cut -d'|' -f3); [[ -z "$exp_d" ]] && exp_d="Unknown"; CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
            ltls="vless://${id}@${DMN}:443?path=/vless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}"; lnon="vless://${id}@${DMN}:80?path=/vless&security=none&encryption=none&host=${DMN}&type=ws#${u}"
@@ -571,16 +652,38 @@ function zivpn_menu() {
     while true; do header_sub; echo -e " [1] Create Account\n [2] Trial Account\n [3] Delete Account\n [4] List Accounts\n [5] Check Account Details\n [x] Back\n${CYAN}─────────────────────────────────────────────────${NC}"; read -p " Select Menu : " opt
     case $opt in
         1) read -p " Password: " p; read -p " Expired (Hari): " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "$ex days" +"%Y-%m-%d"); jq --arg p "$p" '.auth.config += [$p]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn; echo "$p|$exp" >> /etc/zivpn/user_data.txt; DMN=$(cat /usr/local/etc/xray/domain)
-           send_tg_notif "✅ <b>NEW ZIVPN ACCOUNT</b>%0A━━━━━━━━━━━━━━%0A<b>Pass:</b> $p%0A<b>Exp:</b> $ex Hari ($exp)%0A<b>Domain:</b> $DMN%0A━━━━━━━━━━━━━━"
-           clear; echo -e "━━━━━━━━━━━━━━━━━━━━━\n  ACCOUNT ZIVPN UDP\n━━━━━━━━━━━━━━━━━━━━━\nPassword   : $p\nCITY       : $(cat /root/tendo/city)\nISP        : $(cat /root/tendo/isp)\nIP ISP     : $(cat /root/tendo/ip)\nDomain     : $DMN\nExpired On : $exp\n━━━━━━━━━━━━━━━━━━━━━"; read -p "Enter...";;
+msg="✅ <b>NEW ZIVPN ACCOUNT</b>
+━━━━━━━━━━━━━━━━━━━━━
+  ACCOUNT ZIVPN UDP
+━━━━━━━━━━━━━━━━━━━━━
+Password   : $p
+CITY       : $(cat /root/tendo/city)
+ISP        : $(cat /root/tendo/isp)
+IP ISP     : $(cat /root/tendo/ip)
+Domain     : $DMN
+Expired On : $exp
+━━━━━━━━━━━━━━━━━━━━━"
+           send_tg_notif "$msg"
+           clear; echo -e "$msg" | sed 's/<b>//g; s/<\/b>//g'; read -p "Enter...";;
         2) p="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"
            echo -e " \n Password (Auto-Random): ${GREEN}$p${NC}"
            read -p " Expired (Menit): " ex_m; [[ -z "$ex_m" ]] && ex_m=10
            exp=$(date -d "+$ex_m minutes" +"%Y-%m-%d %H:%M")
            jq --arg p "$p" '.auth.config += [$p]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn; echo "$p|$exp" >> /etc/zivpn/user_data.txt; DMN=$(cat /usr/local/etc/xray/domain)
-           send_tg_notif "⏳ <b>NEW ZIVPN TRIAL</b>%0A━━━━━━━━━━━━━━%0A<b>Pass:</b> $p%0A<b>Exp:</b> $ex_m Menit ($exp)%0A<b>Domain:</b> $DMN%0A━━━━━━━━━━━━━━"
-           clear; echo -e "━━━━━━━━━━━━━━━━━━━━━\n  ZIVPN UDP TRIAL\n━━━━━━━━━━━━━━━━━━━━━\nPassword   : $p\nCITY       : $(cat /root/tendo/city)\nISP        : $(cat /root/tendo/isp)\nIP ISP     : $(cat /root/tendo/ip)\nDomain     : $DMN\nExpired On : $ex_m Menit ($exp)\n━━━━━━━━━━━━━━━━━━━━━"; read -p "Enter...";;
-        3) jq -r '.auth.config[]' /etc/zivpn/config.json | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); p=$(jq -r ".auth.config[$idx]" /etc/zivpn/config.json); sed -i "/^$p|/d" /etc/zivpn/user_data.txt; jq "del(.auth.config[$idx])" /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn;;
+msg="⏳ <b>NEW ZIVPN TRIAL</b>
+━━━━━━━━━━━━━━━━━━━━━
+  ZIVPN UDP TRIAL
+━━━━━━━━━━━━━━━━━━━━━
+Password   : $p
+CITY       : $(cat /root/tendo/city)
+ISP        : $(cat /root/tendo/isp)
+IP ISP     : $(cat /root/tendo/ip)
+Domain     : $DMN
+Expired On : $ex_m Menit ($exp)
+━━━━━━━━━━━━━━━━━━━━━"
+           send_tg_notif "$msg"
+           clear; echo -e "$msg" | sed 's/<b>//g; s/<\/b>//g'; read -p "Enter...";;
+        3) jq -r '.auth.config[]' /etc/zivpn/config.json | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); p=$(jq -r ".auth.config[$idx]" /etc/zivpn/config.json); sed -i "/^$p|/d" /etc/zivpn/user_data.txt; jq "del(.auth.config[$idx])" /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl stop zivpn; pkill -f zivpn; systemctl start zivpn;;
         4) header_sub; jq -r '.auth.config[]' /etc/zivpn/config.json | nl; read -p "Enter...";;
         5) header_sub; jq -r '.auth.config[]' /etc/zivpn/config.json | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); p=$(jq -r ".auth.config[$idx]" /etc/zivpn/config.json); DMN=$(cat /usr/local/etc/xray/domain); exp_d=$(grep "^$p|" /etc/zivpn/user_data.txt | cut -d'|' -f2); [[ -z "$exp_d" ]] && exp_d="Unknown"
            clear; echo -e "━━━━━━━━━━━━━━━━━━━━━\n  CHECK ZIVPN UDP\n━━━━━━━━━━━━━━━━━━━━━\nPassword   : $p\nCITY       : $(cat /root/tendo/city)\nISP        : $(cat /root/tendo/isp)\nIP ISP     : $(cat /root/tendo/ip)\nDomain     : $DMN\nExpired On : $exp_d\n━━━━━━━━━━━━━━━━━━━━━"; read -p "Enter...";;
@@ -618,7 +721,20 @@ function features_menu() {
         case $opt in
             1) routing_menu ;;
             2) backup_restore_menu ;;
-            3) header_sub; python3 <(curl -sL https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py) --share; read -p "Enter..." ;;
+            3) header_sub
+               if ! command -v speedtest &> /dev/null; then
+                   echo -e "${YELLOW}Menginstall Official Ookla Speedtest...${NC}"
+                   ARCH=$(uname -m)
+                   if [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
+                       DL_URL="https://install.speedtest.net/app/cli/ookla-speedtest-1.2.0-linux-aarch64.tgz"
+                   else
+                       DL_URL="https://install.speedtest.net/app/cli/ookla-speedtest-1.2.0-linux-x86_64.tgz"
+                   fi
+                   curl -sL "$DL_URL" | tar -xz -C /usr/bin speedtest
+               fi
+               echo -e "${GREEN}Running Ookla Speedtest...${NC}\n"
+               speedtest --accept-license --accept-gdpr
+               read -p "Enter..." ;;
             4) read -p "Domain Baru: " nd; echo "$nd" > /usr/local/etc/xray/domain; openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout $XRAY_DIR/xray.key -out $XRAY_DIR/xray.crt -days 3650 -subj "/CN=$nd" >/dev/null 2>&1; systemctl restart xray; echo "Domain Updated!"; sleep 1 ;;
             5) header_sub; IFACE=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1); vnstat -i $IFACE; read -p "Enter..." ;;
             6) header_sub; echo -e "${YELLOW}Running YABS (This will take a while)...${NC}"; curl -sL yabs.sh | bash; read -p "Enter..." ;;
@@ -648,7 +764,7 @@ function features_menu() {
     done
 }
 
-while true; do header_main; read -p "│  Select Menu : " opt
+while true; do header_main; read -p " Select Menu : " opt
     case $opt in
         1) xray_menu ;;
         2) zivpn_menu ;;
