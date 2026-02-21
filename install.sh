@@ -186,18 +186,14 @@ if [ -f /usr/local/etc/xray/user_data.txt ]; then
     cat /usr/local/etc/xray/user_data.txt | tr -d '\r' | while IFS="|" read -r user uuid exp; do
         exp_epoch=$(date -d "$exp" +"%s" 2>/dev/null)
         if [[ -n "$exp_epoch" ]] && [[ "$NOW" -ge "$exp_epoch" ]]; then
-            idx=$(jq --arg u "$user" '.inbounds[0].settings.clients | map(.email == $u) | index(true)' /usr/local/etc/xray/config.json)
-            if [[ "$idx" != "null" ]] && [[ -n "$idx" ]]; then
-                jq "del(.inbounds[0].settings.clients[$idx])" /usr/local/etc/xray/config.json > /tmp/x && mv /tmp/x /usr/local/etc/xray/config.json
-            fi
+            # Fix: Hapus dari seluruh inbound (port 443 & 80)
+            jq --arg u "$user" '(.inbounds[].settings.clients) |= map(select(.email != $u))' /usr/local/etc/xray/config.json > /tmp/x && mv /tmp/x /usr/local/etc/xray/config.json
             sed -i "/^$user|/d" /usr/local/etc/xray/user_data.txt
             touch /tmp/xray_restart_flag
         fi
     done
     if [ -f /tmp/xray_restart_flag ]; then
-        systemctl stop xray
-        pkill -f xray
-        systemctl start xray
+        systemctl restart xray
         rm -f /tmp/xray_restart_flag
     fi
 fi
@@ -208,18 +204,14 @@ if [ -f /etc/zivpn/user_data.txt ]; then
     cat /etc/zivpn/user_data.txt | tr -d '\r' | while IFS="|" read -r pass exp; do
         exp_epoch=$(date -d "$exp" +"%s" 2>/dev/null)
         if [[ -n "$exp_epoch" ]] && [[ "$NOW" -ge "$exp_epoch" ]]; then
-            idx=$(jq --arg p "$pass" '.auth.config | map(. == $p) | index(true)' /etc/zivpn/config.json)
-            if [[ "$idx" != "null" ]] && [[ -n "$idx" ]]; then
-                jq "del(.auth.config[$idx])" /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json
-            fi
+            # Fix: Hapus pass secara akurat
+            jq --arg p "$pass" '.auth.config |= map(select(. != $p))' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json
             sed -i "/^$pass|/d" /etc/zivpn/user_data.txt
             touch /tmp/zivpn_restart_flag
         fi
     done
     if [ -f /tmp/zivpn_restart_flag ]; then
-        systemctl stop zivpn
-        pkill -f zivpn
-        systemctl start zivpn
+        systemctl restart zivpn
         rm -f /tmp/zivpn_restart_flag
     fi
 fi
@@ -639,7 +631,7 @@ Expired On     : $ex_m Menit ($exp_date)
 ────────────────────────────────────"
            send_tg_notif "$msg"
            clear; echo -e "$msg" | sed 's/<b>//g; s/<\/b>//g; s/<code>//g; s/<\/code>//g'; read -n 1 -s -r -p "Enter...";;
-        3) jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r ".inbounds[0].settings.clients[$idx].email" $CONFIG); sed -i "/^$u|/d" $U_DATA; jq "del(.inbounds[0].settings.clients[$idx])" $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl stop xray; pkill -f xray; systemctl start xray;;
+        3) jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r ".inbounds[0].settings.clients[$idx].email" $CONFIG); sed -i "/^$u|/d" $U_DATA; jq --arg u "$u" '(.inbounds[].settings.clients) |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray;;
         4) header_sub; jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "Enter...";;
         5) header_sub; jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r ".inbounds[0].settings.clients[$idx].email" $CONFIG); id=$(jq -r ".inbounds[0].settings.clients[$idx].id" $CONFIG); DMN=$(cat /usr/local/etc/xray/domain); exp_d=$(grep "^$u|" $U_DATA | cut -d'|' -f3); [[ -z "$exp_d" ]] && exp_d="Unknown"; CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
            ltls="vless://${id}@${DMN}:443?path=/vless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}"; lnon="vless://${id}@${DMN}:80?path=/vless&security=none&encryption=none&host=${DMN}&type=ws#${u}"
@@ -683,7 +675,7 @@ Expired On : $ex_m Menit ($exp)
 ━━━━━━━━━━━━━━━━━━━━━"
            send_tg_notif "$msg"
            clear; echo -e "$msg" | sed 's/<b>//g; s/<\/b>//g'; read -p "Enter...";;
-        3) jq -r '.auth.config[]' /etc/zivpn/config.json | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); p=$(jq -r ".auth.config[$idx]" /etc/zivpn/config.json); sed -i "/^$p|/d" /etc/zivpn/user_data.txt; jq "del(.auth.config[$idx])" /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl stop zivpn; pkill -f zivpn; systemctl start zivpn;;
+        3) jq -r '.auth.config[]' /etc/zivpn/config.json | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); p=$(jq -r ".auth.config[$idx]" /etc/zivpn/config.json); sed -i "/^$p|/d" /etc/zivpn/user_data.txt; jq --arg p "$p" '.auth.config |= map(select(. != $p))' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn;;
         4) header_sub; jq -r '.auth.config[]' /etc/zivpn/config.json | nl; read -p "Enter...";;
         5) header_sub; jq -r '.auth.config[]' /etc/zivpn/config.json | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); p=$(jq -r ".auth.config[$idx]" /etc/zivpn/config.json); DMN=$(cat /usr/local/etc/xray/domain); exp_d=$(grep "^$p|" /etc/zivpn/user_data.txt | cut -d'|' -f2); [[ -z "$exp_d" ]] && exp_d="Unknown"
            clear; echo -e "━━━━━━━━━━━━━━━━━━━━━\n  CHECK ZIVPN UDP\n━━━━━━━━━━━━━━━━━━━━━\nPassword   : $p\nCITY       : $(cat /root/tendo/city)\nISP        : $(cat /root/tendo/isp)\nIP ISP     : $(cat /root/tendo/ip)\nDomain     : $DMN\nExpired On : $exp_d\n━━━━━━━━━━━━━━━━━━━━━"; read -p "Enter...";;
@@ -692,13 +684,52 @@ Expired On : $ex_m Menit ($exp)
 }
 
 function routing_menu() {
-    while true; do header_sub; echo -e "             SUPPORTED GEOSITE LIST               \n─────────────────────────────────────────────────\n rule-gaming, rule-indo, rule-sosmed, google,    \n rule-playstore, rule-streaming, rule-umum, tiktok,\n rule-ipcheck, rule-doh, rule-malicious, telegram,\n rule-ads, rule-speedtest, ecommerce-id, urltest,\n category-porn, bank-id, meta, videoconference,  \n geolocation-!cn, facebook, spotify, openai, meta,\n ehentai, github, microsoft, apple, netflix, cn, \n youtube, twitter, bilibili, category-ads-all,   \n private, category-media, category-vpnservices,  \n category-dev, category-dev-all, meta, category-media-all\n─────────────────────────────────────────────────"; DOMS=$(cat /usr/local/etc/xray/rule_list.txt | xargs)
-        echo -e " Active Rules: ${GREEN}$DOMS${NC}\n [1] Tambah rule geosite\n [2] Hapus rule geosite\n [x] Back\n${CYAN}─────────────────────────────────────────────────${NC}"; read -p " Select Menu : " opt
+    geosites=( "rule-gaming" "rule-indo" "rule-sosmed" "google" "rule-playstore" "rule-streaming" "rule-umum" "tiktok" "rule-ipcheck" "rule-doh" "rule-malicious" "telegram" "rule-ads" "rule-speedtest" "ecommerce-id" "urltest" "category-porn" "bank-id" "meta" "videoconference" "geolocation-!cn" "facebook" "spotify" "openai" "ehentai" "github" "microsoft" "apple" "netflix" "cn" "youtube" "twitter" "bilibili" "category-ads-all" "private" "category-media" "category-vpnservices" "category-dev" "category-dev-all" "category-media-all" )
+    while true; do
+        header_sub
+        echo -e "             ${YELLOW}SUPPORTED GEOSITE LIST${NC}"
+        echo -e "${CYAN}─────────────────────────────────────────────────${NC}"
+        for (( i=0; i<${#geosites[@]}; i+=2 )); do
+            item1=$(printf " [%-2d] %-18s" "$((i+1))" "${geosites[$i]}")
+            if [[ -n "${geosites[$i+1]}" ]]; then
+                item2=$(printf " [%-2d] %-18s" "$((i+2))" "${geosites[$i+1]}")
+            else
+                item2=""
+            fi
+            echo -e "$item1 $item2"
+        done
+        echo -e "${CYAN}─────────────────────────────────────────────────${NC}"
+        DOMS=$(cat /usr/local/etc/xray/rule_list.txt | xargs)
+        echo -e " Active Rules: ${GREEN}$DOMS${NC}"
+        echo -e " [1] Tambah rule geosite"
+        echo -e " [2] Hapus rule geosite"
+        echo -e " [x] Back"
+        echo -e "${CYAN}─────────────────────────────────────────────────${NC}"
+        read -p " Select Menu : " opt
         case $opt in
-            1) read -p "Rule: " d; echo "$d" >> /usr/local/etc/xray/rule_list.txt; LIST=$(cat /usr/local/etc/xray/rule_list.txt | awk '{printf "\"geosite:%s\",", $1}' | sed 's/,$//'); jq --argjson d "[$LIST]" '.routing.rules[] |= (if .outboundTag == "port443" then .domain = $d else . end)' $CONFIG > /tmp/r && mv /tmp/r $CONFIG; systemctl restart xray;;
-            2) nl /usr/local/etc/xray/rule_list.txt; read -p "No: " n; [[ -z "$n" ]] && continue; sed -i "${n}d" /usr/local/etc/xray/rule_list.txt; LIST=$(cat /usr/local/etc/xray/rule_list.txt | awk '{printf "\"geosite:%s\",", $1}' | sed 's/,$//'); jq --argjson d "[$LIST]" '.routing.rules[] |= (if .outboundTag == "port443" then .domain = $d else . end)' $CONFIG > /tmp/r && mv /tmp/r $CONFIG; systemctl restart xray;;
+            1)
+                read -p " Masukkan Nomor/Nama Rule: " d
+                if [[ "$d" =~ ^[0-9]+$ ]] && [ "$d" -ge 1 ] && [ "$d" -le "${#geosites[@]}" ]; then
+                    d="${geosites[$((d-1))]}"
+                fi
+                echo "$d" >> /usr/local/etc/xray/rule_list.txt
+                LIST=$(cat /usr/local/etc/xray/rule_list.txt | awk '{printf "\"geosite:%s\",", $1}' | sed 's/,$//')
+                jq --argjson d "[$LIST]" '.routing.rules[] |= (if .outboundTag == "port443" then .domain = $d else . end)' $CONFIG > /tmp/r && mv /tmp/r $CONFIG
+                systemctl restart xray
+                echo -e "${GREEN}Rule $d berhasil ditambahkan!${NC}"; sleep 1;;
+            2)
+                echo -e " ${YELLOW}List Rule Aktif:${NC}"
+                nl /usr/local/etc/xray/rule_list.txt
+                read -p " Hapus Nomor: " n
+                [[ -z "$n" ]] && continue
+                sed -i "${n}d" /usr/local/etc/xray/rule_list.txt
+                LIST=$(cat /usr/local/etc/xray/rule_list.txt | awk '{printf "\"geosite:%s\",", $1}' | sed 's/,$//')
+                jq --argjson d "[$LIST]" '.routing.rules[] |= (if .outboundTag == "port443" then .domain = $d else . end)' $CONFIG > /tmp/r && mv /tmp/r $CONFIG
+                systemctl restart xray
+                echo -e "${GREEN}Rule berhasil dihapus!${NC}"; sleep 1;;
             x) return;;
-        esac; done
+        esac
+    done
 }
 
 function check_services() {
