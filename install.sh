@@ -186,7 +186,7 @@ if [ -f /usr/local/etc/xray/user_data.txt ]; then
     cat /usr/local/etc/xray/user_data.txt | tr -d '\r' | while IFS="|" read -r user uuid exp; do
         exp_epoch=$(date -d "$exp" +"%s" 2>/dev/null)
         if [[ -n "$exp_epoch" ]] && [[ "$NOW" -ge "$exp_epoch" ]]; then
-            # Fix: Hapus dari seluruh inbound (port 443 & 80)
+            # Hapus dari seluruh inbound (port 443 & 80)
             jq --arg u "$user" '(.inbounds[].settings.clients) |= map(select(.email != $u))' /usr/local/etc/xray/config.json > /tmp/x && mv /tmp/x /usr/local/etc/xray/config.json
             sed -i "/^$user|/d" /usr/local/etc/xray/user_data.txt
             touch /tmp/xray_restart_flag
@@ -204,7 +204,7 @@ if [ -f /etc/zivpn/user_data.txt ]; then
     cat /etc/zivpn/user_data.txt | tr -d '\r' | while IFS="|" read -r pass exp; do
         exp_epoch=$(date -d "$exp" +"%s" 2>/dev/null)
         if [[ -n "$exp_epoch" ]] && [[ "$NOW" -ge "$exp_epoch" ]]; then
-            # Fix: Hapus pass secara akurat
+            # Hapus pass secara akurat
             jq --arg p "$pass" '.auth.config |= map(select(. != $p))' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json
             sed -i "/^$pass|/d" /etc/zivpn/user_data.txt
             touch /tmp/zivpn_restart_flag
@@ -233,9 +233,8 @@ tail -F /usr/local/etc/xray/access.log | while read line; do
     if echo "$line" | grep -q "accepted"; then
         user=$(echo "$line" | awk '{print $NF}')
         ip=$(echo "$line" | awk '{print $3}' | cut -d: -f1)
-        if ! grep -q "${user}-${ip}" /tmp/xray_logged_in.txt 2>/dev/null; then
-            echo "${user}-${ip}" >> /tmp/xray_logged_in.txt
-        fi
+        # Simpan log dengan pemisah spasi agar nama user dengan tanda strip tidak terpotong
+        echo "${user} ${ip}" >> /tmp/xray_logged_in.txt
     fi
 done
 EOF
@@ -257,33 +256,39 @@ WantedBy=multi-user.target
 EOF
 systemctl daemon-reload && systemctl enable xray-login-notif >/dev/null 2>&1 && systemctl restart xray-login-notif >/dev/null 2>&1
 
-# Script Notifikasi Login Baru (berjalan sesuai cron menit 'm')
+# Script Notifikasi Login Baru yang sangat akurat
 cat > /usr/local/bin/login-report.sh <<'EOF'
 #!/bin/bash
 TOKEN=$(cat /root/tendo/bot_token 2>/dev/null)
 CHAT_ID=$(cat /root/tendo/chat_id 2>/dev/null)
 if [[ -z "$TOKEN" || -z "$CHAT_ID" || "$TOKEN" == "ISI_TOKEN_BOT_DISINI" ]]; then exit 0; fi
 
-ACTIVE_USERS=$(cat /tmp/xray_logged_in.txt 2>/dev/null | awk -F'-' '{print $1}' | sort | uniq | wc -l)
-if [[ "$ACTIVE_USERS" -gt 0 ]]; then
-    IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
-    DOMAIN=$(cat /usr/local/etc/xray/domain 2>/dev/null)
-    ISP=$(cat /root/tendo/isp 2>/dev/null)
-    
-    MSG="IP     : ${IP_VPS}\nDOMAIN : ${DOMAIN}\nISP    : ${ISP}\nUsers Login VLESS\n"
-    
-    for user in $(cat /tmp/xray_logged_in.txt | awk -F'-' '{print $1}' | sort | uniq); do
-        ip_count=$(grep "^${user}-" /tmp/xray_logged_in.txt | wc -l)
+IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
+DOMAIN=$(cat /usr/local/etc/xray/domain 2>/dev/null)
+ISP=$(cat /root/tendo/isp 2>/dev/null)
+
+MSG="IP     : ${IP_VPS}\nDOMAIN : ${DOMAIN}\nISP    : ${ISP}\nUsers Login VLESS\n"
+TOTAL_USERS=0
+
+# Ambil daftar user yang benar-benar ada dan belum dihapus
+VALID_USERS=$(jq -r '.inbounds[0].settings.clients[].email' /usr/local/etc/xray/config.json 2>/dev/null)
+
+for user in $VALID_USERS; do
+    # Hitung IP unik berdasarkan spasi
+    ip_count=$(grep "^${user} " /tmp/xray_logged_in.txt | awk '{print $2}' | sort -u | wc -l)
+    if [[ "$ip_count" -gt 0 ]]; then
         MSG+="${user} ${ip_count}IP\n"
-    done
-    MSG+="\nTotal : ${ACTIVE_USERS}"
-    
+        ((TOTAL_USERS++))
+    fi
+done
+
+if [[ "$TOTAL_USERS" -gt 0 ]]; then
+    MSG+="\nTotal : ${TOTAL_USERS}"
     curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" --data-urlencode text="$(echo -e "$MSG")" > /dev/null 2>&1
-    
-    # Reset log setiap laporan terkirim
-    rm -f /tmp/xray_logged_in.txt
-    touch /tmp/xray_logged_in.txt
 fi
+
+# Bersihkan file log login setelah dilaporkan
+> /tmp/xray_logged_in.txt
 EOF
 chmod +x /usr/local/bin/login-report.sh
 
@@ -745,8 +750,8 @@ function features_menu() {
         echo -e " [2] Backup & Restore           [8] Auto Reboot"
         echo -e " [3] Speedtest by Ookla         [9] Information System"
         echo -e " [4] Ganti Domain VPS           [10] Rebuild VPS"
-        echo -e " [5] Check Bandwidth (Vnstat)   [x] Back"
-        echo -e " [6] Check Benchmark VPS (YABS)"
+        echo -e " [5] Check Bandwidth (Vnstat)   [11] Restart Services"
+        echo -e " [6] Check Benchmark VPS (YABS) [x] Back"
         echo -e "${CYAN}─────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
@@ -790,6 +795,7 @@ function features_menu() {
                 else
                     echo -e "${RED}Password tidak boleh kosong!${NC}"; read -p "Enter..."
                 fi ;;
+            11) header_sub; echo -e "${YELLOW}Restarting All Services...${NC}"; systemctl restart xray zivpn vnstat netfilter-persistent xray-login-notif cron; echo -e "${GREEN}✅ Services Restarted Successfully!${NC}"; read -p "Enter..." ;;
             x) return ;;
         esac
     done
