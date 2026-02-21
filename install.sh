@@ -177,6 +177,7 @@ netfilter-persistent save &>/dev/null
 echo -e "\033[0;32m[ INFO ]\033[0m Configuring Cronjobs & Telegram Bots..."
 cat > /usr/local/bin/auto-kill.sh <<'EOF'
 #!/bin/bash
+export TZ="Asia/Jakarta"
 NOW=$(date +"%s")
 
 # Xray Auto Delete
@@ -304,13 +305,22 @@ CYAN='\033[0;36m'; YELLOW='\033[0;33m'; GREEN='\033[0;32m'; RED='\033[0;31m'; PU
 CONFIG="/usr/local/etc/xray/config.json"
 U_DATA="/usr/local/etc/xray/user_data.txt"
 
+function send_tg_notif() {
+    local msg="$1"
+    local token=$(cat /root/tendo/bot_token 2>/dev/null)
+    local chat_id=$(cat /root/tendo/chat_id 2>/dev/null)
+    if [[ -n "$token" && -n "$chat_id" && "$token" != "ISI_TOKEN_BOT_DISINI" ]]; then
+        curl -s -X POST "https://api.telegram.org/bot${token}/sendMessage" -d chat_id="${chat_id}" -d parse_mode="HTML" -d text="$(echo -e "$msg")" > /dev/null 2>&1
+    fi
+}
+
 function header_main() {
     clear; DOMAIN=$(cat /usr/local/etc/xray/domain); OS=$(cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/PRETTY_NAME="//g' | sed 's/"//g')
     RAM=$(free -m | awk '/Mem:/ {print $3}'); SWAP=$(free -m | awk '/Swap:/ {print $2}'); UPTIME=$(uptime -p | sed 's/up //')
     CITY=$(cat /root/tendo/city 2>/dev/null); ISP=$(cat /root/tendo/isp 2>/dev/null); IP=$(cat /root/tendo/ip 2>/dev/null)
     IFACE=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
-    MON_DATA=$(vnstat -m -i $IFACE --oneline | awk -F';' '{print $11}'); M_RX=$(vnstat -m -i $IFACE --oneline | awk -F';' '{print $9}'); M_TX=$(vnstat -m -i $IFACE --oneline | awk -F';' '{print $10}')
-    DAY_DATA=$(vnstat -d -i $IFACE --oneline | awk -F';' '{print $6}'); D_RX=$(vnstat -d -i $IFACE --oneline | awk -F';' '{print $4}'); D_TX=$(vnstat -d -i $IFACE --oneline | awk -F';' '{print $5}')
+    M_RX=$(vnstat -m -i $IFACE --oneline | awk -F';' '{print $9}'); M_TX=$(vnstat -m -i $IFACE --oneline | awk -F';' '{print $10}')
+    D_RX=$(vnstat -d -i $IFACE --oneline | awk -F';' '{print $4}'); D_TX=$(vnstat -d -i $IFACE --oneline | awk -F';' '{print $5}')
     R1=$(cat /sys/class/net/$IFACE/statistics/rx_bytes); T1=$(cat /sys/class/net/$IFACE/statistics/tx_bytes); sleep 0.4
     R2=$(cat /sys/class/net/$IFACE/statistics/rx_bytes); T2=$(cat /sys/class/net/$IFACE/statistics/tx_bytes)
     TRAFFIC=$(echo "scale=2; (($R2 - $R1) + ($T2 - $T1)) * 8 / 409.6 / 1024" | bc)
@@ -321,40 +331,40 @@ function header_main() {
     
     COUNT_VLESS=$(jq '.inbounds[0].settings.clients | length' $CONFIG); COUNT_ZIVPN=$(jq '.auth.config | length' /etc/zivpn/config.json)
 
-    echo -e "│ ${CYAN}─────────────────────────────────────────────────${NC}"
-    echo -e "│               ${YELLOW}TENDO STORE ULTIMATE${NC}"
-    echo -e "│ ${CYAN}─────────────────────────────────────────────────${NC}"
-    echo -e "│  OS      : $OS"
-    echo -e "│  RAM     : ${RAM}MB"
-    echo -e "│  SWAP    : ${SWAP}MB"
-    echo -e "│  CITY    : $CITY"
-    echo -e "│  ISP     : $ISP"
-    echo -e "│  IP      : $IP"
-    echo -e "│  DOMAIN  : ${YELLOW}$DOMAIN${NC}"
-    echo -e "│  UPTIME  : $UPTIME"
-    echo -e "│ ${CYAN}─────────────────────────────────────────────────${NC}"
-    echo -e "│  ${PURPLE}TODAY${NC}   : ${GREEN}RX:${NC} $D_RX | ${RED}TX:${NC} $D_TX"
-    echo -e "│  ${PURPLE}MONTH${NC}   : ${GREEN}RX:${NC} $M_RX | ${RED}TX:${NC} $M_TX"
-    echo -e "│  ${PURPLE}SPEED${NC}   : $TRAFFIC Mbit/s"
-    echo -e "│ ${CYAN}─────────────────────────────────────────────────${NC}"
-    echo -e "│  STATUS  : XRAY: $X_ST | ZIVPN: $Z_ST | IPTables: $I_ST"
-    echo -e "│ ${CYAN}─────────────────────────────────────────────────${NC}"
-    echo -e "│ "
-    echo -e "│ ${CYAN}─────────────────────────────────────────────────${NC}"
+    echo -e "┌───────────────────────────────────────────────────────"
+    echo -e "│              ${YELLOW}TENDO STORE PRIVATE${NC}"
+    echo -e "├───────────────────────────────────────────────────────"
+    echo -e "│ OS      : $OS"
+    echo -e "│ RAM     : ${RAM}MB"
+    echo -e "│ SWAP    : ${SWAP}MB"
+    echo -e "│ CITY    : $CITY"
+    echo -e "│ ISP     : $ISP"
+    echo -e "│ IP      : $IP"
+    echo -e "│ DOMAIN  : ${YELLOW}$DOMAIN${NC}"
+    echo -e "│ UPTIME  : $UPTIME"
+    echo -e "├───────────────────────────────────────────────────────"
+    echo -e "│ TODAY   : ${GREEN}RX:${NC} $D_RX | ${RED}TX:${NC} $D_TX"
+    echo -e "│ MONTH   : ${GREEN}RX:${NC} $M_RX | ${RED}TX:${NC} $M_TX"
+    echo -e "│ SPEED   : $TRAFFIC Mbit/s"
+    echo -e "├───────────────────────────────────────────────────────"
+    echo -e "│ STATUS  : XRAY: $X_ST | ZIVPN: $Z_ST | IPtables: $I_ST"
+    echo -e "└───────────────────────────────────────────────────────"
+    echo -e "┌───────────────────────────────────────────────────────"
     echo -e "│                   ${YELLOW}LIST ACCOUNTS${NC}"
-    echo -e "│ ${CYAN}─────────────────────────────────────────────────${NC}"
-    echo -e "│  XRAY          : $COUNT_VLESS  ACCOUNT"
-    echo -e "│  ZIVPN UDP     : $COUNT_ZIVPN  ACCOUNT"
-    echo -e "│ ${CYAN}─────────────────────────────────────────────────${NC}"
+    echo -e "├───────────────────────────────────────────────────────"
+    echo -e "│  XRAY          : $COUNT_VLESS ACCOUNT"
+    echo -e "│  ZIVPN UDP     : $COUNT_ZIVPN ACCOUNT"
+    echo -e "└───────────────────────────────────────────────────────"
     echo -e "│  [1] XRAY ACCOUNT          [4] FEATURES"
     echo -e "│  [2] ZIVPN UDP             [5] CHECK SERVICES"
     echo -e "│  [3] SET BOT TELEGRAM      [x] EXIT"
-    echo -e "│ ${CYAN}─────────────────────────────────────────────────${NC}"
-    echo -e "│  Version : v18.02.26"
-    echo -e "│  Owner   : Tendo Store"
-    echo -e "│  Telegram: @tendo_32"
-    echo -e "│  Expiry  : Lifetime"
-    echo -e "│ ${CYAN}─────────────────────────────────────────────────${NC}"
+    echo -e "────────────────────────────────────────────────────────"
+    echo -e "┌───────────────────────────────────────────────────────"
+    echo -e "│  Version   :  v21.02.26"
+    echo -e "│  Owner     :  Tendo Store"
+    echo -e "│  Telegram  :  @tendo_32"
+    echo -e "│  Expiry In :  Lifetime"
+    echo -e "└───────────────────────────────────────────────────────"
 }
 
 function header_sub() {
@@ -416,11 +426,22 @@ function backup_restore_menu() {
 function notif_login_menu() {
     while true; do
         clear
-        if crontab -l 2>/dev/null | grep -q "/usr/local/bin/login-report.sh"; then ST="ON"; TG="OFF"; else ST="OFF"; TG="ON"; fi
+        local cur_cron=$(crontab -l 2>/dev/null | grep "/usr/local/bin/login-report.sh")
+        if [[ -n "$cur_cron" ]]; then
+            ST="ON"
+            TG="OFF"
+            cur_m=$(echo "$cur_cron" | awk '{print $1}' | sed 's|^\*/||')
+            [[ "$cur_m" == "*" ]] && cur_m="1"
+        else
+            ST="OFF"
+            TG="ON"
+            cur_m="-"
+        fi
+        
         echo -e " ————————————————————————————————————————"
         echo -e "        Status [$ST]"
         echo -e "   1.)  $TG"
-        echo -e "   2.)  Set Time Notif m"
+        echo -e "   2.)  Set Time Notif (${cur_m}m)"
         echo -e "   3.)  Back to Menu"
         echo -e "   x.)  Exit"
         echo -e " ————————————————————————————————————————"
@@ -452,11 +473,22 @@ function notif_login_menu() {
 function notif_backup_menu() {
     while true; do
         clear
-        if crontab -l 2>/dev/null | grep -q "/usr/local/bin/auto-backup.sh"; then ST="ON"; TG="OFF"; else ST="OFF"; TG="ON"; fi
+        local cur_cron=$(crontab -l 2>/dev/null | grep "/usr/local/bin/auto-backup.sh")
+        if [[ -n "$cur_cron" ]]; then
+            ST="ON"
+            TG="OFF"
+            cur_h=$(echo "$cur_cron" | awk '{print $2}' | sed 's|^\*/||')
+            [[ "$cur_h" == "*" ]] && cur_h="1"
+        else
+            ST="OFF"
+            TG="ON"
+            cur_h="-"
+        fi
+        
         echo -e " ————————————————————————————————————————"
         echo -e "        Status [$ST]"
         echo -e "   1.)  $TG"
-        echo -e "   2.)  Set Time Backup h"
+        echo -e "   2.)  Set Time Backup (${cur_h}h)"
         echo -e "   3.)  Back to Menu"
         echo -e "   x.)  Exit"
         echo -e " ————————————————————————————————————————"
@@ -514,6 +546,7 @@ function xray_menu() {
         1) read -p " Username : " u; read -p " UUID (Enter for random): " id; [[ -z "$id" ]] && id=$(uuidgen); read -p " Expired (Hari): " ex; [[ -z "$ex" ]] && ex=30; exp_date=$(date -d "+$ex days" +"%Y-%m-%d")
            jq --arg u "$u" --arg id "$id" '.inbounds[].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray; echo "$u|$id|$exp_date" >> $U_DATA
            DMN=$(cat /usr/local/etc/xray/domain); CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
+           send_tg_notif "✅ <b>NEW XRAY ACCOUNT</b>%0A━━━━━━━━━━━━━━%0A<b>User:</b> $u%0A<b>Exp:</b> $ex Hari ($exp_date)%0A<b>Domain:</b> $DMN%0A━━━━━━━━━━━━━━"
            ltls="vless://${id}@${DMN}:443?path=/vless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}"; lnon="vless://${id}@${DMN}:80?path=/vless&security=none&encryption=none&host=${DMN}&type=ws#${u}"
            clear; echo -e "────────────────────────────────────\n               XRAY\n────────────────────────────────────\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DMN\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nid             : $id\nEncryption     : none\nNetwork        : ws\nPath ws        : /vless\nExpired On     : $ex Hari ($exp_date)\n────────────────────────────────────\n            XRAY WS TLS\n────────────────────────────────────\n$ltls\n────────────────────────────────────\n          XRAY WS NO TLS\n────────────────────────────────────\n$lnon\n────────────────────────────────────"; read -n 1 -s -r -p "Enter...";;
         2) id=$(uuidgen); u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"
@@ -522,6 +555,7 @@ function xray_menu() {
            exp_date=$(date -d "+$ex_m minutes" +"%Y-%m-%d %H:%M")
            jq --arg u "$u" --arg id "$id" '.inbounds[].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray; echo "$u|$id|$exp_date" >> $U_DATA
            DMN=$(cat /usr/local/etc/xray/domain); CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
+           send_tg_notif "⏳ <b>NEW XRAY TRIAL</b>%0A━━━━━━━━━━━━━━%0A<b>User:</b> $u%0A<b>Exp:</b> $ex_m Menit ($exp_date)%0A<b>Domain:</b> $DMN%0A━━━━━━━━━━━━━━"
            ltls="vless://${id}@${DMN}:443?path=/vless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}"; lnon="vless://${id}@${DMN}:80?path=/vless&security=none&encryption=none&host=${DMN}&type=ws#${u}"
            clear; echo -e "────────────────────────────────────\n               XRAY TRIAL\n────────────────────────────────────\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DMN\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nid             : $id\nEncryption     : none\nNetwork        : ws\nPath ws        : /vless\nExpired On     : $ex_m Menit ($exp_date)\n────────────────────────────────────\n            XRAY WS TLS\n────────────────────────────────────\n$ltls\n────────────────────────────────────\n          XRAY WS NO TLS\n────────────────────────────────────\n$lnon\n────────────────────────────────────"; read -n 1 -s -r -p "Enter...";;
         3) jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r ".inbounds[0].settings.clients[$idx].email" $CONFIG); sed -i "/^$u|/d" $U_DATA; jq "del(.inbounds[0].settings.clients[$idx])" $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray;;
@@ -537,12 +571,14 @@ function zivpn_menu() {
     while true; do header_sub; echo -e " [1] Create Account\n [2] Trial Account\n [3] Delete Account\n [4] List Accounts\n [5] Check Account Details\n [x] Back\n${CYAN}─────────────────────────────────────────────────${NC}"; read -p " Select Menu : " opt
     case $opt in
         1) read -p " Password: " p; read -p " Expired (Hari): " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "$ex days" +"%Y-%m-%d"); jq --arg p "$p" '.auth.config += [$p]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn; echo "$p|$exp" >> /etc/zivpn/user_data.txt; DMN=$(cat /usr/local/etc/xray/domain)
+           send_tg_notif "✅ <b>NEW ZIVPN ACCOUNT</b>%0A━━━━━━━━━━━━━━%0A<b>Pass:</b> $p%0A<b>Exp:</b> $ex Hari ($exp)%0A<b>Domain:</b> $DMN%0A━━━━━━━━━━━━━━"
            clear; echo -e "━━━━━━━━━━━━━━━━━━━━━\n  ACCOUNT ZIVPN UDP\n━━━━━━━━━━━━━━━━━━━━━\nPassword   : $p\nCITY       : $(cat /root/tendo/city)\nISP        : $(cat /root/tendo/isp)\nIP ISP     : $(cat /root/tendo/ip)\nDomain     : $DMN\nExpired On : $exp\n━━━━━━━━━━━━━━━━━━━━━"; read -p "Enter...";;
         2) p="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"
            echo -e " \n Password (Auto-Random): ${GREEN}$p${NC}"
            read -p " Expired (Menit): " ex_m; [[ -z "$ex_m" ]] && ex_m=10
            exp=$(date -d "+$ex_m minutes" +"%Y-%m-%d %H:%M")
            jq --arg p "$p" '.auth.config += [$p]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn; echo "$p|$exp" >> /etc/zivpn/user_data.txt; DMN=$(cat /usr/local/etc/xray/domain)
+           send_tg_notif "⏳ <b>NEW ZIVPN TRIAL</b>%0A━━━━━━━━━━━━━━%0A<b>Pass:</b> $p%0A<b>Exp:</b> $ex_m Menit ($exp)%0A<b>Domain:</b> $DMN%0A━━━━━━━━━━━━━━"
            clear; echo -e "━━━━━━━━━━━━━━━━━━━━━\n  ZIVPN UDP TRIAL\n━━━━━━━━━━━━━━━━━━━━━\nPassword   : $p\nCITY       : $(cat /root/tendo/city)\nISP        : $(cat /root/tendo/isp)\nIP ISP     : $(cat /root/tendo/ip)\nDomain     : $DMN\nExpired On : $ex_m Menit ($exp)\n━━━━━━━━━━━━━━━━━━━━━"; read -p "Enter...";;
         3) jq -r '.auth.config[]' /etc/zivpn/config.json | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); p=$(jq -r ".auth.config[$idx]" /etc/zivpn/config.json); sed -i "/^$p|/d" /etc/zivpn/user_data.txt; jq "del(.auth.config[$idx])" /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn;;
         4) header_sub; jq -r '.auth.config[]' /etc/zivpn/config.json | nl; read -p "Enter...";;
