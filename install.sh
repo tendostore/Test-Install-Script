@@ -4,7 +4,7 @@
 #   EDITION: PLATINUM LTS FINAL V.101 (UPDATED UI & FEATURES)
 #   Update: Custom Domain, Left Pipe UI, Auto Random Trial, Cron Notifs
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
-#   Features: BBR, Random UUID, Triple Status, Clean UI, Auto Bot Telegram
+#   Features: BBR, Random UUID, Triple Status, Clean UI, Auto Bot Telegram, Auto Kill IP
 #   Expiry: Lifetime Support
 # ==================================================
 
@@ -173,23 +173,44 @@ iptables -t nat -A PREROUTING -i $IFACE_NET -p udp --dport 6000:19999 -j DNAT --
 iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5667
 netfilter-persistent save &>/dev/null
 
-# --- 7. AUTO DELETE EXPIRED ACCOUNTS SETUP ---
+# --- 7. AUTO DELETE EXPIRED ACCOUNTS & LIMIT IP SETUP ---
 echo -e "\033[0;32m[ INFO ]\033[0m Configuring Cronjobs & Telegram Bots..."
 cat > /usr/local/bin/auto-kill.sh <<'EOF'
 #!/bin/bash
 export TZ="Asia/Jakarta"
 NOW=$(date +"%s")
 
-# Xray Auto Delete
+# Xray Auto Delete Expired & Multi Login
 if [ -f /usr/local/etc/xray/user_data.txt ]; then
     rm -f /tmp/xray_restart_flag
-    cat /usr/local/etc/xray/user_data.txt | tr -d '\r' | while IFS="|" read -r user uuid exp; do
+    cat /usr/local/etc/xray/user_data.txt | tr -d '\r' | while IFS="|" read -r user uuid exp iplimit; do
+        # 1. Check Expiry
         exp_epoch=$(date -d "$exp" +"%s" 2>/dev/null)
         if [[ -n "$exp_epoch" ]] && [[ "$NOW" -ge "$exp_epoch" ]]; then
-            # Hapus dari seluruh inbound (port 443 & 80)
             jq --arg u "$user" '(.inbounds[].settings.clients) |= map(select(.email != $u))' /usr/local/etc/xray/config.json > /tmp/x && mv /tmp/x /usr/local/etc/xray/config.json
             sed -i "/^$user|/d" /usr/local/etc/xray/user_data.txt
             touch /tmp/xray_restart_flag
+            continue # Skip to next user if expired
+        fi
+
+        # 2. Check Multi Login (Limit IP)
+        if [[ -n "$iplimit" && "$iplimit" =~ ^[0-9]+$ && "$iplimit" -gt 0 ]]; then
+            if [ -f /tmp/xray_logged_in.txt ]; then
+                ip_count=$(grep "^${user} " /tmp/xray_logged_in.txt | awk '{print $2}' | sort -u | wc -l)
+                if [[ "$ip_count" -gt "$iplimit" ]]; then
+                    jq --arg u "$user" '(.inbounds[].settings.clients) |= map(select(.email != $u))' /usr/local/etc/xray/config.json > /tmp/x && mv /tmp/x /usr/local/etc/xray/config.json
+                    sed -i "/^$user|/d" /usr/local/etc/xray/user_data.txt
+                    touch /tmp/xray_restart_flag
+                    
+                    # Notifikasi Auto Kill
+                    TOKEN=$(cat /root/tendo/bot_token 2>/dev/null)
+                    CHAT_ID=$(cat /root/tendo/chat_id 2>/dev/null)
+                    if [[ -n "$TOKEN" && -n "$CHAT_ID" && "$TOKEN" != "ISI_TOKEN_BOT_DISINI" ]]; then
+                        MSG_KILL="❌ <b>XRAY AUTO KILL</b> ❌%0A────────────────%0AUsername : ${user}%0AMax IP   : ${iplimit}%0ALogin IP : ${ip_count}%0AStatus   : DELETED%0A────────────────%0AAkun dihapus otomatis karena melebihi batas login IP!"
+                        curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" -d parse_mode="HTML" -d text="$(echo -e "$MSG_KILL")" > /dev/null 2>&1
+                    fi
+                fi
+            fi
         fi
     done
     if [ -f /tmp/xray_restart_flag ]; then
@@ -198,13 +219,12 @@ if [ -f /usr/local/etc/xray/user_data.txt ]; then
     fi
 fi
 
-# Zivpn Auto Delete
+# Zivpn Auto Delete Expired
 if [ -f /etc/zivpn/user_data.txt ]; then
     rm -f /tmp/zivpn_restart_flag
     cat /etc/zivpn/user_data.txt | tr -d '\r' | while IFS="|" read -r pass exp; do
         exp_epoch=$(date -d "$exp" +"%s" 2>/dev/null)
         if [[ -n "$exp_epoch" ]] && [[ "$NOW" -ge "$exp_epoch" ]]; then
-            # Hapus pass secara akurat
             jq --arg p "$pass" '.auth.config |= map(select(. != $p))' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json
             sed -i "/^$pass|/d" /etc/zivpn/user_data.txt
             touch /tmp/zivpn_restart_flag
@@ -307,7 +327,7 @@ curl -s -F chat_id="$CHAT_ID" -F document=@"/root/tendo/backup.zip" -F caption="
 EOF
 chmod +x /usr/local/bin/auto-backup.sh
 
-# --- 8.1 TELEGRAM BOT AUTO CREATE DAEMON ---
+# --- 8.1 TELEGRAM BOT AUTO CREATE DAEMON (INTERACTIVE UI) ---
 echo -e "\033[0;32m[ INFO ]\033[0m Configuring Telegram Auto-Create Bot Daemon..."
 cat > /usr/local/bin/tendo-autobot.sh <<'EOF'
 #!/bin/bash
@@ -344,85 +364,218 @@ while true; do
         if [[ "$UPDATE_COUNT" -gt 0 ]]; then
             for ((i=0; i<UPDATE_COUNT; i++)); do
                 UPDATE_ID=$(echo "$UPDATES" | jq -r ".result[$i].update_id")
-                CHAT_ID=$(echo "$UPDATES" | jq -r ".result[$i].message.chat.id")
-                TEXT=$(echo "$UPDATES" | jq -r ".result[$i].message.text")
                 
+                # Cek apakah ini pesan text biasa atau callback dari inline keyboard
+                IS_CB=$(echo "$UPDATES" | jq -r ".result[$i] | has(\"callback_query\")")
+                
+                if [[ "$IS_CB" == "true" ]]; then
+                    CHAT_ID=$(echo "$UPDATES" | jq -r ".result[$i].callback_query.message.chat.id")
+                    TEXT=$(echo "$UPDATES" | jq -r ".result[$i].callback_query.data")
+                    CB_ID=$(echo "$UPDATES" | jq -r ".result[$i].callback_query.id")
+                    
+                    # Hilangkan status loading di tombol
+                    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/answerCallbackQuery" -d callback_query_id="${CB_ID}" > /dev/null 2>&1
+                else
+                    CHAT_ID=$(echo "$UPDATES" | jq -r ".result[$i].message.chat.id")
+                    TEXT=$(echo "$UPDATES" | jq -r ".result[$i].message.text")
+                fi
+                
+                # File state untuk mengingat langkah percakapan (State Machine)
+                STATE_FILE="/tmp/tendo_state_${CHAT_ID}"
+                USER_STATE=$(cat "$STATE_FILE" 2>/dev/null)
+
+                # 1. COMMAND START (Main Menu)
                 if [[ "$TEXT" == "/start" ]]; then
-                    MSG="🤖 <b>BOT TENDO STORE</b>\n\nSilakan gunakan perintah berikut untuk membuat akun VPN gratis:\n\n👉 <code>/create_xray username hari</code>\n(Contoh: <code>/create_xray budi 7</code>)\n\n👉 <code>/create_zivpn password hari</code>\n(Contoh: <code>/create_zivpn sandi123 7</code>)\n\n👉 <code>/trial_xray</code> (Akun Trial Xray 10 Menit)\n👉 <code>/trial_zivpn</code> (Akun Trial Zivpn 10 Menit)"
+                    rm -f "$STATE_FILE"
+                    KEYBOARD='{"inline_keyboard":[[{"text":"➕ Create XRAY","callback_data":"btn_create_xray"},{"text":"➕ Create ZIVPN","callback_data":"btn_create_zivpn"}],[{"text":"⏱ Trial XRAY","callback_data":"trial_xray"},{"text":"⏱ Trial ZIVPN","callback_data":"trial_zivpn"}],[{"text":"💳 Donasi","callback_data":"btn_donasi"}]]}'
+                    MSG="🤖 <b>BOT TENDO STORE</b>\n\nSelamat datang! Silakan pilih menu interaktif di bawah ini untuk membuat akun VPN."
+                    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" -d parse_mode="HTML" -d reply_markup="${KEYBOARD}" --data-urlencode text="$(echo -e "$MSG")" > /dev/null 2>&1
+
+                # 2. KLIK TOMBOL: CREATE XRAY
+                elif [[ "$TEXT" == "btn_create_xray" ]]; then
+                    echo "xray_user" > "$STATE_FILE"
+                    send_msg "$CHAT_ID" "💬 <b>MEMBUAT AKUN XRAY</b>\n\nSilakan ketik <b>Username</b> yang Anda inginkan (tanpa spasi):"
+
+                # 3. KLIK TOMBOL: CREATE ZIVPN
+                elif [[ "$TEXT" == "btn_create_zivpn" ]]; then
+                    echo "zivpn_pass" > "$STATE_FILE"
+                    send_msg "$CHAT_ID" "💬 <b>MEMBUAT AKUN ZIVPN</b>\n\nSilakan ketik <b>Password</b> yang Anda inginkan (tanpa spasi):"
+
+                # 4. KLIK TOMBOL: DONASI
+                elif [[ "$TEXT" == "btn_donasi" ]]; then
+                    MSG="🙏 <b>TERIMA KASIH ATAS DUKUNGANNYA</b> 🙏\n\n•────────────────────•\n❑ 082224460678 𝗢𝗩𝗢 \n❑ 082224460678 𝗗𝗔𝗡𝗔\n❑ 082224460678 𝗟𝗜𝗡𝗞 𝗔𝗝𝗔\n❑ 082224460678 𝗚𝗢𝗣𝗔𝗬\n❑ 082224460678 𝗦𝗛𝗢𝗣𝗘𝗘𝗣𝗔𝗬\n•────────────────────•\n\n<i>Dukungan Anda sangat berarti untuk pengembangan ini.</i>"
+                    
+                    # --- CARA MENAMPILKAN GAMBAR QRIS ---
+                    # 1. Upload foto QRIS Kakak ke website seperti https://postimages.org/
+                    # 2. Copy "Direct link" (Tautan Langsung) dari gambar tersebut (berakhiran .jpg atau .png)
+                    # 3. Hapus tanda pagar (#) pada dua baris di bawah ini, dan masukkan link Kakak:
+                    
+                    # QRIS_URL="https://link-gambar-qris-kakak-disini.jpg"
+                    # curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendPhoto" -d chat_id="${CHAT_ID}" -d photo="${QRIS_URL}" -d caption="$(echo -e "$MSG")" -d parse_mode="HTML" > /dev/null 2>&1
+                    
+                    # 4. Jika baris di atas sudah diaktifkan, berikan tanda pagar (#) pada baris send_msg di bawah ini:
                     send_msg "$CHAT_ID" "$MSG"
 
-                elif [[ "$TEXT" == /create_xray* ]]; then
-                    u=$(echo "$TEXT" | awk '{print $2}')
-                    ex=$(echo "$TEXT" | awk '{print $3}')
-                    if [[ -z "$u" || -z "$ex" || ! "$ex" =~ ^[0-9]+$ ]]; then
-                        send_msg "$CHAT_ID" "❌ Format salah!\nGunakan: <code>/create_xray [username] [hari]</code>"
+                # 5. TERIMA KETIKAN TEXT: USERNAME XRAY
+                elif [[ "$USER_STATE" == "xray_user" && "$IS_CB" == "false" ]]; then
+                    u="$TEXT"
+                    exist=$(grep -w "^$u" $U_DATA)
+                    if [[ -n "$exist" ]]; then
+                        send_msg "$CHAT_ID" "❌ Username <b>$u</b> sudah terdaftar! Silakan ketik username lain:"
+                    elif [[ "$u" =~ [^a-zA-Z0-9_-] ]]; then
+                        send_msg "$CHAT_ID" "❌ Username tidak valid! Jangan gunakan spasi atau simbol khusus.\nSilakan ketik ulang:"
                     else
-                        exist=$(grep -w "^$u" $U_DATA)
-                        if [[ -n "$exist" ]]; then
-                            send_msg "$CHAT_ID" "❌ Username <b>$u</b> sudah terdaftar!"
-                        else
-                            id=$(uuidgen)
-                            exp_date=$(date -d "+$ex days" +"%Y-%m-%d")
-                            jq --arg u "$u" --arg id "$id" '.inbounds[].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/xa && mv /tmp/xa $CONFIG
-                            systemctl restart xray
-                            echo "$u|$id|$exp_date" >> $U_DATA
-                            
-                            DMN=$(cat /usr/local/etc/xray/domain); CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
-                            ltls="vless://${id}@${DMN}:443?path=/vless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}"
-                            lnon="vless://${id}@${DMN}:80?path=/vless&security=none&encryption=none&host=${DMN}&type=ws#${u}"
-                            
-                            MSG="✅ <b>AKUN XRAY BERHASIL DIBUAT</b>\n────────────────\nRemarks: $u\nDomain: $DMN\nPort TLS: 443,8443\nPort None: 80,8080\nUUID: $id\nNetwork: ws\nPath: /vless\nExpired: $ex Hari ($exp_date)\n────────────────\n<b>XRAY WS TLS</b>\n<code>$ltls</code>\n────────────────\n<b>XRAY WS NO TLS</b>\n<code>$lnon</code>\n────────────────"
-                            send_msg "$CHAT_ID" "$MSG"
-                        fi
+                        echo "xray_exp_${u}" > "$STATE_FILE"
+                        KEYBOARD='{"inline_keyboard":[[{"text":"1 Hari","callback_data":"xray_exp_1"},{"text":"2 Hari","callback_data":"xray_exp_2"}],[{"text":"3 Hari","callback_data":"xray_exp_3"},{"text":"7 Hari (MAX)","callback_data":"xray_exp_7"}]]}'
+                        MSG="Username <b>$u</b> tersedia! ✅\n\nSilakan pilih <b>Masa Aktif</b> akun dengan menekan tombol di bawah:"
+                        curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" -d parse_mode="HTML" -d reply_markup="${KEYBOARD}" --data-urlencode text="$(echo -e "$MSG")" > /dev/null 2>&1
                     fi
 
-                elif [[ "$TEXT" == /create_zivpn* ]]; then
-                    p=$(echo "$TEXT" | awk '{print $2}')
-                    ex=$(echo "$TEXT" | awk '{print $3}')
-                    if [[ -z "$p" || -z "$ex" || ! "$ex" =~ ^[0-9]+$ ]]; then
-                        send_msg "$CHAT_ID" "❌ Format salah!\nGunakan: <code>/create_zivpn [password] [hari]</code>"
+                # 6. TERIMA KETIKAN TEXT: PASSWORD ZIVPN
+                elif [[ "$USER_STATE" == "zivpn_pass" && "$IS_CB" == "false" ]]; then
+                    p="$TEXT"
+                    exist=$(grep -w "^$p" $Z_DATA)
+                    if [[ -n "$exist" ]]; then
+                        send_msg "$CHAT_ID" "❌ Password <b>$p</b> sudah terdaftar! Silakan ketik password lain:"
+                    elif [[ "$p" =~ [^a-zA-Z0-9_-] ]]; then
+                        send_msg "$CHAT_ID" "❌ Password tidak valid! Jangan gunakan spasi atau simbol khusus.\nSilakan ketik ulang:"
                     else
-                        exist=$(grep -w "^$p" $Z_DATA)
-                        if [[ -n "$exist" ]]; then
-                            send_msg "$CHAT_ID" "❌ Password <b>$p</b> sudah terdaftar!"
-                        else
-                            exp=$(date -d "+$ex days" +"%Y-%m-%d")
-                            jq --arg p "$p" '.auth.config += [$p]' $Z_CONF > /tmp/za && mv /tmp/za $Z_CONF
-                            systemctl restart zivpn
-                            echo "$p|$exp" >> $Z_DATA
-                            DMN=$(cat /usr/local/etc/xray/domain)
-                            
-                            MSG="✅ <b>AKUN ZIVPN BERHASIL DIBUAT</b>\n━━━━━━━━━━━━━━━━\nPassword: $p\nDomain: $DMN\nExpired On: $ex Hari ($exp)\n━━━━━━━━━━━━━━━━"
-                            send_msg "$CHAT_ID" "$MSG"
-                        fi
+                        echo "zivpn_exp_${p}" > "$STATE_FILE"
+                        KEYBOARD='{"inline_keyboard":[[{"text":"1 Hari","callback_data":"zivpn_exp_1"},{"text":"2 Hari","callback_data":"zivpn_exp_2"}],[{"text":"3 Hari","callback_data":"zivpn_exp_3"},{"text":"7 Hari (MAX)","callback_data":"zivpn_exp_7"}]]}'
+                        MSG="Password <b>$p</b> tersedia! ✅\n\nSilakan pilih <b>Masa Aktif</b> akun dengan menekan tombol di bawah:"
+                        curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" -d parse_mode="HTML" -d reply_markup="${KEYBOARD}" --data-urlencode text="$(echo -e "$MSG")" > /dev/null 2>&1
                     fi
 
-                elif [[ "$TEXT" == "/trial_xray" ]]; then
+                # 7. KLIK TOMBOL DURASI: FINALISASI XRAY
+                elif [[ "$TEXT" == xray_exp_* && "$USER_STATE" == xray_exp_* ]]; then
+                    ex=$(echo "$TEXT" | awk -F'_' '{print $3}')
+                    u=$(echo "$USER_STATE" | awk -F'_' '{print $3}')
+                    rm -f "$STATE_FILE"
+                    
+                    id=$(uuidgen)
+                    exp_date=$(date -d "+$ex days" +"%Y-%m-%d")
+                    iplim=2 # LIMIT IP MAX 2 UNTUK BOT XRAY
+                    
+                    jq --arg u "$u" --arg id "$id" '.inbounds[].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/xa && mv /tmp/xa $CONFIG
+                    systemctl restart xray
+                    echo "$u|$id|$exp_date|$iplim" >> $U_DATA
+                    
+                    DMN=$(cat /usr/local/etc/xray/domain); CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
+                    ltls="vless://${id}@${DMN}:443?path=/vless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}"
+                    lnon="vless://${id}@${DMN}:80?path=/vless&security=none&encryption=none&host=${DMN}&type=ws#${u}"
+                    
+MSG="✅ <b>NEW XRAY ACCOUNT</b>
+────────────────────────────────────
+Remarks        : $u
+CITY           : $CTY
+ISP            : $ISP
+Domain         : $DMN
+Port TLS       : 443,8443
+Port none TLS  : 80,8080
+id             : $id
+Encryption     : none
+Network        : ws
+Path ws        : /vless
+Max IP Login   : $iplim IP
+Expired On     : $ex Hari ($exp_date)
+────────────────────────────────────
+            XRAY WS TLS
+────────────────────────────────────
+<code>$ltls</code>
+────────────────────────────────────
+          XRAY WS NO TLS
+────────────────────────────────────
+<code>$lnon</code>
+────────────────────────────────────"
+                    send_msg "$CHAT_ID" "$MSG"
+
+                # 8. KLIK TOMBOL DURASI: FINALISASI ZIVPN
+                elif [[ "$TEXT" == zivpn_exp_* && "$USER_STATE" == zivpn_exp_* ]]; then
+                    ex=$(echo "$TEXT" | awk -F'_' '{print $3}')
+                    p=$(echo "$USER_STATE" | awk -F'_' '{print $3}')
+                    rm -f "$STATE_FILE"
+                    
+                    exp=$(date -d "+$ex days" +"%Y-%m-%d")
+                    jq --arg p "$p" '.auth.config += [$p]' $Z_CONF > /tmp/za && mv /tmp/za $Z_CONF
+                    systemctl restart zivpn
+                    echo "$p|$exp" >> $Z_DATA
+                    DMN=$(cat /usr/local/etc/xray/domain); CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp); IP_ISP=$(cat /root/tendo/ip)
+                    
+MSG="✅ <b>NEW ZIVPN ACCOUNT</b>
+━━━━━━━━━━━━━━━━━━━━━
+  ACCOUNT ZIVPN UDP
+━━━━━━━━━━━━━━━━━━━━━
+Password   : $p
+CITY       : $CTY
+ISP        : $ISP
+IP ISP     : $IP_ISP
+Domain     : $DMN
+Expired On : $ex Hari ($exp)
+━━━━━━━━━━━━━━━━━━━━━"
+                    send_msg "$CHAT_ID" "$MSG"
+
+                # 9. KLIK TOMBOL: TRIAL XRAY
+                elif [[ "$TEXT" == "trial_xray" ]]; then
                     u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"
                     id=$(uuidgen)
                     ex_m=10
                     exp_date=$(date -d "+$ex_m minutes" +"%Y-%m-%d %H:%M")
+                    iplim=1 # LIMIT IP MAX 1 UNTUK TRIAL XRAY
+                    
                     jq --arg u "$u" --arg id "$id" '.inbounds[].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/xb && mv /tmp/xb $CONFIG
                     systemctl restart xray
-                    echo "$u|$id|$exp_date" >> $U_DATA
+                    echo "$u|$id|$exp_date|$iplim" >> $U_DATA
                     
-                    DMN=$(cat /usr/local/etc/xray/domain)
+                    DMN=$(cat /usr/local/etc/xray/domain); CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
                     ltls="vless://${id}@${DMN}:443?path=/vless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}"
                     lnon="vless://${id}@${DMN}:80?path=/vless&security=none&encryption=none&host=${DMN}&type=ws#${u}"
                     
-                    MSG="⏳ <b>TRIAL XRAY BERHASIL</b>\n────────────────\nRemarks: $u\nDomain: $DMN\nPort TLS: 443\nPort None: 80\nUUID: $id\nNetwork: ws\nPath: /vless\nExpired: $ex_m Menit ($exp_date)\n────────────────\n<b>XRAY WS TLS</b>\n<code>$ltls</code>\n────────────────\n<b>XRAY WS NO TLS</b>\n<code>$lnon</code>\n────────────────"
+MSG="⏳ <b>NEW XRAY TRIAL</b>
+────────────────────────────────────
+Remarks        : $u
+CITY           : $CTY
+ISP            : $ISP
+Domain         : $DMN
+Port TLS       : 443,8443
+Port none TLS  : 80,8080
+id             : $id
+Encryption     : none
+Network        : ws
+Path ws        : /vless
+Max IP Login   : $iplim IP
+Expired On     : $ex_m Menit ($exp_date)
+────────────────────────────────────
+            XRAY WS TLS
+────────────────────────────────────
+<code>$ltls</code>
+────────────────────────────────────
+          XRAY WS NO TLS
+────────────────────────────────────
+<code>$lnon</code>
+────────────────────────────────────"
                     send_msg "$CHAT_ID" "$MSG"
 
-                elif [[ "$TEXT" == "/trial_zivpn" ]]; then
+                # 10. KLIK TOMBOL: TRIAL ZIVPN
+                elif [[ "$TEXT" == "trial_zivpn" ]]; then
                     p="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"
                     ex_m=10
                     exp=$(date -d "+$ex_m minutes" +"%Y-%m-%d %H:%M")
                     jq --arg p "$p" '.auth.config += [$p]' $Z_CONF > /tmp/zb && mv /tmp/zb $Z_CONF
                     systemctl restart zivpn
                     echo "$p|$exp" >> $Z_DATA
-                    DMN=$(cat /usr/local/etc/xray/domain)
+                    DMN=$(cat /usr/local/etc/xray/domain); CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp); IP_ISP=$(cat /root/tendo/ip)
                     
-                    MSG="⏳ <b>TRIAL ZIVPN BERHASIL</b>\n━━━━━━━━━━━━━━━━\nPassword: $p\nDomain: $DMN\nExpired On: $ex_m Menit ($exp)\n━━━━━━━━━━━━━━━━"
+MSG="⏳ <b>NEW ZIVPN TRIAL</b>
+━━━━━━━━━━━━━━━━━━━━━
+  ZIVPN UDP TRIAL
+━━━━━━━━━━━━━━━━━━━━━
+Password   : $p
+CITY       : $CTY
+ISP        : $ISP
+IP ISP     : $IP_ISP
+Domain     : $DMN
+Expired On : $ex_m Menit ($exp)
+━━━━━━━━━━━━━━━━━━━━━"
                     send_msg "$CHAT_ID" "$MSG"
 
                 fi
@@ -723,10 +876,12 @@ function telegram_bot_menu() {
 function xray_menu() {
     while true; do header_sub; echo -e " [1] Create Account\n [2] Trial Account\n [3] Delete Account\n [4] List Accounts\n [5] Check Account Details\n [x] Back\n${CYAN}─────────────────────────────────────────────────${NC}"; read -p " Select Menu : " opt
     case $opt in
-        1) read -p " Username : " u; read -p " UUID (Enter for random): " id; [[ -z "$id" ]] && id=$(uuidgen); read -p " Expired (Hari): " ex; [[ -z "$ex" ]] && ex=30; exp_date=$(date -d "+$ex days" +"%Y-%m-%d")
-           jq --arg u "$u" --arg id "$id" '.inbounds[].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray; echo "$u|$id|$exp_date" >> $U_DATA
+        1) read -p " Username : " u; read -p " UUID (Enter for random): " id; [[ -z "$id" ]] && id=$(uuidgen); read -p " Expired (Hari): " ex; [[ -z "$ex" ]] && ex=30; read -p " Max IP Login (Ketik 0 untuk unlimited): " iplim; [[ -z "$iplim" ]] && iplim=0
+           exp_date=$(date -d "+$ex days" +"%Y-%m-%d")
+           jq --arg u "$u" --arg id "$id" '.inbounds[].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray; echo "$u|$id|$exp_date|$iplim" >> $U_DATA
            DMN=$(cat /usr/local/etc/xray/domain); CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
            ltls="vless://${id}@${DMN}:443?path=/vless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}"; lnon="vless://${id}@${DMN}:80?path=/vless&security=none&encryption=none&host=${DMN}&type=ws#${u}"
+           [[ "$iplim" == "0" ]] && show_iplim="Unlimited" || show_iplim="$iplim IP"
 msg="✅ <b>NEW XRAY ACCOUNT</b>
 ────────────────────────────────────
 Remarks        : $u
@@ -739,6 +894,7 @@ id             : $id
 Encryption     : none
 Network        : ws
 Path ws        : /vless
+Max IP Login   : $show_iplim
 Expired On     : $ex Hari ($exp_date)
 ────────────────────────────────────
             XRAY WS TLS
@@ -751,11 +907,11 @@ Expired On     : $ex Hari ($exp_date)
 ────────────────────────────────────"
            send_tg_notif "$msg"
            clear; echo -e "$msg" | sed 's/<b>//g; s/<\/b>//g; s/<code>//g; s/<\/code>//g'; read -n 1 -s -r -p "Enter...";;
-        2) id=$(uuidgen); u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"
+        2) id=$(uuidgen); u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; iplim=1
            echo -e " \n Username (Auto-Random): ${GREEN}$u${NC}"
            read -p " Expired (Menit): " ex_m; [[ -z "$ex_m" ]] && ex_m=10
            exp_date=$(date -d "+$ex_m minutes" +"%Y-%m-%d %H:%M")
-           jq --arg u "$u" --arg id "$id" '.inbounds[].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray; echo "$u|$id|$exp_date" >> $U_DATA
+           jq --arg u "$u" --arg id "$id" '.inbounds[].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray; echo "$u|$id|$exp_date|$iplim" >> $U_DATA
            DMN=$(cat /usr/local/etc/xray/domain); CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
            ltls="vless://${id}@${DMN}:443?path=/vless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}"; lnon="vless://${id}@${DMN}:80?path=/vless&security=none&encryption=none&host=${DMN}&type=ws#${u}"
 msg="⏳ <b>NEW XRAY TRIAL</b>
@@ -770,6 +926,7 @@ id             : $id
 Encryption     : none
 Network        : ws
 Path ws        : /vless
+Max IP Login   : $iplim IP
 Expired On     : $ex_m Menit ($exp_date)
 ────────────────────────────────────
             XRAY WS TLS
@@ -784,9 +941,12 @@ Expired On     : $ex_m Menit ($exp_date)
            clear; echo -e "$msg" | sed 's/<b>//g; s/<\/b>//g; s/<code>//g; s/<\/code>//g'; read -n 1 -s -r -p "Enter...";;
         3) jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r ".inbounds[0].settings.clients[$idx].email" $CONFIG); sed -i "/^$u|/d" $U_DATA; jq --arg u "$u" '(.inbounds[].settings.clients) |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray;;
         4) header_sub; jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "Enter...";;
-        5) header_sub; jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r ".inbounds[0].settings.clients[$idx].email" $CONFIG); id=$(jq -r ".inbounds[0].settings.clients[$idx].id" $CONFIG); DMN=$(cat /usr/local/etc/xray/domain); exp_d=$(grep "^$u|" $U_DATA | cut -d'|' -f3); [[ -z "$exp_d" ]] && exp_d="Unknown"; CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
+        5) header_sub; jq -r '.inbounds[0].settings.clients[].email' $CONFIG | nl; read -p "No: " n; [[ -z "$n" ]] && continue; idx=$((n-1)); u=$(jq -r ".inbounds[0].settings.clients[$idx].email" $CONFIG); id=$(jq -r ".inbounds[0].settings.clients[$idx].id" $CONFIG); DMN=$(cat /usr/local/etc/xray/domain); 
+           exp_d=$(grep "^$u|" $U_DATA | cut -d'|' -f3); [[ -z "$exp_d" ]] && exp_d="Unknown"
+           iplim_d=$(grep "^$u|" $U_DATA | cut -d'|' -f4); [[ -z "$iplim_d" || "$iplim_d" == "0" ]] && iplim_d="Unlimited" || iplim_d="$iplim_d IP"
+           CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
            ltls="vless://${id}@${DMN}:443?path=/vless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}"; lnon="vless://${id}@${DMN}:80?path=/vless&security=none&encryption=none&host=${DMN}&type=ws#${u}"
-           clear; echo -e "────────────────────────────────────\n               XRAY\n────────────────────────────────────\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DMN\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nid             : $id\nEncryption     : none\nNetwork        : ws\nPath ws        : /vless\nExpired On     : $exp_d\n────────────────────────────────────\n            XRAY WS TLS\n────────────────────────────────────\n$ltls\n────────────────────────────────────\n          XRAY WS NO TLS\n────────────────────────────────────\n$lnon\n────────────────────────────────────"; read -n 1 -s -r -p "Enter...";;
+           clear; echo -e "────────────────────────────────────\n               XRAY\n────────────────────────────────────\nRemarks        : $u\nCITY           : $CTY\nISP            : $ISP\nDomain         : $DMN\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nid             : $id\nEncryption     : none\nNetwork        : ws\nPath ws        : /vless\nMax IP Login   : $iplim_d\nExpired On     : $exp_d\n────────────────────────────────────\n            XRAY WS TLS\n────────────────────────────────────\n$ltls\n────────────────────────────────────\n          XRAY WS NO TLS\n────────────────────────────────────\n$lnon\n────────────────────────────────────"; read -n 1 -s -r -p "Enter...";;
         x) return;;
     esac; done
 }
