@@ -206,8 +206,8 @@ if [ -f /usr/local/etc/xray/user_data.txt ]; then
                     TOKEN=$(cat /root/tendo/bot_token 2>/dev/null)
                     CHAT_ID=$(cat /root/tendo/chat_id 2>/dev/null)
                     if [[ -n "$TOKEN" && -n "$CHAT_ID" && "$TOKEN" != "ISI_TOKEN_BOT_DISINI" ]]; then
-                        MSG_KILL="❌ <b>XRAY AUTO KILL</b> ❌%0A────────────────%0AUsername : ${user}%0AMax IP   : ${iplimit}%0ALogin IP : ${ip_count}%0AStatus   : DELETED%0A────────────────%0AAkun dihapus otomatis karena melebihi batas login IP!"
-                        curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" -d parse_mode="HTML" -d text="$(echo -e "$MSG_KILL")" > /dev/null 2>&1
+                        MSG_KILL=$(echo -e "❌ <b>XRAY AUTO KILL</b> ❌\n────────────────\nUsername : ${user}\nMax IP   : ${iplimit}\nLogin IP : ${ip_count}\nStatus   : DELETED\n────────────────\nAkun dihapus otomatis karena melebihi batas login IP!")
+                        curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" -d parse_mode="HTML" --data-urlencode text="$MSG_KILL" > /dev/null 2>&1
                     fi
                 fi
             fi
@@ -322,8 +322,9 @@ if [[ -z "$TOKEN" || -z "$CHAT_ID" || "$TOKEN" == "ISI_TOKEN_BOT_DISINI" ]]; the
 rm -f /root/tendo/backup.zip
 zip -r -q /root/tendo/backup.zip /usr/local/etc/xray/config.json /usr/local/etc/xray/user_data.txt /etc/zivpn/config.json /etc/zivpn/user_data.txt /usr/local/etc/xray/domain > /dev/null 2>&1
 DOMAIN=$(cat /usr/local/etc/xray/domain 2>/dev/null)
+CAPTION=$(echo -e "✅ Auto Backup VPS\n📅 Tanggal: $(date)\n🌐 Domain: ${DOMAIN}")
 
-curl -s -F chat_id="$CHAT_ID" -F document=@"/root/tendo/backup.zip" -F caption="✅ Auto Backup VPS%0A📅 Tanggal: $(date)%0A🌐 Domain: ${DOMAIN}" "https://api.telegram.org/bot${TOKEN}/sendDocument" > /dev/null 2>&1
+curl -s -F chat_id="$CHAT_ID" -F document=@"/root/tendo/backup.zip" -F caption="$CAPTION" "https://api.telegram.org/bot${TOKEN}/sendDocument" > /dev/null 2>&1
 EOF
 chmod +x /usr/local/bin/auto-backup.sh
 
@@ -343,6 +344,7 @@ function send_msg() {
     local chat="$1"
     local msg="$2"
     local token=$(cat /root/tendo/bot_token 2>/dev/null)
+    # Tidak memakai echo -e di sini lagi karena format MSG sudah dibuat rapi multi-line di bawah
     curl -s -X POST "https://api.telegram.org/bot${token}/sendMessage" -d chat_id="${chat}" -d parse_mode="HTML" --data-urlencode text="$msg" > /dev/null 2>&1
 }
 
@@ -387,48 +389,64 @@ while true; do
                 # 1. COMMAND START (Main Menu)
                 if [[ "$TEXT" == "/start" ]]; then
                     rm -f "$STATE_FILE"
-                    KEYBOARD='{"inline_keyboard":[[{"text":"➕ Create XRAY","callback_data":"btn_create_xray"},{"text":"➕ Create ZIVPN","callback_data":"btn_create_zivpn"}],[{"text":"⏱ Trial XRAY","callback_data":"trial_xray"},{"text":"⏱ Trial ZIVPN","callback_data":"trial_zivpn"}],[{"text":"💳 Donasi","callback_data":"btn_donasi"}]]}'
-                    MSG="🤖 <b>BOT TENDO STORE</b>\n\nSelamat datang! Silakan pilih menu interaktif di bawah ini untuk membuat akun VPN."
-                    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" -d parse_mode="HTML" -d reply_markup="${KEYBOARD}" --data-urlencode text="$(echo -e "$MSG")" > /dev/null 2>&1
+                    KEYBOARD='{"inline_keyboard":[[{"text":"➕ Create XRAY","callback_data":"btn_create_xray"},{"text":"➕ Create ZIVPN","callback_data":"btn_create_zivpn"}],[{"text":"⏱ Trial XRAY","callback_data":"trial_xray"},{"text":"⏱ Trial ZIVPN","callback_data":"trial_zivpn"}],[{"text":"💳 Donasi","callback_data":"btn_donasi"},{"text":"📞 Hubungi Admin","url":"https://t.me/tendo_32"}]]}'
+MSG="🤖 <b>BOT TENDO STORE</b>
+
+Selamat datang! Silakan pilih menu interaktif di bawah ini untuk membuat akun VPN."
+                    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" -d parse_mode="HTML" -d reply_markup="${KEYBOARD}" --data-urlencode text="$MSG" > /dev/null 2>&1
 
                 # 2. KLIK TOMBOL: CREATE XRAY
                 elif [[ "$TEXT" == "btn_create_xray" ]]; then
                     echo "xray_user" > "$STATE_FILE"
-                    send_msg "$CHAT_ID" "💬 <b>MEMBUAT AKUN XRAY</b>\n\nSilakan ketik <b>Username</b> yang Anda inginkan (tanpa spasi):"
+MSG="💬 <b>MEMBUAT AKUN XRAY</b>
+
+Silakan ketik <b>Username</b> yang Anda inginkan (tanpa spasi):"
+                    send_msg "$CHAT_ID" "$MSG"
 
                 # 3. KLIK TOMBOL: CREATE ZIVPN
                 elif [[ "$TEXT" == "btn_create_zivpn" ]]; then
                     echo "zivpn_pass" > "$STATE_FILE"
-                    send_msg "$CHAT_ID" "💬 <b>MEMBUAT AKUN ZIVPN</b>\n\nSilakan ketik <b>Password</b> yang Anda inginkan (tanpa spasi):"
+MSG="💬 <b>MEMBUAT AKUN ZIVPN</b>
+
+Silakan ketik <b>Password</b> yang Anda inginkan (tanpa spasi):"
+                    send_msg "$CHAT_ID" "$MSG"
 
                 # 4. KLIK TOMBOL: DONASI
                 elif [[ "$TEXT" == "btn_donasi" ]]; then
-                    MSG="🙏 <b>TERIMA KASIH ATAS DUKUNGANNYA</b> 🙏\n\n•────────────────────•\n❑ 082224460678 𝗢𝗩𝗢 \n❑ 082224460678 𝗗𝗔𝗡𝗔\n❑ 082224460678 𝗟𝗜𝗡𝗞 𝗔𝗝𝗔\n❑ 082224460678 𝗚𝗢𝗣𝗔𝗬\n❑ 082224460678 𝗦𝗛𝗢𝗣𝗘𝗘𝗣𝗔𝗬\n•────────────────────•\n\n<i>Dukungan Anda sangat berarti untuk pengembangan ini.</i>"
+MSG="🙏 <b>TERIMA KASIH ATAS DUKUNGANNYA</b> 🙏
+
+•────────────────────•
+❑ 082224460678 𝗢𝗩𝗢 
+❑ 082224460678 𝗗𝗔𝗡𝗔
+❑ 082224460678 𝗟𝗜𝗡𝗞 𝗔𝗝𝗔
+❑ 082224460678 𝗚𝗢𝗣𝗔𝗬
+❑ 082224460678 𝗦𝗛𝗢𝗣𝗘𝗘𝗣𝗔𝗬
+•────────────────────•
+
+<i>Dukungan Anda sangat berarti untuk pengembangan ini.</i>"
                     
-                    # --- CARA MENAMPILKAN GAMBAR QRIS ---
-                    # 1. Upload foto QRIS Kakak ke website seperti https://postimages.org/
-                    # 2. Copy "Direct link" (Tautan Langsung) dari gambar tersebut (berakhiran .jpg atau .png)
-                    # 3. Hapus tanda pagar (#) pada dua baris di bawah ini, dan masukkan link Kakak:
-                    
-                     QRIS_URL="https://i.postimg.cc/XqjdvXpb/Kode-QRIS-Tendo-Store-Jepara.png"
-                    # curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendPhoto" -d chat_id="${CHAT_ID}" -d photo="${QRIS_URL}" -d caption="$(echo -e "$MSG")" -d parse_mode="HTML" > /dev/null 2>&1
-                    
-                    # 4. Jika baris di atas sudah diaktifkan, berikan tanda pagar (#) pada baris send_msg di bawah ini:
-                    send_msg "$CHAT_ID" "$MSG"
+                    QRIS_URL="https://i.postimg.cc/XqjdvXpb/Kode-QRIS-Tendo-Store-Jepara.png"
+                    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendPhoto" -d chat_id="${CHAT_ID}" -d photo="${QRIS_URL}" -d parse_mode="HTML" --data-urlencode caption="$MSG" > /dev/null 2>&1
 
                 # 5. TERIMA KETIKAN TEXT: USERNAME XRAY
                 elif [[ "$USER_STATE" == "xray_user" && "$IS_CB" == "false" ]]; then
                     u="$TEXT"
                     exist=$(grep -w "^$u" $U_DATA)
                     if [[ -n "$exist" ]]; then
-                        send_msg "$CHAT_ID" "❌ Username <b>$u</b> sudah terdaftar! Silakan ketik username lain:"
+MSG="❌ Username <b>$u</b> sudah terdaftar!
+Silakan ketik username lain:"
+                        send_msg "$CHAT_ID" "$MSG"
                     elif [[ "$u" =~ [^a-zA-Z0-9_-] ]]; then
-                        send_msg "$CHAT_ID" "❌ Username tidak valid! Jangan gunakan spasi atau simbol khusus.\nSilakan ketik ulang:"
+MSG="❌ Username tidak valid! Jangan gunakan spasi atau simbol khusus.
+Silakan ketik ulang:"
+                        send_msg "$CHAT_ID" "$MSG"
                     else
                         echo "xray_exp_${u}" > "$STATE_FILE"
                         KEYBOARD='{"inline_keyboard":[[{"text":"1 Hari","callback_data":"xray_exp_1"},{"text":"2 Hari","callback_data":"xray_exp_2"}],[{"text":"3 Hari","callback_data":"xray_exp_3"},{"text":"7 Hari (MAX)","callback_data":"xray_exp_7"}]]}'
-                        MSG="Username <b>$u</b> tersedia! ✅\n\nSilakan pilih <b>Masa Aktif</b> akun dengan menekan tombol di bawah:"
-                        curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" -d parse_mode="HTML" -d reply_markup="${KEYBOARD}" --data-urlencode text="$(echo -e "$MSG")" > /dev/null 2>&1
+MSG="Username <b>$u</b> tersedia! ✅
+
+Silakan pilih <b>Masa Aktif</b> akun dengan menekan tombol di bawah:"
+                        curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" -d parse_mode="HTML" -d reply_markup="${KEYBOARD}" --data-urlencode text="$MSG" > /dev/null 2>&1
                     fi
 
                 # 6. TERIMA KETIKAN TEXT: PASSWORD ZIVPN
@@ -436,14 +454,20 @@ while true; do
                     p="$TEXT"
                     exist=$(grep -w "^$p" $Z_DATA)
                     if [[ -n "$exist" ]]; then
-                        send_msg "$CHAT_ID" "❌ Password <b>$p</b> sudah terdaftar! Silakan ketik password lain:"
+MSG="❌ Password <b>$p</b> sudah terdaftar!
+Silakan ketik password lain:"
+                        send_msg "$CHAT_ID" "$MSG"
                     elif [[ "$p" =~ [^a-zA-Z0-9_-] ]]; then
-                        send_msg "$CHAT_ID" "❌ Password tidak valid! Jangan gunakan spasi atau simbol khusus.\nSilakan ketik ulang:"
+MSG="❌ Password tidak valid! Jangan gunakan spasi atau simbol khusus.
+Silakan ketik ulang:"
+                        send_msg "$CHAT_ID" "$MSG"
                     else
                         echo "zivpn_exp_${p}" > "$STATE_FILE"
                         KEYBOARD='{"inline_keyboard":[[{"text":"1 Hari","callback_data":"zivpn_exp_1"},{"text":"2 Hari","callback_data":"zivpn_exp_2"}],[{"text":"3 Hari","callback_data":"zivpn_exp_3"},{"text":"7 Hari (MAX)","callback_data":"zivpn_exp_7"}]]}'
-                        MSG="Password <b>$p</b> tersedia! ✅\n\nSilakan pilih <b>Masa Aktif</b> akun dengan menekan tombol di bawah:"
-                        curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" -d parse_mode="HTML" -d reply_markup="${KEYBOARD}" --data-urlencode text="$(echo -e "$MSG")" > /dev/null 2>&1
+MSG="Password <b>$p</b> tersedia! ✅
+
+Silakan pilih <b>Masa Aktif</b> akun dengan menekan tombol di bawah:"
+                        curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" -d parse_mode="HTML" -d reply_markup="${KEYBOARD}" --data-urlencode text="$MSG" > /dev/null 2>&1
                     fi
 
                 # 7. KLIK TOMBOL DURASI: FINALISASI XRAY
@@ -707,7 +731,8 @@ function backup_restore_menu() {
                 CHAT_ID=$(cat /root/tendo/chat_id 2>/dev/null)
                 if [[ -n "$TOKEN" && -n "$CHAT_ID" && "$TOKEN" != "ISI_TOKEN_BOT_DISINI" ]]; then
                     echo -e "Mengirim file backup ke Telegram..."
-                    curl -s -F chat_id="$CHAT_ID" -F document=@"/root/tendo/backup.zip" -F caption="✅ VPS Backup Data Manual%0A📅 Tanggal: $(date)%0A🌐 Domain: $(cat /usr/local/etc/xray/domain)" "https://api.telegram.org/bot${TOKEN}/sendDocument" > /dev/null
+                    CAPTION=$(echo -e "✅ VPS Backup Data Manual\n📅 Tanggal: $(date)\n🌐 Domain: $(cat /usr/local/etc/xray/domain)")
+                    curl -s -F chat_id="$CHAT_ID" -F document=@"/root/tendo/backup.zip" -F caption="$CAPTION" "https://api.telegram.org/bot${TOKEN}/sendDocument" > /dev/null
                     echo -e "${GREEN}✅ Backup juga berhasil dikirim ke Telegram!${NC}"
                 fi
                 read -n 1 -s -r -p "Enter..."
@@ -866,7 +891,7 @@ function telegram_bot_menu() {
             2) notif_login_menu ;;
             3) notif_backup_menu ;;
             4) clear; echo -e "${YELLOW}MANUAL BACKUP VPS TO TELEGRAM${NC}\n"; TOKEN=$(cat /root/tendo/bot_token 2>/dev/null); CHAT_ID=$(cat /root/tendo/chat_id 2>/dev/null)
-               if [[ -z "$TOKEN" || -z "$CHAT_ID" || "$TOKEN" == "ISI_TOKEN_BOT_DISINI" ]]; then echo -e "${RED}Gagal! Token atau Chat ID belum disetting.${NC}"; else rm -f /root/tendo/backup.zip; zip -r -q /root/tendo/backup.zip /usr/local/etc/xray/config.json /usr/local/etc/xray/user_data.txt /etc/zivpn/config.json /etc/zivpn/user_data.txt /usr/local/etc/xray/domain; curl -s -F chat_id="$CHAT_ID" -F document=@"/root/tendo/backup.zip" -F caption="✅ VPS Backup Data%0A📅 Tanggal: $(date)%0A🌐 Domain: $(cat /usr/local/etc/xray/domain)" "https://api.telegram.org/bot${TOKEN}/sendDocument" > /dev/null; echo -e "${GREEN}Backup berhasil dikirim ke Telegram kamu!${NC}"; fi; read -n 1 -s -r -p "Enter..." ;;
+               if [[ -z "$TOKEN" || -z "$CHAT_ID" || "$TOKEN" == "ISI_TOKEN_BOT_DISINI" ]]; then echo -e "${RED}Gagal! Token atau Chat ID belum disetting.${NC}"; else rm -f /root/tendo/backup.zip; zip -r -q /root/tendo/backup.zip /usr/local/etc/xray/config.json /usr/local/etc/xray/user_data.txt /etc/zivpn/config.json /etc/zivpn/user_data.txt /usr/local/etc/xray/domain; CAPTION=$(echo -e "✅ VPS Backup Data\n📅 Tanggal: $(date)\n🌐 Domain: $(cat /usr/local/etc/xray/domain)"); curl -s -F chat_id="$CHAT_ID" -F document=@"/root/tendo/backup.zip" -F caption="$CAPTION" "https://api.telegram.org/bot${TOKEN}/sendDocument" > /dev/null; echo -e "${GREEN}Backup berhasil dikirim ke Telegram kamu!${NC}"; fi; read -n 1 -s -r -p "Enter..." ;;
             5) clear; echo -e "${YELLOW}CHANGE BOT API & CHAT ID${NC}\n"; read -p " Masukkan Bot Token : " b_token; read -p " Masukkan Chat ID   : " c_id; echo "$b_token" > /root/tendo/bot_token; echo "$c_id" > /root/tendo/chat_id; systemctl restart xray-login-notif tendo-autobot; echo -e "\n ${GREEN}Berhasil menyimpan Token & Chat ID!${NC}"; sleep 2 ;;
             x) return ;;
         esac
