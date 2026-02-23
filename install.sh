@@ -410,7 +410,7 @@ while true; do
                     # 2. Copy "Direct link" (Tautan Langsung) dari gambar tersebut (berakhiran .jpg atau .png)
                     # 3. Hapus tanda pagar (#) pada dua baris di bawah ini, dan masukkan link Kakak:
                     
-                    # QRIS_URL="https://link-gambar-qris-kakak-disini.jpg"
+                     QRIS_URL="https://i.postimg.cc/XqjdvXpb/Kode-QRIS-Tendo-Store-Jepara.png"
                     # curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendPhoto" -d chat_id="${CHAT_ID}" -d photo="${QRIS_URL}" -d caption="$(echo -e "$MSG")" -d parse_mode="HTML" > /dev/null 2>&1
                     
                     # 4. Jika baris di atas sudah diaktifkan, berikan tanda pagar (#) pada baris send_msg di bawah ini:
