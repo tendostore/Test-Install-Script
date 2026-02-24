@@ -196,7 +196,7 @@ if [ -f /usr/local/etc/xray/user_data.txt ]; then
         # 2. Check Multi Login (Limit IP)
         if [[ -n "$iplimit" && "$iplimit" =~ ^[0-9]+$ && "$iplimit" -gt 0 ]]; then
             if [ -f /tmp/xray_logged_in.txt ]; then
-                ip_count=$(grep "^${user} " /tmp/xray_logged_in.txt | awk '{print $2}' | sort -u | wc -l)
+                ip_count=$(awk -v u="$user" '$1 == u {print $2}' /tmp/xray_logged_in.txt | sort -u | wc -l)
                 if [[ "$ip_count" -gt "$iplimit" ]]; then
                     jq --arg u "$user" '(.inbounds[].settings.clients) |= map(select(.email != $u))' /usr/local/etc/xray/config.json > /tmp/x && mv /tmp/x /usr/local/etc/xray/config.json
                     sed -i "/^$user|/d" /usr/local/etc/xray/user_data.txt
@@ -206,7 +206,14 @@ if [ -f /usr/local/etc/xray/user_data.txt ]; then
                     TOKEN=$(cat /root/tendo/bot_token 2>/dev/null)
                     CHAT_ID=$(cat /root/tendo/chat_id 2>/dev/null)
                     if [[ -n "$TOKEN" && -n "$CHAT_ID" && "$TOKEN" != "ISI_TOKEN_BOT_DISINI" ]]; then
-                        MSG_KILL=$(echo -e "❌ <b>XRAY AUTO KILL</b> ❌\n────────────────\nUsername : ${user}\nMax IP   : ${iplimit}\nLogin IP : ${ip_count}\nStatus   : DELETED\n────────────────\nAkun dihapus otomatis karena melebihi batas login IP!")
+MSG_KILL="❌ <b>XRAY AUTO KILL</b> ❌
+────────────────
+Username : ${user}
+Max IP   : ${iplimit}
+Login IP : ${ip_count}
+Status   : DELETED
+────────────────
+Akun dihapus otomatis karena melebihi batas login IP!"
                         curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" -d parse_mode="HTML" --data-urlencode text="$MSG_KILL" > /dev/null 2>&1
                     fi
                 fi
@@ -252,9 +259,10 @@ touch /tmp/xray_logged_in.txt
 tail -F /usr/local/etc/xray/access.log | while read line; do
     if echo "$line" | grep -q "accepted"; then
         user=$(echo "$line" | awk '{print $NF}')
-        ip=$(echo "$line" | awk '{print $3}' | cut -d: -f1)
-        # Simpan log dengan pemisah spasi agar nama user dengan tanda strip tidak terpotong
-        echo "${user} ${ip}" >> /tmp/xray_logged_in.txt
+        ip=$(echo "$line" | awk '{print $3}' | sed 's/:[0-9]*$//')
+        if [[ -n "$user" && -n "$ip" ]]; then
+            echo "${user} ${ip}" >> /tmp/xray_logged_in.txt
+        fi
     fi
 done
 EOF
@@ -287,24 +295,36 @@ IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
 DOMAIN=$(cat /usr/local/etc/xray/domain 2>/dev/null)
 ISP=$(cat /root/tendo/isp 2>/dev/null)
 
-MSG="IP     : ${IP_VPS}\nDOMAIN : ${DOMAIN}\nISP    : ${ISP}\nUsers Login VLESS\n"
+MSG="📊 <b>LAPORAN LOGIN XRAY</b> 📊
+────────────────
+<b>IP VPS  :</b> <code>${IP_VPS}</code>
+<b>Domain  :</b> ${DOMAIN}
+<b>ISP     :</b> ${ISP}
+────────────────
+<b>List User Aktif:</b>
+"
 TOTAL_USERS=0
 
-# Ambil daftar user yang benar-benar ada dan belum dihapus
-VALID_USERS=$(jq -r '.inbounds[0].settings.clients[].email' /usr/local/etc/xray/config.json 2>/dev/null)
+# Pastikan file log ada
+touch /tmp/xray_logged_in.txt
+VALID_USERS=$(jq -r '.inbounds[0].settings.clients[].email' /usr/local/etc/xray/config.json 2>/dev/null | tr -d '\r')
 
 for user in $VALID_USERS; do
-    # Hitung IP unik berdasarkan spasi
-    ip_count=$(grep "^${user} " /tmp/xray_logged_in.txt | awk '{print $2}' | sort -u | wc -l)
-    if [[ "$ip_count" -gt 0 ]]; then
-        MSG+="${user} ${ip_count}IP\n"
+    # Hitung jumlah IP unik & Total Koneksi
+    conn_count=$(awk -v u="$user" '$1 == u' /tmp/xray_logged_in.txt | wc -l)
+    ip_count=$(awk -v u="$user" '$1 == u {print $2}' /tmp/xray_logged_in.txt | sort -u | wc -l)
+    
+    if [[ "$conn_count" -gt 0 ]]; then
+        MSG+="👤 <b>${user}</b> : ${ip_count} IP (${conn_count} Koneksi)
+"
         ((TOTAL_USERS++))
     fi
 done
 
 if [[ "$TOTAL_USERS" -gt 0 ]]; then
-    MSG+="\nTotal : ${TOTAL_USERS}"
-    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" --data-urlencode text="$(echo -e "$MSG")" > /dev/null 2>&1
+    MSG+="────────────────
+<b>Total Akun Aktif : ${TOTAL_USERS}</b>"
+    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHAT_ID}" -d parse_mode="HTML" --data-urlencode text="$MSG" > /dev/null 2>&1
 fi
 
 # Bersihkan file log login setelah dilaporkan
@@ -322,7 +342,10 @@ if [[ -z "$TOKEN" || -z "$CHAT_ID" || "$TOKEN" == "ISI_TOKEN_BOT_DISINI" ]]; the
 rm -f /root/tendo/backup.zip
 zip -r -q /root/tendo/backup.zip /usr/local/etc/xray/config.json /usr/local/etc/xray/user_data.txt /etc/zivpn/config.json /etc/zivpn/user_data.txt /usr/local/etc/xray/domain > /dev/null 2>&1
 DOMAIN=$(cat /usr/local/etc/xray/domain 2>/dev/null)
-CAPTION=$(echo -e "✅ Auto Backup VPS\n📅 Tanggal: $(date)\n🌐 Domain: ${DOMAIN}")
+
+CAPTION="✅ Auto Backup VPS
+📅 Tanggal: $(date)
+🌐 Domain: ${DOMAIN}"
 
 curl -s -F chat_id="$CHAT_ID" -F document=@"/root/tendo/backup.zip" -F caption="$CAPTION" "https://api.telegram.org/bot${TOKEN}/sendDocument" > /dev/null 2>&1
 EOF
@@ -731,7 +754,9 @@ function backup_restore_menu() {
                 CHAT_ID=$(cat /root/tendo/chat_id 2>/dev/null)
                 if [[ -n "$TOKEN" && -n "$CHAT_ID" && "$TOKEN" != "ISI_TOKEN_BOT_DISINI" ]]; then
                     echo -e "Mengirim file backup ke Telegram..."
-                    CAPTION=$(echo -e "✅ VPS Backup Data Manual\n📅 Tanggal: $(date)\n🌐 Domain: $(cat /usr/local/etc/xray/domain)")
+                    CAPTION="✅ VPS Backup Data Manual
+📅 Tanggal: $(date)
+🌐 Domain: $(cat /usr/local/etc/xray/domain)"
                     curl -s -F chat_id="$CHAT_ID" -F document=@"/root/tendo/backup.zip" -F caption="$CAPTION" "https://api.telegram.org/bot${TOKEN}/sendDocument" > /dev/null
                     echo -e "${GREEN}✅ Backup juga berhasil dikirim ke Telegram!${NC}"
                 fi
@@ -891,7 +916,9 @@ function telegram_bot_menu() {
             2) notif_login_menu ;;
             3) notif_backup_menu ;;
             4) clear; echo -e "${YELLOW}MANUAL BACKUP VPS TO TELEGRAM${NC}\n"; TOKEN=$(cat /root/tendo/bot_token 2>/dev/null); CHAT_ID=$(cat /root/tendo/chat_id 2>/dev/null)
-               if [[ -z "$TOKEN" || -z "$CHAT_ID" || "$TOKEN" == "ISI_TOKEN_BOT_DISINI" ]]; then echo -e "${RED}Gagal! Token atau Chat ID belum disetting.${NC}"; else rm -f /root/tendo/backup.zip; zip -r -q /root/tendo/backup.zip /usr/local/etc/xray/config.json /usr/local/etc/xray/user_data.txt /etc/zivpn/config.json /etc/zivpn/user_data.txt /usr/local/etc/xray/domain; CAPTION=$(echo -e "✅ VPS Backup Data\n📅 Tanggal: $(date)\n🌐 Domain: $(cat /usr/local/etc/xray/domain)"); curl -s -F chat_id="$CHAT_ID" -F document=@"/root/tendo/backup.zip" -F caption="$CAPTION" "https://api.telegram.org/bot${TOKEN}/sendDocument" > /dev/null; echo -e "${GREEN}Backup berhasil dikirim ke Telegram kamu!${NC}"; fi; read -n 1 -s -r -p "Enter..." ;;
+               if [[ -z "$TOKEN" || -z "$CHAT_ID" || "$TOKEN" == "ISI_TOKEN_BOT_DISINI" ]]; then echo -e "${RED}Gagal! Token atau Chat ID belum disetting.${NC}"; else rm -f /root/tendo/backup.zip; zip -r -q /root/tendo/backup.zip /usr/local/etc/xray/config.json /usr/local/etc/xray/user_data.txt /etc/zivpn/config.json /etc/zivpn/user_data.txt /usr/local/etc/xray/domain; CAPTION="✅ VPS Backup Data
+📅 Tanggal: $(date)
+🌐 Domain: $(cat /usr/local/etc/xray/domain)"; curl -s -F chat_id="$CHAT_ID" -F document=@"/root/tendo/backup.zip" -F caption="$CAPTION" "https://api.telegram.org/bot${TOKEN}/sendDocument" > /dev/null; echo -e "${GREEN}Backup berhasil dikirim ke Telegram kamu!${NC}"; fi; read -n 1 -s -r -p "Enter..." ;;
             5) clear; echo -e "${YELLOW}CHANGE BOT API & CHAT ID${NC}\n"; read -p " Masukkan Bot Token : " b_token; read -p " Masukkan Chat ID   : " c_id; echo "$b_token" > /root/tendo/bot_token; echo "$c_id" > /root/tendo/chat_id; systemctl restart xray-login-notif tendo-autobot; echo -e "\n ${GREEN}Berhasil menyimpan Token & Chat ID!${NC}"; sleep 2 ;;
             x) return ;;
         esac
