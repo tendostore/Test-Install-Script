@@ -412,7 +412,7 @@ while true; do
                 # 1. COMMAND START (Main Menu)
                 if [[ "$TEXT" == "/start" ]]; then
                     rm -f "$STATE_FILE"
-                    KEYBOARD='{"inline_keyboard":[[{"text":"➕ Create XRAY","callback_data":"btn_create_xray"},{"text":"➕ Create ZIVPN","callback_data":"btn_create_zivpn"}],[{"text":"⏱ Trial XRAY","callback_data":"trial_xray"},{"text":"⏱ Trial ZIVPN","callback_data":"trial_zivpn"}],[{"text":"💳 Donasi","callback_data":"btn_donasi"},{"text":"📞 Hubungi Admin","url":"https://t.me/tendo_32"}]]}'
+                    KEYBOARD='{"inline_keyboard":[[{"text":"➕ Create XRAY","callback_data":"btn_create_xray"},{"text":"➕ Create ZIVPN","callback_data":"btn_create_zivpn"}],[{"text":"💳 Donasi","callback_data":"btn_donasi"},{"text":"📞 Hubungi Admin","url":"https://t.me/tendo_32"}]]}'
 MSG="🤖 <b>BOT TENDO STORE</b>
 
 Selamat datang! Silakan pilih menu interaktif di bawah ini untuk membuat akun VPN."
@@ -465,7 +465,7 @@ Silakan ketik ulang:"
                         send_msg "$CHAT_ID" "$MSG"
                     else
                         echo "xray_exp_${u}" > "$STATE_FILE"
-                        KEYBOARD='{"inline_keyboard":[[{"text":"1 Hari","callback_data":"xray_exp_1"},{"text":"2 Hari","callback_data":"xray_exp_2"}],[{"text":"3 Hari","callback_data":"xray_exp_3"},{"text":"7 Hari (MAX)","callback_data":"xray_exp_7"}]]}'
+                        KEYBOARD='{"inline_keyboard":[[{"text":"1 Hari","callback_data":"xray_exp_1"},{"text":"2 Hari","callback_data":"xray_exp_2"}],[{"text":"3 Hari","callback_data":"xray_exp_3"},{"text":"5 Hari (MAX)","callback_data":"xray_exp_5"}]]}'
 MSG="Username <b>$u</b> tersedia! ✅
 
 Silakan pilih <b>Masa Aktif</b> akun dengan menekan tombol di bawah:"
@@ -486,7 +486,7 @@ Silakan ketik ulang:"
                         send_msg "$CHAT_ID" "$MSG"
                     else
                         echo "zivpn_exp_${p}" > "$STATE_FILE"
-                        KEYBOARD='{"inline_keyboard":[[{"text":"1 Hari","callback_data":"zivpn_exp_1"},{"text":"2 Hari","callback_data":"zivpn_exp_2"}],[{"text":"3 Hari","callback_data":"zivpn_exp_3"},{"text":"7 Hari (MAX)","callback_data":"zivpn_exp_7"}]]}'
+                        KEYBOARD='{"inline_keyboard":[[{"text":"1 Hari","callback_data":"zivpn_exp_1"},{"text":"2 Hari","callback_data":"zivpn_exp_2"}],[{"text":"3 Hari","callback_data":"zivpn_exp_3"},{"text":"5 Hari (MAX)","callback_data":"zivpn_exp_5"}]]}'
 MSG="Password <b>$p</b> tersedia! ✅
 
 Silakan pilih <b>Masa Aktif</b> akun dengan menekan tombol di bawah:"
@@ -558,70 +558,6 @@ ISP        : $ISP
 IP ISP     : $IP_ISP
 Domain     : $DMN
 Expired On : $ex Hari ($exp)
-━━━━━━━━━━━━━━━━━━━━━"
-                    send_msg "$CHAT_ID" "$MSG"
-
-                # 9. KLIK TOMBOL: TRIAL XRAY
-                elif [[ "$TEXT" == "trial_xray" ]]; then
-                    u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"
-                    id=$(uuidgen)
-                    ex_m=10
-                    exp_date=$(date -d "+$ex_m minutes" +"%Y-%m-%d %H:%M")
-                    iplim=1 # LIMIT IP MAX 1 UNTUK TRIAL XRAY
-                    
-                    jq --arg u "$u" --arg id "$id" '.inbounds[].settings.clients += [{"id":$id,"email":$u}]' $CONFIG > /tmp/xb && mv /tmp/xb $CONFIG
-                    systemctl restart xray
-                    echo "$u|$id|$exp_date|$iplim" >> $U_DATA
-                    
-                    DMN=$(cat /usr/local/etc/xray/domain); CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp)
-                    ltls="vless://${id}@${DMN}:443?path=/vless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}"
-                    lnon="vless://${id}@${DMN}:80?path=/vless&security=none&encryption=none&host=${DMN}&type=ws#${u}"
-                    
-MSG="⏳ <b>NEW XRAY TRIAL</b>
-────────────────────────────────────
-Remarks        : $u
-CITY           : $CTY
-ISP            : $ISP
-Domain         : $DMN
-Port TLS       : 443,8443
-Port none TLS  : 80,8080
-id             : $id
-Encryption     : none
-Network        : ws
-Path ws        : /vless
-Max IP Login   : $iplim IP
-Expired On     : $ex_m Menit ($exp_date)
-────────────────────────────────────
-            XRAY WS TLS
-────────────────────────────────────
-<code>$ltls</code>
-────────────────────────────────────
-          XRAY WS NO TLS
-────────────────────────────────────
-<code>$lnon</code>
-────────────────────────────────────"
-                    send_msg "$CHAT_ID" "$MSG"
-
-                # 10. KLIK TOMBOL: TRIAL ZIVPN
-                elif [[ "$TEXT" == "trial_zivpn" ]]; then
-                    p="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"
-                    ex_m=10
-                    exp=$(date -d "+$ex_m minutes" +"%Y-%m-%d %H:%M")
-                    jq --arg p "$p" '.auth.config += [$p]' $Z_CONF > /tmp/zb && mv /tmp/zb $Z_CONF
-                    systemctl restart zivpn
-                    echo "$p|$exp" >> $Z_DATA
-                    DMN=$(cat /usr/local/etc/xray/domain); CTY=$(cat /root/tendo/city); ISP=$(cat /root/tendo/isp); IP_ISP=$(cat /root/tendo/ip)
-                    
-MSG="⏳ <b>NEW ZIVPN TRIAL</b>
-━━━━━━━━━━━━━━━━━━━━━
-  ZIVPN UDP TRIAL
-━━━━━━━━━━━━━━━━━━━━━
-Password   : $p
-CITY       : $CTY
-ISP        : $ISP
-IP ISP     : $IP_ISP
-Domain     : $DMN
-Expired On : $ex_m Menit ($exp)
 ━━━━━━━━━━━━━━━━━━━━━"
                     send_msg "$CHAT_ID" "$MSG"
 
