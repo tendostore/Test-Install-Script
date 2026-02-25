@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray & Zivpn
-#   EDITION: PLATINUM CLEAN V.6.0 (ACCOUNT COUNTER)
+#   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE TELEGRAM)
 #   Update: Added List Accounts (Count) on Dashboard
 #           + Added WS, GRPC, HTTPUpgrade Networks
 #           + Added IP Limit Enforcer
@@ -12,7 +12,11 @@
 #           + Added Trial Feature (Minutes/Hours)
 #           + Added ZIVPN Tracking & Renew
 #           + Fixed X-Ray Fallback Path Error
-#           + UI Update: Early Domain Prompt & Yin-Yang Spinner
+#           + UI Update: Early Domain Prompt & Bouncing Scanner Spinner
+#           + Full Telegram Bot Integration (Notif Create, Login, Backup)
+#           + Advanced Bandwidth Dashboard
+#           + Feature: Backup & Restore Data (Direct Link)
+#           + Fix Backup Coverage (Full X-ray, ZIVPN, Bot, Domain & SSL)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -23,16 +27,35 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; BLUE='\033[0;34m'; PU
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 
-# --- ANIMASI INSTALL (YIN-YANG SPINNER) ---
+# --- ANIMASI INSTALL (BOUNCING SCANNER) ---
 function install_spin() {
     local pid=$!
-    local delay=0.1
-    local spinstr='◐◓◑◒'
+    local delay=0.08
+    local frames=(
+        "[\e[1;32m=\e[1;36m       ]"
+        "[\e[1;32m==\e[1;36m      ]"
+        "[\e[1;32m===\e[1;36m     ]"
+        "[ \e[1;32m===\e[1;36m    ]"
+        "[  \e[1;32m===\e[1;36m   ]"
+        "[   \e[1;32m===\e[1;36m  ]"
+        "[    \e[1;32m===\e[1;36m ]"
+        "[     \e[1;32m===\e[1;36m]"
+        "[      \e[1;32m==\e[1;36m]"
+        "[       \e[1;32m=\e[1;36m]"
+        "[      \e[1;32m==\e[1;36m]"
+        "[     \e[1;32m===\e[1;36m]"
+        "[    \e[1;32m===\e[1;36m ]"
+        "[   \e[1;32m===\e[1;36m  ]"
+        "[  \e[1;32m===\e[1;36m   ]"
+        "[ \e[1;32m===\e[1;36m    ]"
+        "[\e[1;32m===\e[1;36m     ]"
+        "[\e[1;32m==\e[1;36m      ]"
+    )
     while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
-        local temp=${spinstr#?}
-        printf "\r\e[1;36m [\e[1;32m%c\e[1;36m]\e[0m \e[1;33mSedang memproses, mohon tunggu...\e[0m" "$spinstr"
-        local spinstr=$temp${spinstr%"$temp"}
-        sleep $delay
+        for frame in "${frames[@]}"; do
+            printf "\r\e[1;36m %b\e[0m \e[1;33mSedang memproses, mohon tunggu...\e[0m" "$frame"
+            sleep $delay
+        done
     done
     printf "\r\e[K"
 }
@@ -106,7 +129,7 @@ print_msg "Install Dependencies"
     apt-get update -y
     echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
     echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
-    apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl socat jq openssl uuid-runtime net-tools vnstat wget gnupg1 bc iproute2 iptables iptables-persistent python3 neofetch cron
+    apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl socat jq openssl uuid-runtime net-tools vnstat wget gnupg1 bc iproute2 iptables iptables-persistent python3 neofetch cron zip unzip
     curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | bash
     apt-get install speedtest -y
     touch /root/.hushlogin; chmod -x /etc/update-motd.d/* 2>/dev/null
@@ -123,7 +146,7 @@ IFACE_NET=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 print_msg "Setup Domain & SSL Cert"
 (
     systemctl enable vnstat && systemctl restart vnstat; vnstat -u -i $IFACE_NET
-    mkdir -p $XRAY_DIR /etc/zivpn /root/tendo; touch $DATA_VMESS $DATA_VLESS $DATA_TROJAN $DATA_ZIVPN
+    mkdir -p $XRAY_DIR /etc/zivpn /root/tendo /etc/tendo_bot; touch $DATA_VMESS $DATA_VLESS $DATA_TROJAN $DATA_ZIVPN
     mkdir -p /var/log/xray; touch /var/log/xray/access.log /var/log/xray/error.log
 
     curl -s ipinfo.io/json | jq -r '.city' > /root/tendo/city
@@ -214,14 +237,14 @@ EOF
 ) >/dev/null 2>&1 & install_spin
 print_ok "ZIVPN Installed"
 
-# --- 8. AUTO-KILL, EXP CHECKER & QUOTA MONITOR ---
-print_msg "Setting up Cron & Auto-Kill Systems"
+# --- 8. AUTO-KILL, QUOTA & TELEGRAM SCRIPTS ---
+print_msg "Setting up Cron & Telegram Bots"
 (
+# Script Expiry Auto-Kill
 cat > /usr/local/bin/xray-exp <<'EOF'
 #!/bin/bash
 CONFIG="/usr/local/etc/xray/config.json"
 NOW=$(date +%s)
-
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
     if [[ -f "$FILE" ]]; then
@@ -235,7 +258,6 @@ for proto in vmess vless trojan; do
         done < "$FILE"
     fi
 done
-
 Z_FILE="/etc/zivpn/zivpn.txt"
 Z_CONF="/etc/zivpn/config.json"
 if [[ -f "$Z_FILE" ]]; then
@@ -251,13 +273,13 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-exp
 
+# Script Limit IP
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 CONFIG="/usr/local/etc/xray/config.json"
 LOG_FILE="/var/log/xray/access.log"
 [[ ! -f "$LOG_FILE" ]] && exit 0
 tail -n 1000 "$LOG_FILE" | grep "accepted" | awk '{print $3, $7}' | sed 's/tcp://g' | awk -F: '{print $1" "$2}' > /tmp/xray_active.log
-
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
     [[ ! -f "$FILE" ]] && continue
@@ -274,6 +296,7 @@ done
 EOF
 chmod +x /usr/local/bin/xray-limit
 
+# Script Quota
 cat > /usr/local/bin/xray-quota <<'EOF'
 #!/bin/bash
 CONFIG="/usr/local/etc/xray/config.json"
@@ -298,6 +321,51 @@ done
 EOF
 chmod +x /usr/local/bin/xray-quota
 
+# Script Telegram Login Notif
+cat > /usr/local/bin/bot-login-notif <<'EOF'
+#!/bin/bash
+TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null)
+CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null)
+[[ -z "$TOKEN" || -z "$CHATID" ]] && exit 0
+LOG_FILE="/var/log/xray/access.log"
+tail -n 2000 "$LOG_FILE" | grep "accepted" | awk '{print $3, $7}' | sed 's/tcp://g' | awk -F: '{print $1" "$2}' > /tmp/bot_active.log
+
+MSG="<b>📊 REPORT ACTIVE USERS (LOGIN)</b>%0A"
+FOUND=0
+for proto in vmess vless trojan; do
+    FILE="/usr/local/etc/xray/${proto}.txt"
+    [[ ! -f "$FILE" ]] && continue
+    while IFS="|" read -r user id exp limit status quota; do
+        active_ips=$(grep -w "$user" /tmp/bot_active.log | awk '{print $1}' | sort -u | wc -l)
+        if [[ "$active_ips" -gt 0 ]]; then
+            MSG+="%0A👤 User: <code>$user</code> | 🌐 Login: <b>$active_ips IP</b> (Akun di pakek $active_ips user)"
+            FOUND=1
+        fi
+    done < "$FILE"
+done
+
+if [[ "$FOUND" -eq 1 ]]; then
+    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHATID}" -d text="${MSG}" -d parse_mode="HTML" > /dev/null
+fi
+EOF
+chmod +x /usr/local/bin/bot-login-notif
+
+# Script Telegram Backup Notif
+cat > /usr/local/bin/bot-backup <<'EOF'
+#!/bin/bash
+TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null)
+CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null)
+[[ -z "$TOKEN" || -z "$CHATID" ]] && exit 0
+DATE=$(date +"%Y-%m-%d_%H-%M")
+ZIP_FILE="/tmp/Backup_${DATE}.zip"
+cd /
+zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ >/dev/null 2>&1
+cd - >/dev/null 2>&1
+curl -s -F chat_id="${CHATID}" -F document=@"${ZIP_FILE}" -F caption="<b>📦 AUTOBACKUP VPS</b>%0A%0A📅 Date: ${DATE}%0A✅ Backup Successfully generated." "https://api.telegram.org/bot${TOKEN}/sendDocument" -F parse_mode="HTML" > /dev/null
+rm -f $ZIP_FILE
+EOF
+chmod +x /usr/local/bin/bot-backup
+
 (crontab -l 2>/dev/null | grep -v "xray-exp"; echo "* * * * * /usr/local/bin/xray-exp") | crontab -
 (crontab -l 2>/dev/null | grep -v "xray-limit"; echo "* * * * * /usr/local/bin/xray-limit") | crontab -
 (crontab -l 2>/dev/null | grep -v "xray-quota"; echo "* * * * * /usr/local/bin/xray-quota") | crontab -
@@ -316,6 +384,25 @@ D_VLESS="/usr/local/etc/xray/vless.txt"
 D_TROJAN="/usr/local/etc/xray/trojan.txt"
 D_ZIVPN="/etc/zivpn/zivpn.txt"
 
+# ---------------------------------------------
+# PENGIRIM TELEGRAM
+# ---------------------------------------------
+function send_tele() {
+    local bot_tok=$(cat /etc/tendo_bot/bot_token 2>/dev/null)
+    local chat_id=$(cat /etc/tendo_bot/chat_id 2>/dev/null)
+    [[ -z "$bot_tok" || -z "$chat_id" ]] && return
+    # Bersihkan output dari kode ANSI warna agar rapi di telegram
+    local safe_msg=$(echo -e "$1" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" | sed 's/&/&amp;/g; s/</&lt;/g; s/>/&gt;/g')
+    curl -s -X POST "https://api.telegram.org/bot${bot_tok}/sendMessage" \
+        --data-urlencode "chat_id=${chat_id}" \
+        --data-urlencode "text=<b>✅ NEW ACCOUNT CREATED</b>
+<pre>${safe_msg}</pre>" \
+        -d "parse_mode=HTML" > /dev/null &
+}
+
+# ---------------------------------------------
+# FUNGSI OUTPUT DETAIL AKUN XRAY
+# ---------------------------------------------
 function show_account_xray() {
     clear
     local proto=$1; local user=$2; local domain=$3; local uuid=$4; local exp=$5; local limit=$6; local quota=$7; local usage=$8
@@ -323,122 +410,125 @@ function show_account_xray() {
     local isp=$(cat /root/tendo/isp); local city=$(cat /root/tendo/city)
     [[ "$quota" == "0" ]] && str_quota="Unlimited" || str_quota="${quota} GB"
 
+    local MSG=""
     if [[ "$proto" == "VMESS" ]]; then
-        echo -e "————————————————————————————————————"
-        echo -e "               VMESS"
-        echo -e "————————————————————————————————————"
-        echo -e "Remarks        : ${user}"
-        echo -e "CITY           : ${city}"
-        echo -e "ISP            : ${isp}"
-        echo -e "Domain         : ${domain}"
-        echo -e "Port TLS       : 443"
-        echo -e "Port none TLS  : 80"
-        echo -e "id             : ${uuid}"
-        echo -e "alterId        : 0"
-        echo -e "Security       : auto"
-        echo -e "network        : ws, grpc, upgrade"
-        echo -e "path ws        : /vmess"
-        echo -e "serviceName    : vmess-grpc"
-        echo -e "path upgrade   : /vmess-upg"
-        echo -e "Limit IP       : ${limit} IP"
-        echo -e "Quota Bandwidth: ${str_quota}"
-        echo -e "Usage Bandwidth: ${usage} GB"
-        echo -e "Expired On     : ${exp}"
-        echo -e "————————————————————————————————————"
-        echo -e "           VMESS WS TLS"
-        echo -e "————————————————————————————————————"
-        echo -e "${link_ws_tls}"
-        echo -e "————————————————————————————————————"
-        echo -e "          VMESS WS NO TLS"
-        echo -e "————————————————————————————————————"
-        echo -e "${link_ws_ntls}"
-        echo -e "————————————————————————————————————"
-        echo -e "             VMESS GRPC"
-        echo -e "————————————————————————————————————"
-        echo -e "${link_grpc_tls}"
-        echo -e "————————————————————————————————————"
-        echo -e "         VMESS Upgrade TLS"
-        echo -e "————————————————————————————————————"
-        echo -e "${link_upg_tls}"
-        echo -e "————————————————————————————————————"
-        echo -e "        VMESS Upgrade NO TLS"
-        echo -e "————————————————————————————————————"
-        echo -e "${link_upg_ntls}"
-        echo -e "————————————————————————————————————"
+        MSG+="————————————————————————————————————\n"
+        MSG+="               VMESS\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="Remarks        : ${user}\n"
+        MSG+="CITY           : ${city}\n"
+        MSG+="ISP            : ${isp}\n"
+        MSG+="Domain         : ${domain}\n"
+        MSG+="Port TLS       : 443\n"
+        MSG+="Port none TLS  : 80\n"
+        MSG+="id             : ${uuid}\n"
+        MSG+="alterId        : 0\n"
+        MSG+="Security       : auto\n"
+        MSG+="network        : ws, grpc, upgrade\n"
+        MSG+="path ws        : /vmess\n"
+        MSG+="serviceName    : vmess-grpc\n"
+        MSG+="path upgrade   : /vmess-upg\n"
+        MSG+="Limit IP       : ${limit} IP\n"
+        MSG+="Quota Bandwidth: ${str_quota}\n"
+        MSG+="Usage Bandwidth: ${usage} GB\n"
+        MSG+="Expired On     : ${exp}\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="           VMESS WS TLS\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="${link_ws_tls}\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="          VMESS WS NO TLS\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="${link_ws_ntls}\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="             VMESS GRPC\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="${link_grpc_tls}\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="         VMESS Upgrade TLS\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="${link_upg_tls}\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="        VMESS Upgrade NO TLS\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="${link_upg_ntls}\n"
+        MSG+="————————————————————————————————————\n"
     elif [[ "$proto" == "VLESS" ]]; then
-        echo -e "————————————————————————————————————"
-        echo -e "               VLESS"
-        echo -e "————————————————————————————————————"
-        echo -e "Remarks        : ${user}"
-        echo -e "CITY           : ${city}"
-        echo -e "ISP            : ${isp}"
-        echo -e "Domain         : ${domain}"
-        echo -e "Port TLS       : 443"
-        echo -e "Port none TLS  : 80"
-        echo -e "id             : ${uuid}"
-        echo -e "Encryption     : none"
-        echo -e "Network        : ws, grpc, upgrade"
-        echo -e "Path ws        : /vless"
-        echo -e "serviceName    : vless-grpc"
-        echo -e "Path upgrade   : /vless-upg"
-        echo -e "Limit IP       : ${limit} IP"
-        echo -e "Quota Bandwidth: ${str_quota}"
-        echo -e "Usage Bandwidth: ${usage} GB"
-        echo -e "Expired On     : ${exp}"
-        echo -e "————————————————————————————————————"
-        echo -e "            VLESS WS TLS"
-        echo -e "————————————————————————————————————"
-        echo -e "${link_ws_tls}"
-        echo -e "————————————————————————————————————"
-        echo -e "          VLESS WS NO TLS"
-        echo -e "————————————————————————————————————"
-        echo -e "${link_ws_ntls}"
-        echo -e "————————————————————————————————————"
-        echo -e "             VLESS GRPC"
-        echo -e "————————————————————————————————————"
-        echo -e "${link_grpc_tls}"
-        echo -e "————————————————————————————————————"
-        echo -e "          VLESS Upgrade TLS"
-        echo -e "————————————————————————————————————"
-        echo -e "${link_upg_tls}"
-        echo -e "————————————————————————————————————"
-        echo -e "        VLESS Upgrade NO TLS"
-        echo -e "————————————————————————————————————"
-        echo -e "${link_upg_ntls}"
-        echo -e "————————————————————————————————————"
+        MSG+="————————————————————————————————————\n"
+        MSG+="               VLESS\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="Remarks        : ${user}\n"
+        MSG+="CITY           : ${city}\n"
+        MSG+="ISP            : ${isp}\n"
+        MSG+="Domain         : ${domain}\n"
+        MSG+="Port TLS       : 443\n"
+        MSG+="Port none TLS  : 80\n"
+        MSG+="id             : ${uuid}\n"
+        MSG+="Encryption     : none\n"
+        MSG+="Network        : ws, grpc, upgrade\n"
+        MSG+="Path ws        : /vless\n"
+        MSG+="serviceName    : vless-grpc\n"
+        MSG+="Path upgrade   : /vless-upg\n"
+        MSG+="Limit IP       : ${limit} IP\n"
+        MSG+="Quota Bandwidth: ${str_quota}\n"
+        MSG+="Usage Bandwidth: ${usage} GB\n"
+        MSG+="Expired On     : ${exp}\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="            VLESS WS TLS\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="${link_ws_tls}\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="          VLESS WS NO TLS\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="${link_ws_ntls}\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="             VLESS GRPC\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="${link_grpc_tls}\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="          VLESS Upgrade TLS\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="${link_upg_tls}\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="        VLESS Upgrade NO TLS\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="${link_upg_ntls}\n"
+        MSG+="————————————————————————————————————\n"
     elif [[ "$proto" == "TROJAN" ]]; then
-        echo -e "————————————————————————————————————"
-        echo -e "               TROJAN"
-        echo -e "————————————————————————————————————"
-        echo -e "Remarks      : ${user}"
-        echo -e "CITY         : ${city}"
-        echo -e "ISP          : ${isp}"
-        echo -e "Domain       : ${domain}"
-        echo -e "Port         : 443"
-        echo -e "Key          : ${uuid}"
-        echo -e "Network      : ws, grpc, upgrade"
-        echo -e "Path ws      : /trojan"
-        echo -e "serviceName  : trojan-grpc"
-        echo -e "Path upgrade : /trojan-upg"
-        echo -e "Limit IP     : ${limit} IP"
-        echo -e "Quota Limit  : ${str_quota}"
-        echo -e "Usage Traffic: ${usage} GB"
-        echo -e "Expired On   : ${exp}"
-        echo -e "————————————————————————————————————"
-        echo -e "           TROJAN WS TLS"
-        echo -e "————————————————————————————————————"
-        echo -e "${link_ws_tls}"
-        echo -e "————————————————————————————————————"
-        echo -e "            TROJAN GRPC"
-        echo -e "————————————————————————————————————"
-        echo -e "${link_grpc_tls}"
-        echo -e "————————————————————————————————————"
-        echo -e "         TROJAN Upgrade TLS"
-        echo -e "————————————————————————————————————"
-        echo -e "${link_upg_tls}"
-        echo -e "——————————"
-        echo -e "——————————————————————————"
+        MSG+="————————————————————————————————————\n"
+        MSG+="               TROJAN\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="Remarks      : ${user}\n"
+        MSG+="CITY         : ${city}\n"
+        MSG+="ISP          : ${isp}\n"
+        MSG+="Domain       : ${domain}\n"
+        MSG+="Port         : 443\n"
+        MSG+="Key          : ${uuid}\n"
+        MSG+="Network      : ws, grpc, upgrade\n"
+        MSG+="Path ws      : /trojan\n"
+        MSG+="serviceName  : trojan-grpc\n"
+        MSG+="Path upgrade : /trojan-upg\n"
+        MSG+="Limit IP     : ${limit} IP\n"
+        MSG+="Quota Limit  : ${str_quota}\n"
+        MSG+="Usage Traffic: ${usage} GB\n"
+        MSG+="Expired On   : ${exp}\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="           TROJAN WS TLS\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="${link_ws_tls}\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="            TROJAN GRPC\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="${link_grpc_tls}\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="         TROJAN Upgrade TLS\n"
+        MSG+="————————————————————————————————————\n"
+        MSG+="${link_upg_tls}\n"
+        MSG+="——————————\n"
+        MSG+="——————————————————————————\n"
     fi
+    echo -e "$MSG"
+    send_tele "$MSG"
     echo ""
     read -n 1 -s -r -p "Tekan enter untuk kembali..."
 }
@@ -448,20 +538,27 @@ function show_account_zivpn() {
     local pass=$1; local domain=$2; local exp=$3
     local isp=$(cat /root/tendo/isp); local city=$(cat /root/tendo/city); local ip=$(cat /root/tendo/ip)
 
-    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo -e "  ACCOUNT ZIVPN UDP"
-    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo -e "Password   : ${pass}"
-    echo -e "CITY       : ${city}"
-    echo -e "ISP        : ${isp}"
-    echo -e "IP ISP     : ${ip}"
-    echo -e "Domain     : ${domain}"
-    echo -e "Expired On : ${exp}"
-    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    local MSG=""
+    MSG+="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    MSG+="  ACCOUNT ZIVPN UDP\n"
+    MSG+="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    MSG+="Password   : ${pass}\n"
+    MSG+="CITY       : ${city}\n"
+    MSG+="ISP        : ${isp}\n"
+    MSG+="IP ISP     : ${ip}\n"
+    MSG+="Domain     : ${domain}\n"
+    MSG+="Expired On : ${exp}\n"
+    MSG+="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    
+    echo -e "$MSG"
+    send_tele "$MSG"
     echo ""
     read -n 1 -s -r -p "Tekan enter untuk kembali..."
 }
 
+# ---------------------------------------------
+# FUNGSI HEADER & DASHBOARD UTAMA
+# ---------------------------------------------
 function header_main() {
     clear; DOMAIN=$(cat /usr/local/etc/xray/domain); OS=$(cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/PRETTY_NAME="//g' | sed 's/"//g')
     RAM=$(free -m | awk '/Mem:/ {print $2}'); SWAP=$(free -m | awk '/Swap:/ {print $2}'); IP=$(cat /root/tendo/ip)
@@ -470,11 +567,15 @@ function header_main() {
     ISP=$(cat /root/tendo/isp)
     UPTIME=$(uptime -p | sed 's/up //')
     
-    # Traffic Calculation
-    RX_DAY=$(vnstat -d -i $IFACE --oneline | awk -F';' '{print $4}')
-    TX_DAY=$(vnstat -d -i $IFACE --oneline | awk -F';' '{print $5}')
-    RX_MON=$(vnstat -m -i $IFACE --oneline | awk -F';' '{print $9}')
-    TX_MON=$(vnstat -m -i $IFACE --oneline | awk -F';' '{print $10}')
+    # Traffic Calculation (Detailed)
+    MONTH_NAME=$(date +%B)
+    DAY_NAME=$(date +%A)
+    RX_DAY=$(vnstat -d -i $IFACE --oneline | awk -F';' '{print $4}' 2>/dev/null || echo "0 B")
+    TX_DAY=$(vnstat -d -i $IFACE --oneline | awk -F';' '{print $5}' 2>/dev/null || echo "0 B")
+    TOT_DAY=$(vnstat -d -i $IFACE --oneline | awk -F';' '{print $6}' 2>/dev/null || echo "0 B")
+    RX_MON=$(vnstat -m -i $IFACE --oneline | awk -F';' '{print $9}' 2>/dev/null || echo "0 B")
+    TX_MON=$(vnstat -m -i $IFACE --oneline | awk -F';' '{print $10}' 2>/dev/null || echo "0 B")
+    TOT_MON=$(vnstat -m -i $IFACE --oneline | awk -F';' '{print $11}' 2>/dev/null || echo "0 B")
     
     R1=$(cat /sys/class/net/$IFACE/statistics/rx_bytes); T1=$(cat /sys/class/net/$IFACE/statistics/tx_bytes); sleep 0.4
     R2=$(cat /sys/class/net/$IFACE/statistics/rx_bytes); T2=$(cat /sys/class/net/$IFACE/statistics/tx_bytes)
@@ -498,9 +599,14 @@ function header_main() {
     printf "${CYAN}│${NC} DOMAIN  : ${YELLOW}%-s${NC}\n" "$DOMAIN"
     printf "${CYAN}│${NC} UPTIME  : ${WHITE}%-s${NC}\n" "$UPTIME"
     echo -e "${CYAN}├───────────────────────────────────────────────────────${NC}"
-    echo -e "${CYAN}│${NC} ${PURPLE}TODAY${NC}   : ${GREEN}RX:${NC} $RX_DAY ${CYAN}|${NC} ${RED}TX:${NC} $TX_DAY"
-    echo -e "${CYAN}│${NC} ${PURPLE}MONTH${NC}   : ${GREEN}RX:${NC} $RX_MON ${CYAN}|${NC} ${RED}TX:${NC} $TX_MON"
-    printf "${CYAN}│${NC} ${PURPLE}SPEED${NC}   : ${WHITE}%-s${NC}\n" "$TRAFFIC Mbit/s"
+    echo -e "${CYAN}│${NC}  MONTH   : $TOT_MON   [$MONTH_NAME]"
+    echo -e "${CYAN}│${NC}   RX      : $RX_MON"
+    echo -e "${CYAN}│${NC}   TX      : $TX_MON"
+    echo -e "${CYAN}│${NC}  —————————————————————————————————————"
+    echo -e "${CYAN}│${NC}  DAY     : $TOT_DAY    [$DAY_NAME]"
+    echo -e "${CYAN}│${NC}   RX      : $RX_DAY"
+    echo -e "${CYAN}│${NC}   TX      : $TX_DAY"
+    echo -e "${CYAN}│${NC}   TRAFFIC : $TRAFFIC Mbit/s"
     echo -e "${CYAN}├───────────────────────────────────────────────────────${NC}"
     
     if systemctl is-active --quiet xray; then X_ST="${GREEN}ON${NC}"; else X_ST="${RED}OFF${NC}"; fi
@@ -527,6 +633,72 @@ function header_sub() {
     echo -e "${CYAN}└───────────────────────────────────────────────────────${NC}"
 }
 
+# ---------------------------------------------
+# MENU TELEGRAM BOT SETUP
+# ---------------------------------------------
+function menu_login_notif() {
+    while true; do header_sub
+        local st=$(cat /etc/tendo_bot/log_stat 2>/dev/null || echo "OFF")
+        echo -e " ————————————————————————————————————————"
+        echo -e "        Status [${st}]"
+        echo -e "   1.)  OFF"
+        echo -e "   2.)  Set Time Notif (h) untuk jam dan (m) untuk meniit"
+        echo -e "   x.)  Exit"
+        echo -e " ————————————————————————————————————————"
+        read -p " Pilihan: " opt2
+        case $opt2 in
+            1) echo "OFF" > /etc/tendo_bot/log_stat; crontab -l | grep -v "bot-login-notif" > /tmp/c.tmp; crontab /tmp/c.tmp; echo -e "${GREEN}Turned OFF${NC}"; sleep 1;;
+            2) read -p " Durasi (e.g., 10m, 1h): " dur; 
+               if [[ "$dur" == *m ]]; then c="*/${dur%m} * * * *"; elif [[ "$dur" == *h ]]; then c="0 */${dur%h} * * *"; else echo "Invalid"; sleep 1; continue; fi
+               echo "ON (${dur})" > /etc/tendo_bot/log_stat
+               crontab -l | grep -v "bot-login-notif" > /tmp/c.tmp; echo "$c /usr/local/bin/bot-login-notif" >> /tmp/c.tmp; crontab /tmp/c.tmp
+               echo -e "${GREEN}Cron set to $dur${NC}"; sleep 1;;
+            x) return;;
+        esac
+    done
+}
+
+function menu_backup_notif() {
+    while true; do header_sub
+        local st=$(cat /etc/tendo_bot/bak_stat 2>/dev/null || echo "OFF")
+        echo -e " ————————————————————————————————————————"
+        echo -e "        Status [${st}]"
+        echo -e "   1.)  OFF"
+        echo -e "   2.)  Set Time Backup (h) untuk jam dan (m) untuk meniit"
+        echo -e "   x.)  Exit"
+        echo -e " ————————————————————————————————————————"
+        read -p " Pilihan: " opt3
+        case $opt3 in
+            1) echo "OFF" > /etc/tendo_bot/bak_stat; crontab -l | grep -v "bot-backup" > /tmp/c.tmp; crontab /tmp/c.tmp; echo -e "${GREEN}Turned OFF${NC}"; sleep 1;;
+            2) read -p " Durasi (e.g., 10m, 12h): " dur; 
+               if [[ "$dur" == *m ]]; then c="*/${dur%m} * * * *"; elif [[ "$dur" == *h ]]; then c="0 */${dur%h} * * *"; else echo "Invalid"; sleep 1; continue; fi
+               echo "ON (${dur})" > /etc/tendo_bot/bak_stat
+               crontab -l | grep -v "bot-backup" > /tmp/c.tmp; echo "$c /usr/local/bin/bot-backup" >> /tmp/c.tmp; crontab /tmp/c.tmp
+               echo -e "${GREEN}Cron set to $dur${NC}"; sleep 1;;
+            x) return;;
+        esac
+    done
+}
+
+function bot_menu() {
+    while true; do header_sub
+        local st_log=$(cat /etc/tendo_bot/log_stat 2>/dev/null || echo "OFF")
+        local st_bak=$(cat /etc/tendo_bot/bak_stat 2>/dev/null || echo "OFF")
+        echo -e "${CYAN}│${NC} [1] Change BOT API & CHATID"
+        echo -e "${CYAN}│${NC} [2] Set notifikasi User login"
+        echo -e "${CYAN}│${NC} [3] Set notifikasi backup"
+        echo -e "${CYAN}│${NC} [x] Back"
+        echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+        read -p " Select Menu : " opt
+        case $opt in
+            1) read -p " Bot Token: " bt; read -p " Chat ID: " ci; echo "$bt" > /etc/tendo_bot/bot_token; echo "$ci" > /etc/tendo_bot/chat_id; echo -e "${GREEN}Saved Successfully!${NC}"; sleep 1;;
+            2) menu_login_notif ;;
+            3) menu_backup_notif ;;
+            x) return;;
+        esac
+    done
+}
+
 function change_domain_menu() {
     header_sub
     echo -e "${YELLOW}WARNING: Mengganti domain akan memperbarui sertifikat SSL!${NC}"
@@ -541,6 +713,9 @@ function change_domain_menu() {
     sleep 2
 }
 
+# ---------------------------------------------
+# MENU FEATURES UTAMA & BACKUP/RESTORE
+# ---------------------------------------------
 function features_menu() {
     while true; do header_sub
         echo -e "${CYAN}│${NC} [1] Check Bandwidth (Vnstat)"
@@ -550,6 +725,8 @@ function features_menu() {
         echo -e "${CYAN}│${NC} [5] Clear Cache RAM"
         echo -e "${CYAN}│${NC} [6] Auto Reboot"
         echo -e "${CYAN}│${NC} [7] Information System"
+        echo -e "${CYAN}│${NC} [8] Backup Data VPS (Auto Link)"
+        echo -e "${CYAN}│${NC} [9] Restore Data VPS (Direct Link)"
         echo -e "${CYAN}│${NC} [x] Back"
         echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
@@ -561,6 +738,43 @@ function features_menu() {
             5) sync; echo 3 > /proc/sys/vm/drop_caches; echo -e "${GREEN}Cache Cleared!${NC}"; sleep 1;;
             6) echo -e "Set Auto Reboot (00:00 UTC)"; echo "0 0 * * * root reboot" > /etc/cron.d/autoreboot; service cron restart; echo -e "${GREEN}Done!${NC}"; sleep 1;;
             7) neofetch; read -p "Enter...";;
+            8) 
+               clear; echo -e "${YELLOW}Memproses Backup Data VPS...${NC}"
+               DATE=$(date +"%Y-%m-%d_%H-%M")
+               ZIP_FILE="/root/Backup_${DATE}.zip"
+               cd /
+               zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ >/dev/null 2>&1
+               cd - >/dev/null 2>&1
+               echo -e "${GREEN}File Backup tersimpan di VPS: ${ZIP_FILE}${NC}"
+               echo -e "${YELLOW}Mengunggah ke server cloud (Mencari Direct Link)...${NC}"
+               LINK=$(curl -s --upload-file $ZIP_FILE https://transfer.sh/Backup_${DATE}.zip)
+               echo -e "\n${CYAN}=================================================${NC}"
+               echo -e "${GREEN}Sukses! Simpan link di bawah ini untuk Restore:${NC}"
+               echo -e "${WHITE}${LINK}${NC}"
+               echo -e "${CYAN}=================================================${NC}\n"
+               read -p "Tekan Enter untuk kembali..."
+               ;;
+            9) 
+               clear; echo -e "${YELLOW}--- RESTORE DATA VPS ---${NC}"
+               echo -e "${RED}Warning: Data saat ini akan ditimpa dengan data dari Backup!${NC}"
+               read -p " Masukkan Link Direct Backup (.zip) : " link_res
+               if [[ -n "$link_res" ]]; then
+                   echo -e "${YELLOW}Mengunduh file backup...${NC}"
+                   wget -qO /root/restore.zip "$link_res"
+                   if [[ -f "/root/restore.zip" ]]; then
+                       echo -e "${YELLOW}Mengekstrak dan memulihkan data...${NC}"
+                       cd /
+                       unzip -o /root/restore.zip >/dev/null 2>&1
+                       cd - >/dev/null 2>&1
+                       rm -f /root/restore.zip
+                       systemctl restart xray zivpn
+                       echo -e "${GREEN}Restore Berhasil! Semua konfigurasi, sertifikat SSL, dan akun telah dipulihkan.${NC}"
+                   else
+                       echo -e "${RED}Gagal mengunduh file! Pastikan link direct yang dimasukkan valid.${NC}"
+                   fi
+               fi
+               read -p "Tekan Enter untuk kembali..."
+               ;;
             x) return;;
         esac
     done
@@ -736,9 +950,10 @@ function check_services() {
 
 while true; do header_main
     echo -e "${CYAN}│${NC} [1] VMESS ACCOUNT        [5] CHANGE DOMAIN VPS"
-    echo -e "${CYAN}│${NC} [2] VLESS ACCOUNT        [6] FEATURES"
+    echo -e "${CYAN}│${NC} [2] VLESS ACCOUNT        [6] FEATURES (Backup/Restore)"
     echo -e "${CYAN}│${NC} [3] TROJAN ACCOUNT       [7] CHECK SERVICES"
-    echo -e "${CYAN}│${NC} [4] ZIVPN UDP            [x] EXIT"
+    echo -e "${CYAN}│${NC} [4] ZIVPN UDP            [8] BOT TELEGRAM SETUP"
+    echo -e "${CYAN}│${NC} [x] EXIT"
     echo -e "${CYAN}────────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}│${NC}  Version   :  v18.02.26                  ${NC}"
@@ -750,7 +965,7 @@ while true; do header_main
     case $opt in
         1) vmess_menu ;; 2) vless_menu ;; 3) trojan_menu ;;
         4) zivpn_menu ;; 5) change_domain_menu ;; 6) features_menu ;;
-        7) check_services ;;
+        7) check_services ;; 8) bot_menu ;;
         x) exit ;;
     esac; done
 END_MENU
