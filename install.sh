@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==========================================================
 # Tendo-Script-Auto-Installer-X-ray-ZIVPN
-# FULL VERSION: AUTO CF + TLS + DROPBEAR 2019 + WS PROXY FIX + ZIVPN
+# FULL VERSION: AUTO CF + TLS + DROPBEAR 2019 + XRAY FIX + ZIVPN SEPARATED
 # ==========================================================
 
 # Memastikan eksekusi sebagai root
@@ -110,23 +110,16 @@ def handle_client(client_socket):
             return
 
         remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        remote_socket.connect(('127.0.0.1', 90)) # Arahkan ke Dropbear 2019
+        remote_socket.connect(('127.0.0.1', 90))
 
-        # Deteksi HTTP header
         if b"HTTP" in req or b"GET" in req or b"PATCH" in req or b"POST" in req:
-            # Kirim respons 101 ke client HTTP Custom
             client_socket.send(b'HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n')
-            
-            # Cari akhir dari SEMUA tumpukan header HTTP menggunakan rfind (mencari \r\n\r\n paling terakhir)
             idx = req.rfind(b'\r\n\r\n')
             if idx != -1 and len(req) > idx + 4:
-                # Jika ada data SSH yang terselip setelah header HTTP, baru kirimkan ke Dropbear
                 tail = req[idx+4:]
                 if tail:
                     remote_socket.send(tail)
-            # Jika tidak ada data terselip, header HTTP dibuang sepenuhnya (Dropbear aman)
         else:
-            # Jika bukan HTTP (misal direct SSH), kirim utuh ke Dropbear
             remote_socket.send(req)
             
         def forward(src, dst):
@@ -178,11 +171,11 @@ systemctl daemon-reload
 systemctl enable ws-openssh
 systemctl restart ws-openssh
 
-# 7. Instalasi Xray Core
+# 7. Instalasi & Konfigurasi Xray Core
 echo "Menginstal Xray Core..."
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
 
-# Konfigurasi Xray dengan Path Sertifikat Asli
+# Konfigurasi Xray dengan Path Sertifikat Asli & Dummy UUID agar tidak crash
 cat > /usr/local/etc/xray/config.json << EOF
 {
   "log": { "access": "/var/log/xray/access.log", "error": "/var/log/xray/error.log", "loglevel": "warning" },
@@ -191,7 +184,12 @@ cat > /usr/local/etc/xray/config.json << EOF
       "port": 443,
       "protocol": "vless",
       "settings": {
-        "clients": [],
+        "clients": [
+          {
+            "id": "b831381d-6324-4d53-ad4f-8cda48b30811",
+            "email": "dummy@vless"
+          }
+        ],
         "decryption": "none",
         "fallbacks": [
           { "dest": 10015, "xver": 1 },
@@ -215,7 +213,7 @@ cat > /usr/local/etc/xray/config.json << EOF
       }
     },
     { "port": 10001, "listen": "127.0.0.1", "protocol": "vmess", "settings": { "clients": [] }, "streamSettings": { "network": "ws", "wsSettings": { "path": "/vmess" } } },
-    { "port": 10002, "listen": "127.0.0.1", "protocol": "vless", "settings": { "clients": [], "decryption": "none" }, "streamSettings": { "network": "ws", "wsSettings": { "path": "/vless" } } },
+    { "port": 10002, "listen": "127.0.0.1", "protocol": "vless", "settings": { "clients": [] }, "streamSettings": { "network": "ws", "wsSettings": { "path": "/vless" } } },
     { "port": 10003, "listen": "127.0.0.1", "protocol": "trojan", "settings": { "clients": [] }, "streamSettings": { "network": "ws", "wsSettings": { "path": "/trojan" } } }
   ],
   "outbounds": [ { "protocol": "freedom", "settings": {} } ]
@@ -271,7 +269,7 @@ iptables -t nat -A PREROUTING -p tcp --dport 2052 -j REDIRECT --to-port 10003
 iptables -t nat -A PREROUTING -p tcp --dport 2053 -j REDIRECT --to-port 10003
 netfilter-persistent save &>/dev/null
 
-# 11. GENERATE MENU BUILDER (Tanpa UDP Custom)
+# 11. GENERATE MENU BUILDER DENGAN FUNGSI XRAY INJECTOR & ZIVPN TERPISAH
 echo "Membangun Panel Menu Manager..."
 cat > /usr/local/bin/menu << 'EOF'
 #!/bin/bash
@@ -289,7 +287,7 @@ domain=$(cat /etc/xray/domain 2>/dev/null || echo "$IP")
 add_ssh() {
     clear
     echo -e "${CYAN}======================================${RESET}"
-    echo -e "${BOLD}        CREATE SSH & ZIVPN ACCOUNT    ${RESET}"
+    echo -e "${BOLD}          CREATE SSH ACCOUNT          ${RESET}"
     echo -e "${CYAN}======================================${RESET}"
     read -p "Username : " Login
     read -p "Password : " Pass
@@ -320,10 +318,38 @@ add_ssh() {
     echo -e "OHP + SSH      : 9080"
     echo -e "Squid Proxy    : 3128"
     echo -e "BadVPN UDPGW   : 7100-7600"
-    echo -e "${CYAN}ZIVPN UDP      : 6000-19999 (Routed to 5667)${RESET}"
     echo -e "${GREEN}======================================${RESET}"
     echo -e "Payload WS TLS :"
     echo -e "GET wss://bug.com/ HTTP/1.1[crlf]Host: $domain[crlf]Upgrade: websocket[crlf][crlf]"
+    echo -e "${GREEN}======================================${RESET}"
+    read -n 1 -s -r -p "Tekan tombol apa saja untuk kembali ke menu..."
+    menu
+}
+
+add_zivpn() {
+    clear
+    echo -e "${CYAN}======================================${RESET}"
+    echo -e "${BOLD}         CREATE ZIVPN ACCOUNT         ${RESET}"
+    echo -e "${CYAN}======================================${RESET}"
+    read -p "Username : " Login
+    read -p "Password : " Pass
+    read -p "Expired (Hari): " masaaktif
+
+    useradd -e `date -d "$masaaktif days" +"%Y-%m-%d"` -s /bin/false -M $Login
+    echo -e "$Pass\n$Pass\n"|passwd $Login &> /dev/null
+    
+    exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
+    
+    clear
+    echo -e "${GREEN}======================================${RESET}"
+    echo -e "${BOLD}           DETAIL AKUN ZIVPN          ${RESET}"
+    echo -e "${GREEN}======================================${RESET}"
+    echo -e "Host / IP      : $IP"
+    echo -e "Username       : $Login"
+    echo -e "Password       : $Pass"
+    echo -e "Expired Pada   : $exp"
+    echo -e "${YELLOW}--------------------------------------${RESET}"
+    echo -e "${CYAN}ZIVPN UDP PORT : 6000-19999${RESET}"
     echo -e "${GREEN}======================================${RESET}"
     read -n 1 -s -r -p "Tekan tombol apa saja untuk kembali ke menu..."
     menu
@@ -339,6 +365,11 @@ add_vmess() {
     
     uuid=$(cat /proc/sys/kernel/random/uuid)
     exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
+    
+    # Inject Xray Config
+    jq '.inbounds[1].settings.clients += [{"id": "'${uuid}'","alterId": 0,"email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
+    mv /usr/local/etc/xray/temp.json /usr/local/etc/xray/config.json
+    systemctl restart xray
     
     clear
     echo -e "${GREEN}======================================${RESET}"
@@ -374,6 +405,11 @@ add_vless() {
     
     uuid=$(cat /proc/sys/kernel/random/uuid)
     exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
+    
+    # Inject Xray Config
+    jq '.inbounds[2].settings.clients += [{"id": "'${uuid}'","email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
+    mv /usr/local/etc/xray/temp.json /usr/local/etc/xray/config.json
+    systemctl restart xray
     
     clear
     echo -e "${GREEN}======================================${RESET}"
@@ -411,6 +447,11 @@ add_trojan() {
     
     exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
     
+    # Inject Xray Config
+    jq '.inbounds[3].settings.clients += [{"password": "'${user}'","email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
+    mv /usr/local/etc/xray/temp.json /usr/local/etc/xray/config.json
+    systemctl restart xray
+    
     clear
     echo -e "${GREEN}======================================${RESET}"
     echo -e "${BOLD}           DETAIL AKUN TROJAN         ${RESET}"
@@ -425,7 +466,7 @@ add_trojan() {
     echo -e "Port TLS       : 443, 8443"
     echo -e "Port Any       : 2052, 2053, 8880"
     echo -e "${YELLOW}--------------------------------------${RESET}"
-    echo -e "Network        : ws (WebSocket) / tcp"
+    echo -e "Network        : ws (WebSocket)"
     echo -e "Path           : /trojan"
     echo -e "${GREEN}======================================${RESET}"
     echo -e "Link Trojan WS TLS:"
@@ -442,19 +483,21 @@ menu() {
     echo -e "${PURPLE}======================================${RESET}"
     echo -e "${BOLD}           PANEL MENU MANAGER         ${RESET}"
     echo -e "${PURPLE}======================================${RESET}"
-    echo -e "${CYAN}[1]${RESET} Create SSH / UDP / ZIVPN Account"
-    echo -e "${CYAN}[2]${RESET} Create VMESS WS Account"
-    echo -e "${CYAN}[3]${RESET} Create VLESS WS Account"
-    echo -e "${CYAN}[4]${RESET} Create TROJAN WS Account"
+    echo -e "${CYAN}[1]${RESET} Create SSH Account"
+    echo -e "${CYAN}[2]${RESET} Create ZIVPN Account"
+    echo -e "${CYAN}[3]${RESET} Create VMESS WS Account"
+    echo -e "${CYAN}[4]${RESET} Create VLESS WS Account"
+    echo -e "${CYAN}[5]${RESET} Create TROJAN WS Account"
     echo -e "${RED}[x]${RESET} Keluar"
     echo -e "${PURPLE}======================================${RESET}"
-    read -p "Pilih menu (1-4/x): " opt
+    read -p "Pilih menu (1-5/x): " opt
     
     case $opt in
         1) add_ssh ;;
-        2) add_vmess ;;
-        3) add_vless ;;
-        4) add_trojan ;;
+        2) add_zivpn ;;
+        3) add_vmess ;;
+        4) add_vless ;;
+        5) add_trojan ;;
         x) clear; exit 0 ;;
         *) echo -e "${RED}Pilihan tidak valid!${RESET}"; sleep 2; menu ;;
     esac
