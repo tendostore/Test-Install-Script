@@ -149,13 +149,13 @@ def handle_client(client_socket):
 
         req = client_socket.recv(8192)
         
-        # Logika Smart Handshake
+        # [FITUR TAMBAHAN] Logika Smart Handshake & Anti Crash Dropbear
         if b"HTTP" in req or b"GET" in req or b"CONNECT" in req:
             client_socket.send(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
-            # Jika ada payload terselip di paket pertama (jarang terjadi di HTTP Custom tapi antisipasi)
-            parts = req.split(b"\r\n\r\n")
-            if len(parts) > 1 and parts[1]:
-                 remote_socket.send(parts[1])
+            # Hanya ekstrak dan teruskan bagian protokol SSH jika ada, buang sisa header HTTP Custom
+            if b"SSH-" in req:
+                ssh_index = req.find(b"SSH-")
+                remote_socket.send(req[ssh_index:])
         else:
             # Jika koneksi direct/non-http
             remote_socket.send(req)
