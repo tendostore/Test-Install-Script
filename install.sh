@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==========================================================
 # Tendo-Script-Auto-Installer-X-ray-ZIVPN
-# FULL VERSION: AUTO CF + TLS + DROPBEAR 2019 + XRAY & SSH FIX + ZIVPN
+# FULL VERSION: FULL AUTO (NO ENTER) + XRAY FIX + UDP ZIVPN CORE
 # ==========================================================
 
 # Memastikan eksekusi sebagai root
@@ -174,9 +174,9 @@ systemctl restart ws-openssh
 
 # 7. Instalasi & Konfigurasi Xray Core
 echo "Menginstal Xray Core..."
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
+echo -e "\n" | bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
 
-# Penghapusan xver untuk mencegah crash pada forwarding Xray & Proxy
+# PERBAIKAN URUTAN FALLBACK XRAY AGAR TIDAK BENTROK
 cat > /usr/local/etc/xray/config.json << EOF
 {
   "log": { "access": "/var/log/xray/access.log", "error": "/var/log/xray/error.log", "loglevel": "warning" },
@@ -193,11 +193,11 @@ cat > /usr/local/etc/xray/config.json << EOF
         ],
         "decryption": "none",
         "fallbacks": [
-          { "dest": 10015 },
           { "path": "/vmess", "dest": 10001 },
           { "path": "/vless", "dest": 10002 },
           { "path": "/trojan", "dest": 10003 },
-          { "path": "/sshws", "dest": 10015 }
+          { "path": "/sshws", "dest": 10015 },
+          { "dest": 10015 }
         ]
       },
       "streamSettings": { 
@@ -256,7 +256,32 @@ systemctl enable badvpn-${port} &>/dev/null
 systemctl start badvpn-${port} &>/dev/null
 done
 
-# 10. Routing Port Tambahan dengan IPtables (NAT PREROUTING)
+# ==========================================================
+# 10. INSTALASI CORE ZIVPN / UDP CUSTOM SERVER
+# ==========================================================
+echo "Menginstal ZIVPN / UDP Custom Server (Port 5667)..."
+wget -qO /usr/local/bin/udp-custom "https://github.com/Rerechan02/UDP/raw/main/udp-custom-linux-amd64"
+chmod +x /usr/local/bin/udp-custom
+cat > /etc/systemd/system/udp-custom.service << EOF
+[Unit]
+Description=ZIVPN UDP Custom Proxy
+After=network.target
+
+[Service]
+Type=simple
+User=root
+# Mengarahkan trafik UDP 5667 ke port 90 (Dropbear) untuk autentikasi
+ExecStart=/usr/local/bin/udp-custom server -l :5667 -t 127.0.0.1:90
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl enable udp-custom &>/dev/null
+systemctl start udp-custom &>/dev/null
+
+# 11. Routing Port Tambahan dengan IPtables (NAT PREROUTING)
 echo "Mengonfigurasi NAT IPtables untuk Port Custom..."
 iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 10015
 iptables -t nat -A PREROUTING -p tcp --dport 8080 -j REDIRECT --to-port 10015
@@ -270,7 +295,7 @@ iptables -t nat -A PREROUTING -p tcp --dport 2052 -j REDIRECT --to-port 10003
 iptables -t nat -A PREROUTING -p tcp --dport 2053 -j REDIRECT --to-port 10003
 netfilter-persistent save &>/dev/null
 
-# 11. GENERATE MENU BUILDER
+# 12. GENERATE MENU BUILDER
 echo "Membangun Panel Menu Manager..."
 cat > /usr/local/bin/menu << 'EOF'
 #!/bin/bash
@@ -332,10 +357,12 @@ add_zivpn() {
     echo -e "${CYAN}======================================${RESET}"
     echo -e "${BOLD}         CREATE ZIVPN ACCOUNT         ${RESET}"
     echo -e "${CYAN}======================================${RESET}"
-    read -p "Username : " Login
-    read -p "Password : " Pass
-    read -p "Expired (Hari): " masaaktif
+    # ZIVPN khusus HANYA INPUT PASSWORD sesuai permintaan
+    read -p "Password ZIVPN : " Pass
+    read -p "Expired (Hari) : " masaaktif
 
+    # Password dijadikan sekaligus username di sistem backend Linux
+    Login="$Pass"
     useradd -e `date -d "$masaaktif days" +"%Y-%m-%d"` -s /bin/false -M $Login
     echo -e "$Pass\n$Pass\n"|passwd $Login &> /dev/null
     
@@ -346,7 +373,6 @@ add_zivpn() {
     echo -e "${BOLD}           DETAIL AKUN ZIVPN          ${RESET}"
     echo -e "${GREEN}======================================${RESET}"
     echo -e "Host / IP      : $IP"
-    echo -e "Username       : $Login"
     echo -e "Password       : $Pass"
     echo -e "Expired Pada   : $exp"
     echo -e "${YELLOW}--------------------------------------${RESET}"
@@ -487,6 +513,9 @@ menu() {
     echo -e "${CYAN}[4]${RESET} Create VLESS WS Account"
     echo -e "${CYAN}[5]${RESET} Create TROJAN WS Account"
     echo -e "${RED}[x]${RESET} Keluar"
+    echo -e "${PURPLE}======================================${RESET}"
+    echo -e "${GRAY}Tendo Store - Premium Script${RESET}"
+    echo -e "${GRAY}Telegram: @tendo_32 | WA: 6282224460678${RESET}"
     echo -e "${PURPLE}======================================${RESET}"
     read -p "Pilih menu (1-5/x): " opt
     
