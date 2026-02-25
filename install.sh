@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==========================================================
 # Tendo-Script-Auto-Installer-X-ray-ZIVPN
-# FULL VERSION: AUTO CF + TLS + DROPBEAR 2019 + XRAY & SSH FIX (NO UDP CUSTOM)
+# FULL VERSION: AUTO CF + TLS + DROPBEAR 2019 + XRAY MULTIPLEXER + ZIVPN
 # ==========================================================
 
 # Memastikan eksekusi sebagai root
@@ -102,7 +102,7 @@ echo "/usr/sbin/nologin" >> /etc/shells
 systemctl daemon-reload
 systemctl restart dropbear
 
-# 6. Instalasi & Konfigurasi SSH WebSocket Proxy (Fix Premature Close)
+# 6. Instalasi & Konfigurasi SSH WebSocket Proxy (Fix Premature Close Final)
 echo "Menginstal SSH WebSocket Proxy Premium..."
 cat > /usr/local/bin/ws-openssh.py << 'EOF'
 #!/usr/bin/python3
@@ -111,7 +111,7 @@ import socket, threading
 def forward(src, dst):
     try:
         while True:
-            data = src.recv(4096)
+            data = src.recv(8192)
             if not data: break
             dst.send(data)
     except: pass
@@ -129,15 +129,11 @@ def handle_client(client_socket):
         remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         remote_socket.connect(('127.0.0.1', 90))
 
-        # Deteksi Header HTTP secara bersih dan buang
-        if b"\r\n\r\n" in req:
-            headers, payload = req.split(b"\r\n\r\n", 1)
-            if b"HTTP" in headers or b"Upgrade: websocket" in headers.lower():
-                client_socket.send(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
-                if payload:
-                    remote_socket.send(payload)
-            else:
-                remote_socket.send(req)
+        if b"HTTP" in req or b"Upgrade: websocket" in req:
+            client_socket.send(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
+            if b"SSH-" in req:
+                idx = req.find(b"SSH-")
+                remote_socket.send(req[idx:])
         else:
             remote_socket.send(req)
 
@@ -179,7 +175,7 @@ systemctl daemon-reload
 systemctl enable ws-openssh
 systemctl restart ws-openssh
 
-# 7. Instalasi & Konfigurasi Xray Core (FIX DECRYPTION NONE DI SEMUA VLESS)
+# 7. Instalasi & Konfigurasi Xray Core MULTIPLEXER (PORT 443, 80, 8080)
 echo "Menginstal Xray Core..."
 echo -e "\n" | bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
 
@@ -191,33 +187,49 @@ cat > /usr/local/etc/xray/config.json << EOF
       "port": 443,
       "protocol": "vless",
       "settings": {
-        "clients": [
-          {
-            "id": "b831381d-6324-4d53-ad4f-8cda48b30811",
-            "email": "dummy@vless"
-          }
-        ],
+        "clients": [{"id": "b831381d-6324-4d53-ad4f-8cda48b30811", "email": "dummy@vless"}],
         "decryption": "none",
         "fallbacks": [
           { "path": "/vmess", "dest": 10001 },
           { "path": "/vless", "dest": 10002 },
           { "path": "/trojan", "dest": 10003 },
-          { "path": "/sshws", "dest": 10015 },
           { "dest": 10015 }
         ]
       },
       "streamSettings": { 
-        "network": "tcp", 
-        "security": "tls", 
-        "tlsSettings": { 
-          "certificates": [ 
-            { 
-              "certificateFile": "/etc/xray/xray.crt", 
-              "keyFile": "/etc/xray/xray.key" 
-            } 
-          ] 
-        } 
+        "network": "tcp", "security": "tls", 
+        "tlsSettings": { "certificates": [ { "certificateFile": "/etc/xray/xray.crt", "keyFile": "/etc/xray/xray.key" } ] } 
       }
+    },
+    {
+      "port": 80,
+      "protocol": "vless",
+      "settings": {
+        "clients": [{"id": "b831381d-6324-4d53-ad4f-8cda48b30811", "email": "dummy@vless"}],
+        "decryption": "none",
+        "fallbacks": [
+          { "path": "/vmess", "dest": 10001 },
+          { "path": "/vless", "dest": 10002 },
+          { "path": "/trojan", "dest": 10003 },
+          { "dest": 10015 }
+        ]
+      },
+      "streamSettings": { "network": "tcp", "security": "none" }
+    },
+    {
+      "port": 8080,
+      "protocol": "vless",
+      "settings": {
+        "clients": [{"id": "b831381d-6324-4d53-ad4f-8cda48b30811", "email": "dummy@vless"}],
+        "decryption": "none",
+        "fallbacks": [
+          { "path": "/vmess", "dest": 10001 },
+          { "path": "/vless", "dest": 10002 },
+          { "path": "/trojan", "dest": 10003 },
+          { "dest": 10015 }
+        ]
+      },
+      "streamSettings": { "network": "tcp", "security": "none" }
     },
     { "port": 10001, "listen": "127.0.0.1", "protocol": "vmess", "settings": { "clients": [] }, "streamSettings": { "network": "ws", "wsSettings": { "path": "/vmess" } } },
     { "port": 10002, "listen": "127.0.0.1", "protocol": "vless", "settings": { "clients": [], "decryption": "none" }, "streamSettings": { "network": "ws", "wsSettings": { "path": "/vless" } } },
@@ -238,8 +250,8 @@ http_access deny all
 EOF
 systemctl restart squid
 
-# 9. Instalasi BadVPN UDPGW (7100-7600)
-echo "Menginstal BadVPN..."
+# 9. Instalasi BadVPN UDPGW (7100-7600) & (5667 KHUSUS ZIVPN)
+echo "Menginstal BadVPN & ZIVPN Backend..."
 cd /usr/local/src
 wget -q https://github.com/ambrop72/badvpn/archive/master.zip
 unzip -q master.zip
@@ -247,6 +259,8 @@ cd badvpn-master
 mkdir build && cd build
 cmake .. -DBUILD_NOTHING_BY_DEFAULT=1 -DBUILD_UDPGW=1 &>/dev/null
 make install &>/dev/null
+
+# Port BadVPN Biasa
 for port in 7100 7200 7300 7400 7500 7600; do
 cat > /etc/systemd/system/badvpn-${port}.service << EOF
 [Unit]
@@ -262,21 +276,31 @@ systemctl enable badvpn-${port} &>/dev/null
 systemctl start badvpn-${port} &>/dev/null
 done
 
+# BACKEND KHUSUS ZIVPN DI PORT 5667 (Untuk menerima trafik dari iptables Anda)
+cat > /etc/systemd/system/badvpn-5667.service << EOF
+[Unit]
+Description=BadVPN UDPGW Port 5667 for ZIVPN
+After=network.target
+[Service]
+ExecStart=/usr/local/bin/badvpn-udpgw --listen-addr 127.0.0.1:5667 --max-clients 1000
+Restart=always
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl enable badvpn-5667 &>/dev/null
+systemctl start badvpn-5667 &>/dev/null
+
 # 10. Routing Port Tambahan dengan IPtables (NAT PREROUTING)
 echo "Mengonfigurasi NAT IPtables untuk Port Custom..."
-iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 10015
-iptables -t nat -A PREROUTING -p tcp --dport 8080 -j REDIRECT --to-port 10015
-iptables -t nat -A PREROUTING -p tcp --dport 2082 -j REDIRECT --to-port 10015
-iptables -t nat -A PREROUTING -p tcp --dport 2083 -j REDIRECT --to-port 10015
-iptables -t nat -A PREROUTING -p tcp --dport 8880 -j REDIRECT --to-port 10015
+iptables -t nat -A PREROUTING -p tcp --dport 8443 -j REDIRECT --to-port 443
+iptables -t nat -A PREROUTING -p tcp --dport 2082 -j REDIRECT --to-port 80
+iptables -t nat -A PREROUTING -p tcp --dport 2083 -j REDIRECT --to-port 80
+iptables -t nat -A PREROUTING -p tcp --dport 8880 -j REDIRECT --to-port 80
 iptables -t nat -A PREROUTING -p tcp --dport 9080 -j REDIRECT --to-port 90
 iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-port 5300
-iptables -t nat -A PREROUTING -p udp --dport 5300 -j REDIRECT --to-port 5300
-iptables -t nat -A PREROUTING -p tcp --dport 2052 -j REDIRECT --to-port 10003
-iptables -t nat -A PREROUTING -p tcp --dport 2053 -j REDIRECT --to-port 10003
 netfilter-persistent save &>/dev/null
 
-# 11. GENERATE MENU BUILDER
+# 11. GENERATE MENU BUILDER (DENGAN INDEKS JQ YANG BENAR)
 echo "Membangun Panel Menu Manager..."
 cat > /usr/local/bin/menu << 'EOF'
 #!/bin/bash
@@ -338,11 +362,9 @@ add_zivpn() {
     echo -e "${CYAN}======================================${RESET}"
     echo -e "${BOLD}         CREATE ZIVPN ACCOUNT         ${RESET}"
     echo -e "${CYAN}======================================${RESET}"
-    # Mode khusus ZIVPN: Client hanya memasukkan password
     read -p "Password ZIVPN : " Pass
     read -p "Expired (Hari) : " masaaktif
 
-    # Password di-clone menjadi username secara sistem
     Login="$Pass"
     useradd -e `date -d "$masaaktif days" +"%Y-%m-%d"` -s /bin/false -M "$Login"
     echo -e "$Pass\n$Pass\n"|passwd "$Login" &> /dev/null
@@ -374,7 +396,7 @@ add_vmess() {
     uuid=$(cat /proc/sys/kernel/random/uuid)
     exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
     
-    jq '.inbounds[1].settings.clients += [{"id": "'${uuid}'","alterId": 0,"email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
+    jq '.inbounds[3].settings.clients += [{"id": "'${uuid}'","alterId": 0,"email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
     mv /usr/local/etc/xray/temp.json /usr/local/etc/xray/config.json
     systemctl restart xray
     
@@ -413,7 +435,7 @@ add_vless() {
     uuid=$(cat /proc/sys/kernel/random/uuid)
     exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
     
-    jq '.inbounds[2].settings.clients += [{"id": "'${uuid}'","email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
+    jq '.inbounds[4].settings.clients += [{"id": "'${uuid}'","email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
     mv /usr/local/etc/xray/temp.json /usr/local/etc/xray/config.json
     systemctl restart xray
     
@@ -453,7 +475,7 @@ add_trojan() {
     
     exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
     
-    jq '.inbounds[3].settings.clients += [{"password": "'${user}'","email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
+    jq '.inbounds[5].settings.clients += [{"password": "'${user}'","email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
     mv /usr/local/etc/xray/temp.json /usr/local/etc/xray/config.json
     systemctl restart xray
     
