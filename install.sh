@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==========================================================
 # Tendo-Script-Auto-Installer-X-ray-ZIVPN
-# FULL VERSION: FULL AUTO (NO ENTER) + XRAY FIX + UDP ZIVPN CORE
+# FULL VERSION: AUTO CF + TLS + DROPBEAR 2019 + XRAY & SSH FIX (NO UDP CUSTOM)
 # ==========================================================
 
 # Memastikan eksekusi sebagai root
@@ -65,6 +65,9 @@ curl https://get.acme.sh | sh
 ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
 ~/.acme.sh/acme.sh --installcert -d ${domain} --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
 
+# Fix Akses Sertifikat untuk User 'nobody'
+chown -R nobody:nogroup /etc/xray
+chmod -R 755 /etc/xray
 chmod 644 /etc/xray/xray.crt /etc/xray/xray.key
 
 # 4. Konfigurasi OpenSSH (Port 22, 444)
@@ -99,11 +102,22 @@ echo "/usr/sbin/nologin" >> /etc/shells
 systemctl daemon-reload
 systemctl restart dropbear
 
-# 6. Instalasi & Konfigurasi SSH WebSocket Proxy (Solid Fix)
+# 6. Instalasi & Konfigurasi SSH WebSocket Proxy (Fix Premature Close)
 echo "Menginstal SSH WebSocket Proxy Premium..."
 cat > /usr/local/bin/ws-openssh.py << 'EOF'
 #!/usr/bin/python3
 import socket, threading
+
+def forward(src, dst):
+    try:
+        while True:
+            data = src.recv(4096)
+            if not data: break
+            dst.send(data)
+    except: pass
+    finally:
+        src.close()
+        dst.close()
 
 def handle_client(client_socket):
     try:
@@ -115,25 +129,18 @@ def handle_client(client_socket):
         remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         remote_socket.connect(('127.0.0.1', 90))
 
-        if b"HTTP/" in req or b"GET " in req or b"PATCH " in req or b"POST " in req:
-            client_socket.send(b'HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n')
-            parts = req.split(b'\r\n\r\n')
-            if len(parts) > 1 and parts[-1]:
-                remote_socket.send(parts[-1])
+        # Deteksi Header HTTP secara bersih dan buang
+        if b"\r\n\r\n" in req:
+            headers, payload = req.split(b"\r\n\r\n", 1)
+            if b"HTTP" in headers or b"Upgrade: websocket" in headers.lower():
+                client_socket.send(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
+                if payload:
+                    remote_socket.send(payload)
+            else:
+                remote_socket.send(req)
         else:
             remote_socket.send(req)
-            
-        def forward(src, dst):
-            try:
-                while True:
-                    data = src.recv(4096)
-                    if not data: break
-                    dst.send(data)
-            except: pass
-            finally:
-                src.close()
-                dst.close()
-                
+
         threading.Thread(target=forward, args=(client_socket, remote_socket)).start()
         threading.Thread(target=forward, args=(remote_socket, client_socket)).start()
     except:
@@ -172,11 +179,10 @@ systemctl daemon-reload
 systemctl enable ws-openssh
 systemctl restart ws-openssh
 
-# 7. Instalasi & Konfigurasi Xray Core
+# 7. Instalasi & Konfigurasi Xray Core (FIX DECRYPTION NONE DI SEMUA VLESS)
 echo "Menginstal Xray Core..."
 echo -e "\n" | bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
 
-# PERBAIKAN URUTAN FALLBACK XRAY AGAR TIDAK BENTROK
 cat > /usr/local/etc/xray/config.json << EOF
 {
   "log": { "access": "/var/log/xray/access.log", "error": "/var/log/xray/error.log", "loglevel": "warning" },
@@ -214,7 +220,7 @@ cat > /usr/local/etc/xray/config.json << EOF
       }
     },
     { "port": 10001, "listen": "127.0.0.1", "protocol": "vmess", "settings": { "clients": [] }, "streamSettings": { "network": "ws", "wsSettings": { "path": "/vmess" } } },
-    { "port": 10002, "listen": "127.0.0.1", "protocol": "vless", "settings": { "clients": [] }, "streamSettings": { "network": "ws", "wsSettings": { "path": "/vless" } } },
+    { "port": 10002, "listen": "127.0.0.1", "protocol": "vless", "settings": { "clients": [], "decryption": "none" }, "streamSettings": { "network": "ws", "wsSettings": { "path": "/vless" } } },
     { "port": 10003, "listen": "127.0.0.1", "protocol": "trojan", "settings": { "clients": [] }, "streamSettings": { "network": "ws", "wsSettings": { "path": "/trojan" } } }
   ],
   "outbounds": [ { "protocol": "freedom", "settings": {} } ]
@@ -256,32 +262,7 @@ systemctl enable badvpn-${port} &>/dev/null
 systemctl start badvpn-${port} &>/dev/null
 done
 
-# ==========================================================
-# 10. INSTALASI CORE ZIVPN / UDP CUSTOM SERVER
-# ==========================================================
-echo "Menginstal ZIVPN / UDP Custom Server (Port 5667)..."
-wget -qO /usr/local/bin/udp-custom "https://github.com/Rerechan02/UDP/raw/main/udp-custom-linux-amd64"
-chmod +x /usr/local/bin/udp-custom
-cat > /etc/systemd/system/udp-custom.service << EOF
-[Unit]
-Description=ZIVPN UDP Custom Proxy
-After=network.target
-
-[Service]
-Type=simple
-User=root
-# Mengarahkan trafik UDP 5667 ke port 90 (Dropbear) untuk autentikasi
-ExecStart=/usr/local/bin/udp-custom server -l :5667 -t 127.0.0.1:90
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-EOF
-systemctl enable udp-custom &>/dev/null
-systemctl start udp-custom &>/dev/null
-
-# 11. Routing Port Tambahan dengan IPtables (NAT PREROUTING)
+# 10. Routing Port Tambahan dengan IPtables (NAT PREROUTING)
 echo "Mengonfigurasi NAT IPtables untuk Port Custom..."
 iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 10015
 iptables -t nat -A PREROUTING -p tcp --dport 8080 -j REDIRECT --to-port 10015
@@ -295,7 +276,7 @@ iptables -t nat -A PREROUTING -p tcp --dport 2052 -j REDIRECT --to-port 10003
 iptables -t nat -A PREROUTING -p tcp --dport 2053 -j REDIRECT --to-port 10003
 netfilter-persistent save &>/dev/null
 
-# 12. GENERATE MENU BUILDER
+# 11. GENERATE MENU BUILDER
 echo "Membangun Panel Menu Manager..."
 cat > /usr/local/bin/menu << 'EOF'
 #!/bin/bash
@@ -357,14 +338,14 @@ add_zivpn() {
     echo -e "${CYAN}======================================${RESET}"
     echo -e "${BOLD}         CREATE ZIVPN ACCOUNT         ${RESET}"
     echo -e "${CYAN}======================================${RESET}"
-    # ZIVPN khusus HANYA INPUT PASSWORD sesuai permintaan
+    # Mode khusus ZIVPN: Client hanya memasukkan password
     read -p "Password ZIVPN : " Pass
     read -p "Expired (Hari) : " masaaktif
 
-    # Password dijadikan sekaligus username di sistem backend Linux
+    # Password di-clone menjadi username secara sistem
     Login="$Pass"
-    useradd -e `date -d "$masaaktif days" +"%Y-%m-%d"` -s /bin/false -M $Login
-    echo -e "$Pass\n$Pass\n"|passwd $Login &> /dev/null
+    useradd -e `date -d "$masaaktif days" +"%Y-%m-%d"` -s /bin/false -M "$Login"
+    echo -e "$Pass\n$Pass\n"|passwd "$Login" &> /dev/null
     
     exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
     
