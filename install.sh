@@ -1,6 +1,7 @@
 #!/bin/bash
 # ==========================================================
-# FULL AUTO INSTALLER: SSH WS, XRAY (VMESS/VLESS/TROJAN), ZIVPN & MENU
+# Tendo-Script-Auto-Installer-X-ray-ZIVPN
+# FULL VERSION: DROPBEAR 2019 + PREMIUM WS PROXY + MENU
 # ==========================================================
 
 # Memastikan eksekusi sebagai root
@@ -9,11 +10,11 @@ if [ "${EUID}" -ne 0 ]; then
   exit 1
 fi
 
-echo -e "\033[1;32mMulai proses instalasi full VPN, Proxy, dan Panel Menu...\033[0m"
+echo -e "\033[1;32mMulai instalasi Tendo-Script (Versi Premium Proxy)...\033[0m"
 
 # 1. Update & Install Dependensi Utama
 apt-get update -y
-apt-get install -y wget curl iptables iptables-persistent netfilter-persistent dropbear squid stunnel4 ufw openssl coreutils net-tools python3 cmake make gcc build-essential zip unzip jq
+apt-get install -y wget curl iptables iptables-persistent netfilter-persistent squid stunnel4 ufw openssl coreutils net-tools python3 cmake make gcc build-essential zip unzip jq zlib1g-dev bzip2
 
 # 2. Konfigurasi OpenSSH (Port 22, 444)
 echo "Mengonfigurasi OpenSSH..."
@@ -23,64 +24,100 @@ if ! grep -q "Port 444" /etc/ssh/sshd_config; then
 fi
 systemctl restart ssh
 
-# 3. Konfigurasi Dropbear (Port 90)
-echo "Mengonfigurasi Dropbear..."
+# 3. Instalasi & Konfigurasi Dropbear 2019 (Compile from Source)
+echo "Menginstal Dropbear 2019..."
+apt-get install -y dropbear
+wget -qO dropbear-2019.81.tar.bz2 https://matt.ucc.asn.au/dropbear/releases/dropbear-2019.81.tar.bz2
+bzip2 -cd dropbear-2019.81.tar.bz2 | tar xvf - &>/dev/null
+cd dropbear-2019.81
+./configure &>/dev/null
+make &>/dev/null
+make install &>/dev/null
+mv /usr/local/sbin/dropbear /usr/sbin/dropbear
+cd ..
+rm -rf dropbear-2019.81 dropbear-2019.81.tar.bz2
+
 sed -i 's/NO_START=1/NO_START=0/g' /etc/default/dropbear
 sed -i 's/DROPBEAR_PORT=22/DROPBEAR_PORT=90/g' /etc/default/dropbear
 sed -i 's/DROPBEAR_EXTRA_ARGS=.*/DROPBEAR_EXTRA_ARGS="-p 109 -p 69"/g' /etc/default/dropbear
+echo "/bin/false" >> /etc/shells
+echo "/usr/sbin/nologin" >> /etc/shells
 systemctl restart dropbear
 
-# 4. Instalasi & Konfigurasi SSH WebSocket (Python Proxy)
-echo "Menginstal SSH WebSocket Proxy..."
+# 4. Instalasi & Konfigurasi SSH WebSocket (Premium Python Proxy)
+# Script ini mencegah header HTTP bocor ke Dropbear yang menyebabkan diskonek
+echo "Menginstal SSH WebSocket Proxy Premium..."
 cat > /usr/local/bin/ws-openssh.py << 'EOF'
-import socket, threading, sys
+#!/usr/bin/python3
+import socket, threading
+
 def handle_client(client_socket):
-    remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    remote_socket.connect(('127.0.0.1', 22))
-    client_socket.recv(1024)
-    client_socket.send(b'HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n')
-    def forward(source, destination):
-        try:
-            while True:
-                data = source.recv(4096)
-                if not data: break
-                destination.send(data)
-        except: pass
-    threading.Thread(target=forward, args=(client_socket, remote_socket)).start()
-    threading.Thread(target=forward, args=(remote_socket, client_socket)).start()
+    try:
+        remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        remote_socket.connect(('127.0.0.1', 90)) # Arahkan ke Dropbear
+        
+        req = client_socket.recv(8192)
+        payload = req.decode('utf-8', 'ignore').lower()
+        
+        # Merespons dengan HTTP 101 tanpa meneruskan header ke Dropbear
+        if 'upgrade: websocket' in payload or 'http/1.1' in payload:
+            client_socket.send(b'HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n')
+            
+        def forward(src, dst):
+            try:
+                while True:
+                    data = src.recv(4096)
+                    if not data: break
+                    dst.send(data)
+            except: pass
+            finally:
+                src.close()
+                dst.close()
+                
+        threading.Thread(target=forward, args=(client_socket, remote_socket)).start()
+        threading.Thread(target=forward, args=(remote_socket, client_socket)).start()
+    except:
+        client_socket.close()
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind(('127.0.0.1', 10015))
+server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+server.bind(('0.0.0.0', 10015))
 server.listen(100)
+
 while True:
-    client, addr = server.accept()
-    threading.Thread(target=handle_client, args=(client,)).start()
+    try:
+        client, addr = server.accept()
+        threading.Thread(target=handle_client, args=(client,)).start()
+    except: pass
 EOF
+
 chmod +x /usr/local/bin/ws-openssh.py
 
 cat > /etc/systemd/system/ws-openssh.service << 'EOF'
 [Unit]
-Description=Python WS OpenSSH Proxy
+Description=Python WS OpenSSH Proxy Premium
 After=network.target
 
 [Service]
 Type=simple
 ExecStart=/usr/bin/python3 /usr/local/bin/ws-openssh.py
 Restart=always
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl enable ws-openssh
-systemctl start ws-openssh
 
-# 5. Instalasi Xray Core (Menangani TLS 443, 8443, dll)
+systemctl daemon-reload
+systemctl enable ws-openssh
+systemctl restart ws-openssh
+
+# 5. Instalasi Xray Core
 echo "Menginstal Xray Core..."
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
 mkdir -p /usr/local/etc/xray/
 domain=$(curl -sS ifconfig.me)
 
-# Konfigurasi Xray untuk VMESS, VLESS, TROJAN, dan SSH-WS (Multiplexer)
 cat > /usr/local/etc/xray/config.json << EOF
 {
   "log": { "access": "/var/log/xray/access.log", "error": "/var/log/xray/error.log", "loglevel": "warning" },
@@ -92,7 +129,7 @@ cat > /usr/local/etc/xray/config.json << EOF
         "clients": [],
         "decryption": "none",
         "fallbacks": [
-          { "dest": 80, "xver": 1 },
+          { "dest": 10015, "xver": 1 },
           { "path": "/vmess", "dest": 10001, "xver": 1 },
           { "path": "/vless", "dest": 10002, "xver": 1 },
           { "path": "/trojan", "dest": 10003, "xver": 1 },
