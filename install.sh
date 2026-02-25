@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==========================================================
 # Tendo-Script-Auto-Installer-X-ray-ZIVPN
-# FULL VERSION: DROPBEAR 2019 + PREMIUM WS PROXY + MENU
+# FULL VERSION: AUTO CLOUDFLARE + TLS + DROPBEAR 2019 + ZIVPN
 # ==========================================================
 
 # Memastikan eksekusi sebagai root
@@ -10,13 +10,61 @@ if [ "${EUID}" -ne 0 ]; then
   exit 1
 fi
 
-echo -e "\033[1;32mMulai instalasi Tendo-Script (Versi Premium Proxy)...\033[0m"
+echo -e "\033[1;32mMulai instalasi Tendo-Script Premium...\033[0m"
 
 # 1. Update & Install Dependensi Utama
 apt-get update -y
-apt-get install -y wget curl iptables iptables-persistent netfilter-persistent squid stunnel4 ufw openssl coreutils net-tools python3 cmake make gcc build-essential zip unzip jq zlib1g-dev bzip2
+apt-get install -y wget curl iptables iptables-persistent netfilter-persistent squid ufw openssl coreutils net-tools python3 cmake make gcc build-essential zip unzip jq zlib1g-dev bzip2 socat cron
 
-# 2. Konfigurasi OpenSSH (Port 22, 444)
+# ==========================================================
+# 2. AUTO CLOUDFLARE DNS & GENERATE RANDOM DOMAIN
+# ==========================================================
+echo "Mengonfigurasi Domain & Cloudflare API..."
+CF_ID="mbuntoncity@gmail.com"
+CF_KEY="96bee4f14ef23e42c4509efc125c0eac5c02e"
+CF_ZONE_ID="14f2e85e62d1d73bf0ce1579f1c3300c"
+
+IP=$(curl -sS ifconfig.me)
+
+# Mengambil nama domain root dari Cloudflare Zone ID
+DOMAIN_ROOT=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}" \
+     -H "X-Auth-Email: ${CF_ID}" \
+     -H "X-Auth-Key: ${CF_KEY}" \
+     -H "Content-Type: application/json" | jq -r .result.name)
+
+if [ "$DOMAIN_ROOT" == "null" ] || [ -z "$DOMAIN_ROOT" ]; then
+    echo -e "\033[1;31mGagal mengambil nama domain dari Cloudflare. Periksa API Key / Zone ID.\033[0m"
+    exit 1
+fi
+
+# Generate Random Subdomain (5 karakter huruf & angka)
+RANDOM_STR=$(tr -dc a-z0-9 </dev/urandom | head -c 5)
+domain="vpn-${RANDOM_STR}.${DOMAIN_ROOT}"
+
+echo "Membuat DNS Record (A) untuk: ${domain} --> ${IP}"
+curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
+     -H "X-Auth-Email: ${CF_ID}" \
+     -H "X-Auth-Key: ${CF_KEY}" \
+     -H "Content-Type: application/json" \
+     --data '{"type":"A","name":"'${domain}'","content":"'${IP}'","ttl":120,"proxied":false}' > /dev/null
+
+mkdir -p /etc/xray
+echo "${domain}" > /etc/xray/domain
+
+# ==========================================================
+# 3. INSTALL SERTIFIKAT SSL/TLS ASLI (Let's Encrypt)
+# ==========================================================
+echo "Menginstal Sertifikat SSL/TLS resmi untuk ${domain}..."
+systemctl stop xray &>/dev/null
+curl https://get.acme.sh | sh
+~/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
+~/.acme.sh/acme.sh --installcert -d ${domain} --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
+
+# Fix Permission Xray (Solusi error "permission denied")
+chmod 644 /etc/xray/xray.crt /etc/xray/xray.key
+
+# 4. Konfigurasi OpenSSH (Port 22, 444)
 echo "Mengonfigurasi OpenSSH..."
 sed -i 's/#Port 22/Port 22/g' /etc/ssh/sshd_config
 if ! grep -q "Port 444" /etc/ssh/sshd_config; then
@@ -24,28 +72,31 @@ if ! grep -q "Port 444" /etc/ssh/sshd_config; then
 fi
 systemctl restart ssh
 
-# 3. Instalasi & Konfigurasi Dropbear 2019 (Compile from Source)
-echo "Menginstal Dropbear 2019..."
+# 5. Instalasi & Konfigurasi Dropbear 2019.78 (Compile from Source)
+echo "Menginstal Dropbear 2019.78..."
 apt-get install -y dropbear
-wget -qO dropbear-2019.81.tar.bz2 https://matt.ucc.asn.au/dropbear/releases/dropbear-2019.81.tar.bz2
-bzip2 -cd dropbear-2019.81.tar.bz2 | tar xvf - &>/dev/null
-cd dropbear-2019.81
+systemctl stop dropbear
+
+wget -qO dropbear-2019.78.tar.bz2 https://matt.ucc.asn.au/dropbear/releases/dropbear-2019.78.tar.bz2
+bzip2 -cd dropbear-2019.78.tar.bz2 | tar xvf - &>/dev/null
+cd dropbear-2019.78
 ./configure &>/dev/null
 make &>/dev/null
 make install &>/dev/null
+
 mv /usr/local/sbin/dropbear /usr/sbin/dropbear
 cd ..
-rm -rf dropbear-2019.81 dropbear-2019.81.tar.bz2
+rm -rf dropbear-2019.78 dropbear-2019.78.tar.bz2
 
 sed -i 's/NO_START=1/NO_START=0/g' /etc/default/dropbear
 sed -i 's/DROPBEAR_PORT=22/DROPBEAR_PORT=90/g' /etc/default/dropbear
 sed -i 's/DROPBEAR_EXTRA_ARGS=.*/DROPBEAR_EXTRA_ARGS="-p 109 -p 69"/g' /etc/default/dropbear
 echo "/bin/false" >> /etc/shells
 echo "/usr/sbin/nologin" >> /etc/shells
+systemctl daemon-reload
 systemctl restart dropbear
 
-# 4. Instalasi & Konfigurasi SSH WebSocket (Premium Python Proxy)
-# Script ini mencegah header HTTP bocor ke Dropbear yang menyebabkan diskonek
+# 6. Instalasi & Konfigurasi SSH WebSocket (Premium Python Proxy - Anti EOF Bug)
 echo "Menginstal SSH WebSocket Proxy Premium..."
 cat > /usr/local/bin/ws-openssh.py << 'EOF'
 #!/usr/bin/python3
@@ -54,14 +105,21 @@ import socket, threading
 def handle_client(client_socket):
     try:
         remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        remote_socket.connect(('127.0.0.1', 90)) # Arahkan ke Dropbear
+        remote_socket.connect(('127.0.0.1', 90)) # Arahkan ke Dropbear 2019
         
         req = client_socket.recv(8192)
-        payload = req.decode('utf-8', 'ignore').lower()
-        
-        # Merespons dengan HTTP 101 tanpa meneruskan header ke Dropbear
-        if 'upgrade: websocket' in payload or 'http/1.1' in payload:
+        if not req:
+            client_socket.close()
+            return
+
+        # Pisahkan Header HTTP dari Payload SSH agar tidak error EOF
+        if b"HTTP" in req or b"GET" in req or b"PATCH" in req or b"POST" in req:
             client_socket.send(b'HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n')
+            parts = req.split(b'\r\n\r\n', 1)
+            if len(parts) == 2 and len(parts[1]) > 0:
+                remote_socket.send(parts[1])
+        else:
+            remote_socket.send(req)
             
         def forward(src, dst):
             try:
@@ -112,12 +170,11 @@ systemctl daemon-reload
 systemctl enable ws-openssh
 systemctl restart ws-openssh
 
-# 5. Instalasi Xray Core
+# 7. Instalasi Xray Core
 echo "Menginstal Xray Core..."
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
-mkdir -p /usr/local/etc/xray/
-domain=$(curl -sS ifconfig.me)
 
+# Konfigurasi Xray dengan Path Sertifikat Asli
 cat > /usr/local/etc/xray/config.json << EOF
 {
   "log": { "access": "/var/log/xray/access.log", "error": "/var/log/xray/error.log", "loglevel": "warning" },
@@ -136,7 +193,18 @@ cat > /usr/local/etc/xray/config.json << EOF
           { "path": "/sshws", "dest": 10015, "xver": 1 }
         ]
       },
-      "streamSettings": { "network": "tcp", "security": "tls", "tlsSettings": { "certificates": [ { "certificateFile": "/etc/stunnel/stunnel.pem", "keyFile": "/etc/stunnel/stunnel.pem" } ] } }
+      "streamSettings": { 
+        "network": "tcp", 
+        "security": "tls", 
+        "tlsSettings": { 
+          "certificates": [ 
+            { 
+              "certificateFile": "/etc/xray/xray.crt", 
+              "keyFile": "/etc/xray/xray.key" 
+            } 
+          ] 
+        } 
+      }
     },
     { "port": 10001, "listen": "127.0.0.1", "protocol": "vmess", "settings": { "clients": [] }, "streamSettings": { "network": "ws", "wsSettings": { "path": "/vmess" } } },
     { "port": 10002, "listen": "127.0.0.1", "protocol": "vless", "settings": { "clients": [], "decryption": "none" }, "streamSettings": { "network": "ws", "wsSettings": { "path": "/vless" } } },
@@ -146,11 +214,9 @@ cat > /usr/local/etc/xray/config.json << EOF
 }
 EOF
 
-# 6. Setup Stunnel & Dummy Certificate
-openssl req -new -x509 -days 3650 -nodes -out /etc/stunnel/stunnel.pem -keyout /etc/stunnel/stunnel.pem -subj "/C=ID/ST=Java/L=Tahunan/O=VPN/OU=Premium/CN=$domain" &>/dev/null
 systemctl restart xray
 
-# 7. Konfigurasi Squid Proxy (Port 3128)
+# 8. Konfigurasi Squid Proxy (Port 3128)
 cat > /etc/squid/squid.conf << 'EOF'
 http_port 3128
 acl localnet src 0.0.0.0/0
@@ -159,7 +225,7 @@ http_access deny all
 EOF
 systemctl restart squid
 
-# 8. Instalasi BadVPN UDPGW (7100-7600)
+# 9. Instalasi BadVPN UDPGW (7100-7600)
 echo "Menginstal BadVPN..."
 cd /usr/local/src
 wget -q https://github.com/ambrop72/badvpn/archive/master.zip
@@ -183,7 +249,7 @@ systemctl enable badvpn-${port} &>/dev/null
 systemctl start badvpn-${port} &>/dev/null
 done
 
-# 9. Routing Port Tambahan dengan IPtables (NAT PREROUTING)
+# 10. Routing Port Tambahan dengan IPtables (NAT PREROUTING)
 echo "Mengonfigurasi NAT IPtables untuk Port Custom..."
 iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 10015
 iptables -t nat -A PREROUTING -p tcp --dport 8080 -j REDIRECT --to-port 10015
@@ -197,7 +263,7 @@ iptables -t nat -A PREROUTING -p tcp --dport 2052 -j REDIRECT --to-port 10003
 iptables -t nat -A PREROUTING -p tcp --dport 2053 -j REDIRECT --to-port 10003
 netfilter-persistent save &>/dev/null
 
-# 10. GENERATE MENU BUILDER
+# 11. GENERATE MENU BUILDER (Tanpa UDP Custom)
 echo "Membangun Panel Menu Manager..."
 cat > /usr/local/bin/menu << 'EOF'
 #!/bin/bash
@@ -231,6 +297,7 @@ add_ssh() {
     echo -e "${BOLD}            DETAIL AKUN SSH           ${RESET}"
     echo -e "${GREEN}======================================${RESET}"
     echo -e "Host / IP      : $IP"
+    echo -e "Domain         : $domain"
     echo -e "Username       : $Login"
     echo -e "Password       : $Pass"
     echo -e "Expired Pada   : $exp"
@@ -242,7 +309,6 @@ add_ssh() {
     echo -e "OpenSSH        : 444"
     echo -e "Dropbear       : 90"
     echo -e "SlowDNS        : 53, 5300"
-    echo -e "UDP-Custom     : 1-65535"
     echo -e "OHP + SSH      : 9080"
     echo -e "Squid Proxy    : 3128"
     echo -e "BadVPN UDPGW   : 7100-7600"
