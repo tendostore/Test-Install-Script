@@ -11,7 +11,8 @@
 #           + Added Renew Account Feature
 #           + Added Trial Feature (Minutes/Hours)
 #           + Added ZIVPN Tracking & Renew
-#           + Guaranteed Full Deletion (TLS/NTLS/GRPC/UPG)
+#           + Fixed X-Ray Fallback Path Error
+#           + UI Update: Early Domain Prompt & Yin-Yang Spinner
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -22,89 +23,37 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; BLUE='\033[0;34m'; PU
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 
-# --- ANIMASI INSTALL ---
+# --- ANIMASI INSTALL (YIN-YANG SPINNER) ---
 function install_spin() {
     local pid=$!
     local delay=0.1
-    local spinstr='|/-\'
-    echo -ne " "
+    local spinstr='◐◓◑◒'
     while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
         local temp=${spinstr#?}
-        printf " [%c]  " "$spinstr"
+        printf "\r\e[1;36m [\e[1;32m%c\e[1;36m]\e[0m \e[1;33mSedang memproses, mohon tunggu...\e[0m" "$spinstr"
         local spinstr=$temp${spinstr%"$temp"}
         sleep $delay
-        printf "\b\b\b\b\b\b"
     done
-    printf "    \b\b\b\b"
+    printf "\r\e[K"
 }
 
-function print_msg() { echo -e "${YELLOW}➤ $1...${NC}"; }
-function print_ok() { echo -e "${GREEN}✔ $1 Selesai!${NC}"; sleep 0.5; }
+function print_msg() { 
+    echo -e "${CYAN}─────────────────────────────────────────────────${NC}"
+    echo -e "${YELLOW}➤ $1...${NC}"
+}
+function print_ok() { 
+    echo -e "${GREEN}✔ $1 Berhasil!${NC}"
+    sleep 0.5
+}
 
+# --- 1. PROMPT DOMAIN DI AWAL ---
 clear
 echo -e "${CYAN}=================================================${NC}"
 echo -e "${PURPLE}      AUTO INSTALLER X-RAY & ZIVPN ONLY          ${NC}"
 echo -e "${CYAN}=================================================${NC}"
-echo -e "${YELLOW}           Script by Tendo Store                ${NC}"
+echo -e "${YELLOW}           Script by Tendo Store                 ${NC}"
 echo -e "${CYAN}=================================================${NC}"
-sleep 2
-
-# --- 1. OPTIMIZATION ---
-print_msg "Optimasi Sistem & Swap"
-rm -f /var/lib/apt/lists/lock >/dev/null 2>&1
-echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
-echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
-sysctl -p >/dev/null 2>&1
-swapoff -a >/dev/null 2>&1; rm -f /swapfile
-dd if=/dev/zero of=/swapfile bs=1024 count=2097152 >/dev/null 2>&1
-chmod 600 /swapfile; mkswap /swapfile >/dev/null 2>&1; swapon /swapfile >/dev/null 2>&1
-echo '/swapfile none swap sw 0 0' >> /etc/fstab & install_spin
-print_ok "System Optimized"
-
-# --- 2. VARIABLES ---
-# Cloudflare Credentials (Used only if Option 1 is selected)
-CF_ID="mbuntoncity@gmail.com"
-CF_KEY="96bee4f14ef23e42c4509efc125c0eac5c02e"
-CF_ZONE_ID="14f2e85e62d1d73bf0ce1579f1c3300c"
-
-XRAY_DIR="/usr/local/etc/xray"; 
-CONFIG_FILE="/usr/local/etc/xray/config.json"
-DATA_VMESS="/usr/local/etc/xray/vmess.txt"; DATA_VLESS="/usr/local/etc/xray/vless.txt"; DATA_TROJAN="/usr/local/etc/xray/trojan.txt"
-DATA_ZIVPN="/etc/zivpn/zivpn.txt"
-
-# --- 3. DEPENDENCIES ---
-print_msg "Install Dependencies"
-apt-get update -y >/dev/null 2>&1
-echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
-echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
-apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl socat jq openssl uuid-runtime net-tools vnstat wget gnupg1 bc iproute2 iptables iptables-persistent python3 neofetch cron >/dev/null 2>&1 & install_spin
-print_ok "Dependencies"
-
-# Install Official Speedtest Ookla
-curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | bash >/dev/null 2>&1
-apt-get install speedtest -y >/dev/null 2>&1
-
-touch /root/.hushlogin; chmod -x /etc/update-motd.d/* 2>/dev/null
-sed -i '/neofetch/d' /root/.bashrc; echo "neofetch" >> /root/.bashrc
-echo 'echo -e "Welcome Tendo! Type \e[1;32mmenu\e[0m to start."' >> /root/.bashrc
-
-IFACE_NET=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
-systemctl enable vnstat && systemctl restart vnstat; vnstat -u -i $IFACE_NET >/dev/null 2>&1
-
-# --- 4. DOMAIN SELECTION ---
-print_msg "Setup Domain & SSL"
-mkdir -p $XRAY_DIR /etc/zivpn /root/tendo; touch $DATA_VMESS $DATA_VLESS $DATA_TROJAN $DATA_ZIVPN
-mkdir -p /var/log/xray; touch /var/log/xray/access.log /var/log/xray/error.log
-IP_VPS=$(curl -s ifconfig.me)
-
-# Get Geo Info
-curl -s ipinfo.io/json | jq -r '.city' > /root/tendo/city
-curl -s ipinfo.io/json | jq -r '.org' > /root/tendo/isp
-curl -s ipinfo.io/json | jq -r '.ip' > /root/tendo/ip
-
-clear
-echo -e "${CYAN}=================================================${NC}"
-echo -e "${YELLOW}           PILIHAN JENIS DOMAIN                 ${NC}"
+echo -e "${YELLOW}           PILIHAN JENIS DOMAIN                  ${NC}"
 echo -e "${CYAN}=================================================${NC}"
 echo -e "${CYAN}│${NC} [1] Gunakan Domain Random Tendo (Gratis/Auto)"
 echo -e "${CYAN}│${NC} [2] Gunakan Domain Sendiri (Manual)"
@@ -112,43 +61,97 @@ echo -e "${CYAN}─────────────────────�
 read -p " Pilih Opsi (1/2): " dom_opt
 
 if [[ "$dom_opt" == "1" ]]; then
-    # -- OPTION 1: AUTO DOMAIN --
-    echo -e "${YELLOW}Menggunakan Domain Random dari Tendo Store...${NC}"
-    DOMAIN_VAL="vpn-$(tr -dc a-z0-9 </dev/urandom | head -c 5).vip3-tendo.my.id"
-    
-    # Register to Cloudflare
-    curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
-         -H "X-Auth-Email: ${CF_ID}" -H "X-Auth-Key: ${CF_KEY}" \
-         -H "Content-Type: application/json" \
-         --data '{"type":"A","name":"'${DOMAIN_VAL}'","content":"'${IP_VPS}'","ttl":120,"proxied":false}' > /dev/null
-         
-    echo "$DOMAIN_VAL" > $XRAY_DIR/domain
-    echo -e "${GREEN}Domain Terbuat: ${DOMAIN_VAL}${NC}"
+    echo -e "${YELLOW}Mode Domain Auto terpilih. Domain akan di-generate otomatis.${NC}"
 else
-    # -- OPTION 2: OWN DOMAIN --
     echo -e "${YELLOW}Mode Domain Sendiri${NC}"
-    echo -e "${RED}PENTING: Pastikan anda sudah mengarahkan A Record domain ke IP: ${IP_VPS}${NC}"
+    echo -e "${RED}PENTING: Pastikan anda sudah mengarahkan A Record domain ke IP VPS anda!${NC}"
     read -p " Masukan Domain/Subdomain Anda: " user_dom
     if [[ -z "$user_dom" ]]; then
         echo -e "${RED}Domain tidak boleh kosong! Script berhenti.${NC}"
         exit 1
     fi
-    echo "$user_dom" > $XRAY_DIR/domain
-    DOMAIN_VAL="$user_dom"
-    echo -e "${GREEN}Domain Diset ke: ${DOMAIN_VAL}${NC}"
+    echo -e "${GREEN}Domain diatur ke: $user_dom${NC}"
 fi
+echo -e "${CYAN}=================================================${NC}"
+echo -e "${GREEN}Konfigurasi diterima. Memulai proses instalasi...${NC}"
+sleep 2
+clear
 
-# SSL Generator (Valid for both options)
-echo -e "${YELLOW}Generating SSL Certificate...${NC}"
-openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout $XRAY_DIR/xray.key \
-    -out $XRAY_DIR/xray.crt -days 3650 -subj "/CN=$DOMAIN_VAL" >/dev/null 2>&1
-chmod 644 $XRAY_DIR/xray.key; chmod 644 $XRAY_DIR/xray.crt & install_spin
-print_ok "SSL Configured"
+# --- 2. VARIABLES ---
+CF_ID="mbuntoncity@gmail.com"
+CF_KEY="96bee4f14ef23e42c4509efc125c0eac5c02e"
+CF_ZONE_ID="14f2e85e62d1d73bf0ce1579f1c3300c"
+XRAY_DIR="/usr/local/etc/xray"
+CONFIG_FILE="/usr/local/etc/xray/config.json"
+DATA_VMESS="/usr/local/etc/xray/vmess.txt"; DATA_VLESS="/usr/local/etc/xray/vless.txt"; DATA_TROJAN="/usr/local/etc/xray/trojan.txt"
+DATA_ZIVPN="/etc/zivpn/zivpn.txt"
 
-# --- 5. XRAY CONFIG (UPGRADED WITH WS, GRPC, UPGRADE, LOGS & API QUOTA) ---
+# --- 3. OPTIMIZATION ---
+print_msg "Optimasi Sistem & Swap"
+(
+    rm -f /var/lib/apt/lists/lock
+    echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
+    echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
+    sysctl -p
+    swapoff -a; rm -f /swapfile
+    dd if=/dev/zero of=/swapfile bs=1024 count=2097152
+    chmod 600 /swapfile; mkswap /swapfile; swapon /swapfile
+    echo '/swapfile none swap sw 0 0' >> /etc/fstab
+) >/dev/null 2>&1 & install_spin
+print_ok "Optimasi Sistem"
+
+# --- 4. DEPENDENCIES ---
+print_msg "Install Dependencies"
+(
+    apt-get update -y
+    echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
+    echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
+    apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl socat jq openssl uuid-runtime net-tools vnstat wget gnupg1 bc iproute2 iptables iptables-persistent python3 neofetch cron
+    curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | bash
+    apt-get install speedtest -y
+    touch /root/.hushlogin; chmod -x /etc/update-motd.d/* 2>/dev/null
+    sed -i '/neofetch/d' /root/.bashrc; echo "neofetch" >> /root/.bashrc
+    echo 'echo -e "Welcome Tendo! Type \e[1;32mmenu\e[0m to start."' >> /root/.bashrc
+) >/dev/null 2>&1 & install_spin
+print_ok "Dependencies"
+
+# Setup IP & IFACE variables for next steps
+IP_VPS=$(curl -s ifconfig.me)
+IFACE_NET=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
+
+# --- 5. DOMAIN SELECTION EXECUTION & SSL ---
+print_msg "Setup Domain & SSL Cert"
+(
+    systemctl enable vnstat && systemctl restart vnstat; vnstat -u -i $IFACE_NET
+    mkdir -p $XRAY_DIR /etc/zivpn /root/tendo; touch $DATA_VMESS $DATA_VLESS $DATA_TROJAN $DATA_ZIVPN
+    mkdir -p /var/log/xray; touch /var/log/xray/access.log /var/log/xray/error.log
+
+    curl -s ipinfo.io/json | jq -r '.city' > /root/tendo/city
+    curl -s ipinfo.io/json | jq -r '.org' > /root/tendo/isp
+    curl -s ipinfo.io/json | jq -r '.ip' > /root/tendo/ip
+
+    if [[ "$dom_opt" == "1" ]]; then
+        DOMAIN_VAL="vpn-$(tr -dc a-z0-9 </dev/urandom | head -c 5).vip3-tendo.my.id"
+        curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
+             -H "X-Auth-Email: ${CF_ID}" -H "X-Auth-Key: ${CF_KEY}" \
+             -H "Content-Type: application/json" \
+             --data '{"type":"A","name":"'${DOMAIN_VAL}'","content":"'${IP_VPS}'","ttl":120,"proxied":false}' > /dev/null
+    else
+        DOMAIN_VAL="$user_dom"
+    fi
+    echo "$DOMAIN_VAL" > $XRAY_DIR/domain
+
+    openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout $XRAY_DIR/xray.key \
+        -out $XRAY_DIR/xray.crt -days 3650 -subj "/CN=$DOMAIN_VAL"
+    chmod 644 $XRAY_DIR/xray.key; chmod 644 $XRAY_DIR/xray.crt
+) >/dev/null 2>&1 & install_spin
+print_ok "Domain & SSL"
+
+# --- 6. XRAY CONFIG (UPGRADED WITH WS, GRPC, UPGRADE, LOGS & API QUOTA) ---
 print_msg "Install Xray Core & Config"
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install >/dev/null 2>&1
-UUID_SYS=$(uuidgen)
+(
+    bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
+    UUID_SYS=$(uuidgen)
 
 cat > $CONFIG_FILE <<EOF
 {
@@ -161,7 +164,7 @@ cat > $CONFIG_FILE <<EOF
     { "tag": "inbound-443", "port": 443, "protocol": "vless", "settings": { "clients": [ { "id": "$UUID_SYS", "flow": "xtls-rprx-vision", "level": 0, "email": "system" } ], "decryption": "none", "fallbacks": [ 
         { "path": "/vmess", "dest": 10001, "xver": 1 }, { "path": "/vless", "dest": 10002, "xver": 1 }, { "path": "/trojan", "dest": 10003, "xver": 1 },
         { "path": "/vmess-upg", "dest": 10004, "xver": 1 }, { "path": "/vless-upg", "dest": 10005, "xver": 1 }, { "path": "/trojan-upg", "dest": 10006, "xver": 1 },
-        { "alpn": "h2", "path": "vmess-grpc", "dest": 10007, "xver": 1 }, { "alpn": "h2", "path": "vless-grpc", "dest": 10008, "xver": 1 }, { "alpn": "h2", "path": "trojan-grpc", "dest": 10009, "xver": 1 }
+        { "alpn": "h2", "path": "/vmess-grpc", "dest": 10007, "xver": 1 }, { "alpn": "h2", "path": "/vless-grpc", "dest": 10008, "xver": 1 }, { "alpn": "h2", "path": "/trojan-grpc", "dest": 10009, "xver": 1 }
     ] }, "streamSettings": { "network": "tcp", "security": "tls", "tlsSettings": { "alpn": ["h2", "http/1.1"], "certificates": [ { "certificateFile": "/usr/local/etc/xray/xray.crt", "keyFile": "/usr/local/etc/xray/xray.key" } ] } } },
     { "tag": "inbound-80", "port": 80, "protocol": "vless", "settings": { "clients": [], "decryption": "none", "fallbacks": [ 
         { "path": "/vmess", "dest": 10001, "xver": 1 }, { "path": "/vless", "dest": 10002, "xver": 1 }, { "path": "/trojan", "dest": 10003, "xver": 1 },
@@ -185,12 +188,15 @@ cat > $CONFIG_FILE <<EOF
   "routing": { "domainStrategy": "IPIfNonMatch", "rules": [ { "inboundTag": ["api"], "outboundTag": "api", "type": "field" }, { "type": "field", "outboundTag": "blocked", "protocol": [ "bittorrent" ] } ] }
 }
 EOF
+) >/dev/null 2>&1 & install_spin
 print_ok "Xray Configured"
 
-# --- 6. ZIVPN ---
+# --- 7. ZIVPN ---
 print_msg "Install ZIVPN"
-wget -qO /usr/local/bin/zivpn "https://github.com/zahidbd2/udp-zivpn/releases/download/udp-zivpn_1.4.9/udp-zivpn-linux-amd64"; chmod +x /usr/local/bin/zivpn
-echo '{"listen":":5667","cert":"/usr/local/etc/xray/xray.crt","key":"/usr/local/etc/xray/xray.key","obfs":"zivpn","auth":{"mode":"passwords","config":[]}}' > /etc/zivpn/config.json
+(
+    wget -qO /usr/local/bin/zivpn "https://github.com/zahidbd2/udp-zivpn/releases/download/udp-zivpn_1.4.9/udp-zivpn-linux-amd64"
+    chmod +x /usr/local/bin/zivpn
+    echo '{"listen":":5667","cert":"/usr/local/etc/xray/xray.crt","key":"/usr/local/etc/xray/xray.key","obfs":"zivpn","auth":{"mode":"passwords","config":[]}}' > /etc/zivpn/config.json
 cat > /etc/systemd/system/zivpn.service <<EOF
 [Unit]
 Description=ZIVPN
@@ -201,16 +207,16 @@ Restart=always
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl daemon-reload && systemctl enable zivpn && systemctl restart zivpn xray
-
-# IPtables
-iptables -t nat -A PREROUTING -i $IFACE_NET -p udp --dport 6000:19999 -j DNAT --to-destination :5667
-iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5667
-netfilter-persistent save >/dev/null 2>&1
+    systemctl daemon-reload && systemctl enable zivpn && systemctl restart zivpn xray
+    iptables -t nat -A PREROUTING -i $IFACE_NET -p udp --dport 6000:19999 -j DNAT --to-destination :5667
+    iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5667
+    netfilter-persistent save
+) >/dev/null 2>&1 & install_spin
 print_ok "ZIVPN Installed"
 
-# --- 6.5 AUTO-KILL, EXP CHECKER & QUOTA MONITOR (NEW) ---
+# --- 8. AUTO-KILL, EXP CHECKER & QUOTA MONITOR ---
 print_msg "Setting up Cron & Auto-Kill Systems"
+(
 cat > /usr/local/bin/xray-exp <<'EOF'
 #!/bin/bash
 CONFIG="/usr/local/etc/xray/config.json"
@@ -295,10 +301,12 @@ chmod +x /usr/local/bin/xray-quota
 (crontab -l 2>/dev/null | grep -v "xray-exp"; echo "* * * * * /usr/local/bin/xray-exp") | crontab -
 (crontab -l 2>/dev/null | grep -v "xray-limit"; echo "* * * * * /usr/local/bin/xray-limit") | crontab -
 (crontab -l 2>/dev/null | grep -v "xray-quota"; echo "* * * * * /usr/local/bin/xray-quota") | crontab -
-print_ok "Cron Jobs Installed"
+) >/dev/null 2>&1 & install_spin
+print_ok "Sistem Auto & Cron Jobs"
 
-# --- 7. MENU SCRIPT ---
+# --- 9. MENU SCRIPT ---
 print_msg "Finalisasi Menu"
+(
 cat > /usr/bin/menu <<'END_MENU'
 #!/bin/bash
 CYAN='\033[0;36m'; YELLOW='\033[0;33m'; GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'; PURPLE='\033[0;35m'; WHITE='\033[1;37m'; NC='\033[0m'
@@ -573,7 +581,7 @@ function vmess_menu() {
                DMN=$(cat /usr/local/etc/xray/domain)
                ws_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                ws_ntls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
-               grpc_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"grpc\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"vmess-grpc\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
+               grpc_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"grpc\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-grpc\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                upg_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                upg_ntls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
                show_account_xray "VMESS" "$u" "$DMN" "$id" "$exp_date" "$limit" "$quota" "0.00" "vmess://$ws_tls" "vmess://$ws_ntls" "vmess://$grpc_tls" "vmess://$upg_tls" "vmess://$upg_ntls";;
@@ -583,7 +591,7 @@ function vmess_menu() {
                down=$(/usr/local/bin/xray api statsquery --server=127.0.0.1:10085 -name "user>>>${u}>>>traffic>>>downlink" 2>/dev/null | grep value | awk '{print $2}' | tr -d '"'); up=$(/usr/local/bin/xray api statsquery --server=127.0.0.1:10085 -name "user>>>${u}>>>traffic>>>uplink" 2>/dev/null | grep value | awk '{print $2}' | tr -d '"'); [[ -z "$down" ]] && down=0; [[ -z "$up" ]] && up=0; usage_gb=$(awk "BEGIN {printf \"%.2f\", ($down + $up)/1073741824}")
                ws_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                ws_ntls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
-               grpc_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"grpc\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"vmess-grpc\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
+               grpc_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"grpc\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-grpc\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                upg_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                upg_ntls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
                show_account_xray "VMESS" "$u" "$DMN" "$id" "$exp_date" "$limit" "$quota" "$usage_gb" "vmess://$ws_tls" "vmess://$ws_ntls" "vmess://$grpc_tls" "vmess://$upg_tls" "vmess://$upg_ntls";;
@@ -593,7 +601,7 @@ function vmess_menu() {
                DMN=$(cat /usr/local/etc/xray/domain)
                ws_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                ws_ntls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
-               grpc_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"grpc\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"vmess-grpc\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
+               grpc_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"grpc\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-grpc\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                upg_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                upg_ntls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
                show_account_xray "VMESS" "$u" "$DMN" "$id" "$exp_date" "$limit" "$quota" "0.00" "vmess://$ws_tls" "vmess://$ws_ntls" "vmess://$grpc_tls" "vmess://$upg_tls" "vmess://$upg_ntls";;
@@ -746,7 +754,10 @@ while true; do header_main
         x) exit ;;
     esac; done
 END_MENU
-
 chmod +x /usr/bin/menu
-install_spin
-print_ok "Instalasi Selesai! Ketik: menu"
+) >/dev/null 2>&1 & install_spin
+print_ok "Finalisasi Script"
+
+echo -e "\n${GREEN}=================================================${NC}"
+echo -e "${YELLOW}   Instalasi Selesai! Ketik: ${WHITE}menu${YELLOW} untuk mulai  ${NC}"
+echo -e "${GREEN}=================================================${NC}\n"
