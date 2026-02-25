@@ -76,6 +76,17 @@ sed -i 's/#Port 22/Port 22/g' /etc/ssh/sshd_config
 if ! grep -q "Port 444" /etc/ssh/sshd_config; then
     echo "Port 444" >> /etc/ssh/sshd_config
 fi
+
+# [FITUR TAMBAHAN] Fix SSH Login Dropbear & OpenSSH (Mengizinkan user dengan shell /bin/false)
+if ! grep -q "/bin/false" /etc/shells; then
+    echo "/bin/false" >> /etc/shells
+fi
+if ! grep -q "/usr/sbin/nologin" /etc/shells; then
+    echo "/usr/sbin/nologin" >> /etc/shells
+fi
+sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+
 systemctl restart ssh
 
 # 5. Instalasi & Konfigurasi Dropbear 2019.78
