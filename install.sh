@@ -319,11 +319,11 @@ done
 EOF
 chmod +x /usr/local/bin/xray-quota
 
-# Script Telegram Login Notif (FIXED USER MATCHING)
+# Script Telegram Login Notif (FIXED)
 cat > /usr/local/bin/bot-login-notif <<'EOF'
 #!/bin/bash
-TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null)
-CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null)
+TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
+CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
 [[ -z "$TOKEN" || -z "$CHATID" ]] && exit 0
 LOG_FILE="/var/log/xray/access.log"
 
@@ -349,18 +349,25 @@ fi
 EOF
 chmod +x /usr/local/bin/bot-login-notif
 
-# Script Telegram Backup Notif
+# Script Telegram Backup Notif (FIXED)
 cat > /usr/local/bin/bot-backup <<'EOF'
 #!/bin/bash
-TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null)
-CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null)
+TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
+CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
 [[ -z "$TOKEN" || -z "$CHATID" ]] && exit 0
 DATE=$(date +"%Y-%m-%d_%H-%M")
 ZIP_FILE="/tmp/Backup_${DATE}.zip"
 cd /
 zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ >/dev/null 2>&1
 cd - >/dev/null 2>&1
-curl -s -F chat_id="${CHATID}" -F document=@"${ZIP_FILE}" -F caption="<b>📦 AUTOBACKUP VPS</b>%0A%0A📅 Date: ${DATE}%0A✅ Backup Successfully generated." "https://api.telegram.org/bot${TOKEN}/sendDocument" -F parse_mode="HTML" > /dev/null
+curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendDocument" \
+    -F "chat_id=${CHATID}" \
+    -F "document=@${ZIP_FILE}" \
+    -F "caption=<b>📦 AUTOBACKUP VPS</b>
+    
+📅 Date: ${DATE}
+✅ Backup Successfully generated." \
+    -F "parse_mode=HTML" > /dev/null
 rm -f $ZIP_FILE
 EOF
 chmod +x /usr/local/bin/bot-backup
@@ -384,17 +391,20 @@ D_TROJAN="/usr/local/etc/xray/trojan.txt"
 D_ZIVPN="/etc/zivpn/zivpn.txt"
 
 # ---------------------------------------------
-# PENGIRIM TELEGRAM BOT
+# PENGIRIM TELEGRAM BOT (FIXED MONO & NEWLINE)
 # ---------------------------------------------
 function send_tele() {
-    local bot_tok=$(cat /etc/tendo_bot/bot_token 2>/dev/null)
-    local chat_id=$(cat /etc/tendo_bot/chat_id 2>/dev/null)
+    local bot_tok=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
+    local chat_id=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
     [[ -z "$bot_tok" || -z "$chat_id" ]] && return
-    local msg="$1"
+    
+    # Render \n into real newlines
+    local msg=$(echo -e "$1")
+    local full_msg="<b>✅ NEW ACCOUNT CREATED</b>"$'\n\n'"$msg"
+    
     curl -s -X POST "https://api.telegram.org/bot${bot_tok}/sendMessage" \
-        --data-urlencode "chat_id=${chat_id}" \
-        --data-urlencode "text=<b>✅ NEW ACCOUNT CREATED</b>
-${msg}" \
+        -d "chat_id=${chat_id}" \
+        --data-urlencode "text=${full_msg}" \
         -d "parse_mode=HTML" > /dev/null &
 }
 
@@ -447,7 +457,7 @@ function show_account_xray() {
         MSG+="——————————\n——————————————————————————\n"
     fi
 
-    # Format Untuk Telegram (Link Mono)
+    # Format Telegram Bot (Mono Links & Detail)
     MSG_BOT+="<b>————————————————————————————————————</b>\n"
     MSG_BOT+="               <b>${proto}</b>\n"
     MSG_BOT+="<b>————————————————————————————————————</b>\n"
@@ -521,6 +531,8 @@ function show_account_zivpn() {
     MSG_BOT+="  <b>ACCOUNT ZIVPN UDP</b>\n"
     MSG_BOT+="<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
     MSG_BOT+="Password   : <code>${pass}</code>\n"
+    MSG_BOT+="CITY       : ${city}\n"
+    MSG_BOT+="ISP        : ${isp}\n"
     MSG_BOT+="IP ISP     : <code>${ip}</code>\n"
     MSG_BOT+="Domain     : <code>${domain}</code>\n"
     MSG_BOT+="Expired On : ${exp}\n"
@@ -694,7 +706,7 @@ function features_menu() {
         echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
-            1) vnstat -l -i $(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1);;
+            1) vnstat -l -i $(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1); read -p "Enter...";;
             2) speedtest; read -p "Enter...";;
             3) echo -e "${YELLOW}Running Benchmark...${NC}"; wget -qO- bench.sh | bash; read -p "Enter...";;
             4) header_sub
@@ -727,11 +739,19 @@ function features_menu() {
                echo -e "${WHITE}${LINK}${NC}"
                echo -e "${CYAN}=================================================${NC}\n"
                
-               local bot_tok=$(cat /etc/tendo_bot/bot_token 2>/dev/null)
-               local chat_id=$(cat /etc/tendo_bot/chat_id 2>/dev/null)
+               local bot_tok=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
+               local chat_id=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
                if [[ -n "$bot_tok" && -n "$chat_id" ]]; then
                    echo -e "${YELLOW}Mengirim backup ke Telegram Bot...${NC}"
-                   curl -s -F chat_id="${chat_id}" -F document=@"${ZIP_FILE}" -F caption="<b>📦 MANUAL BACKUP VPS</b>%0A%0A📅 Date: ${DATE}%0A✅ Backup Successfully generated.%0A🔗 Direct Link: ${LINK}" "https://api.telegram.org/bot${bot_tok}/sendDocument" -F parse_mode="HTML" > /dev/null
+                   curl -s -X POST "https://api.telegram.org/bot${bot_tok}/sendDocument" \
+                       -F "chat_id=${chat_id}" \
+                       -F "document=@${ZIP_FILE}" \
+                       -F "caption=<b>📦 MANUAL BACKUP VPS</b>
+                       
+📅 Date: ${DATE}
+✅ Backup Successfully generated.
+🔗 Direct Link: ${LINK}" \
+                       -F "parse_mode=HTML" > /dev/null
                    echo -e "${GREEN}File backup berhasil dikirim ke Telegram!${NC}"
                fi
                read -p "Tekan Enter untuk kembali..."
