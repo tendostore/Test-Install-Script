@@ -148,16 +148,22 @@ def handle_client(client_socket):
         remote_socket.connect(('127.0.0.1', 90)) # Connect ke Dropbear 2019
 
         req = client_socket.recv(8192)
-        
-        # [FITUR TAMBAHAN] Logika Smart Handshake & Anti Crash Dropbear
-        if b"HTTP" in req or b"GET" in req or b"CONNECT" in req:
+        if not req:
+            client_socket.close()
+            return
+
+        # [FITUR TAMBAHAN] Logika Smart Handshake & Anti Crash Dropbear (100% Bulletproof)
+        # Mendeteksi semua jenis HTTP request dari client (GET, PATCH, CONNECT, dll)
+        if b"HTTP/1." in req or b"HTTP/2." in req or req.startswith(b"GET ") or req.startswith(b"PATCH "):
+            # Kirim persetujuan upgrade ke WebSocket
             client_socket.send(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
-            # Hanya ekstrak dan teruskan bagian protokol SSH jika ada, buang sisa header HTTP Custom
-            if b"SSH-" in req:
-                ssh_index = req.find(b"SSH-")
-                remote_socket.send(req[ssh_index:])
+            
+            # Pisahkan HTTP Header dengan payload aslinya (jika payload dikirim bersaman)
+            parts = req.split(b"\r\n\r\n", 1)
+            if len(parts) == 2 and len(parts[1]) > 0:
+                remote_socket.send(parts[1])
         else:
-            # Jika koneksi direct/non-http
+            # Koneksi SSH langsung (tanpa proxy HTTP)
             remote_socket.send(req)
 
         def forward(src, dst):
@@ -173,6 +179,8 @@ def handle_client(client_socket):
 
         t1 = threading.Thread(target=forward, args=(client_socket, remote_socket))
         t2 = threading.Thread(target=forward, args=(remote_socket, client_socket))
+        t1.daemon = True
+        t2.daemon = True
         t1.start()
         t2.start()
     except:
@@ -187,6 +195,7 @@ while True:
     try:
         client, addr = server.accept()
         t = threading.Thread(target=handle_client, args=(client,))
+        t.daemon = True
         t.start()
     except: pass
 EOF
