@@ -140,64 +140,65 @@ systemctl restart dropbear
 echo "Menginstal SSH WebSocket Proxy Premium..."
 cat > /usr/local/bin/ws-openssh.py << 'EOF'
 #!/usr/bin/python3
-import socket, threading
+import socket, threading, select
 
-def handle_client(client_socket):
+def proxy(client):
+    remote = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        remote_socket.connect(('127.0.0.1', 90)) # Connect ke Dropbear 2019
-
-        req = client_socket.recv(8192)
-        if not req:
-            client_socket.close()
+        remote.connect(('127.0.0.1', 90)) # Arahkan langsung ke Dropbear
+        data = client.recv(8192)
+        if not data:
+            client.close()
             return
-
-        # [FITUR TAMBAHAN] Logika Smart Handshake & Anti Crash Dropbear (100% Bulletproof)
-        # Mendeteksi semua jenis HTTP request dari client (GET, PATCH, CONNECT, dll)
-        if b"HTTP/1." in req or b"HTTP/2." in req or req.startswith(b"GET ") or req.startswith(b"PATCH "):
-            # Kirim persetujuan upgrade ke WebSocket
-            client_socket.send(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
+        
+        # Logika pembacaan Header WebSocket yang paling stabil (Anti Premature Close)
+        if b"HTTP/" in data or b"GET " in data or b"PATCH " in data or b"CONNECT " in data:
+            # Mengirimkan persetujuan lengkap beserta Sec-WebSocket-Accept palsu untuk inject app
+            response = b"HTTP/1.1 101 Switching Protocols\r\n" \
+                       b"Upgrade: websocket\r\n" \
+                       b"Connection: Upgrade\r\n" \
+                       b"Sec-WebSocket-Accept: HSmrc0sMlYUkAGmm5OPpG2HaGWk=\r\n\r\n"
+            client.send(response)
             
-            # Pisahkan HTTP Header dengan payload aslinya (jika payload dikirim bersaman)
-            parts = req.split(b"\r\n\r\n", 1)
+            # Jika ada sisa payload SSH yang menempel di belakang header HTTP, kita teruskan
+            parts = data.split(b"\r\n\r\n", 1)
             if len(parts) == 2 and len(parts[1]) > 0:
-                remote_socket.send(parts[1])
+                remote.send(parts[1])
         else:
-            # Koneksi SSH langsung (tanpa proxy HTTP)
-            remote_socket.send(req)
+            # Jika bukan request HTTP, langsung teruskan saja (Direct SSH)
+            remote.send(data)
 
-        def forward(src, dst):
-            try:
-                while True:
-                    data = src.recv(4096)
-                    if not data: break
-                    dst.send(data)
-            except: pass
-            finally:
-                src.close()
-                dst.close()
-
-        t1 = threading.Thread(target=forward, args=(client_socket, remote_socket))
-        t2 = threading.Thread(target=forward, args=(remote_socket, client_socket))
-        t1.daemon = True
-        t2.daemon = True
-        t1.start()
-        t2.start()
+        # Proses forwarding dua arah menggunakan select (Jauh lebih stabil dari threading biasa)
+        while True:
+            r, w, e = select.select([client, remote], [], [])
+            if client in r:
+                d = client.recv(8192)
+                if not d: break
+                remote.send(d)
+            if remote in r:
+                d = remote.recv(8192)
+                if not d: break
+                client.send(d)
     except:
-        client_socket.close()
+        pass
+    finally:
+        client.close()
+        remote.close()
 
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-server.bind(('0.0.0.0', 10015))
-server.listen(100)
+def main():
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind(('0.0.0.0', 10015))
+    server.listen(100)
+    while True:
+        try:
+            client, addr = server.accept()
+            threading.Thread(target=proxy, args=(client,), daemon=True).start()
+        except:
+            pass
 
-while True:
-    try:
-        client, addr = server.accept()
-        t = threading.Thread(target=handle_client, args=(client,))
-        t.daemon = True
-        t.start()
-    except: pass
+if __name__ == '__main__':
+    main()
 EOF
 chmod +x /usr/local/bin/ws-openssh.py
 
@@ -368,6 +369,12 @@ iptables -t nat -A PREROUTING -p tcp --dport 2082 -j REDIRECT --to-port 80
 iptables -t nat -A PREROUTING -p tcp --dport 2083 -j REDIRECT --to-port 80
 iptables -t nat -A PREROUTING -p tcp --dport 8880 -j REDIRECT --to-port 80
 iptables -t nat -A PREROUTING -p tcp --dport 9080 -j REDIRECT --to-port 90
+
+# [FITUR TAMBAHAN] Sinkronisasi IPtables agar port tambahan di Menu benar-benar aktif
+iptables -t nat -A PREROUTING -p tcp --dport 8080 -j REDIRECT --to-port 80
+iptables -t nat -A PREROUTING -p tcp --dport 8443 -j REDIRECT --to-port 443
+iptables -t nat -A PREROUTING -p tcp --dport 2052 -j REDIRECT --to-port 443
+iptables -t nat -A PREROUTING -p tcp --dport 2053 -j REDIRECT --to-port 443
 netfilter-persistent save &>/dev/null
 
 # 12. GENERATE MENU BUILDER
@@ -496,7 +503,6 @@ add_vmess() {
     read -n 1 -s -r -p "Tekan tombol apa saja untuk kembali ke menu..."
     menu
 }
-
 add_vless() {
     clear
     echo -e "${CYAN}======================================${RESET}"
