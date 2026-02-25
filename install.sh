@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==========================================================
 # Tendo-Script-Auto-Installer-X-ray-ZIVPN
-# FULL VERSION: AUTO CF + TLS + DROPBEAR 2019 + XRAY FIX + ZIVPN SEPARATED
+# FULL VERSION: AUTO CF + TLS + DROPBEAR 2019 + XRAY & SSH FIX + ZIVPN
 # ==========================================================
 
 # Memastikan eksekusi sebagai root
@@ -10,11 +10,17 @@ if [ "${EUID}" -ne 0 ]; then
   exit 1
 fi
 
-echo -e "\033[1;32mMulai instalasi Tendo-Script Premium...\033[0m"
+echo -e "\033[1;32mMulai instalasi Tendo-Script Premium (Mode Full Otomatis)...\033[0m"
 
-# 1. Update & Install Dependensi Utama
+# ==========================================================
+# 1. UPDATE & INSTALL DEPENDENSI (MODE NON-INTERAKTIF)
+# ==========================================================
+export DEBIAN_FRONTEND=noninteractive
+echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
+echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
+
 apt-get update -y
-apt-get install -y wget curl iptables iptables-persistent netfilter-persistent squid ufw openssl coreutils net-tools python3 cmake make gcc build-essential zip unzip jq zlib1g-dev bzip2 socat cron
+apt-get install -yq wget curl iptables iptables-persistent netfilter-persistent squid ufw openssl coreutils net-tools python3 cmake make gcc build-essential zip unzip jq zlib1g-dev bzip2 socat cron
 
 # ==========================================================
 # 2. AUTO CLOUDFLARE DNS & GENERATE RANDOM DOMAIN
@@ -26,7 +32,6 @@ CF_ZONE_ID="14f2e85e62d1d73bf0ce1579f1c3300c"
 
 IP=$(curl -sS ifconfig.me)
 
-# Mengambil nama domain root dari Cloudflare Zone ID
 DOMAIN_ROOT=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}" \
      -H "X-Auth-Email: ${CF_ID}" \
      -H "X-Auth-Key: ${CF_KEY}" \
@@ -37,7 +42,6 @@ if [ "$DOMAIN_ROOT" == "null" ] || [ -z "$DOMAIN_ROOT" ]; then
     exit 1
 fi
 
-# Generate Random Subdomain (5 karakter huruf & angka)
 RANDOM_STR=$(tr -dc a-z0-9 </dev/urandom | head -c 5)
 domain="vpn-${RANDOM_STR}.${DOMAIN_ROOT}"
 
@@ -61,7 +65,6 @@ curl https://get.acme.sh | sh
 ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
 ~/.acme.sh/acme.sh --installcert -d ${domain} --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
 
-# Fix Permission Xray
 chmod 644 /etc/xray/xray.crt /etc/xray/xray.key
 
 # 4. Konfigurasi OpenSSH (Port 22, 444)
@@ -72,9 +75,9 @@ if ! grep -q "Port 444" /etc/ssh/sshd_config; then
 fi
 systemctl restart ssh
 
-# 5. Instalasi & Konfigurasi Dropbear 2019.78 (Compile from Source)
+# 5. Instalasi & Konfigurasi Dropbear 2019.78
 echo "Menginstal Dropbear 2019.78..."
-apt-get install -y dropbear
+apt-get install -yq dropbear
 systemctl stop dropbear
 
 wget -qO dropbear-2019.78.tar.bz2 https://matt.ucc.asn.au/dropbear/releases/dropbear-2019.78.tar.bz2
@@ -96,7 +99,7 @@ echo "/usr/sbin/nologin" >> /etc/shells
 systemctl daemon-reload
 systemctl restart dropbear
 
-# 6. Instalasi & Konfigurasi SSH WebSocket (Premium Python Proxy - FINAL FIX)
+# 6. Instalasi & Konfigurasi SSH WebSocket Proxy (Solid Fix)
 echo "Menginstal SSH WebSocket Proxy Premium..."
 cat > /usr/local/bin/ws-openssh.py << 'EOF'
 #!/usr/bin/python3
@@ -112,13 +115,11 @@ def handle_client(client_socket):
         remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         remote_socket.connect(('127.0.0.1', 90))
 
-        if b"HTTP" in req or b"GET" in req or b"PATCH" in req or b"POST" in req:
+        if b"HTTP/" in req or b"GET " in req or b"PATCH " in req or b"POST " in req:
             client_socket.send(b'HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n')
-            idx = req.rfind(b'\r\n\r\n')
-            if idx != -1 and len(req) > idx + 4:
-                tail = req[idx+4:]
-                if tail:
-                    remote_socket.send(tail)
+            parts = req.split(b'\r\n\r\n')
+            if len(parts) > 1 and parts[-1]:
+                remote_socket.send(parts[-1])
         else:
             remote_socket.send(req)
             
@@ -175,7 +176,7 @@ systemctl restart ws-openssh
 echo "Menginstal Xray Core..."
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
 
-# Konfigurasi Xray dengan Path Sertifikat Asli & Dummy UUID agar tidak crash
+# Penghapusan xver untuk mencegah crash pada forwarding Xray & Proxy
 cat > /usr/local/etc/xray/config.json << EOF
 {
   "log": { "access": "/var/log/xray/access.log", "error": "/var/log/xray/error.log", "loglevel": "warning" },
@@ -192,11 +193,11 @@ cat > /usr/local/etc/xray/config.json << EOF
         ],
         "decryption": "none",
         "fallbacks": [
-          { "dest": 10015, "xver": 1 },
-          { "path": "/vmess", "dest": 10001, "xver": 1 },
-          { "path": "/vless", "dest": 10002, "xver": 1 },
-          { "path": "/trojan", "dest": 10003, "xver": 1 },
-          { "path": "/sshws", "dest": 10015, "xver": 1 }
+          { "dest": 10015 },
+          { "path": "/vmess", "dest": 10001 },
+          { "path": "/vless", "dest": 10002 },
+          { "path": "/trojan", "dest": 10003 },
+          { "path": "/sshws", "dest": 10015 }
         ]
       },
       "streamSettings": { 
@@ -269,7 +270,7 @@ iptables -t nat -A PREROUTING -p tcp --dport 2052 -j REDIRECT --to-port 10003
 iptables -t nat -A PREROUTING -p tcp --dport 2053 -j REDIRECT --to-port 10003
 netfilter-persistent save &>/dev/null
 
-# 11. GENERATE MENU BUILDER DENGAN FUNGSI XRAY INJECTOR & ZIVPN TERPISAH
+# 11. GENERATE MENU BUILDER
 echo "Membangun Panel Menu Manager..."
 cat > /usr/local/bin/menu << 'EOF'
 #!/bin/bash
@@ -366,7 +367,6 @@ add_vmess() {
     uuid=$(cat /proc/sys/kernel/random/uuid)
     exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
     
-    # Inject Xray Config
     jq '.inbounds[1].settings.clients += [{"id": "'${uuid}'","alterId": 0,"email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
     mv /usr/local/etc/xray/temp.json /usr/local/etc/xray/config.json
     systemctl restart xray
@@ -406,7 +406,6 @@ add_vless() {
     uuid=$(cat /proc/sys/kernel/random/uuid)
     exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
     
-    # Inject Xray Config
     jq '.inbounds[2].settings.clients += [{"id": "'${uuid}'","email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
     mv /usr/local/etc/xray/temp.json /usr/local/etc/xray/config.json
     systemctl restart xray
@@ -447,7 +446,6 @@ add_trojan() {
     
     exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
     
-    # Inject Xray Config
     jq '.inbounds[3].settings.clients += [{"password": "'${user}'","email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
     mv /usr/local/etc/xray/temp.json /usr/local/etc/xray/config.json
     systemctl restart xray
@@ -466,7 +464,7 @@ add_trojan() {
     echo -e "Port TLS       : 443, 8443"
     echo -e "Port Any       : 2052, 2053, 8880"
     echo -e "${YELLOW}--------------------------------------${RESET}"
-    echo -e "Network        : ws (WebSocket)"
+    echo -e "Network        : ws (WebSocket) / tcp"
     echo -e "Path           : /trojan"
     echo -e "${GREEN}======================================${RESET}"
     echo -e "Link Trojan WS TLS:"
