@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==========================================================
 # Tendo-Script-Auto-Installer-X-ray-ZIVPN
-# EDITION: ULTIMATE FINAL (WS + GRPC + UPGRADE + ZIVPN FIX)
+# EDITION: SSH REPAIR + XRAY MULTIPLEXER + ZIVPN NATIVE
 # ==========================================================
 
 # Memastikan eksekusi sebagai root
@@ -65,7 +65,7 @@ curl https://get.acme.sh | sh
 ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
 ~/.acme.sh/acme.sh --installcert -d ${domain} --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
 
-# Fix Permission (Penting agar X-ray tidak crash permission denied)
+# Fix Permission
 chown -R nobody:nogroup /etc/xray
 chmod -R 755 /etc/xray
 chmod 644 /etc/xray/xray.crt /etc/xray/xray.key
@@ -102,15 +102,18 @@ echo "/usr/sbin/nologin" >> /etc/shells
 systemctl daemon-reload
 systemctl restart dropbear
 
-# 6. Instalasi & Konfigurasi SSH WebSocket Proxy (Fix Premature Close)
+# 6. Instalasi & Konfigurasi SSH WebSocket Proxy (V2 - Simple & Robust)
+# Script ini tidak akan rewel soal header, langsung forward ke Dropbear setelah kirim 101.
 echo "Menginstal SSH WebSocket Proxy Premium..."
 cat > /usr/local/bin/ws-openssh.py << 'EOF'
 #!/usr/bin/python3
-import socket, threading
+import socket, threading, select
 
 def forward(src, dst):
     try:
         while True:
+            r, w, x = select.select([src], [], [], 30)
+            if not r: break
             data = src.recv(8192)
             if not data: break
             dst.send(data)
@@ -121,29 +124,29 @@ def forward(src, dst):
 
 def handle_client(client_socket):
     try:
+        # Baca buffer awal dari client/Xray
         req = client_socket.recv(8192)
         if not req:
             client_socket.close()
             return
 
         remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        remote_socket.connect(('127.0.0.1', 90))
+        remote_socket.connect(('127.0.0.1', 90)) # Koneksi ke Dropbear
 
-        # Deteksi Header HTTP secara bersih dan buang
-        if b"\r\n\r\n" in req:
-            headers, payload = req.split(b"\r\n\r\n", 1)
-            # Support untuk "Upgrade" header juga
-            if b"HTTP" in headers or b"Upgrade: websocket" in headers.lower() or b"Upgrade: upgrade" in headers.lower():
-                client_socket.send(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
-                if payload:
-                    remote_socket.send(payload)
-            else:
-                remote_socket.send(req)
+        # Jika paket adalah HTTP (WebSocket Upgrade)
+        if b"HTTP" in req or b"GET" in req or b"CONNECT" in req:
+            # Kirim respon 101 Switching Protocols ke Client
+            client_socket.send(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
+            # BUANG Header HTTP lama, jangan kirim ke Dropbear (ini yang bikin error kemarin)
+            # Langsung mulai forwarding bidirectional murni
         else:
+            # Jika bukan HTTP (misal SSH direct), kirim paket apa adanya
             remote_socket.send(req)
 
-        threading.Thread(target=forward, args=(client_socket, remote_socket)).start()
-        threading.Thread(target=forward, args=(remote_socket, client_socket)).start()
+        t1 = threading.Thread(target=forward, args=(client_socket, remote_socket))
+        t2 = threading.Thread(target=forward, args=(remote_socket, client_socket))
+        t1.start()
+        t2.start()
     except:
         client_socket.close()
 
@@ -180,11 +183,12 @@ systemctl daemon-reload
 systemctl enable ws-openssh
 systemctl restart ws-openssh
 
-# 7. Instalasi & Konfigurasi Xray Core (SUPPORT WS, GRPC, UPGRADE)
+# 7. Instalasi & Konfigurasi Xray Core (SUPPORT WS, GRPC, PORT 80 & 443)
 echo "Menginstal Xray Core..."
 echo -e "\n" | bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
 
-# KONFIGURASI ULTIMATE: PORT 443 HANDLES WS & GRPC
+# KONFIGURASI XRAY MULTIPLEXER (Menangani Port 443 dan 80)
+# Port 80 & 443 akan otomatis fallback ke 10015 jika bukan traffic VLESS/VMESS
 cat > /usr/local/etc/xray/config.json << EOF
 {
   "log": { "access": "/var/log/xray/access.log", "error": "/var/log/xray/error.log", "loglevel": "warning" },
@@ -200,7 +204,6 @@ cat > /usr/local/etc/xray/config.json << EOF
           { "path": "/vless", "dest": 10002 },
           { "path": "/trojan", "dest": 10003 },
           { "path": "/sshws", "dest": 10015 },
-          { "alpn": "h2", "dest": 20002 },
           { "dest": 10015 }
         ]
       },
@@ -209,21 +212,30 @@ cat > /usr/local/etc/xray/config.json << EOF
         "security": "tls", 
         "tlsSettings": { 
             "certificates": [ { "certificateFile": "/etc/xray/xray.crt", "keyFile": "/etc/xray/xray.key" } ],
-            "alpn": ["h2", "http/1.1"]
+            "alpn": ["http/1.1"]
         } 
       },
       "sniffing": { "enabled": true, "destOverride": ["http", "tls"] }
     },
+    {
+      "port": 80,
+      "protocol": "vless",
+      "settings": {
+        "clients": [{"id": "b831381d-6324-4d53-ad4f-8cda48b30811", "email": "dummy@vless"}],
+        "decryption": "none",
+        "fallbacks": [
+          { "path": "/vmess", "dest": 10001 },
+          { "path": "/vless", "dest": 10002 },
+          { "path": "/trojan", "dest": 10003 },
+          { "path": "/sshws", "dest": 10015 },
+          { "dest": 10015 }
+        ]
+      },
+      "streamSettings": { "network": "tcp", "security": "none" }
+    },
     { "port": 10001, "listen": "127.0.0.1", "protocol": "vmess", "settings": { "clients": [] }, "streamSettings": { "network": "ws", "wsSettings": { "path": "/vmess" } } },
     { "port": 10002, "listen": "127.0.0.1", "protocol": "vless", "settings": { "clients": [], "decryption": "none" }, "streamSettings": { "network": "ws", "wsSettings": { "path": "/vless" } } },
-    { "port": 10003, "listen": "127.0.0.1", "protocol": "trojan", "settings": { "clients": [] }, "streamSettings": { "network": "ws", "wsSettings": { "path": "/trojan" } } },
-    { 
-      "port": 20002, 
-      "listen": "127.0.0.1", 
-      "protocol": "vless", 
-      "settings": { "clients": [], "decryption": "none" }, 
-      "streamSettings": { "network": "grpc", "grpcSettings": { "serviceName": "vless-grpc" } } 
-    }
+    { "port": 10003, "listen": "127.0.0.1", "protocol": "trojan", "settings": { "clients": [] }, "streamSettings": { "network": "ws", "wsSettings": { "path": "/trojan" } } }
   ],
   "outbounds": [ { "protocol": "freedom", "settings": {} } ]
 }
@@ -241,7 +253,6 @@ EOF
 systemctl restart squid
 
 # 9. Instalasi BadVPN UDPGW (Legacy 7100-7600)
-# Kembali ke port awal sesuai permintaan
 echo "Menginstal BadVPN UDPGW Legacy (7100-7600)..."
 cd /usr/local/src
 wget -q https://github.com/ambrop72/badvpn/archive/master.zip
@@ -310,12 +321,11 @@ iptables -t nat -A PREROUTING -i $IFACE_NET -p udp --dport 6000:19999 -j DNAT --
 iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5667
 netfilter-persistent save &>/dev/null
 
-# 11. Routing Port Tambahan dengan IPtables (NAT PREROUTING)
+# 11. Routing Port Tambahan (Port 80/443 sudah dihandle Xray, redirect hanya untuk port lain)
 echo "Mengonfigurasi NAT IPtables untuk Port Custom..."
-iptables -t nat -A PREROUTING -p tcp --dport 8443 -j REDIRECT --to-port 443
-iptables -t nat -A PREROUTING -p tcp --dport 2082 -j REDIRECT --to-port 10015
-iptables -t nat -A PREROUTING -p tcp --dport 2083 -j REDIRECT --to-port 10015
-iptables -t nat -A PREROUTING -p tcp --dport 8880 -j REDIRECT --to-port 10015
+iptables -t nat -A PREROUTING -p tcp --dport 2082 -j REDIRECT --to-port 80
+iptables -t nat -A PREROUTING -p tcp --dport 2083 -j REDIRECT --to-port 80
+iptables -t nat -A PREROUTING -p tcp --dport 8880 -j REDIRECT --to-port 80
 iptables -t nat -A PREROUTING -p tcp --dport 9080 -j REDIRECT --to-port 90
 netfilter-persistent save &>/dev/null
 
@@ -416,8 +426,8 @@ add_vmess() {
     uuid=$(cat /proc/sys/kernel/random/uuid)
     exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
     
-    # Injeksi ke inbound 1 (Internal VMess WS)
-    jq '.inbounds[1].settings.clients += [{"id": "'${uuid}'","alterId": 0,"email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
+    # Injeksi ke inbound 2 (Internal VMess WS) - Index disesuaikan config xray terbaru
+    jq '.inbounds[2].settings.clients += [{"id": "'${uuid}'","alterId": 0,"email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
     mv /usr/local/etc/xray/temp.json /usr/local/etc/xray/config.json
     systemctl restart xray
     
@@ -456,10 +466,8 @@ add_vless() {
     uuid=$(cat /proc/sys/kernel/random/uuid)
     exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
     
-    # Injeksi ke inbound 2 (Internal VLESS WS) & inbound 4 (Internal VLESS GRPC)
-    jq '.inbounds[2].settings.clients += [{"id": "'${uuid}'","email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
-    mv /usr/local/etc/xray/temp.json /usr/local/etc/xray/config.json
-    jq '.inbounds[4].settings.clients += [{"id": "'${uuid}'","email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
+    # Injeksi ke inbound 3 (Internal VLESS WS)
+    jq '.inbounds[3].settings.clients += [{"id": "'${uuid}'","email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
     mv /usr/local/etc/xray/temp.json /usr/local/etc/xray/config.json
     systemctl restart xray
     
@@ -477,14 +485,13 @@ add_vless() {
     echo -e "Port TLS       : 443, 8443"
     echo -e "Port None TLS  : 80, 8080"
     echo -e "${YELLOW}--------------------------------------${RESET}"
-    echo -e "Network        : ws (WebSocket) & grpc"
-    echo -e "Path (WS)      : /vless"
-    echo -e "Service (GRPC) : vless-grpc"
+    echo -e "Network        : ws (WebSocket)"
+    echo -e "Path           : /vless"
     echo -e "${GREEN}======================================${RESET}"
-    echo -e "Link VLESS WS TLS:"
+    echo -e "Link VLESS TLS:"
     echo -e "vless://${uuid}@${domain}:443?path=/vless&security=tls&encryption=none&type=ws#${user}"
-    echo -e "Link VLESS GRPC TLS:"
-    echo -e "vless://${uuid}@${domain}:443?mode=gun&security=tls&encryption=none&type=grpc&serviceName=vless-grpc#${user}"
+    echo -e "Link VLESS None TLS:"
+    echo -e "vless://${uuid}@${domain}:80?path=/vless&security=none&encryption=none&type=ws#${user}"
     echo -e "${GREEN}======================================${RESET}"
     read -n 1 -s -r -p "Tekan tombol apa saja untuk kembali ke menu..."
     menu
@@ -500,8 +507,8 @@ add_trojan() {
     
     exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
     
-    # Injeksi ke inbound 3 (Internal Trojan WS)
-    jq '.inbounds[3].settings.clients += [{"password": "'${user}'","email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
+    # Injeksi ke inbound 4 (Internal Trojan WS)
+    jq '.inbounds[4].settings.clients += [{"password": "'${user}'","email": "'${user}'"}]' /usr/local/etc/xray/config.json > /usr/local/etc/xray/temp.json
     mv /usr/local/etc/xray/temp.json /usr/local/etc/xray/config.json
     systemctl restart xray
     
@@ -524,6 +531,8 @@ add_trojan() {
     echo -e "${GREEN}======================================${RESET}"
     echo -e "Link Trojan WS TLS:"
     echo -e "trojan://${user}@${domain}:443?path=/trojan&security=tls&type=ws#${user}"
+    echo -e "Link Trojan Any Port:"
+    echo -e "trojan://${user}@${domain}:2052?path=/trojan&security=tls&type=ws#${user}"
     echo -e "${GREEN}======================================${RESET}"
     read -n 1 -s -r -p "Tekan tombol apa saja untuk kembali ke menu..."
     menu
@@ -537,7 +546,7 @@ menu() {
     echo -e "${CYAN}[1]${RESET} Create SSH Account"
     echo -e "${CYAN}[2]${RESET} Create ZIVPN Account"
     echo -e "${CYAN}[3]${RESET} Create VMESS WS Account"
-    echo -e "${CYAN}[4]${RESET} Create VLESS WS/GRPC Account"
+    echo -e "${CYAN}[4]${RESET} Create VLESS WS Account"
     echo -e "${CYAN}[5]${RESET} Create TROJAN WS Account"
     echo -e "${RED}[x]${RESET} Keluar"
     echo -e "${PURPLE}======================================${RESET}"
