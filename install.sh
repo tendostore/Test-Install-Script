@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==========================================================
 # Tendo-Script-Auto-Installer-X-ray-ZIVPN
-# FULL VERSION: AUTO CLOUDFLARE + TLS + DROPBEAR 2019 + ZIVPN
+# FULL VERSION: AUTO CF + TLS + DROPBEAR 2019 + WS PROXY FIX + ZIVPN
 # ==========================================================
 
 # Memastikan eksekusi sebagai root
@@ -61,7 +61,7 @@ curl https://get.acme.sh | sh
 ~/.acme.sh/acme.sh --issue -d ${domain} --standalone -k ec-256
 ~/.acme.sh/acme.sh --installcert -d ${domain} --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
 
-# Fix Permission Xray (Solusi error "permission denied")
+# Fix Permission Xray
 chmod 644 /etc/xray/xray.crt /etc/xray/xray.key
 
 # 4. Konfigurasi OpenSSH (Port 22, 444)
@@ -96,7 +96,7 @@ echo "/usr/sbin/nologin" >> /etc/shells
 systemctl daemon-reload
 systemctl restart dropbear
 
-# 6. Instalasi & Konfigurasi SSH WebSocket (Premium Python Proxy - Anti EOF Bug)
+# 6. Instalasi & Konfigurasi SSH WebSocket (Premium Python Proxy - FINAL FIX)
 echo "Menginstal SSH WebSocket Proxy Premium..."
 cat > /usr/local/bin/ws-openssh.py << 'EOF'
 #!/usr/bin/python3
@@ -104,21 +104,29 @@ import socket, threading
 
 def handle_client(client_socket):
     try:
-        remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        remote_socket.connect(('127.0.0.1', 90)) # Arahkan ke Dropbear 2019
-        
         req = client_socket.recv(8192)
         if not req:
             client_socket.close()
             return
 
-        # Pisahkan Header HTTP dari Payload SSH agar tidak error EOF
+        remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        remote_socket.connect(('127.0.0.1', 90)) # Arahkan ke Dropbear 2019
+
+        # Deteksi HTTP header
         if b"HTTP" in req or b"GET" in req or b"PATCH" in req or b"POST" in req:
+            # Kirim respons 101 ke client HTTP Custom
             client_socket.send(b'HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n')
-            parts = req.split(b'\r\n\r\n', 1)
-            if len(parts) == 2 and len(parts[1]) > 0:
-                remote_socket.send(parts[1])
+            
+            # Cari akhir dari SEMUA tumpukan header HTTP menggunakan rfind (mencari \r\n\r\n paling terakhir)
+            idx = req.rfind(b'\r\n\r\n')
+            if idx != -1 and len(req) > idx + 4:
+                # Jika ada data SSH yang terselip setelah header HTTP, baru kirimkan ke Dropbear
+                tail = req[idx+4:]
+                if tail:
+                    remote_socket.send(tail)
+            # Jika tidak ada data terselip, header HTTP dibuang sepenuhnya (Dropbear aman)
         else:
+            # Jika bukan HTTP (misal direct SSH), kirim utuh ke Dropbear
             remote_socket.send(req)
             
         def forward(src, dst):
