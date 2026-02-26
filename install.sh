@@ -106,7 +106,7 @@ systemctl enable dropbear
 systemctl start dropbear
 
 # ==========================================
-# 5. SCRIPT WEBSOCKET PROXY (PYTHON) SMART BUFFER
+# 5. SCRIPT WEBSOCKET PROXY (PYTHON) ANTI-TIMEOUT
 # ==========================================
 echo "Mengonfigurasi proxy WebSocket Universal Kelas Premium..."
 cat <<'EOF' > /usr/local/bin/ws-proxy.py
@@ -115,62 +115,51 @@ import threading
 import sys
 
 def handle_client(c):
+    t = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        t = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # PENTING: Matikan delay Nagle's Algorithm agar anti-timeout
+        c.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        t.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         t.connect(('127.0.0.1', 90))
         
-        data = c.recv(8192)
-        if not data: return
+        req = c.recv(8192)
+        if not req: return
         
-        is_http = False
-        # Deteksi awal apakah ada injeksi HTTP
-        if b"HTTP/" in data or b"GET " in data or b"POST " in data or b"PATCH " in data:
-            is_http = True
-            c.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
+        # Pancing HTTP Custom dengan 101
+        c.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
+        
+        # Ekstrak SSH murni jika datang lebih awal
+        if b"SSH-2.0" in req:
+            t.sendall(req[req.find(b"SSH-2.0"):])
 
-        ssh_found = False
-        idx = data.find(b"SSH-")
-        if idx != -1:
-            t.sendall(data[idx:])
-            ssh_found = True
-        elif not is_http:
-            # Jika murni koneksi SSH tanpa injektor, langsung hajar
-            t.sendall(data)
-            ssh_found = True
+        def forward_c2t():
+            try:
+                while True:
+                    data = c.recv(8192)
+                    if not data: break
+                    
+                    # FILTER: Jika ada header HTTP (Pipelining), ambil SSH-nya saja.
+                    if data.startswith(b"GET ") or data.startswith(b"POST ") or data.startswith(b"PATCH ") or data.startswith(b"HTTP/"):
+                        if b"SSH-2.0" in data:
+                            t.sendall(data[data.find(b"SSH-2.0"):])
+                    else:
+                        t.sendall(data)
+            except: pass
+            finally: c.close(); t.close()
 
-        threading.Thread(target=client_to_target, args=(c, t, ssh_found)).start()
-        threading.Thread(target=target_to_client, args=(t, c)).start()
+        def forward_t2c():
+            try:
+                while True:
+                    data = t.recv(8192)
+                    if not data: break
+                    c.sendall(data)
+            except: pass
+            finally: c.close(); t.close()
+
+        threading.Thread(target=forward_c2t).start()
+        threading.Thread(target=forward_t2c).start()
     except:
         c.close()
-
-def client_to_target(c, t, ssh_found):
-    buf = b""
-    try:
-        while True:
-            data = c.recv(8192)
-            if not data: break
-            
-            if not ssh_found:
-                buf += data
-                # SMART BUFFER: Potong presisi dari mulai SSH-
-                idx = buf.find(b"SSH-")
-                if idx != -1:
-                    t.sendall(buf[idx:])
-                    ssh_found = True
-                    buf = b"" 
-            else:
-                t.sendall(data)
-    except: pass
-    finally: c.close(); t.close()
-
-def target_to_client(t, c):
-    try:
-        while True:
-            data = t.recv(8192)
-            if not data: break
-            c.sendall(data)
-    except: pass
-    finally: t.close(); c.close()
 
 def main(port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
