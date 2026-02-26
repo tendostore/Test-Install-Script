@@ -42,7 +42,7 @@ RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE
      -H "X-Auth-Key: ${CF_KEY}" \
      -H "Content-Type: application/json" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
 
-# DIKEMBALIKAN KE PROXIED: FALSE (Awan Abu-abu / DNS Only)
+# DISET KE PROXIED: FALSE (Awan Abu-abu / DNS Only)
 if [ "${RECORD_ID}" = "" ]; then
     # Create record
     curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
@@ -58,7 +58,7 @@ else
          -H "Content-Type: application/json" \
          --data '{"type":"A","name":"'${SUB_DOMAIN}'","content":"'${IP}'","ttl":120,"proxied":false}' > /dev/null
 fi
-echo "Host Anda berhasil dipointing: ${SUB_DOMAIN} -> ${IP} (DNS Only / Awan Abu-abu)"
+echo "Host Anda berhasil dipointing: ${SUB_DOMAIN} -> ${IP} (DNS Only)"
 
 # ==========================================
 # 2. INSTALASI DEPENDENSI
@@ -106,7 +106,7 @@ systemctl enable dropbear
 systemctl start dropbear
 
 # ==========================================
-# 5. SCRIPT WEBSOCKET PROXY (PYTHON) BRUTAL FILTER
+# 5. SCRIPT WEBSOCKET PROXY (PYTHON) SMART BUFFER
 # ==========================================
 echo "Mengonfigurasi proxy WebSocket Universal Kelas Premium..."
 cat <<'EOF' > /usr/local/bin/ws-proxy.py
@@ -122,38 +122,46 @@ def handle_client(c):
         data = c.recv(8192)
         if not data: return
         
-        # Langsung bypass dengan 101 Switching Protocols
-        c.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
-        
-        # Jika paket pertama langsung bawa SSH-2.0, teruskan
-        if b"SSH-2.0" in data:
-            t.sendall(data[data.find(b"SSH-2.0"):])
-            
-        threading.Thread(target=client_to_target, args=(c, t)).start()
+        is_http = False
+        # Deteksi awal apakah ada injeksi HTTP
+        if b"HTTP/" in data or b"GET " in data or b"POST " in data or b"PATCH " in data:
+            is_http = True
+            c.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
+
+        ssh_found = False
+        idx = data.find(b"SSH-")
+        if idx != -1:
+            t.sendall(data[idx:])
+            ssh_found = True
+        elif not is_http:
+            # Jika murni koneksi SSH tanpa injektor, langsung hajar
+            t.sendall(data)
+            ssh_found = True
+
+        threading.Thread(target=client_to_target, args=(c, t, ssh_found)).start()
         threading.Thread(target=target_to_client, args=(t, c)).start()
     except:
         c.close()
 
-def client_to_target(c, t):
+def client_to_target(c, t, ssh_found):
+    buf = b""
     try:
         while True:
             data = c.recv(8192)
             if not data: break
             
-            # FILTER BRUTAL: Kalau ada SSH, ambil SSH-nya aja
-            if b"SSH-2.0" in data:
-                t.sendall(data[data.find(b"SSH-2.0"):])
-            # Kalau murni HTTP nyasar (GET, PATCH, POST), buang ke tong sampah
-            elif b"HTTP/" in data or b"GET /" in data or b"PATCH /" in data:
-                pass 
-            # Kalau paket data murni, teruskan
+            if not ssh_found:
+                buf += data
+                # SMART BUFFER: Potong presisi dari mulai SSH-
+                idx = buf.find(b"SSH-")
+                if idx != -1:
+                    t.sendall(buf[idx:])
+                    ssh_found = True
+                    buf = b"" 
             else:
                 t.sendall(data)
-    except:
-        pass
-    finally:
-        c.close()
-        t.close()
+    except: pass
+    finally: c.close(); t.close()
 
 def target_to_client(t, c):
     try:
@@ -161,11 +169,8 @@ def target_to_client(t, c):
             data = t.recv(8192)
             if not data: break
             c.sendall(data)
-    except:
-        pass
-    finally:
-        t.close()
-        c.close()
+    except: pass
+    finally: t.close(); c.close()
 
 def main(port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
