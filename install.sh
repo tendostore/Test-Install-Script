@@ -14,7 +14,10 @@
 #           + Fixed X-Ray Fallback Path Error
 #           + UI Update: Early Domain Prompt & Bouncing Scanner Spinner
 #           + Full Telegram Bot Integration (Mono link, Login Notif Fix)
-#           + Backup & Restore Data (Direct Link & Telegram Auto-Send FIXED)
+#           + Backup & Restore Data (Direct Link & Telegram Auto-Send)
+#           + Multi-Login Auto Lock (10 mins) + Telegram Notif
+#           + Quota Exceeded Auto Delete + Telegram Notif
+#           + Manual Lock / Unlock Features
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -271,38 +274,71 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-exp
 
-# Script Limit IP
+# Script Limit IP (Auto Lock 10 Mins)
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 CONFIG="/usr/local/etc/xray/config.json"
 LOG_FILE="/var/log/xray/access.log"
+TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
+CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
+NOW=$(date +%s)
+
 [[ ! -f "$LOG_FILE" ]] && exit 0
 tail -n 1000 "$LOG_FILE" | grep "accepted" | awk '{print $3, $7}' | sed 's/tcp://g' | awk -F: '{print $1" "$2}' > /tmp/xray_active.log
+
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
     [[ ! -f "$FILE" ]] && continue
     while IFS="|" read -r user id exp limit status quota; do
-        [[ -z "$limit" || "$limit" == "0" || "$status" == "LOCKED" ]] && continue
+        if [[ "$status" == LOCKED_IP_* ]]; then
+            lock_time=${status#LOCKED_IP_}
+            if [[ $((NOW - lock_time)) -ge 600 ]]; then
+                if [[ "$proto" == "trojan" ]]; then
+                    jq --arg p "$id" --arg u "$user" '(.inbounds[] | select(.protocol == "trojan")).settings.clients += [{"password":$p,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
+                else
+                    jq --arg id "$id" --arg u "$user" '(.inbounds[] | select(.protocol == "'$proto'")).settings.clients += [{"id":$id,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
+                fi
+                sed -i "s/^$user|.*/$user|$id|$exp|$limit|ACTIVE|$quota/g" "$FILE"
+                systemctl restart xray
+                if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
+                    MSG="<b>✅ ACCOUNT UNLOCKED</b>%0A👤 User: <code>$user</code>%0A🔓 Status: Active (10 mins penalty over)"
+                    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHATID}" -d text="${MSG}" -d parse_mode="HTML" > /dev/null
+                fi
+            fi
+            continue
+        elif [[ "$status" == "LOCKED" ]]; then
+            continue
+        fi
+        
+        [[ -z "$limit" || "$limit" == "0" ]] && continue
+        
         active_ips=$(grep -w "$user" /tmp/xray_active.log | awk '{print $1}' | sort -u | wc -l)
         if [[ "$active_ips" -gt "$limit" ]]; then
             jq --arg u "$user" '(.inbounds[] | select(.protocol == "'$proto'")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
-            sed -i "s/^$user|.*/$user|$id|$exp|$limit|LOCKED|$quota/g" "$FILE"
+            sed -i "s/^$user|.*/$user|$id|$exp|$limit|LOCKED_IP_${NOW}|$quota/g" "$FILE"
             systemctl restart xray
+            if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
+                MSG="<b>⚠️ MULTI-LOGIN DETECTED</b>%0A👤 User: <code>$user</code>%0A🌐 Limit: $limit IP%0A🚨 Login: $active_ips IP%0A⛔ Status: Locked for 10 Mins"
+                curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHATID}" -d text="${MSG}" -d parse_mode="HTML" > /dev/null
+            fi
         fi
     done < "$FILE"
 done
 EOF
 chmod +x /usr/local/bin/xray-limit
 
-# Script Quota
+# Script Quota (Auto Delete)
 cat > /usr/local/bin/xray-quota <<'EOF'
 #!/bin/bash
 CONFIG="/usr/local/etc/xray/config.json"
+TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
+CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
+
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
     [[ ! -f "$FILE" ]] && continue
     while IFS="|" read -r user id exp limit status quota; do
-        [[ -z "$quota" || "$quota" == "0" || "$status" == "LOCKED" ]] && continue
+        [[ -z "$quota" || "$quota" == "0" || "$status" == "LOCKED" || "$status" == LOCKED_IP_* ]] && continue
         down=$(/usr/local/bin/xray api statsquery --server=127.0.0.1:10085 -name "user>>>${user}>>>traffic>>>downlink" 2>/dev/null | grep value | awk '{print $2}' | tr -d '"')
         up=$(/usr/local/bin/xray api statsquery --server=127.0.0.1:10085 -name "user>>>${user}>>>traffic>>>uplink" 2>/dev/null | grep value | awk '{print $2}' | tr -d '"')
         [[ -z "$down" ]] && down=0
@@ -311,8 +347,12 @@ for proto in vmess vless trojan; do
         quota_bytes=$(awk "BEGIN {printf \"%.0f\", $quota * 1073741824}")
         if [ "$total_bytes" -ge "$quota_bytes" ]; then
             jq --arg u "$user" '(.inbounds[] | select(.protocol == "'$proto'")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
-            sed -i "s/^$user|.*/$user|$id|$exp|$limit|LOCKED|$quota/g" "$FILE"
+            sed -i "/^$user|/d" "$FILE"
             systemctl restart xray
+            if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
+                MSG="<b>🚫 QUOTA EXCEEDED</b>%0A👤 User: <code>$user</code>%0A📊 Limit: ${quota} GB%0A⛔ Status: Account Deleted"
+                curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHATID}" -d text="${MSG}" -d parse_mode="HTML" > /dev/null
+            fi
         fi
     done < "$FILE"
 done
@@ -329,7 +369,7 @@ LOG_FILE="/var/log/xray/access.log"
 
 awk '{ip=$3; gsub(/:.*/, "", ip); print ip, $NF}' "$LOG_FILE" | sort -u > /tmp/bot_active.log
 
-MSG="<b>📊 REPORT ACTIVE USERS (LOGIN)</b>%0A"
+MSG="<b>📊 LAPORKAN PENGGUNA AKTIF (LOGIN)</b>"$'\n'
 FOUND=0
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
@@ -337,14 +377,17 @@ for proto in vmess vless trojan; do
     while IFS="|" read -r user id exp limit status quota; do
         active_ips=$(grep -w "$user" /tmp/bot_active.log | wc -l)
         if [[ "$active_ips" -gt 0 ]]; then
-            MSG+="%0A👤 User: <code>$user</code> | 🌐 Login: <b>$active_ips IP</b> (1 Akun di pakek $active_ips user)"
+            MSG+=$'\n'"👤 User: <code>$user</code> | 🌐 Login: $active_ips IP (dipakek $active_ips user)"
             FOUND=1
         fi
     done < "$FILE"
 done
 
 if [[ "$FOUND" -eq 1 ]]; then
-    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHATID}" -d text="${MSG}" -d parse_mode="HTML" > /dev/null
+    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+        -d "chat_id=${CHATID}" \
+        --data-urlencode "text=${MSG}" \
+        -d "parse_mode=HTML" > /dev/null
 fi
 EOF
 chmod +x /usr/local/bin/bot-login-notif
@@ -801,6 +844,8 @@ function vmess_menu() {
         echo -e "${CYAN}│${NC} [3] Renew Account Vmess"
         echo -e "${CYAN}│${NC} [4] Check Config User"
         echo -e "${CYAN}│${NC} [5] Trial Account Vmess"
+        echo -e "${CYAN}│${NC} [6] Lock Account Vmess"
+        echo -e "${CYAN}│${NC} [7] Unlock Account Vmess"
         echo -e "${CYAN}│${NC} [x] Back"
         echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
@@ -833,6 +878,24 @@ function vmess_menu() {
                upg_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                upg_ntls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
                show_account_xray "VMESS" "$u" "$DMN" "$id" "$exp_date" "$limit" "$quota" "0.00" "vmess://$ws_tls" "vmess://$ws_ntls" "vmess://$grpc_tls" "vmess://$upg_tls" "vmess://$upg_ntls";;
+            6) nl $D_VMESS; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_VMESS); u=$(echo "$line" | cut -d'|' -f1); id=$(echo "$line" | cut -d'|' -f2); exp=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5); quota=$(echo "$line" | cut -d'|' -f6)
+               if [[ "$stat" == "ACTIVE" ]]; then
+                   jq --arg u "$u" '(.inbounds[] | select(.protocol == "vmess")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
+                   sed -i "${n}s/.*/$u|$id|$exp|$limit|LOCKED|$quota/" $D_VMESS
+                   systemctl restart xray >/dev/null 2>&1 &
+                   echo -e "${GREEN}Account $u Locked Successfully!${NC}"; sleep 2
+               else
+                   echo -e "${RED}Account is already locked!${NC}"; sleep 2
+               fi;;
+            7) nl $D_VMESS; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_VMESS); u=$(echo "$line" | cut -d'|' -f1); id=$(echo "$line" | cut -d'|' -f2); exp=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5); quota=$(echo "$line" | cut -d'|' -f6)
+               if [[ "$stat" != "ACTIVE" ]]; then
+                   jq --arg u "$u" --arg id "$id" '(.inbounds[] | select(.protocol == "vmess")).settings.clients += [{"id":$id,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
+                   sed -i "${n}s/.*/$u|$id|$exp|$limit|ACTIVE|$quota/" $D_VMESS
+                   systemctl restart xray >/dev/null 2>&1 &
+                   echo -e "${GREEN}Account $u Unlocked Successfully!${NC}"; sleep 2
+               else
+                   echo -e "${YELLOW}Account is already Active!${NC}"; sleep 2
+               fi;;
             x) return;;
         esac; done
 }
@@ -844,6 +907,8 @@ function vless_menu() {
         echo -e "${CYAN}│${NC} [3] Renew Account Vless"
         echo -e "${CYAN}│${NC} [4] Check Config User"
         echo -e "${CYAN}│${NC} [5] Trial Account Vless"
+        echo -e "${CYAN}│${NC} [6] Lock Account Vless"
+        echo -e "${CYAN}│${NC} [7] Unlock Account Vless"
         echo -e "${CYAN}│${NC} [x] Back"
         echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
@@ -876,6 +941,24 @@ function vless_menu() {
                upg_tls="vless://${id}@${DMN}:443?path=%2Fvless-upg&security=tls&encryption=none&host=${DMN}&type=httpupgrade&sni=${DMN}#${u}"
                upg_ntls="vless://${id}@${DMN}:80?path=%2Fvless-upg&security=none&encryption=none&host=${DMN}&type=httpupgrade#${u}"
                show_account_xray "VLESS" "$u" "$DMN" "$id" "$exp_date" "$limit" "$quota" "0.00" "$ws_tls" "$ws_ntls" "$grpc_tls" "$upg_tls" "$upg_ntls";;
+            6) nl $D_VLESS; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_VLESS); u=$(echo "$line" | cut -d'|' -f1); id=$(echo "$line" | cut -d'|' -f2); exp=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5); quota=$(echo "$line" | cut -d'|' -f6)
+               if [[ "$stat" == "ACTIVE" ]]; then
+                   jq --arg u "$u" '(.inbounds[] | select(.protocol == "vless")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
+                   sed -i "${n}s/.*/$u|$id|$exp|$limit|LOCKED|$quota/" $D_VLESS
+                   systemctl restart xray >/dev/null 2>&1 &
+                   echo -e "${GREEN}Account $u Locked Successfully!${NC}"; sleep 2
+               else
+                   echo -e "${RED}Account is already locked!${NC}"; sleep 2
+               fi;;
+            7) nl $D_VLESS; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_VLESS); u=$(echo "$line" | cut -d'|' -f1); id=$(echo "$line" | cut -d'|' -f2); exp=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5); quota=$(echo "$line" | cut -d'|' -f6)
+               if [[ "$stat" != "ACTIVE" ]]; then
+                   jq --arg u "$u" --arg id "$id" '(.inbounds[] | select(.protocol == "vless")).settings.clients += [{"id":$id,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
+                   sed -i "${n}s/.*/$u|$id|$exp|$limit|ACTIVE|$quota/" $D_VLESS
+                   systemctl restart xray >/dev/null 2>&1 &
+                   echo -e "${GREEN}Account $u Unlocked Successfully!${NC}"; sleep 2
+               else
+                   echo -e "${YELLOW}Account is already Active!${NC}"; sleep 2
+               fi;;
             x) return;;
         esac; done
 }
@@ -887,6 +970,8 @@ function trojan_menu() {
         echo -e "${CYAN}│${NC} [3] Renew Account Trojan"
         echo -e "${CYAN}│${NC} [4] Check Config User"
         echo -e "${CYAN}│${NC} [5] Trial Account Trojan"
+        echo -e "${CYAN}│${NC} [6] Lock Account Trojan"
+        echo -e "${CYAN}│${NC} [7] Unlock Account Trojan"
         echo -e "${CYAN}│${NC} [x] Back"
         echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
@@ -916,6 +1001,24 @@ function trojan_menu() {
                grpc_tls="trojan://${pass}@${DMN}:443?security=tls&host=${DMN}&type=grpc&serviceName=trojan-grpc&sni=${DMN}#${u}"
                upg_tls="trojan://${pass}@${DMN}:443?path=%2Ftrojan-upg&security=tls&host=${DMN}&type=httpupgrade&sni=${DMN}#${u}"
                show_account_xray "TROJAN" "$u" "$DMN" "$pass" "$exp_date" "$limit" "$quota" "0.00" "$ws_tls" "$ws_ntls" "$grpc_tls" "$upg_tls" "";;
+            6) nl $D_TROJAN; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_TROJAN); u=$(echo "$line" | cut -d'|' -f1); pass=$(echo "$line" | cut -d'|' -f2); exp=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5); quota=$(echo "$line" | cut -d'|' -f6)
+               if [[ "$stat" == "ACTIVE" ]]; then
+                   jq --arg u "$u" '(.inbounds[] | select(.protocol == "trojan")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
+                   sed -i "${n}s/.*/$u|$pass|$exp|$limit|LOCKED|$quota/" $D_TROJAN
+                   systemctl restart xray >/dev/null 2>&1 &
+                   echo -e "${GREEN}Account $u Locked Successfully!${NC}"; sleep 2
+               else
+                   echo -e "${RED}Account is already locked!${NC}"; sleep 2
+               fi;;
+            7) nl $D_TROJAN; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_TROJAN); u=$(echo "$line" | cut -d'|' -f1); pass=$(echo "$line" | cut -d'|' -f2); exp=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5); quota=$(echo "$line" | cut -d'|' -f6)
+               if [[ "$stat" != "ACTIVE" ]]; then
+                   jq --arg p "$pass" --arg u "$u" '(.inbounds[] | select(.protocol == "trojan")).settings.clients += [{"password":$p,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
+                   sed -i "${n}s/.*/$u|$pass|$exp|$limit|ACTIVE|$quota/" $D_TROJAN
+                   systemctl restart xray >/dev/null 2>&1 &
+                   echo -e "${GREEN}Account $u Unlocked Successfully!${NC}"; sleep 2
+               else
+                   echo -e "${YELLOW}Account is already Active!${NC}"; sleep 2
+               fi;;
             x) return;;
         esac; done
 }
