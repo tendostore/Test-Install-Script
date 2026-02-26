@@ -11,10 +11,12 @@ fi
 # ==========================================
 # 1. VARIABEL & AUTO POINTING CLOUDFLARE
 # ==========================================
-# GANTI "domainanda.com" dengan domain asli Anda
-DOMAIN="domainanda.com" 
+DOMAIN="free-tendo.store" 
 SUB_DOMAIN="vpn.${DOMAIN}"
 IP=$(curl -sS ifconfig.me)
+
+# Menyimpan domain untuk dipanggil di menu
+echo "${SUB_DOMAIN}" > /etc/vps_domain
 
 CF_ID="mbuntoncity@gmail.com"
 CF_KEY="96bee4f14ef23e42c4509efc125c0eac5c02e"
@@ -205,6 +207,8 @@ echo "Membuat executable menu..."
 cat <<'EOF' > /usr/local/bin/menu
 #!/bin/bash
 clear
+domain=$(cat /etc/vps_domain)
+
 echo "======================================"
 echo "          MENU VPN ACCOUNT            "
 echo "======================================"
@@ -230,6 +234,7 @@ case $opt in
         echo "======================================"
         echo "Informasi Akun SSH & WebSocket Anda:"
         echo "======================================"
+        echo "Domain     : $domain"
         echo "Username   : $user"
         echo "Password   : $pass"
         echo "Expired    : $exp Hari"
