@@ -1,8 +1,10 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray, Zivpn & SSH Dropbear
-#   EDITION: PLATINUM CLEAN V.7.0 (ULTIMATE FINAL)
-#   Update: Added SSH Dropbear 2019 Integration
+#   EDITION: PLATINUM CLEAN V.7.1 (ULTIMATE FINAL FIX)
+#   Update: Fixed Dropbear Password Authentication Issue (/etc/shells)
+#           + Fixed Background Password Injection (chpasswd)
+#           + Added SSH Dropbear 2019 Integration
 #           + X-Ray Fallback Port Multiplexer (Port 443/80 Sharing)
 #           + Python WS Proxy on Port 10010
 #           + Menu SSH (Create, Del, Renew, Check, Lock, Unlock)
@@ -166,6 +168,9 @@ print_ok "Domain & SSL"
 # --- 5.5 INSTALL OPENSSH, DROPBEAR 2019 & WS-PROXY ---
 print_msg "Install OpenSSH, Dropbear 2019 & WS Proxy"
 (
+    # FIX: Mendaftarkan /bin/false sebagai shell yang sah agar Dropbear/OpenSSH tidak menolak password
+    grep -qE "^/bin/false$" /etc/shells || echo "/bin/false" >> /etc/shells
+
     # OpenSSH (Port 22 & 444)
     sed -i 's/#Port 22/Port 22\nPort 444/g' /etc/ssh/sshd_config
     systemctl restart sshd
@@ -932,7 +937,7 @@ function ssh_menu() {
         read -p " Select Menu : " opt
         case $opt in
             1) read -p " Username : " u; read -p " Password : " p; read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; read -p " Limit Login/Devices (0 for unlimited): " limit; [[ -z "$limit" ]] && limit=0;
-               useradd -e $(date -d "+$ex days" +"%Y-%m-%d") -s /bin/false -M "$u"; echo -e "$p\n$p\n" | passwd "$u" &> /dev/null
+               useradd -e $(date -d "+$ex days" +"%Y-%m-%d") -s /bin/false -M "$u"; echo "$u:$p" | chpasswd
                exp_date=$(date -d "+$ex days" +"%Y-%m-%d"); echo "$u|$p|$exp_date|$limit|ACTIVE" >> $D_SSH;
                DMN=$(cat /usr/local/etc/xray/domain); show_account_ssh "$u" "$p" "$DMN" "$exp_date" "$limit";;
             2) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; u=$(sed -n "${n}p" $D_SSH | cut -d'|' -f1); userdel -f "$u" &> /dev/null; sed -i "${n}d" $D_SSH; echo -e "${GREEN}Account Deleted!${NC}"; sleep 2;;
@@ -940,7 +945,7 @@ function ssh_menu() {
             4) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_SSH); u=$(echo "$line" | cut -d'|' -f1); p=$(echo "$line" | cut -d'|' -f2); exp_date=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); DMN=$(cat /usr/local/etc/xray/domain); active=$(ps -u "$u" -o comm= 2>/dev/null | grep -E -c "dropbear|sshd"); echo -e "\n${YELLOW}>> Status Login Aktif Saat ini: ${active} Device(s)${NC}\n"; show_account_ssh "$u" "$p" "$DMN" "$exp_date" "$limit";;
             5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; p="$u"; echo -e " Username (Trial): ${GREEN}$u${NC}"; read -p " Duration (e.g., 10m, 1h): " dur;
                if [[ "$dur" == *m ]]; then add_str="+${dur%m} minutes"; elif [[ "$dur" == *h ]]; then add_str="+${dur%h} hours"; else add_str="+1 hours"; fi
-               useradd -e $(date -d "$add_str" +"%Y-%m-%d") -s /bin/false -M "$u"; echo -e "$p\n$p\n" | passwd "$u" &> /dev/null
+               useradd -e $(date -d "$add_str" +"%Y-%m-%d") -s /bin/false -M "$u"; echo "$u:$p" | chpasswd
                exp_date=$(date -d "$add_str" +"%Y-%m-%d %H:%M:%S"); limit=1; echo "$u|$p|$exp_date|$limit|ACTIVE" >> $D_SSH;
                DMN=$(cat /usr/local/etc/xray/domain); show_account_ssh "$u" "$p" "$DMN" "$exp_date" "$limit";;
             6) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_SSH); u=$(echo "$line" | cut -d'|' -f1); p=$(echo "$line" | cut -d'|' -f2); exp=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5);
