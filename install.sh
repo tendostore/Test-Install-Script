@@ -18,8 +18,10 @@
 #           + Limit IP Auto Lock 10 Mins (With Telegram Notif)
 #           + Quota Exceeded Auto Delete (ACCUMULATIVE + Telegram Notif)
 #           + Manual Lock / Unlock Features
-#           + Split Login Notification by Protocol
-#           + FIXED: Sync Real-Time 2 Mins Filter on Auto-Lock System
+#           + Split Login Notification by Protocol & Real-time 2 Mins Filter
+#           + Main Menu UI Overhaul (X-Ray Manager Category)
+#           + Custom Auto Reboot Scheduler
+#           + OS Rebuild Tool Integration
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -290,7 +292,6 @@ NOW=$(date +%s)
 
 [[ ! -f "$LOG_FILE" ]] && exit 0
 
-# Terapkan filter 2 menit terakhir persis seperti notifikasi bot
 D1=$(date +"%Y/%m/%d %H:%M")
 D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
 D3=$(date -d "2 minutes ago" +"%Y/%m/%d %H:%M")
@@ -732,8 +733,89 @@ function bot_menu() {
 }
 
 # ---------------------------------------------
-# MENU FEATURES UTAMA
+# MENU X-RAY MANAGER & FEATURES
 # ---------------------------------------------
+function xray_manager_menu() {
+    while true; do header_sub
+        echo -e "${CYAN}│${NC} [1] VMESS ACCOUNT"
+        echo -e "${CYAN}│${NC} [2] VLESS ACCOUNT"
+        echo -e "${CYAN}│${NC} [3] TROJAN ACCOUNT"
+        echo -e "${CYAN}│${NC} [x] Back"
+        echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+        read -p " Select Menu : " opt
+        case $opt in
+            1) vmess_menu ;;
+            2) vless_menu ;;
+            3) trojan_menu ;;
+            x) return ;;
+        esac
+    done
+}
+
+function auto_reboot_menu() {
+    while true; do header_sub
+        if [[ -f "/etc/cron.d/autoreboot" ]]; then
+            local st=$(cat /etc/cron.d/autoreboot | awk '{print $2":"$1}')
+            echo -e "        Status [ON - $st]"
+        else
+            echo -e "        Status [OFF]"
+        fi
+        echo -e " ————————————————————————————————————————"
+        echo -e "   1.)  Turn ON (Set Time)"
+        echo -e "   2.)  Turn OFF"
+        echo -e "   x.)  Exit"
+        echo -e " ————————————————————————————————————————"
+        read -p " Pilihan: " opt
+        case $opt in
+            1) read -p " Set Jam (0-23): " hr
+               read -p " Set Menit (0-59): " min
+               echo "$min $hr * * * root reboot" > /etc/cron.d/autoreboot
+               service cron restart
+               echo -e "${GREEN}Auto Reboot set to $hr:$min!${NC}"
+               sleep 2;;
+            2) rm -f /etc/cron.d/autoreboot
+               service cron restart
+               echo -e "${GREEN}Auto Reboot dimatikan!${NC}"
+               sleep 2;;
+            x) return;;
+        esac
+    done
+}
+
+function rebuild_menu() {
+    header_sub
+    echo -e "${RED}WARNING: REBUILD AKAN MENGHAPUS SELURUH DATA VPS!${NC}"
+    echo -e "Pastikan anda sudah melakukan Backup Data VPS."
+    echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}│${NC} [1] Ubuntu 22.04"
+    echo -e "${CYAN}│${NC} [2] Ubuntu 20.04"
+    echo -e "${CYAN}│${NC} [3] Debian 12"
+    echo -e "${CYAN}│${NC} [4] Debian 11"
+    echo -e "${CYAN}│${NC} [x] Cancel"
+    echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+    read -p " Pilih OS untuk Rebuild: " opt
+    case $opt in
+        1) os="ubuntu 22.04" ;;
+        2) os="ubuntu 20.04" ;;
+        3) os="debian 12" ;;
+        4) os="debian 11" ;;
+        x) return ;;
+        *) echo "Invalid"; sleep 1; return ;;
+    esac
+    
+    read -p "Apakah anda yakin ingin Rebuild ke $os? (y/n): " confirm
+    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+        echo -e "${YELLOW}Memulai proses Rebuild ke $os... Koneksi akan terputus.${NC}"
+        cd /root
+        curl -O https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.sh
+        bash reinstall.sh $os
+        reboot
+    else
+        echo -e "${GREEN}Rebuild dibatalkan.${NC}"
+        sleep 2
+    fi
+}
+
 function features_menu() {
     while true; do header_sub
         echo -e "${CYAN}│${NC} [1] Check Bandwidth (Vnstat)"
@@ -742,10 +824,11 @@ function features_menu() {
         echo -e "${CYAN}│${NC} [4] Change Domain VPS"
         echo -e "${CYAN}│${NC} [5] Restart All Services"
         echo -e "${CYAN}│${NC} [6] Clear Cache RAM"
-        echo -e "${CYAN}│${NC} [7] Auto Reboot"
+        echo -e "${CYAN}│${NC} [7] Set Auto Reboot"
         echo -e "${CYAN}│${NC} [8] Information System"
         echo -e "${CYAN}│${NC} [9] Backup Data VPS"
         echo -e "${CYAN}│${NC} [10] Restore Data VPS"
+        echo -e "${CYAN}│${NC} [11] Rebuild VPS"
         echo -e "${CYAN}│${NC} [x] Back"
         echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
@@ -766,7 +849,7 @@ function features_menu() {
                sleep 2;;
             5) systemctl restart xray zivpn vnstat; echo -e "${GREEN}Services Restarted!${NC}"; sleep 2;;
             6) sync; echo 3 > /proc/sys/vm/drop_caches; echo -e "${GREEN}Cache Cleared!${NC}"; sleep 1;;
-            7) echo -e "Set Auto Reboot (00:00 UTC)"; echo "0 0 * * * root reboot" > /etc/cron.d/autoreboot; service cron restart; echo -e "${GREEN}Done!${NC}"; sleep 1;;
+            7) auto_reboot_menu ;;
             8) neofetch; read -p "Enter...";;
             9) 
                clear; echo -e "${YELLOW}Memproses Backup Data VPS...${NC}"
@@ -824,6 +907,7 @@ function features_menu() {
                fi
                read -p "Tekan Enter untuk kembali..."
                ;;
+            11) rebuild_menu ;;
             x) return;;
         esac
     done
@@ -1064,10 +1148,9 @@ function check_services() {
 }
 
 while true; do header_main
-    echo -e "${CYAN}│${NC} [1] VMESS ACCOUNT        [5] BOT TELEGRAM SETUP"
-    echo -e "${CYAN}│${NC} [2] VLESS ACCOUNT        [6] FEATURES"
-    echo -e "${CYAN}│${NC} [3] TROJAN ACCOUNT       [7] CHECK SERVICES"
-    echo -e "${CYAN}│${NC} [4] ZIVPN UDP            [x] EXIT"
+    echo -e "${CYAN}│${NC} [1] X-RAY MANAGER        [4] BOT TELEGRAM SETUP"
+    echo -e "${CYAN}│${NC} [2] ZIVPN UDP            [5] FEATURES"
+    echo -e "${CYAN}│${NC} [3] CHECK SERVICES       [x] EXIT"
     echo -e "${CYAN}────────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}│${NC}  Version   :  v18.02.26                  ${NC}"
@@ -1077,9 +1160,11 @@ while true; do header_main
     echo -e "${CYAN}└───────────────────────────────────────────────────────${NC}"
     read -p " Select Menu : " opt
     case $opt in
-        1) vmess_menu ;; 2) vless_menu ;; 3) trojan_menu ;;
-        4) zivpn_menu ;; 5) bot_menu ;; 6) features_menu ;;
-        7) check_services ;;
+        1) xray_manager_menu ;;
+        2) zivpn_menu ;;
+        3) check_services ;;
+        4) bot_menu ;;
+        5) features_menu ;;
         x) exit ;;
     esac; done
 END_MENU
