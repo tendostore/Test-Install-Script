@@ -15,9 +15,10 @@
 #           + UI Update: Early Domain Prompt & Bouncing Scanner Spinner
 #           + Full Telegram Bot Integration (Mono link, Login Notif Fix)
 #           + Backup & Restore Data (Direct Link & Telegram Auto-Send)
-#           + Multi-Login Auto Lock (10 mins) + Telegram Notif
-#           + Quota Exceeded Auto Delete + Telegram Notif
+#           + Limit IP Auto Lock 10 Mins (With Telegram Notif)
+#           + Quota Exceeded Auto Delete (With Telegram Notif - BUG FIXED)
 #           + Manual Lock / Unlock Features
+#           + Split Login Notification by Protocol
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -147,7 +148,7 @@ IFACE_NET=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 print_msg "Setup Domain & SSL Cert"
 (
     systemctl enable vnstat && systemctl restart vnstat; vnstat -u -i $IFACE_NET
-    mkdir -p $XRAY_DIR /etc/zivpn /root/tendo /etc/tendo_bot; touch $DATA_VMESS $DATA_VLESS $DATA_TROJAN $DATA_ZIVPN
+    mkdir -p $XRAY_DIR /etc/zivpn /root/tendo /etc/tendo_bot /usr/local/etc/xray/quota; touch $DATA_VMESS $DATA_VLESS $DATA_TROJAN $DATA_ZIVPN
     mkdir -p /var/log/xray; touch /var/log/xray/access.log /var/log/xray/error.log
 
     curl -s ipinfo.io/json | jq -r '.city' > /root/tendo/city
@@ -179,7 +180,7 @@ print_msg "Install Xray Core & Config"
 
 cat > $CONFIG_FILE <<EOF
 {
-  "log": { "access": "/var/log/xray/access.log", "error": "/var/log/xray/error.log", "loglevel": "warning" },
+  "log": { "access": "/var/log/xray/access.log", "error": "/var/log/xray/error.log", "loglevel": "info" },
   "api": { "tag": "api", "services": [ "StatsService" ] },
   "stats": {},
   "policy": { "levels": { "0": { "statsUserUplink": true, "statsUserDownlink": true } }, "system": { "statsInboundUplink": true, "statsInboundDownlink": true } },
@@ -241,6 +242,8 @@ print_ok "ZIVPN Installed"
 # --- 8. AUTO-KILL, QUOTA & TELEGRAM SCRIPTS ---
 print_msg "Setting up Cron & Telegram Bots"
 (
+mkdir -p /usr/local/etc/xray/quota
+
 # Script Expiry Auto-Kill
 cat > /usr/local/bin/xray-exp <<'EOF'
 #!/bin/bash
@@ -254,6 +257,7 @@ for proto in vmess vless trojan; do
             if [[ -n "$EXP_S" && "$NOW" -ge "$EXP_S" ]]; then
                 jq --arg u "$user" '(.inbounds[] | select(.protocol == "'$proto'")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
                 sed -i "/^$user|/d" $FILE
+                rm -f "/usr/local/etc/xray/quota/$user"
                 systemctl restart xray
             fi
         done < "$FILE"
@@ -284,7 +288,7 @@ CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
 NOW=$(date +%s)
 
 [[ ! -f "$LOG_FILE" ]] && exit 0
-tail -n 1000 "$LOG_FILE" | grep "accepted" | awk '{print $3, $7}' | sed 's/tcp://g' | awk -F: '{print $1" "$2}' > /tmp/xray_active.log
+tail -n 5000 "$LOG_FILE" | awk '/accepted/ {ip=$3; gsub(/:.*/, "", ip); email=$NF; if (email != "") print ip, email}' | sort -u > /tmp/xray_active.log
 
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
@@ -301,8 +305,8 @@ for proto in vmess vless trojan; do
                 sed -i "s/^$user|.*/$user|$id|$exp|$limit|ACTIVE|$quota/g" "$FILE"
                 systemctl restart xray
                 if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                    MSG="<b>✅ ACCOUNT UNLOCKED</b>%0A👤 User: <code>$user</code>%0A🔓 Status: Active (10 mins penalty over)"
-                    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHATID}" -d text="${MSG}" -d parse_mode="HTML" > /dev/null
+                    MSG="<b>✅ AKUN DI-UNLOCK OTOMATIS</b>"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🔓 Status: Active (Hukuman 10 menit selesai)"
+                    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
                 fi
             fi
             continue
@@ -318,8 +322,8 @@ for proto in vmess vless trojan; do
             sed -i "s/^$user|.*/$user|$id|$exp|$limit|LOCKED_IP_${NOW}|$quota/g" "$FILE"
             systemctl restart xray
             if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                MSG="<b>⚠️ MULTI-LOGIN DETECTED</b>%0A👤 User: <code>$user</code>%0A🌐 Limit: $limit IP%0A🚨 Login: $active_ips IP%0A⛔ Status: Locked for 10 Mins"
-                curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHATID}" -d text="${MSG}" -d parse_mode="HTML" > /dev/null
+                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI</b>"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit IP: $limit"$'\n'"🚨 Login IP: $active_ips"$'\n'"⛔ Status: Terkunci 10 Menit"
+                curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
             fi
         fi
     done < "$FILE"
@@ -327,31 +331,52 @@ done
 EOF
 chmod +x /usr/local/bin/xray-limit
 
-# Script Quota (Auto Delete)
+# Script Quota Akumulasi File (Auto Delete)
 cat > /usr/local/bin/xray-quota <<'EOF'
 #!/bin/bash
 CONFIG="/usr/local/etc/xray/config.json"
 TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
 CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
 
+STATS=$(/usr/local/bin/xray api statsquery --server=127.0.0.1:10085 2>/dev/null)
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
     [[ ! -f "$FILE" ]] && continue
     while IFS="|" read -r user id exp limit status quota; do
         [[ -z "$quota" || "$quota" == "0" || "$status" == "LOCKED" || "$status" == LOCKED_IP_* ]] && continue
-        down=$(/usr/local/bin/xray api statsquery --server=127.0.0.1:10085 -name "user>>>${user}>>>traffic>>>downlink" 2>/dev/null | grep value | awk '{print $2}' | tr -d '"')
-        up=$(/usr/local/bin/xray api statsquery --server=127.0.0.1:10085 -name "user>>>${user}>>>traffic>>>uplink" 2>/dev/null | grep value | awk '{print $2}' | tr -d '"')
+        
+        down=$(echo "$STATS" | grep -A 1 "\"name\": \"user>>>${user}>>>traffic>>>downlink\"" | awk '/value/ {print $2}' | tr -d '",')
+        up=$(echo "$STATS" | grep -A 1 "\"name\": \"user>>>${user}>>>traffic>>>uplink\"" | awk '/value/ {print $2}' | tr -d '",')
         [[ -z "$down" ]] && down=0
         [[ -z "$up" ]] && up=0
-        total_bytes=$((down + up))
+        current_api=$((down + up))
+        
+        QUOTA_FILE="/usr/local/etc/xray/quota/${user}"
+        if [[ -f "$QUOTA_FILE" ]]; then
+            read total_acc last_api < "$QUOTA_FILE"
+        else
+            total_acc=0
+            last_api=0
+        fi
+        
+        if (( current_api < last_api )); then
+            total_acc=$((total_acc + current_api))
+        else
+            diff=$((current_api - last_api))
+            total_acc=$((total_acc + diff))
+        fi
+        last_api=$current_api
+        echo "$total_acc $last_api" > "$QUOTA_FILE"
+        
         quota_bytes=$(awk "BEGIN {printf \"%.0f\", $quota * 1073741824}")
-        if [ "$total_bytes" -ge "$quota_bytes" ]; then
+        if (( total_acc >= quota_bytes )); then
             jq --arg u "$user" '(.inbounds[] | select(.protocol == "'$proto'")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
             sed -i "/^$user|/d" "$FILE"
+            rm -f "$QUOTA_FILE"
             systemctl restart xray
             if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                MSG="<b>🚫 QUOTA EXCEEDED</b>%0A👤 User: <code>$user</code>%0A📊 Limit: ${quota} GB%0A⛔ Status: Account Deleted"
-                curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="${CHATID}" -d text="${MSG}" -d parse_mode="HTML" > /dev/null
+                MSG="<b>🚫 KUOTA HABIS (AKUN DIHAPUS)</b>"$'\n\n'"👤 User: <code>$user</code>"$'\n'"📊 Batas Kuota: ${quota} GB"$'\n'"⛔ Status: Akun Otomatis Dihapus"
+                curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
             fi
         fi
     done < "$FILE"
@@ -359,7 +384,7 @@ done
 EOF
 chmod +x /usr/local/bin/xray-quota
 
-# Script Telegram Login Notif (FIXED)
+# Script Telegram Login Notif (FIXED PROTOCOL SEPARATION)
 cat > /usr/local/bin/bot-login-notif <<'EOF'
 #!/bin/bash
 TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
@@ -367,26 +392,33 @@ CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
 [[ -z "$TOKEN" || -z "$CHATID" ]] && exit 0
 LOG_FILE="/var/log/xray/access.log"
 
-awk '{ip=$3; gsub(/:.*/, "", ip); print ip, $NF}' "$LOG_FILE" | sort -u > /tmp/bot_active.log
+tail -n 5000 "$LOG_FILE" | awk '/accepted/ {ip=$3; gsub(/:.*/, "", ip); email=$NF; if (email != "") print ip, email}' | sort -u > /tmp/bot_active.log
 
-MSG="<b>📊 LAPORKAN PENGGUNA AKTIF (LOGIN)</b>"$'\n'
-FOUND=0
+FULL_MSG=""
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
     [[ ! -f "$FILE" ]] && continue
+    
+    PROTO_MSG=""
+    FOUND=0
     while IFS="|" read -r user id exp limit status quota; do
         active_ips=$(grep -w "$user" /tmp/bot_active.log | wc -l)
         if [[ "$active_ips" -gt 0 ]]; then
-            MSG+=$'\n'"👤 User: <code>$user</code> | 🌐 Login: $active_ips IP (dipakek $active_ips user)"
+            PROTO_MSG+="👤 User: <code>$user</code> | 🌐 Login: $active_ips IP (dipakek $active_ips user)"$'\n'
             FOUND=1
         fi
     done < "$FILE"
+    
+    if [[ "$FOUND" -eq 1 ]]; then
+        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (${proto^^})</b>"$'\n\n'
+        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}"$'\n\n'
+    fi
 done
 
-if [[ "$FOUND" -eq 1 ]]; then
+if [[ -n "$FULL_MSG" ]]; then
     curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
         -d "chat_id=${CHATID}" \
-        --data-urlencode "text=${MSG}" \
+        --data-urlencode "text=${FULL_MSG}" \
         -d "parse_mode=HTML" > /dev/null
 fi
 EOF
@@ -436,14 +468,13 @@ D_TROJAN="/usr/local/etc/xray/trojan.txt"
 D_ZIVPN="/etc/zivpn/zivpn.txt"
 
 # ---------------------------------------------
-# PENGIRIM TELEGRAM BOT (FIXED MONO & NEWLINE)
+# PENGIRIM TELEGRAM BOT
 # ---------------------------------------------
 function send_tele() {
     local bot_tok=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
     local chat_id=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
     [[ -z "$bot_tok" || -z "$chat_id" ]] && return
     
-    # Render string menjadi format multi-line yg aman untuk curl
     local msg=$(echo -e "$1")
     local full_msg="<b>✅ NEW ACCOUNT CREATED</b>"$'\n\n'"$msg"
     
@@ -502,50 +533,23 @@ function show_account_xray() {
         MSG+="——————————\n——————————————————————————\n"
     fi
 
-    # Format Telegram Bot (Mono Links & Detail)
-    MSG_BOT+="<b>————————————————————————————————————</b>\n"
-    MSG_BOT+="               <b>${proto}</b>\n"
-    MSG_BOT+="<b>————————————————————————————————————</b>\n"
-    MSG_BOT+="Remarks        : <code>${user}</code>\n"
-    MSG_BOT+="CITY           : ${city}\n"
-    MSG_BOT+="ISP            : ${isp}\n"
-    MSG_BOT+="Domain         : <code>${domain}</code>\n"
-    MSG_BOT+="Port TLS       : 443\n"
-    MSG_BOT+="Port none TLS  : 80\n"
+    # Format Telegram Bot (Mono Links)
+    MSG_BOT+="<b>————————————————————————————————————</b>\n               <b>${proto}</b>\n<b>————————————————————————————————————</b>\n"
+    MSG_BOT+="Remarks        : <code>${user}</code>\nCITY           : ${city}\nISP            : ${isp}\nDomain         : <code>${domain}</code>\n"
+    MSG_BOT+="Port TLS       : 443\nPort none TLS  : 80\n"
     if [[ "$proto" == "TROJAN" ]]; then MSG_BOT+="Key          : <code>${uuid}</code>\n"; else MSG_BOT+="id             : <code>${uuid}</code>\n"; fi
     if [[ "$proto" == "VMESS" ]]; then MSG_BOT+="alterId        : 0\nSecurity       : auto\n"; elif [[ "$proto" == "VLESS" ]]; then MSG_BOT+="Encryption     : none\n"; fi
-    MSG_BOT+="network        : ws, grpc, upgrade\n"
-    MSG_BOT+="path ws        : /${proto,,}\n"
-    MSG_BOT+="serviceName    : ${proto,,}-grpc\n"
-    MSG_BOT+="path upgrade   : /${proto,,}-upg\n"
-    MSG_BOT+="Limit IP       : ${limit} IP\n"
-    MSG_BOT+="Quota Bandwidth: ${str_quota}\n"
-    MSG_BOT+="Usage Bandwidth: ${usage} GB\n"
-    MSG_BOT+="Expired On     : ${exp}\n"
-    MSG_BOT+="<b>————————————————————————————————————</b>\n"
-    MSG_BOT+="           <b>${proto} WS TLS</b>\n"
-    MSG_BOT+="<b>————————————————————————————————————</b>\n"
-    MSG_BOT+="<code>${link_ws_tls}</code>\n"
-    MSG_BOT+="<b>————————————————————————————————————</b>\n"
+    MSG_BOT+="network        : ws, grpc, upgrade\npath ws        : /${proto,,}\nserviceName    : ${proto,,}-grpc\npath upgrade   : /${proto,,}-upg\n"
+    MSG_BOT+="Limit IP       : ${limit} IP\nQuota Bandwidth: ${str_quota}\nUsage Bandwidth: ${usage} GB\nExpired On     : ${exp}\n"
+    MSG_BOT+="<b>————————————————————————————————————</b>\n           <b>${proto} WS TLS</b>\n<b>————————————————————————————————————</b>\n"
+    MSG_BOT+="<code>${link_ws_tls}</code>\n<b>————————————————————————————————————</b>\n"
     if [[ -n "$link_ws_ntls" ]]; then
-        MSG_BOT+="          <b>${proto} WS NO TLS</b>\n"
-        MSG_BOT+="<b>————————————————————————————————————</b>\n"
-        MSG_BOT+="<code>${link_ws_ntls}</code>\n"
-        MSG_BOT+="<b>————————————————————————————————————</b>\n"
+        MSG_BOT+="          <b>${proto} WS NO TLS</b>\n<b>————————————————————————————————————</b>\n<code>${link_ws_ntls}</code>\n<b>————————————————————————————————————</b>\n"
     fi
-    MSG_BOT+="             <b>${proto} GRPC</b>\n"
-    MSG_BOT+="<b>————————————————————————————————————</b>\n"
-    MSG_BOT+="<code>${link_grpc_tls}</code>\n"
-    MSG_BOT+="<b>————————————————————————————————————</b>\n"
-    MSG_BOT+="         <b>${proto} Upgrade TLS</b>\n"
-    MSG_BOT+="<b>————————————————————————————————————</b>\n"
-    MSG_BOT+="<code>${link_upg_tls}</code>\n"
-    MSG_BOT+="<b>————————————————————————————————————</b>\n"
+    MSG_BOT+="             <b>${proto} GRPC</b>\n<b>————————————————————————————————————</b>\n<code>${link_grpc_tls}</code>\n<b>————————————————————————————————————</b>\n"
+    MSG_BOT+="         <b>${proto} Upgrade TLS</b>\n<b>————————————————————————————————————</b>\n<code>${link_upg_tls}</code>\n<b>————————————————————————————————————</b>\n"
     if [[ -n "$link_upg_ntls" ]]; then
-        MSG_BOT+="        <b>${proto} Upgrade NO TLS</b>\n"
-        MSG_BOT+="<b>————————————————————————————————————</b>\n"
-        MSG_BOT+="<code>${link_upg_ntls}</code>\n"
-        MSG_BOT+="<b>————————————————————————————————————</b>\n"
+        MSG_BOT+="        <b>${proto} Upgrade NO TLS</b>\n<b>————————————————————————————————————</b>\n<code>${link_upg_ntls}</code>\n<b>————————————————————————————————————</b>\n"
     fi
 
     echo -e "$MSG"
@@ -560,28 +564,12 @@ function show_account_zivpn() {
     local isp=$(cat /root/tendo/isp); local city=$(cat /root/tendo/city); local ip=$(cat /root/tendo/ip)
 
     local MSG=""
-    MSG+="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    MSG+="  ACCOUNT ZIVPN UDP\n"
-    MSG+="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    MSG+="Password   : ${pass}\n"
-    MSG+="CITY       : ${city}\n"
-    MSG+="ISP        : ${isp}\n"
-    MSG+="IP ISP     : ${ip}\n"
-    MSG+="Domain     : ${domain}\n"
-    MSG+="Expired On : ${exp}\n"
-    MSG+="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    MSG+="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  ACCOUNT ZIVPN UDP\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    MSG+="Password   : ${pass}\nCITY       : ${city}\nISP        : ${isp}\nIP ISP     : ${ip}\nDomain     : ${domain}\nExpired On : ${exp}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     
     local MSG_BOT=""
-    MSG_BOT+="<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
-    MSG_BOT+="  <b>ACCOUNT ZIVPN UDP</b>\n"
-    MSG_BOT+="<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
-    MSG_BOT+="Password   : <code>${pass}</code>\n"
-    MSG_BOT+="CITY       : ${city}\n"
-    MSG_BOT+="ISP        : ${isp}\n"
-    MSG_BOT+="IP ISP     : <code>${ip}</code>\n"
-    MSG_BOT+="Domain     : <code>${domain}</code>\n"
-    MSG_BOT+="Expired On : ${exp}\n"
-    MSG_BOT+="<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
+    MSG_BOT+="<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n  <b>ACCOUNT ZIVPN UDP</b>\n<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
+    MSG_BOT+="Password   : <code>${pass}</code>\nCITY       : ${city}\nISP        : ${isp}\nIP ISP     : <code>${ip}</code>\nDomain     : <code>${domain}</code>\nExpired On : ${exp}\n<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
 
     echo -e "$MSG"
     send_tele "$MSG_BOT"
@@ -733,7 +721,7 @@ function bot_menu() {
 }
 
 # ---------------------------------------------
-# MENU FEATURES UTAMA (TERMASUK DOMAIN & BACKUP)
+# MENU FEATURES UTAMA
 # ---------------------------------------------
 function features_menu() {
     while true; do header_sub
@@ -745,8 +733,8 @@ function features_menu() {
         echo -e "${CYAN}│${NC} [6] Clear Cache RAM"
         echo -e "${CYAN}│${NC} [7] Auto Reboot"
         echo -e "${CYAN}│${NC} [8] Information System"
-        echo -e "${CYAN}│${NC} [9] Backup Data VPS (Auto Telegram & Link)"
-        echo -e "${CYAN}│${NC} [10] Restore Data VPS (Direct Link)"
+        echo -e "${CYAN}│${NC} [9] Backup Data VPS"
+        echo -e "${CYAN}│${NC} [10] Restore Data VPS"
         echo -e "${CYAN}│${NC} [x] Back"
         echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
@@ -858,10 +846,11 @@ function vmess_menu() {
                upg_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                upg_ntls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
                show_account_xray "VMESS" "$u" "$DMN" "$id" "$exp_date" "$limit" "$quota" "0.00" "vmess://$ws_tls" "vmess://$ws_ntls" "vmess://$grpc_tls" "vmess://$upg_tls" "vmess://$upg_ntls";;
-            2) nl $D_VMESS; read -p "No: " n; [[ -z "$n" ]] && continue; u=$(sed -n "${n}p" $D_VMESS | cut -d'|' -f1); sed -i "${n}d" $D_VMESS; jq --arg u "$u" '(.inbounds[] | select(.protocol == "vmess")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray >/dev/null 2>&1 &;;
+            2) nl $D_VMESS; read -p "No: " n; [[ -z "$n" ]] && continue; u=$(sed -n "${n}p" $D_VMESS | cut -d'|' -f1); sed -i "${n}d" $D_VMESS; jq --arg u "$u" '(.inbounds[] | select(.protocol == "vmess")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; rm -f "/usr/local/etc/xray/quota/$u"; systemctl restart xray >/dev/null 2>&1 &;;
             3) nl $D_VMESS; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_VMESS); u=$(echo "$line" | cut -d'|' -f1); id=$(echo "$line" | cut -d'|' -f2); exp_old=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5); quota=$(echo "$line" | cut -d'|' -f6); read -p " Add Days: " add_days; exp_new=$(date -d "$exp_old + $add_days days" +"%Y-%m-%d"); sed -i "${n}s/.*/$u|$id|$exp_new|$limit|$stat|$quota/" $D_VMESS; echo -e "${GREEN}Account $u Renewed until $exp_new!${NC}"; systemctl restart xray >/dev/null 2>&1 & sleep 2;;
             4) nl $D_VMESS; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_VMESS); u=$(echo "$line" | cut -d'|' -f1); id=$(echo "$line" | cut -d'|' -f2); exp_date=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); quota=$(echo "$line" | cut -d'|' -f6); [[ -z "$quota" ]] && quota=0; DMN=$(cat /usr/local/etc/xray/domain)
-               down=$(/usr/local/bin/xray api statsquery --server=127.0.0.1:10085 -name "user>>>${u}>>>traffic>>>downlink" 2>/dev/null | grep value | awk '{print $2}' | tr -d '"'); up=$(/usr/local/bin/xray api statsquery --server=127.0.0.1:10085 -name "user>>>${u}>>>traffic>>>uplink" 2>/dev/null | grep value | awk '{print $2}' | tr -d '"'); [[ -z "$down" ]] && down=0; [[ -z "$up" ]] && up=0; usage_gb=$(awk "BEGIN {printf \"%.2f\", ($down + $up)/1073741824}")
+               QUOTA_FILE="/usr/local/etc/xray/quota/${u}"
+               if [[ -f "$QUOTA_FILE" ]]; then read total_acc last_api < "$QUOTA_FILE"; usage_gb=$(awk "BEGIN {printf \"%.2f\", $total_acc/1073741824}"); else usage_gb="0.00"; fi
                ws_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                ws_ntls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
                grpc_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"grpc\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-grpc\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
@@ -921,10 +910,11 @@ function vless_menu() {
                upg_tls="vless://${id}@${DMN}:443?path=%2Fvless-upg&security=tls&encryption=none&host=${DMN}&type=httpupgrade&sni=${DMN}#${u}"
                upg_ntls="vless://${id}@${DMN}:80?path=%2Fvless-upg&security=none&encryption=none&host=${DMN}&type=httpupgrade#${u}"
                show_account_xray "VLESS" "$u" "$DMN" "$id" "$exp_date" "$limit" "$quota" "0.00" "$ws_tls" "$ws_ntls" "$grpc_tls" "$upg_tls" "$upg_ntls";;
-            2) nl $D_VLESS; read -p "No: " n; [[ -z "$n" ]] && continue; u=$(sed -n "${n}p" $D_VLESS | cut -d'|' -f1); sed -i "${n}d" $D_VLESS; jq --arg u "$u" '(.inbounds[] | select(.protocol == "vless")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray >/dev/null 2>&1 &;;
+            2) nl $D_VLESS; read -p "No: " n; [[ -z "$n" ]] && continue; u=$(sed -n "${n}p" $D_VLESS | cut -d'|' -f1); sed -i "${n}d" $D_VLESS; jq --arg u "$u" '(.inbounds[] | select(.protocol == "vless")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; rm -f "/usr/local/etc/xray/quota/$u"; systemctl restart xray >/dev/null 2>&1 &;;
             3) nl $D_VLESS; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_VLESS); u=$(echo "$line" | cut -d'|' -f1); id=$(echo "$line" | cut -d'|' -f2); exp_old=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5); quota=$(echo "$line" | cut -d'|' -f6); read -p " Add Days: " add_days; exp_new=$(date -d "$exp_old + $add_days days" +"%Y-%m-%d"); sed -i "${n}s/.*/$u|$id|$exp_new|$limit|$stat|$quota/" $D_VLESS; echo -e "${GREEN}Account $u Renewed until $exp_new!${NC}"; systemctl restart xray >/dev/null 2>&1 & sleep 2;;
             4) nl $D_VLESS; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_VLESS); u=$(echo "$line" | cut -d'|' -f1); id=$(echo "$line" | cut -d'|' -f2); exp_date=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); quota=$(echo "$line" | cut -d'|' -f6); [[ -z "$quota" ]] && quota=0; DMN=$(cat /usr/local/etc/xray/domain)
-               down=$(/usr/local/bin/xray api statsquery --server=127.0.0.1:10085 -name "user>>>${u}>>>traffic>>>downlink" 2>/dev/null | grep value | awk '{print $2}' | tr -d '"'); up=$(/usr/local/bin/xray api statsquery --server=127.0.0.1:10085 -name "user>>>${u}>>>traffic>>>uplink" 2>/dev/null | grep value | awk '{print $2}' | tr -d '"'); [[ -z "$down" ]] && down=0; [[ -z "$up" ]] && up=0; usage_gb=$(awk "BEGIN {printf \"%.2f\", ($down + $up)/1073741824}")
+               QUOTA_FILE="/usr/local/etc/xray/quota/${u}"
+               if [[ -f "$QUOTA_FILE" ]]; then read total_acc last_api < "$QUOTA_FILE"; usage_gb=$(awk "BEGIN {printf \"%.2f\", $total_acc/1073741824}"); else usage_gb="0.00"; fi
                ws_tls="vless://${id}@${DMN}:443?path=%2Fvless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}"
                ws_ntls="vless://${id}@${DMN}:80?path=%2Fvless&security=none&encryption=none&host=${DMN}&type=ws#${u}"
                grpc_tls="vless://${id}@${DMN}:443?security=tls&encryption=none&host=${DMN}&type=grpc&serviceName=vless-grpc&sni=${DMN}#${u}"
@@ -983,10 +973,11 @@ function trojan_menu() {
                grpc_tls="trojan://${pass}@${DMN}:443?security=tls&host=${DMN}&type=grpc&serviceName=trojan-grpc&sni=${DMN}#${u}"
                upg_tls="trojan://${pass}@${DMN}:443?path=%2Ftrojan-upg&security=tls&host=${DMN}&type=httpupgrade&sni=${DMN}#${u}"
                show_account_xray "TROJAN" "$u" "$DMN" "$pass" "$exp_date" "$limit" "$quota" "0.00" "$ws_tls" "$ws_ntls" "$grpc_tls" "$upg_tls" "";;
-            2) nl $D_TROJAN; read -p "No: " n; [[ -z "$n" ]] && continue; u=$(sed -n "${n}p" $D_TROJAN | cut -d'|' -f1); sed -i "${n}d" $D_TROJAN; jq --arg u "$u" '(.inbounds[] | select(.protocol == "trojan")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray >/dev/null 2>&1 &;;
+            2) nl $D_TROJAN; read -p "No: " n; [[ -z "$n" ]] && continue; u=$(sed -n "${n}p" $D_TROJAN | cut -d'|' -f1); sed -i "${n}d" $D_TROJAN; jq --arg u "$u" '(.inbounds[] | select(.protocol == "trojan")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; rm -f "/usr/local/etc/xray/quota/$u"; systemctl restart xray >/dev/null 2>&1 &;;
             3) nl $D_TROJAN; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_TROJAN); u=$(echo "$line" | cut -d'|' -f1); pass=$(echo "$line" | cut -d'|' -f2); exp_old=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5); quota=$(echo "$line" | cut -d'|' -f6); read -p " Add Days: " add_days; exp_new=$(date -d "$exp_old + $add_days days" +"%Y-%m-%d"); sed -i "${n}s/.*/$u|$pass|$exp_new|$limit|$stat|$quota/" $D_TROJAN; echo -e "${GREEN}Account $u Renewed until $exp_new!${NC}"; systemctl restart xray >/dev/null 2>&1 & sleep 2;;
             4) nl $D_TROJAN; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_TROJAN); u=$(echo "$line" | cut -d'|' -f1); pass=$(echo "$line" | cut -d'|' -f2); exp_date=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); quota=$(echo "$line" | cut -d'|' -f6); [[ -z "$quota" ]] && quota=0; DMN=$(cat /usr/local/etc/xray/domain)
-               down=$(/usr/local/bin/xray api statsquery --server=127.0.0.1:10085 -name "user>>>${u}>>>traffic>>>downlink" 2>/dev/null | grep value | awk '{print $2}' | tr -d '"'); up=$(/usr/local/bin/xray api statsquery --server=127.0.0.1:10085 -name "user>>>${u}>>>traffic>>>uplink" 2>/dev/null | grep value | awk '{print $2}' | tr -d '"'); [[ -z "$down" ]] && down=0; [[ -z "$up" ]] && up=0; usage_gb=$(awk "BEGIN {printf \"%.2f\", ($down + $up)/1073741824}")
+               QUOTA_FILE="/usr/local/etc/xray/quota/${u}"
+               if [[ -f "$QUOTA_FILE" ]]; then read total_acc last_api < "$QUOTA_FILE"; usage_gb=$(awk "BEGIN {printf \"%.2f\", $total_acc/1073741824}"); else usage_gb="0.00"; fi
                ws_tls="trojan://${pass}@${DMN}:443?path=%2Ftrojan&security=tls&host=${DMN}&type=ws&sni=${DMN}#${u}"
                ws_ntls="trojan://${pass}@${DMN}:80?path=%2Ftrojan&security=none&host=${DMN}&type=ws#${u}"
                grpc_tls="trojan://${pass}@${DMN}:443?security=tls&host=${DMN}&type=grpc&serviceName=trojan-grpc&sni=${DMN}#${u}"
