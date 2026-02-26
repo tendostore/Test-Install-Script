@@ -42,6 +42,7 @@ RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE
      -H "X-Auth-Key: ${CF_KEY}" \
      -H "Content-Type: application/json" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
 
+# DIKEMBALIKAN KE PROXIED: FALSE (Awan Abu-abu / DNS Only)
 if [ "${RECORD_ID}" = "" ]; then
     # Create record
     curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
@@ -57,7 +58,7 @@ else
          -H "Content-Type: application/json" \
          --data '{"type":"A","name":"'${SUB_DOMAIN}'","content":"'${IP}'","ttl":120,"proxied":false}' > /dev/null
 fi
-echo "Host Anda berhasil dipointing: ${SUB_DOMAIN} -> ${IP}"
+echo "Host Anda berhasil dipointing: ${SUB_DOMAIN} -> ${IP} (DNS Only)"
 
 # ==========================================
 # 2. INSTALASI DEPENDENSI
@@ -105,82 +106,79 @@ systemctl enable dropbear
 systemctl start dropbear
 
 # ==========================================
-# 5. SCRIPT WEBSOCKET PROXY PREMIUM (PYTHON)
+# 5. SCRIPT WEBSOCKET PROXY SUPER FILTER (PYTHON)
 # ==========================================
-echo "Mengonfigurasi proxy WebSocket Universal..."
+echo "Mengonfigurasi proxy WebSocket Universal dengan Filter Premium..."
 cat <<'EOF' > /usr/local/bin/ws-proxy.py
 import socket
 import threading
 import sys
 
-def handle_client(client_socket):
-    target_host = '127.0.0.1'
-    target_port = 90
-    
+def handle_client(c):
     try:
-        target_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        target_socket.connect((target_host, target_port))
+        t = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        t.connect(('127.0.0.1', 90))
         
-        data = client_socket.recv(8192)
-        if not data:
-            return
-
-        # Mendeteksi apakah request diawali dengan metode HTTP
-        first_line = data.split(b'\n')[0].decode('utf-8', 'ignore').strip()
-        is_http = False
-        http_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD", "CONNECT", "TRACE", "HTTP"]
+        data = c.recv(8192)
+        if not data: return
         
-        for method in http_methods:
-            if first_line.startswith(method):
-                is_http = True
-                break
-
-        if is_http:
-            # Kirim respons 101 Switching Protocols ke HTTP Custom/Aplikasi
-            response = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
-            client_socket.sendall(response.encode())
+        # Selalu balas dengan 101 untuk memancing HTTP Custom mengirimkan sisa datanya
+        c.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
+        
+        # Ekstrak data SSH jika nyempil di paket pertama
+        if b"SSH-2.0" in data:
+            t.sendall(data[data.find(b"SSH-2.0"):])
             
-            # CEK PENTING: Jangan teruskan header HTTP ke Dropbear!
-            # Dropbear akan crash/disconnect jika menerima payload HTTP.
-            # Hanya teruskan paket jika di dalamnya terdapat sinyal murni SSH (TCP coalescing)
-            if b"SSH-2.0" in data:
-                ssh_start = data.find(b"SSH-2.0")
-                target_socket.sendall(data[ssh_start:])
-        else:
-            # Jika tidak ada header HTTP (Koneksi SSH Langsung), teruskan sepenuhnya
-            target_socket.sendall(data)
-            
-        threading.Thread(target=forward, args=(client_socket, target_socket)).start()
-        threading.Thread(target=forward, args=(target_socket, client_socket)).start()
-    except Exception:
-        pass
+        threading.Thread(target=client_to_target, args=(c, t)).start()
+        threading.Thread(target=target_to_client, args=(t, c)).start()
+    except:
+        c.close()
 
-def forward(source, destination):
+def client_to_target(c, t):
     try:
         while True:
-            data = source.recv(8192)
+            data = c.recv(8192)
             if not data: break
-            destination.sendall(data)
+            
+            # FILTER SUPER KETAT: Telan semua header HTTP bawaan payload (GET, PATCH, POST, dll)
+            if b"HTTP/" in data or b"GET /" in data or b"PATCH /" in data or b"POST /" in data:
+                # Jika di dalam paket HTTP ada embel-embel SSH, kirim hanya SSH-nya
+                if b"SSH-2.0" in data:
+                    t.sendall(data[data.find(b"SSH-2.0"):])
+                # Jika tidak ada SSH-nya, abaikan paket ini (buang agar Dropbear tidak crash)
+            else:
+                # Jika murni data SSH, teruskan
+                t.sendall(data)
     except:
         pass
     finally:
-        source.close()
-        destination.close()
+        c.close()
+        t.close()
+
+def target_to_client(t, c):
+    try:
+        while True:
+            data = t.recv(8192)
+            if not data: break
+            c.sendall(data)
+    except:
+        pass
+    finally:
+        t.close()
+        c.close()
 
 def main(port):
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server.bind(('0.0.0.0', port))
-    server.listen(100)
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind(('0.0.0.0', port))
+    s.listen(100)
     print(f"WS Listening on port {port}")
-    
     while True:
-        c, addr = server.accept()
+        c, _ = s.accept()
         threading.Thread(target=handle_client, args=(c,)).start()
 
 if __name__ == '__main__':
-    port = int(sys.argv[1])
-    main(port)
+    main(int(sys.argv[1]))
 EOF
 
 chmod +x /usr/local/bin/ws-proxy.py
