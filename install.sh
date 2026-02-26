@@ -190,60 +190,75 @@ print_msg "Install Dropbear 2019 & WS Proxy"
     
     mkdir -p /etc/dropbear
 
-    # Script Python WS Proxy Proxy Protocol
+    # Script Python WS Proxy Advanced (Ultimate Full Bypass)
     cat > /usr/local/bin/ws-dropbear <<'EOF'
 #!/usr/bin/python3
 import socket, threading
 
-def handle_client(client_socket):
+def handle(client):
     try:
-        data = client_socket.recv(8192)
-        if not data: return
-        
-        # Remove PROXY protocol header if present
-        if data.startswith(b'PROXY'):
-            parts = data.split(b'\r\n', 1)
-            if len(parts) > 1:
-                data = parts[1]
-                
-        # Handle HTTP Websocket Upgrade
-        if b'HTTP' in data or b'Upgrade' in data:
-            res = b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
-            client_socket.send(res)
-            
-            # Flush payload appending to header
-            header_end = data.find(b'\r\n\r\n')
-            if header_end != -1 and len(data) > header_end + 4:
-                data = data[header_end + 4:]
-            else:
-                data = b''
-                
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.connect(('127.0.0.1', 109))
-        if data:
-            server_socket.sendall(data)
-            
-        def forward(src, dst):
+        req = b''
+        while b'\r\n\r\n' not in req:
+            chunk = client.recv(4096)
+            if not chunk: break
+            req += chunk
+        if not req: return
+
+        res = b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: HSmrc0sMlYUkAGmm5OPpG2HaGWk=\r\n\r\n"
+        client.sendall(res)
+
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.connect(('127.0.0.1', 109))
+
+        ssh_seen = False
+        header_end = req.find(b'\r\n\r\n')
+        if header_end != -1:
+            leftover = req[header_end+4:]
+            if leftover:
+                idx = leftover.find(b'SSH-')
+                if idx != -1:
+                    server.sendall(leftover[idx:])
+                    ssh_seen = True
+
+        def c2s():
+            nonlocal ssh_seen
             try:
                 while True:
-                    d = src.recv(4096)
-                    if not d: break
-                    dst.sendall(d)
+                    data = client.recv(8192)
+                    if not data: break
+                    if not ssh_seen:
+                        idx = data.find(b'SSH-')
+                        if idx != -1:
+                            server.sendall(data[idx:])
+                            ssh_seen = True
+                    else:
+                        server.sendall(data)
             except: pass
             finally:
-                src.close(); dst.close()
-                
-        threading.Thread(target=forward, args=(client_socket, server_socket)).start()
-        threading.Thread(target=forward, args=(server_socket, client_socket)).start()
-    except:
-        client_socket.close()
+                client.close(); server.close()
 
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind(('127.0.0.1', 10015))
-server.listen(200)
+        def s2c():
+            try:
+                while True:
+                    data = server.recv(8192)
+                    if not data: break
+                    client.sendall(data)
+            except: pass
+            finally:
+                client.close(); server.close()
+
+        threading.Thread(target=c2s).start()
+        threading.Thread(target=s2c).start()
+    except:
+        client.close()
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(('127.0.0.1', 10015))
+s.listen(500)
 while True:
-    client, addr = server.accept()
-    threading.Thread(target=handle_client, args=(client,)).start()
+    c, a = s.accept()
+    threading.Thread(target=handle, args=(c,)).start()
 EOF
     chmod +x /usr/local/bin/ws-dropbear
     
@@ -1133,7 +1148,7 @@ function features_menu() {
                        fi
                        chmod -R 755 /etc/tendo_bot
                        rm -f /root/restore.zip
-                       systemctl restart xray zivpn
+                       systemctl restart xray zivpn dropbear ws-dropbear
                        echo -e "${GREEN}Restore Berhasil! Semua konfigurasi, bot, dan akun telah dipulihkan.${NC}"
                    else
                        echo -e "${RED}Gagal mengunduh file! Pastikan link direct yang dimasukkan valid.${NC}"
