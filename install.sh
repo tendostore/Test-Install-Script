@@ -105,10 +105,9 @@ systemctl enable dropbear
 systemctl start dropbear
 
 # ==========================================
-# 5. SCRIPT WEBSOCKET PROXY (PYTHON)
+# 5. SCRIPT WEBSOCKET PROXY UNIVERSAL (PYTHON)
 # ==========================================
-# Membuat Script Proxy untuk menangani lalu lintas WS None TLS dan Any Port
-echo "Mengonfigurasi proxy WebSocket..."
+echo "Mengonfigurasi proxy WebSocket Universal..."
 cat <<'EOF' > /usr/local/bin/ws-proxy.py
 import socket
 import threading
@@ -116,30 +115,39 @@ import sys
 
 def handle_client(client_socket):
     target_host = '127.0.0.1'
-    target_port = 90 # Arahkan trafik WS ke Dropbear
-    
+    target_port = 90
     try:
         target_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         target_socket.connect((target_host, target_port))
         
-        request = client_socket.recv(4096)
-        if b"HTTP/1.1 101 Switching Protocols" not in request and b"GET / HTTP/1.1" in request:
-            response = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
-            client_socket.send(response.encode())
+        data = client_socket.recv(8192)
+        if not data:
+            return
+
+        # Mendeteksi protokol HTTP secara umum (bisa dari aplikasi injektor apapun)
+        if b"HTTP/" in data:
+            # Kirim status 101 Switching Protocols
+            response = b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+            client_socket.sendall(response)
             
-        target_socket.sendall(request)
-        
+            # Memisahkan header HTTP dan payload SSH bawaan dari aplikasi
+            parts = data.split(b"\r\n\r\n", 1)
+            if len(parts) == 2 and parts[1]:
+                target_socket.sendall(parts[1])
+        else:
+            # Jika koneksi langsung tanpa payload (Direct SSH), teruskan langsung
+            target_socket.sendall(data)
+            
         threading.Thread(target=forward, args=(client_socket, target_socket)).start()
         threading.Thread(target=forward, args=(target_socket, client_socket)).start()
-    except Exception as e:
-        client_socket.close()
+    except Exception:
+        pass
 
 def forward(source, destination):
     try:
         while True:
-            data = source.recv(4096)
-            if not data:
-                break
+            data = source.recv(8192)
+            if not data: break
             destination.sendall(data)
     except:
         pass
@@ -149,13 +157,14 @@ def forward(source, destination):
 
 def main(port):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind(('0.0.0.0', port))
     server.listen(100)
     print(f"WS Listening on port {port}")
     
     while True:
-        client_socket, addr = server.accept()
-        threading.Thread(target=handle_client, args=(client_socket,)).start()
+        c, addr = server.accept()
+        threading.Thread(target=handle_client, args=(c,)).start()
 
 if __name__ == '__main__':
     port = int(sys.argv[1])
@@ -164,7 +173,7 @@ EOF
 
 chmod +x /usr/local/bin/ws-proxy.py
 
-# Buat service untuk port WS (None TLS & Any)
+# Restart & buat service untuk port WS (None TLS & Any)
 PORTS=(80 8080 2082 2083 8880)
 for p in "${PORTS[@]}"; do
 cat <<EOF > /etc/systemd/system/ws-$p.service
@@ -180,6 +189,7 @@ Restart=always
 WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
+systemctl stop ws-$p 2>/dev/null
 systemctl enable ws-$p
 systemctl start ws-$p
 done
