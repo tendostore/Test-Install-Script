@@ -105,7 +105,7 @@ systemctl enable dropbear
 systemctl start dropbear
 
 # ==========================================
-# 5. SCRIPT WEBSOCKET PROXY UNIVERSAL (PYTHON)
+# 5. SCRIPT WEBSOCKET PROXY PREMIUM (PYTHON)
 # ==========================================
 echo "Mengonfigurasi proxy WebSocket Universal..."
 cat <<'EOF' > /usr/local/bin/ws-proxy.py
@@ -116,6 +116,7 @@ import sys
 def handle_client(client_socket):
     target_host = '127.0.0.1'
     target_port = 90
+    
     try:
         target_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         target_socket.connect((target_host, target_port))
@@ -124,18 +125,29 @@ def handle_client(client_socket):
         if not data:
             return
 
-        # Mendeteksi protokol HTTP secara umum (bisa dari aplikasi injektor apapun)
-        if b"HTTP/" in data:
-            # Kirim status 101 Switching Protocols
-            response = b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
-            client_socket.sendall(response)
+        # Mendeteksi apakah request diawali dengan metode HTTP
+        first_line = data.split(b'\n')[0].decode('utf-8', 'ignore').strip()
+        is_http = False
+        http_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD", "CONNECT", "TRACE", "HTTP"]
+        
+        for method in http_methods:
+            if first_line.startswith(method):
+                is_http = True
+                break
+
+        if is_http:
+            # Kirim respons 101 Switching Protocols ke HTTP Custom/Aplikasi
+            response = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+            client_socket.sendall(response.encode())
             
-            # Memisahkan header HTTP dan payload SSH bawaan dari aplikasi
-            parts = data.split(b"\r\n\r\n", 1)
-            if len(parts) == 2 and parts[1]:
-                target_socket.sendall(parts[1])
+            # CEK PENTING: Jangan teruskan header HTTP ke Dropbear!
+            # Dropbear akan crash/disconnect jika menerima payload HTTP.
+            # Hanya teruskan paket jika di dalamnya terdapat sinyal murni SSH (TCP coalescing)
+            if b"SSH-2.0" in data:
+                ssh_start = data.find(b"SSH-2.0")
+                target_socket.sendall(data[ssh_start:])
         else:
-            # Jika koneksi langsung tanpa payload (Direct SSH), teruskan langsung
+            # Jika tidak ada header HTTP (Koneksi SSH Langsung), teruskan sepenuhnya
             target_socket.sendall(data)
             
         threading.Thread(target=forward, args=(client_socket, target_socket)).start()
