@@ -21,7 +21,7 @@ CF_ZONE_ID="14f2e85e62d1d73bf0ce1579f1c3300c"
 
 # Membuat random subdomain (5 karakter huruf/angka)
 SUB_DOMAIN="$(tr -dc a-z0-9 </dev/urandom | head -c 5)"
-DOMAIN="${SUB_DOMAIN}.domainanda.com" # Ganti .domainanda.com dengan root domain Anda jika diperlukan
+DOMAIN="${SUB_DOMAIN}.domainanda.com" # Root domain untuk display (bisa disesuaikan jika punya base domain asli)
 IP=$(curl -sS ipv4.icanhazip.com)
 
 curl -sLX POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
@@ -31,6 +31,10 @@ curl -sLX POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_rec
      --data '{"type":"A","name":"'${SUB_DOMAIN}'","content":"'${IP}'","ttl":120,"proxied":false}'
 
 echo "Domain berhasil dibuat: ${SUB_DOMAIN}"
+
+# Menyimpan Domain agar bisa dibaca oleh script menu
+mkdir -p /etc/vps
+echo "${SUB_DOMAIN}" > /etc/vps/domain
 
 # ==========================================================
 # 2. SETUP OPENSSH (Port 444)
@@ -78,16 +82,29 @@ systemctl enable dropbear
 systemctl start dropbear
 
 # ==========================================================
-# 4. SETUP WEBSOCKET PYTHON PROXY (None TLS & Any Port)
+# 4. SETUP WEBSOCKET PYTHON PROXY (Fix Payload HTTP Custom)
 # ==========================================================
 echo "Mengatur Python WebSocket Proxy..."
-# Mengunduh script proxy ws standar (meneruskan trafik ke Dropbear port 90)
+# Script WS Proxy yang support Handshake HTTP 101 untuk HTTP Custom/Injector
 cat > /usr/local/bin/ws-proxy.py << 'END'
 import socket, threading, sys
+
 def handle_client(client_socket):
-    target_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
+        req = client_socket.recv(8192)
+        # Deteksi jika payload berawal dari HTTP Request
+        if b"GET" in req or b"POST" in req or b"PUT" in req or b"DELETE" in req or b"PATCH" in req or b"OPTIONS" in req or b"HTTP" in req:
+            # Balas dengan 101 Switching Protocols agar aplikasi VPN terkoneksi
+            client_socket.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
+        
+        # Sambungkan ke Dropbear (Port 90)
+        target_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         target_socket.connect(('127.0.0.1', 90))
+        
+        # Jika bukan request HTTP, teruskan paket raw tersebut ke dropbear
+        if not (b"GET" in req or b"POST" in req or b"PUT" in req or b"DELETE" in req or b"PATCH" in req or b"OPTIONS" in req or b"HTTP" in req):
+            target_socket.sendall(req)
+
         threading.Thread(target=forward, args=(client_socket, target_socket)).start()
         threading.Thread(target=forward, args=(target_socket, client_socket)).start()
     except:
@@ -96,19 +113,22 @@ def handle_client(client_socket):
 def forward(source, destination):
     try:
         while True:
-            data = source.recv(4096)
+            data = source.recv(8192)
             if not data: break
             destination.sendall(data)
     except:
         pass
     finally:
-        source.close()
-        destination.close()
+        try: source.close()
+        except: pass
+        try: destination.close()
+        except: pass
 
 def main(port):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind(('0.0.0.0', port))
-    server.listen(5)
+    server.listen(500)
     while True:
         client_socket, _ = server.accept()
         threading.Thread(target=handle_client, args=(client_socket,)).start()
@@ -180,6 +200,7 @@ echo "Mengatur Menu Manager & Create Akun..."
 cat > /usr/local/bin/usernew << 'END'
 #!/bin/bash
 clear
+DOMAIN_SERVER=$(cat /etc/vps/domain)
 echo -e "======================================"
 echo -e "         BUAT AKUN SSH & WS           "
 echo -e "======================================"
@@ -194,6 +215,7 @@ echo -e "Detail Akun Baru:"
 echo -e "======================================"
 echo -e "Username   : $Login"
 echo -e "Password   : $Pass"
+echo -e "Domain     : $DOMAIN_SERVER"
 echo -e "Expired    : $masaaktif Hari"
 echo -e "======================================"
 echo -e "Port TLS   : 443, 8443"
