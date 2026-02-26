@@ -76,13 +76,17 @@ sed -i '/Port 22/a Port 444' /etc/ssh/sshd_config
 systemctl restart ssh
 
 # ==========================================
-# 4. INSTALASI DROPBEAR 2019 (PORT 90)
+# 4. INSTALASI DROPBEAR 2019 (PORT 90) + FIX TIMEOUT
 # ==========================================
-echo "Kompilasi dan instalasi Dropbear versi 2019..."
+echo "Kompilasi dan instalasi Dropbear versi 2019 dengan Fix DNS Timeout..."
 cd /usr/local/src
 wget -O dropbear-2019.78.tar.bz2 https://matt.ucc.asn.au/dropbear/releases/dropbear-2019.78.tar.bz2
 tar xjf dropbear-2019.78.tar.bz2
 cd dropbear-2019.78
+
+# MEMATIKAN FITUR DNS REVERSE LOOKUP AGAR TIDAK DELAY 10 DETIK
+sed -i 's/#define DO_HOST_LOOKUP 1/#define DO_HOST_LOOKUP 0/g' options.h
+
 ./configure
 make
 make install
@@ -106,58 +110,40 @@ systemctl enable dropbear
 systemctl start dropbear
 
 # ==========================================
-# 5. SCRIPT WEBSOCKET PROXY (PYTHON) ANTI-TIMEOUT
+# 5. SCRIPT WEBSOCKET PROXY (PYTHON) BAREBONES
 # ==========================================
 echo "Mengonfigurasi proxy WebSocket Universal Kelas Premium..."
 cat <<'EOF' > /usr/local/bin/ws-proxy.py
-import socket
-import threading
-import sys
+import socket, threading, sys
 
 def handle_client(c):
     t = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        # PENTING: Matikan delay Nagle's Algorithm agar anti-timeout
-        c.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        t.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         t.connect(('127.0.0.1', 90))
         
+        # Sekali sedot langsung menelan semua header HTTP pipelining dari aplikasi
         req = c.recv(8192)
         if not req: return
         
-        # Pancing HTTP Custom dengan 101
+        # Balas dengan 101 Switching Protocols
         c.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
         
-        # Ekstrak SSH murni jika datang lebih awal
+        # Jika ada data SSH yang nempel di paket pertama, langsung oper
         if b"SSH-2.0" in req:
             t.sendall(req[req.find(b"SSH-2.0"):])
-
-        def forward_c2t():
+        
+        # Mode Bypass Murni (Tanpa Filter yang memberatkan)
+        def forward(src, dst):
             try:
                 while True:
-                    data = c.recv(8192)
+                    data = src.recv(8192)
                     if not data: break
-                    
-                    # FILTER: Jika ada header HTTP (Pipelining), ambil SSH-nya saja.
-                    if data.startswith(b"GET ") or data.startswith(b"POST ") or data.startswith(b"PATCH ") or data.startswith(b"HTTP/"):
-                        if b"SSH-2.0" in data:
-                            t.sendall(data[data.find(b"SSH-2.0"):])
-                    else:
-                        t.sendall(data)
+                    dst.sendall(data)
             except: pass
-            finally: c.close(); t.close()
-
-        def forward_t2c():
-            try:
-                while True:
-                    data = t.recv(8192)
-                    if not data: break
-                    c.sendall(data)
-            except: pass
-            finally: c.close(); t.close()
-
-        threading.Thread(target=forward_c2t).start()
-        threading.Thread(target=forward_t2c).start()
+            finally: src.close(); dst.close()
+            
+        threading.Thread(target=forward, args=(c, t)).start()
+        threading.Thread(target=forward, args=(t, c)).start()
     except:
         c.close()
 
