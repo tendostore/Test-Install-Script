@@ -22,7 +22,7 @@
 #           + Main Menu UI Overhaul (X-Ray Manager Category)
 #           + Custom Auto Reboot Scheduler
 #           + OS Rebuild Tool Integration
-#           + Added SSH Dropbear 2019 & WS Proxy Support (Port 80 & 443)
+#           + Added SSH Dropbear 2019 & GOLANG WS PROXY Support (Port 80 & 443)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -177,8 +177,8 @@ print_msg "Setup Domain & SSL Cert"
 ) >/dev/null 2>&1 & install_spin
 print_ok "Domain & SSL"
 
-# --- 6. DROPBEAR 2019 & WS PROXY SETUP ---
-print_msg "Install Dropbear 2019 & WS Proxy"
+# --- 6. DROPBEAR 2019 & GOLANG WS PROXY SETUP ---
+print_msg "Install Dropbear 2019 & Golang WS Proxy"
 (
     # Compile Dropbear 2019 dari Source
     wget -qO dropbear-2019.78.tar.bz2 https://matt.ucc.asn.au/dropbear/releases/dropbear-2019.78.tar.bz2
@@ -190,76 +190,12 @@ print_msg "Install Dropbear 2019 & WS Proxy"
     
     mkdir -p /etc/dropbear
 
-    # Script Python WS Proxy Advanced (Ultimate Full Bypass)
-    cat > /usr/local/bin/ws-dropbear <<'EOF'
-#!/usr/bin/python3
-import socket, threading
-
-def handle(client):
-    try:
-        req = b''
-        while b'\r\n\r\n' not in req:
-            chunk = client.recv(4096)
-            if not chunk: break
-            req += chunk
-        if not req: return
-
-        res = b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: HSmrc0sMlYUkAGmm5OPpG2HaGWk=\r\n\r\n"
-        client.sendall(res)
-
-        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server.connect(('127.0.0.1', 109))
-
-        ssh_seen = False
-        header_end = req.find(b'\r\n\r\n')
-        if header_end != -1:
-            leftover = req[header_end+4:]
-            if leftover:
-                idx = leftover.find(b'SSH-')
-                if idx != -1:
-                    server.sendall(leftover[idx:])
-                    ssh_seen = True
-
-        def c2s():
-            nonlocal ssh_seen
-            try:
-                while True:
-                    data = client.recv(8192)
-                    if not data: break
-                    if not ssh_seen:
-                        idx = data.find(b'SSH-')
-                        if idx != -1:
-                            server.sendall(data[idx:])
-                            ssh_seen = True
-                    else:
-                        server.sendall(data)
-            except: pass
-            finally:
-                client.close(); server.close()
-
-        def s2c():
-            try:
-                while True:
-                    data = server.recv(8192)
-                    if not data: break
-                    client.sendall(data)
-            except: pass
-            finally:
-                client.close(); server.close()
-
-        threading.Thread(target=c2s).start()
-        threading.Thread(target=s2c).start()
-    except:
-        client.close()
-
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-s.bind(('127.0.0.1', 10015))
-s.listen(500)
-while True:
-    c, a = s.accept()
-    threading.Thread(target=handle, args=(c,)).start()
-EOF
+    # Download GOLANG WS PROXY (Dari Referensi Open Source Github)
+    wget -qO /usr/local/bin/ws-dropbear "https://raw.githubusercontent.com/farelvpn/autoscript/main/ssh-ws"
+    # Fallback backup public repo jika link utama farelvpn tidak merespons
+    if [[ ! -s /usr/local/bin/ws-dropbear ]]; then
+        wget -qO /usr/local/bin/ws-dropbear "https://raw.githubusercontent.com/Rerechan02/ws-stunnel/main/ws-stunnel"
+    fi
     chmod +x /usr/local/bin/ws-dropbear
     
     # Setup Dropbear Service
@@ -277,16 +213,21 @@ Restart=always
 WantedBy=multi-user.target
 EOF
 
-    # Setup Python WS Service
+    # Setup GOLANG WS Service (Sesuai Referensi, dimodifikasi untuk Port 10015 XRAY Fallback)
     cat > /etc/systemd/system/ws-dropbear.service <<'EOF'
 [Unit]
-Description=Python WS Dropbear Proxy
-After=network.target
+Description=Golang SSH Proxy Forward TCP To WebSocket
+Documentation=https://farellvpn.rerechanstore.eu.org/autoscript
+After=syslog.target network-online.target
 
 [Service]
-Type=simple
-ExecStart=/usr/bin/python3 /usr/local/bin/ws-dropbear
-Restart=always
+User=root
+NoNewPrivileges=true
+ExecStart=/usr/local/bin/ws-dropbear -p 10015 -t 127.0.0.1:109
+Restart=on-failure
+RestartPreventExitStatus=23
+LimitNPROC=10000
+LimitNOFILE=1000000
 
 [Install]
 WantedBy=multi-user.target
@@ -298,7 +239,7 @@ EOF
     # Agar path /bin/false valid untuk dropbear
     echo "/bin/false" >> /etc/shells
 ) >/dev/null 2>&1 & install_spin
-print_ok "Dropbear 2019 & WS Proxy"
+print_ok "Dropbear 2019 & Golang WS Proxy"
 
 # --- 7. XRAY CONFIG (FIXED QUOTA API ROUTING & LOGLEVEL INFO & SSH WS FALLBACK) ---
 print_msg "Install Xray Core & Config"
@@ -1051,7 +992,7 @@ function check_services() {
     printf "${CYAN}│${NC} Xray Core       : %b${NC}\n" "$X_ST"
     printf "${CYAN}│${NC} ZIVPN UDP       : %b${NC}\n" "$Z_ST"
     printf "${CYAN}│${NC} SSH Dropbear    : %b${NC}\n" "$D_ST"
-    printf "${CYAN}│${NC} WS Proxy        : %b${NC}\n" "$W_ST"
+    printf "${CYAN}│${NC} Golang WS Proxy : %b${NC}\n" "$W_ST"
     printf "${CYAN}│${NC} Vnstat Mon      : %b${NC}\n" "$V_ST"
     printf "${CYAN}│${NC} IPtables        : %b${NC}\n" "$I_ST"
     
