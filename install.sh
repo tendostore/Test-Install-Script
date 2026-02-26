@@ -14,7 +14,7 @@
 #           + Fixed X-Ray Fallback Path Error
 #           + UI Update: Early Domain Prompt & Bouncing Scanner Spinner
 #           + Full Telegram Bot Integration (Mono link, Login Notif Fix)
-#           + Backup & Restore Data (Direct Link & Telegram Auto-Send)
+#           + Backup & Restore Data (Direct Link & Telegram Auto-Send FIXED)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -349,9 +349,10 @@ fi
 EOF
 chmod +x /usr/local/bin/bot-login-notif
 
-# Script Telegram Backup Notif (FIXED)
+# Script Telegram Backup Notif (FIXED FILE UPLOAD)
 cat > /usr/local/bin/bot-backup <<'EOF'
 #!/bin/bash
+if ! command -v zip &> /dev/null; then apt-get install -y zip >/dev/null 2>&1; fi
 TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
 CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
 [[ -z "$TOKEN" || -z "$CHATID" ]] && exit 0
@@ -360,14 +361,15 @@ ZIP_FILE="/tmp/Backup_${DATE}.zip"
 cd /
 zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ >/dev/null 2>&1
 cd - >/dev/null 2>&1
+[[ ! -f "$ZIP_FILE" ]] && exit 0
+
 curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendDocument" \
     -F "chat_id=${CHATID}" \
     -F "document=@${ZIP_FILE}" \
-    -F "caption=<b>📦 AUTOBACKUP VPS</b>
-    
+    -F "caption=📦 AUTOBACKUP VPS
+
 📅 Date: ${DATE}
-✅ Backup Successfully generated." \
-    -F "parse_mode=HTML" > /dev/null
+✅ Backup Successfully generated." > /dev/null
 rm -f $ZIP_FILE
 EOF
 chmod +x /usr/local/bin/bot-backup
@@ -398,7 +400,7 @@ function send_tele() {
     local chat_id=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
     [[ -z "$bot_tok" || -z "$chat_id" ]] && return
     
-    # Render \n into real newlines
+    # Render string menjadi format multi-line yg aman untuk curl
     local msg=$(echo -e "$1")
     local full_msg="<b>✅ NEW ACCOUNT CREATED</b>"$'\n\n'"$msg"
     
@@ -726,11 +728,19 @@ function features_menu() {
             8) neofetch; read -p "Enter...";;
             9) 
                clear; echo -e "${YELLOW}Memproses Backup Data VPS...${NC}"
+               if ! command -v zip &> /dev/null; then apt-get install -y zip >/dev/null 2>&1; fi
                DATE=$(date +"%Y-%m-%d_%H-%M")
                ZIP_FILE="/root/Backup_${DATE}.zip"
                cd /
                zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ >/dev/null 2>&1
                cd - >/dev/null 2>&1
+               
+               if [[ ! -f "$ZIP_FILE" ]]; then
+                   echo -e "${RED}Gagal membuat file backup!${NC}"
+                   read -p "Tekan Enter untuk kembali..."
+                   continue
+               fi
+
                echo -e "${GREEN}File Backup tersimpan di VPS: ${ZIP_FILE}${NC}"
                echo -e "${YELLOW}Mengunggah ke server cloud (Mencari Direct Link)...${NC}"
                LINK=$(curl -s --upload-file $ZIP_FILE https://transfer.sh/Backup_${DATE}.zip)
@@ -746,12 +756,11 @@ function features_menu() {
                    curl -s -X POST "https://api.telegram.org/bot${bot_tok}/sendDocument" \
                        -F "chat_id=${chat_id}" \
                        -F "document=@${ZIP_FILE}" \
-                       -F "caption=<b>📦 MANUAL BACKUP VPS</b>
+                       -F "caption=📦 MANUAL BACKUP VPS
                        
 📅 Date: ${DATE}
 ✅ Backup Successfully generated.
-🔗 Direct Link: ${LINK}" \
-                       -F "parse_mode=HTML" > /dev/null
+🔗 Direct Link: ${LINK}" > /dev/null
                    echo -e "${GREEN}File backup berhasil dikirim ke Telegram!${NC}"
                fi
                read -p "Tekan Enter untuk kembali..."
@@ -814,7 +823,7 @@ function vmess_menu() {
                upg_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                upg_ntls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
                show_account_xray "VMESS" "$u" "$DMN" "$id" "$exp_date" "$limit" "$quota" "$usage_gb" "vmess://$ws_tls" "vmess://$ws_ntls" "vmess://$grpc_tls" "vmess://$upg_tls" "vmess://$upg_ntls";;
-            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 4)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; id=$(uuidgen); read -p " Duration (e.g., 10m, 1h): " dur;
+            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; id=$(uuidgen); read -p " Duration (e.g., 10m, 1h): " dur;
                if [[ "$dur" == *m ]]; then add_str="+${dur%m} minutes"; elif [[ "$dur" == *h ]]; then add_str="+${dur%h} hours"; else add_str="+1 hours"; fi
                exp_date=$(date -d "$add_str" +"%Y-%m-%d %H:%M:%S"); limit=1; quota=0; jq --arg u "$u" --arg id "$id" '(.inbounds[] | select(.protocol == "vmess")).settings.clients += [{"id":$id,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray >/dev/null 2>&1 & echo "$u|$id|$exp_date|$limit|ACTIVE|$quota" >> $D_VMESS
                DMN=$(cat /usr/local/etc/xray/domain)
@@ -857,7 +866,7 @@ function vless_menu() {
                upg_tls="vless://${id}@${DMN}:443?path=%2Fvless-upg&security=tls&encryption=none&host=${DMN}&type=httpupgrade&sni=${DMN}#${u}"
                upg_ntls="vless://${id}@${DMN}:80?path=%2Fvless-upg&security=none&encryption=none&host=${DMN}&type=httpupgrade#${u}"
                show_account_xray "VLESS" "$u" "$DMN" "$id" "$exp_date" "$limit" "$quota" "$usage_gb" "$ws_tls" "$ws_ntls" "$grpc_tls" "$upg_tls" "$upg_ntls";;
-            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 4)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; id=$(uuidgen); read -p " Duration (e.g., 10m, 1h): " dur;
+            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; id=$(uuidgen); read -p " Duration (e.g., 10m, 1h): " dur;
                if [[ "$dur" == *m ]]; then add_str="+${dur%m} minutes"; elif [[ "$dur" == *h ]]; then add_str="+${dur%h} hours"; else add_str="+1 hours"; fi
                exp_date=$(date -d "$add_str" +"%Y-%m-%d %H:%M:%S"); limit=1; quota=0; jq --arg u "$u" --arg id "$id" '(.inbounds[] | select(.protocol == "vless")).settings.clients += [{"id":$id,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray >/dev/null 2>&1 & echo "$u|$id|$exp_date|$limit|ACTIVE|$quota" >> $D_VLESS
                DMN=$(cat /usr/local/etc/xray/domain)
@@ -898,7 +907,7 @@ function trojan_menu() {
                grpc_tls="trojan://${pass}@${DMN}:443?security=tls&host=${DMN}&type=grpc&serviceName=trojan-grpc&sni=${DMN}#${u}"
                upg_tls="trojan://${pass}@${DMN}:443?path=%2Ftrojan-upg&security=tls&host=${DMN}&type=httpupgrade&sni=${DMN}#${u}"
                show_account_xray "TROJAN" "$u" "$DMN" "$pass" "$exp_date" "$limit" "$quota" "$usage_gb" "$ws_tls" "$ws_ntls" "$grpc_tls" "$upg_tls" "";;
-            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 4)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; pass="$u"; read -p " Duration (e.g., 10m, 1h): " dur;
+            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; pass="$u"; read -p " Duration (e.g., 10m, 1h): " dur;
                if [[ "$dur" == *m ]]; then add_str="+${dur%m} minutes"; elif [[ "$dur" == *h ]]; then add_str="+${dur%h} hours"; else add_str="+1 hours"; fi
                exp_date=$(date -d "$add_str" +"%Y-%m-%d %H:%M:%S"); limit=1; quota=0; jq --arg p "$pass" --arg u "$u" '(.inbounds[] | select(.protocol == "trojan")).settings.clients += [{"password":$p,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray >/dev/null 2>&1 & echo "$u|$pass|$exp_date|$limit|ACTIVE|$quota" >> $D_TROJAN
                DMN=$(cat /usr/local/etc/xray/domain)
@@ -926,7 +935,7 @@ function zivpn_menu() {
             2) nl $D_ZIVPN; read -p "No: " n; [[ -z "$n" ]] && continue; p=$(sed -n "${n}p" $D_ZIVPN | cut -d'|' -f1); sed -i "${n}d" $D_ZIVPN; jq --arg p "$p" 'del(.auth.config[] | select(. == $p))' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn >/dev/null 2>&1 &;;
             3) nl $D_ZIVPN; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_ZIVPN); p=$(echo "$line" | cut -d'|' -f1); exp_old=$(echo "$line" | cut -d'|' -f2); read -p " Add Days: " add_days; exp_new=$(date -d "$exp_old + $add_days days" +"%Y-%m-%d"); sed -i "${n}s/.*/$p|$exp_new/" $D_ZIVPN; echo -e "${GREEN}ZIVPN Account $p Renewed until $exp_new!${NC}"; systemctl restart zivpn >/dev/null 2>&1 & sleep 2;;
             4) nl $D_ZIVPN; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_ZIVPN); p=$(echo "$line" | cut -d'|' -f1); exp=$(echo "$line" | cut -d'|' -f2); DMN=$(cat /usr/local/etc/xray/domain); show_account_zivpn "$p" "$DMN" "$exp";;
-            5) p="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 4)"; echo -e " Password (Trial): ${GREEN}$p${NC}"; read -p " Duration (e.g., 10m, 1h): " dur;
+            5) p="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Password (Trial): ${GREEN}$p${NC}"; read -p " Duration (e.g., 10m, 1h): " dur;
                if [[ "$dur" == *m ]]; then add_str="+${dur%m} minutes"; elif [[ "$dur" == *h ]]; then add_str="+${dur%h} hours"; else add_str="+1 hours"; fi
                exp=$(date -d "$add_str" +"%Y-%m-%d %H:%M:%S"); jq --arg p "$p" '.auth.config += [$p]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn >/dev/null 2>&1 & echo "$p|$exp" >> $D_ZIVPN; DMN=$(cat /usr/local/etc/xray/domain); show_account_zivpn "$p" "$DMN" "$exp";;
             x) return;;
