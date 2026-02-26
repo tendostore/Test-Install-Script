@@ -21,7 +21,7 @@ CF_ZONE_ID="14f2e85e62d1d73bf0ce1579f1c3300c"
 
 # Membuat random subdomain (5 karakter huruf/angka)
 SUB_DOMAIN="$(tr -dc a-z0-9 </dev/urandom | head -c 5)"
-DOMAIN="${SUB_DOMAIN}.domainanda.com" # Root domain untuk display (bisa disesuaikan jika punya base domain asli)
+DOMAIN="${SUB_DOMAIN}.vip2-tendo.my.id" 
 IP=$(curl -sS ipv4.icanhazip.com)
 
 curl -sLX POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
@@ -30,11 +30,11 @@ curl -sLX POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_rec
      -H "Content-Type: application/json" \
      --data '{"type":"A","name":"'${SUB_DOMAIN}'","content":"'${IP}'","ttl":120,"proxied":false}'
 
-echo "Domain berhasil dibuat: ${SUB_DOMAIN}"
+echo "Domain berhasil dibuat: ${DOMAIN}"
 
-# Menyimpan Domain agar bisa dibaca oleh script menu
+# Menyimpan Full Domain agar bisa dibaca oleh script menu
 mkdir -p /etc/vps
-echo "${SUB_DOMAIN}" > /etc/vps/domain
+echo "${DOMAIN}" > /etc/vps/domain
 
 # ==========================================================
 # 2. SETUP OPENSSH (Port 444)
@@ -85,25 +85,31 @@ systemctl start dropbear
 # 4. SETUP WEBSOCKET PYTHON PROXY (Fix Payload HTTP Custom)
 # ==========================================================
 echo "Mengatur Python WebSocket Proxy..."
-# Script WS Proxy yang support Handshake HTTP 101 untuk HTTP Custom/Injector
+# Script WS Proxy yang support Handshake HTTP 101 dan pemisahan payload
 cat > /usr/local/bin/ws-proxy.py << 'END'
 import socket, threading, sys
 
 def handle_client(client_socket):
     try:
-        req = client_socket.recv(8192)
-        # Deteksi jika payload berawal dari HTTP Request
-        if b"GET" in req or b"POST" in req or b"PUT" in req or b"DELETE" in req or b"PATCH" in req or b"OPTIONS" in req or b"HTTP" in req:
-            # Balas dengan 101 Switching Protocols agar aplikasi VPN terkoneksi
-            client_socket.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
+        data = client_socket.recv(8192)
+        if not data: return
+        
+        # Selalu balas dengan 101 Switching Protocols untuk mem-bypass payload HTTP
+        response = b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+        client_socket.send(response)
         
         # Sambungkan ke Dropbear (Port 90)
         target_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         target_socket.connect(('127.0.0.1', 90))
         
-        # Jika bukan request HTTP, teruskan paket raw tersebut ke dropbear
-        if not (b"GET" in req or b"POST" in req or b"PUT" in req or b"DELETE" in req or b"PATCH" in req or b"OPTIONS" in req or b"HTTP" in req):
-            target_socket.sendall(req)
+        # Cari akhir dari header HTTP (\r\n\r\n)
+        header_end = data.find(b'\r\n\r\n')
+        # Jika ada sisa data (SSH handshake) yang menempel setelah header HTTP, teruskan ke Dropbear
+        if header_end != -1 and len(data) > header_end + 4:
+            target_socket.send(data[header_end+4:])
+        # Jika tidak terdeteksi header HTTP standar, teruskan seluruh data raw ke Dropbear
+        elif header_end == -1:
+            target_socket.send(data)
 
         threading.Thread(target=forward, args=(client_socket, target_socket)).start()
         threading.Thread(target=forward, args=(target_socket, client_socket)).start()
@@ -115,7 +121,7 @@ def forward(source, destination):
         while True:
             data = source.recv(8192)
             if not data: break
-            destination.sendall(data)
+            destination.send(data)
     except:
         pass
     finally:
@@ -167,7 +173,7 @@ done
 echo "Mengatur Stunnel untuk TLS..."
 # Membuat sertifikat dummy untuk stunnel
 openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
-    -subj "/C=ID/ST=JawaTengah/L=Tahunan/O=Server/OU=Websocket/CN=${SUB_DOMAIN}" \
+    -subj "/C=ID/ST=JawaTengah/L=Tahunan/O=Server/OU=Websocket/CN=${DOMAIN}" \
     -keyout /etc/stunnel/stunnel.pem -out /etc/stunnel/stunnel.pem
 
 # Konfigurasi Stunnel mem-forward ke WS Proxy (Port 80)
@@ -259,7 +265,7 @@ for PORT in "${PORTS[@]}"; do systemctl restart ws-$PORT; done
 echo "=========================================================="
 echo "                 INSTALASI SELESAI                        "
 echo "=========================================================="
-echo "Domain Baru       : ${SUB_DOMAIN}"
+echo "Domain Baru       : ${DOMAIN}"
 echo "IP Server         : ${IP}"
 echo "TLS               : 443, 8443"
 echo "None TLS          : 80, 8080"
