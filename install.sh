@@ -18,7 +18,8 @@
 #           + Limit IP Auto Lock 10 Mins (With Telegram Notif)
 #           + Quota Exceeded Auto Delete (ACCUMULATIVE + Telegram Notif)
 #           + Manual Lock / Unlock Features
-#           + Split Login Notification by Protocol & Real-time 2 Mins Filter
+#           + Split Login Notification by Protocol
+#           + FIXED: Sync Real-Time 2 Mins Filter on Auto-Lock System
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -278,7 +279,7 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-exp
 
-# Script Limit IP (Auto Lock 10 Mins with dynamic IP extraction)
+# Script Limit IP (Auto Lock 10 Mins with dynamic IP extraction + RealTime Filter)
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 CONFIG="/usr/local/etc/xray/config.json"
@@ -288,8 +289,13 @@ CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
 NOW=$(date +%s)
 
 [[ ! -f "$LOG_FILE" ]] && exit 0
-# Extract IP using safe dynamic column positioning (handling [Info] tags)
-awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); gsub(/:.*/,"",ip); email=$NF; if(email!="") print ip, email; break; } }' "$LOG_FILE" | sort -u > /tmp/xray_active.log
+
+# Terapkan filter 2 menit terakhir persis seperti notifikasi bot
+D1=$(date +"%Y/%m/%d %H:%M")
+D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
+D3=$(date -d "2 minutes ago" +"%Y/%m/%d %H:%M")
+
+grep -E "^($D1|$D2|$D3)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); gsub(/:.*/,"",ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/xray_active.log
 
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
