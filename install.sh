@@ -24,6 +24,7 @@ SUB_DOMAIN="$(tr -dc a-z0-9 </dev/urandom | head -c 5)"
 DOMAIN="${SUB_DOMAIN}.vip2-tendo.my.id" 
 IP=$(curl -sS ipv4.icanhazip.com)
 
+# Dikembalikan ke Awan Abu-abu (proxied: false) sesuai permintaan Anda
 curl -sLX POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
      -H "X-Auth-Email: ${CF_ID}" \
      -H "X-Auth-Key: ${CF_KEY}" \
@@ -82,34 +83,34 @@ systemctl enable dropbear
 systemctl start dropbear
 
 # ==========================================================
-# 4. SETUP WEBSOCKET PYTHON PROXY (Fix Payload HTTP Custom)
+# 4. SETUP WEBSOCKET PYTHON PROXY (Fix Payload Bypass)
 # ==========================================================
 echo "Mengatur Python WebSocket Proxy..."
-# Script WS Proxy yang support Handshake HTTP 101 dan pemisahan payload
+# Menggunakan WS Proxy yang paling stabil untuk payload HTTP Injector/Custom
 cat > /usr/local/bin/ws-proxy.py << 'END'
 import socket, threading, sys
 
 def handle_client(client_socket):
     try:
-        data = client_socket.recv(8192)
-        if not data: return
+        request = client_socket.recv(8192)
+        if not request:
+            client_socket.close()
+            return
         
-        # Selalu balas dengan 101 Switching Protocols untuk mem-bypass payload HTTP
-        response = b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
-        client_socket.send(response)
+        # Kirim HTTP 101 Response agar HTTP Custom terkoneksi
+        client_socket.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
         
-        # Sambungkan ke Dropbear (Port 90)
+        # Hubungkan ke Dropbear (90)
         target_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         target_socket.connect(('127.0.0.1', 90))
         
-        # Cari akhir dari header HTTP (\r\n\r\n)
-        header_end = data.find(b'\r\n\r\n')
-        # Jika ada sisa data (SSH handshake) yang menempel setelah header HTTP, teruskan ke Dropbear
-        if header_end != -1 and len(data) > header_end + 4:
-            target_socket.send(data[header_end+4:])
-        # Jika tidak terdeteksi header HTTP standar, teruskan seluruh data raw ke Dropbear
-        elif header_end == -1:
-            target_socket.send(data)
+        # Deteksi sisa data payload SSH yang terbawa di belakang header
+        if b'\r\n\r\n' in request:
+            data = request.split(b'\r\n\r\n', 1)[1]
+            if data:
+                target_socket.sendall(data)
+        else:
+            target_socket.sendall(request)
 
         threading.Thread(target=forward, args=(client_socket, target_socket)).start()
         threading.Thread(target=forward, args=(target_socket, client_socket)).start()
@@ -121,7 +122,7 @@ def forward(source, destination):
         while True:
             data = source.recv(8192)
             if not data: break
-            destination.send(data)
+            destination.sendall(data)
     except:
         pass
     finally:
