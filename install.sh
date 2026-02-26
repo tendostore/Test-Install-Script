@@ -42,7 +42,7 @@ RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE
      -H "X-Auth-Key: ${CF_KEY}" \
      -H "Content-Type: application/json" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
 
-# DISET KE PROXIED: FALSE (Awan Abu-abu / DNS Only)
+# DIKEMBALIKAN KE PROXIED: FALSE (Awan Abu-abu / DNS Only)
 if [ "${RECORD_ID}" = "" ]; then
     # Create record
     curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
@@ -58,7 +58,7 @@ else
          -H "Content-Type: application/json" \
          --data '{"type":"A","name":"'${SUB_DOMAIN}'","content":"'${IP}'","ttl":120,"proxied":false}' > /dev/null
 fi
-echo "Host Anda berhasil dipointing: ${SUB_DOMAIN} -> ${IP} (DNS Only)"
+echo "Host Anda berhasil dipointing: ${SUB_DOMAIN} -> ${IP} (DNS Only / Awan Abu-abu)"
 
 # ==========================================
 # 2. INSTALASI DEPENDENSI
@@ -106,7 +106,7 @@ systemctl enable dropbear
 systemctl start dropbear
 
 # ==========================================
-# 5. SCRIPT WEBSOCKET PROXY (PYTHON) KELAS PREMIUM
+# 5. SCRIPT WEBSOCKET PROXY (PYTHON) BRUTAL FILTER
 # ==========================================
 echo "Mengonfigurasi proxy WebSocket Universal Kelas Premium..."
 cat <<'EOF' > /usr/local/bin/ws-proxy.py
@@ -115,42 +115,39 @@ import threading
 import sys
 
 def handle_client(c):
-    t = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
+        t = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         t.connect(('127.0.0.1', 90))
         
-        # Tangkap paket pertama dari HTTP Custom
         data = c.recv(8192)
         if not data: return
         
-        # Langsung bypass dengan mengirimkan 101 Switching Protocols
+        # Langsung bypass dengan 101 Switching Protocols
         c.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
         
-        ssh_started = False
-        # Jika paket pertama ternyata sudah membawa data SSH, langsung teruskan
+        # Jika paket pertama langsung bawa SSH-2.0, teruskan
         if b"SSH-2.0" in data:
             t.sendall(data[data.find(b"SSH-2.0"):])
-            ssh_started = True
             
-        # Mulai threading untuk menahan dan mem-filter paket selanjutnya
-        threading.Thread(target=client_to_target, args=(c, t, ssh_started)).start()
+        threading.Thread(target=client_to_target, args=(c, t)).start()
         threading.Thread(target=target_to_client, args=(t, c)).start()
     except:
         c.close()
 
-def client_to_target(c, t, ssh_started):
+def client_to_target(c, t):
     try:
         while True:
             data = c.recv(8192)
             if not data: break
             
-            if not ssh_started:
-                # TAHAP FILTERING: Selama belum ketemu SSH, buang semua sampah payload HTTP
-                if b"SSH-2.0" in data:
-                    t.sendall(data[data.find(b"SSH-2.0"):])
-                    ssh_started = True
+            # FILTER BRUTAL: Kalau ada SSH, ambil SSH-nya aja
+            if b"SSH-2.0" in data:
+                t.sendall(data[data.find(b"SSH-2.0"):])
+            # Kalau murni HTTP nyasar (GET, PATCH, POST), buang ke tong sampah
+            elif b"HTTP/" in data or b"GET /" in data or b"PATCH /" in data:
+                pass 
+            # Kalau paket data murni, teruskan
             else:
-                # Jika tahap filtering selesai, teruskan aliran data secara murni
                 t.sendall(data)
     except:
         pass
