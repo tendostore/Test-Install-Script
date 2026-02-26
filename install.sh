@@ -11,18 +11,32 @@ fi
 # ==========================================
 # 1. VARIABEL & AUTO POINTING CLOUDFLARE
 # ==========================================
-DOMAIN="free-tendo.store" 
-SUB_DOMAIN="vpn.${DOMAIN}"
+CF_ID="mbuntoncity@gmail.com"
+CF_KEY="96bee4f14ef23e42c4509efc125c0eac5c02e"
+CF_ZONE_ID="14f2e85e62d1d73bf0ce1579f1c3300c"
+
+echo "Mengambil nama domain dari Cloudflare berdasarkan Zone ID..."
+DOMAIN=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}" \
+     -H "X-Auth-Email: ${CF_ID}" \
+     -H "X-Auth-Key: ${CF_KEY}" \
+     -H "Content-Type: application/json" | grep -o '"name":"[^"]*' | head -1 | cut -d'"' -f4)
+
+if [ -z "${DOMAIN}" ]; then
+    echo "Gagal mengambil nama domain. Pastikan API Key dan Zone ID Anda benar."
+    exit 1
+fi
+
+echo "Domain utama ditemukan: ${DOMAIN}"
+
+# Membuat subdomain random (4 karakter alfanumerik)
+RANDOM_STR=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 4 | head -n 1)
+SUB_DOMAIN="vpn-${RANDOM_STR}.${DOMAIN}"
 IP=$(curl -sS ifconfig.me)
 
 # Menyimpan domain untuk dipanggil di menu
 echo "${SUB_DOMAIN}" > /etc/vps_domain
 
-CF_ID="mbuntoncity@gmail.com"
-CF_KEY="96bee4f14ef23e42c4509efc125c0eac5c02e"
-CF_ZONE_ID="14f2e85e62d1d73bf0ce1579f1c3300c"
-
-echo "Memulai Auto Pointing Domain ke Cloudflare..."
+echo "Memulai Auto Pointing Subdomain (${SUB_DOMAIN}) ke Cloudflare..."
 RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?name=${SUB_DOMAIN}" \
      -H "X-Auth-Email: ${CF_ID}" \
      -H "X-Auth-Key: ${CF_KEY}" \
@@ -43,7 +57,7 @@ else
          -H "Content-Type: application/json" \
          --data '{"type":"A","name":"'${SUB_DOMAIN}'","content":"'${IP}'","ttl":120,"proxied":false}' > /dev/null
 fi
-echo "Host Anda: ${SUB_DOMAIN} -> ${IP}"
+echo "Host Anda berhasil dipointing: ${SUB_DOMAIN} -> ${IP}"
 
 # ==========================================
 # 2. INSTALASI DEPENDENSI
@@ -210,7 +224,7 @@ clear
 domain=$(cat /etc/vps_domain)
 
 echo "======================================"
-echo "          MENU VPN ACCOUNT            "
+echo "          MENU VPN ACCOUNT"
 echo "======================================"
 echo "1. Buat Akun SSH & WebSocket Baru"
 echo "2. Hapus Akun"
