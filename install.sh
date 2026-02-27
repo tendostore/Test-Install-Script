@@ -1,29 +1,7 @@
 #!/bin/bash
 # ==================================================
-#   Auto Script Install X-ray & Zivpn
+#   Auto Script Install X-ray, Zivpn & SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL)
-#   Update: Added List Accounts (Count) on Dashboard
-#           + Added WS, GRPC, HTTPUpgrade Networks
-#           + Added IP Limit Enforcer
-#           + Added Auto-Delete Expired Accounts
-#           + Custom Detailed Format for VMESS, VLESS, TROJAN
-#           + Added Bandwidth Limit (Quota GB) via Xray API
-#           + Added Renew Account Feature
-#           + Added Trial Feature (Random User & Minutes/Hours)
-#           + Added ZIVPN Tracking & Renew
-#           + Fixed X-Ray Fallback Path Error
-#           + UI Update: Early Domain Prompt & Bouncing Scanner Spinner
-#           + Full Telegram Bot Integration (Mono link, Login Notif Fix)
-#           + Backup & Restore Data (Direct Link & Telegram Auto-Send + Cron)
-#           + Limit IP Auto Lock 10 Mins (With Telegram Notif)
-#           + Quota Exceeded Auto Delete (ACCUMULATIVE + Telegram Notif)
-#           + Manual Lock / Unlock Features
-#           + Split Login Notification by Protocol & Real-time 2 Mins Filter
-#           + Main Menu UI Overhaul (X-Ray Manager Category)
-#           + Custom Auto Reboot Scheduler
-#           + OS Rebuild Tool Integration
-#           + Added SSH Dropbear 2019 & GOLANG WS PROXY Support (Port 80 & 443)
-#   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
 # --- WARNA & UI ---
@@ -78,7 +56,7 @@ function print_ok() {
 # --- 1. PROMPT DOMAIN DI AWAL ---
 clear
 echo -e "${CYAN}=================================================${NC}"
-echo -e "${PURPLE}      AUTO INSTALLER X-RAY & ZIVPN ONLY          ${NC}"
+echo -e "${PURPLE}   AUTO INSTALLER X-RAY, ZIVPN & SSH WS          ${NC}"
 echo -e "${CYAN}=================================================${NC}"
 echo -e "${YELLOW}           Script by Tendo Store                 ${NC}"
 echo -e "${CYAN}=================================================${NC}"
@@ -130,20 +108,48 @@ print_msg "Optimasi Sistem & Swap"
 ) >/dev/null 2>&1 & install_spin
 print_ok "Optimasi Sistem"
 
-# --- 4. DEPENDENCIES ---
-print_msg "Install Dependencies"
+# --- 4. DEPENDENCIES & DROPBEAR 2019 ---
+print_msg "Install Dependencies & Dropbear 2019"
 (
     apt-get update -y
     echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
     echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
-    apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl socat jq openssl uuid-runtime net-tools vnstat wget gnupg1 bc iproute2 iptables iptables-persistent python3 neofetch cron zip unzip zlib1g-dev gcc make bzip2
+    apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl socat jq openssl uuid-runtime net-tools vnstat wget gnupg1 bc iproute2 iptables iptables-persistent python3 neofetch cron zip unzip build-essential zlib1g-dev libz-dev
+    
+    # Install Dropbear 2019.81
+    wget -q https://matt.ucc.asn.au/dropbear/releases/dropbear-2019.81.tar.bz2
+    tar -xjf dropbear-2019.81.tar.bz2
+    cd dropbear-2019.81
+    ./configure --prefix=/usr --sysconfdir=/etc
+    make && make install
+    cd ..
+    rm -rf dropbear-2019.81*
+    mkdir -p /etc/dropbear
+    
+cat > /etc/systemd/system/dropbear.service <<EOF
+[Unit]
+Description=Dropbear SSH Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/dropbear -F -p 127.0.0.1:109 -W 65536
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl daemon-reload
+    systemctl enable dropbear
+    systemctl restart dropbear
+
     curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | bash
     apt-get install speedtest -y
     touch /root/.hushlogin; chmod -x /etc/update-motd.d/* 2>/dev/null
     sed -i '/neofetch/d' /root/.bashrc; echo "neofetch" >> /root/.bashrc
     echo 'echo -e "Welcome Tendo! Type \e[1;32mmenu\e[0m to start."' >> /root/.bashrc
 ) >/dev/null 2>&1 & install_spin
-print_ok "Dependencies"
+print_ok "Dependencies & Dropbear 2019"
 
 # Setup IP & IFACE variables for next steps
 IP_VPS=$(curl -s ifconfig.me)
@@ -154,7 +160,7 @@ print_msg "Setup Domain & SSL Cert"
 (
     systemctl enable vnstat && systemctl restart vnstat; vnstat -u -i $IFACE_NET
     mkdir -p $XRAY_DIR /etc/zivpn /root/tendo /etc/tendo_bot /usr/local/etc/xray/quota; touch $DATA_VMESS $DATA_VLESS $DATA_TROJAN $DATA_ZIVPN $DATA_SSH
-    mkdir -p /var/log/xray; touch /var/log/xray/access.log /var/log/xray/error.log
+    mkdir -p /var/log/xray; touch /var/log/xray/access.log /var/log/xray/error.log /var/log/auth.log
 
     curl -s ipinfo.io/json | jq -r '.city' > /root/tendo/city
     curl -s ipinfo.io/json | jq -r '.org' > /root/tendo/isp
@@ -177,71 +183,70 @@ print_msg "Setup Domain & SSL Cert"
 ) >/dev/null 2>&1 & install_spin
 print_ok "Domain & SSL"
 
-# --- 6. DROPBEAR 2019 & GOLANG WS PROXY SETUP ---
-print_msg "Install Dropbear 2019 & Golang WS Proxy"
+# --- 5.1 WEBSOCKET PROXY PYTHON ---
+print_msg "Install SSH Websocket Proxy"
 (
-    # Compile Dropbear 2019 dari Source
-    wget -qO dropbear-2019.78.tar.bz2 https://matt.ucc.asn.au/dropbear/releases/dropbear-2019.78.tar.bz2
-    tar -xjf dropbear-2019.78.tar.bz2
-    cd dropbear-2019.78
-    ./configure --disable-zlib --enable-syslog
-    make && make install
-    cd .. && rm -rf dropbear-2019.78*
-    
-    mkdir -p /etc/dropbear
+cat > /usr/local/bin/ws-proxy.py <<'EOF'
+import socket, threading, sys
 
-    # Download GOLANG WS PROXY (Dari Referensi Open Source Github)
-    wget -qO /usr/local/bin/ws-dropbear "https://raw.githubusercontent.com/farelvpn/autoscript/main/ssh-ws"
-    # Fallback backup public repo jika link utama farelvpn tidak merespons
-    if [[ ! -s /usr/local/bin/ws-dropbear ]]; then
-        wget -qO /usr/local/bin/ws-dropbear "https://raw.githubusercontent.com/Rerechan02/ws-stunnel/main/ws-stunnel"
-    fi
-    chmod +x /usr/local/bin/ws-dropbear
-    
-    # Setup Dropbear Service
-    cat > /etc/systemd/system/dropbear.service <<'EOF'
+def handle_client(client_socket):
+    try:
+        request = client_socket.recv(4096).decode('utf-8', errors='ignore')
+        if not request: return
+        
+        response = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+        client_socket.send(response.encode())
+        
+        remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        remote_socket.connect(('127.0.0.1', 109))
+        
+        def forward(src, dst):
+            try:
+                while True:
+                    data = src.recv(4096)
+                    if not data: break
+                    dst.send(data)
+            except: pass
+            finally:
+                src.close()
+                dst.close()
+                
+        threading.Thread(target=forward, args=(client_socket, remote_socket)).start()
+        threading.Thread(target=forward, args=(remote_socket, client_socket)).start()
+    except:
+        client_socket.close()
+
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+server.bind(('127.0.0.1', 10015))
+server.listen(100)
+
+while True:
+    client_socket, addr = server.accept()
+    threading.Thread(target=handle_client, args=(client_socket,)).start()
+EOF
+chmod +x /usr/local/bin/ws-proxy.py
+
+cat > /etc/systemd/system/ws-proxy.service <<EOF
 [Unit]
-Description=Dropbear SSH Server 2019
+Description=Python SSH Websocket Proxy
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/sbin/dropbear -F -p 127.0.0.1:109 -W 65536
+ExecStart=/usr/bin/python3 /usr/local/bin/ws-proxy.py
 Restart=always
 
 [Install]
 WantedBy=multi-user.target
 EOF
-
-    # Setup GOLANG WS Service (Sesuai Referensi, dimodifikasi untuk Port 10015 XRAY Fallback)
-    cat > /etc/systemd/system/ws-dropbear.service <<'EOF'
-[Unit]
-Description=Golang SSH Proxy Forward TCP To WebSocket
-Documentation=https://farellvpn.rerechanstore.eu.org/autoscript
-After=syslog.target network-online.target
-
-[Service]
-User=root
-NoNewPrivileges=true
-ExecStart=/usr/local/bin/ws-dropbear -p 10015 -t 127.0.0.1:109
-Restart=on-failure
-RestartPreventExitStatus=23
-LimitNPROC=10000
-LimitNOFILE=1000000
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    systemctl daemon-reload
-    systemctl enable dropbear ws-dropbear
-    systemctl start dropbear ws-dropbear
-    # Agar path /bin/false valid untuk dropbear
-    echo "/bin/false" >> /etc/shells
+systemctl daemon-reload
+systemctl enable ws-proxy
+systemctl restart ws-proxy
 ) >/dev/null 2>&1 & install_spin
-print_ok "Dropbear 2019 & Golang WS Proxy"
+print_ok "SSH Websocket Proxy"
 
-# --- 7. XRAY CONFIG (FIXED QUOTA API ROUTING & LOGLEVEL INFO & SSH WS FALLBACK) ---
+# --- 6. XRAY CONFIG (FIXED QUOTA API ROUTING & LOGLEVEL INFO) ---
 print_msg "Install Xray Core & Config"
 (
     bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
@@ -256,15 +261,15 @@ cat > $CONFIG_FILE <<EOF
   "inbounds": [
     { "listen": "127.0.0.1", "port": 10085, "protocol": "dokodemo-door", "settings": { "address": "127.0.0.1" }, "tag": "api" },
     { "tag": "inbound-443", "port": 443, "protocol": "vless", "settings": { "clients": [ { "id": "$UUID_SYS", "flow": "xtls-rprx-vision", "level": 0, "email": "system" } ], "decryption": "none", "fallbacks": [ 
+        { "dest": 10015, "xver": 1 },
         { "path": "/vmess", "dest": 10001, "xver": 1 }, { "path": "/vless", "dest": 10002, "xver": 1 }, { "path": "/trojan", "dest": 10003, "xver": 1 },
         { "path": "/vmess-upg", "dest": 10004, "xver": 1 }, { "path": "/vless-upg", "dest": 10005, "xver": 1 }, { "path": "/trojan-upg", "dest": 10006, "xver": 1 },
-        { "alpn": "h2", "path": "/vmess-grpc", "dest": 10007, "xver": 1 }, { "alpn": "h2", "path": "/vless-grpc", "dest": 10008, "xver": 1 }, { "alpn": "h2", "path": "/trojan-grpc", "dest": 10009, "xver": 1 },
-        { "dest": 10015, "xver": 1 }
+        { "alpn": "h2", "path": "/vmess-grpc", "dest": 10007, "xver": 1 }, { "alpn": "h2", "path": "/vless-grpc", "dest": 10008, "xver": 1 }, { "alpn": "h2", "path": "/trojan-grpc", "dest": 10009, "xver": 1 }
     ] }, "streamSettings": { "network": "tcp", "security": "tls", "tlsSettings": { "alpn": ["h2", "http/1.1"], "certificates": [ { "certificateFile": "/usr/local/etc/xray/xray.crt", "keyFile": "/usr/local/etc/xray/xray.key" } ] } } },
     { "tag": "inbound-80", "port": 80, "protocol": "vless", "settings": { "clients": [], "decryption": "none", "fallbacks": [ 
+        { "dest": 10015, "xver": 1 },
         { "path": "/vmess", "dest": 10001, "xver": 1 }, { "path": "/vless", "dest": 10002, "xver": 1 }, { "path": "/trojan", "dest": 10003, "xver": 1 },
-        { "path": "/vmess-upg", "dest": 10004, "xver": 1 }, { "path": "/vless-upg", "dest": 10005, "xver": 1 }, { "path": "/trojan-upg", "dest": 10006, "xver": 1 },
-        { "dest": 10015, "xver": 1 }
+        { "path": "/vmess-upg", "dest": 10004, "xver": 1 }, { "path": "/vless-upg", "dest": 10005, "xver": 1 }, { "path": "/trojan-upg", "dest": 10006, "xver": 1 }
     ] }, "streamSettings": { "network": "tcp", "security": "none" } },
     { "tag": "vmess_ws", "port": 10001, "listen": "127.0.0.1", "protocol": "vmess", "settings": { "clients": [] }, "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "acceptProxyProtocol": true, "path": "/vmess" } } },
     { "tag": "vless_ws", "port": 10002, "listen": "127.0.0.1", "protocol": "vless", "settings": { "clients": [], "decryption": "none" }, "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "acceptProxyProtocol": true, "path": "/vless" } } },
@@ -287,7 +292,7 @@ EOF
 ) >/dev/null 2>&1 & install_spin
 print_ok "Xray Configured"
 
-# --- 8. ZIVPN ---
+# --- 7. ZIVPN ---
 print_msg "Install ZIVPN"
 (
     wget -qO /usr/local/bin/zivpn "https://github.com/zahidbd2/udp-zivpn/releases/download/udp-zivpn_1.4.9/udp-zivpn-linux-amd64"
@@ -310,7 +315,7 @@ EOF
 ) >/dev/null 2>&1 & install_spin
 print_ok "ZIVPN Installed"
 
-# --- 9. AUTO-KILL, QUOTA & TELEGRAM SCRIPTS ---
+# --- 8. AUTO-KILL, QUOTA & TELEGRAM SCRIPTS ---
 print_msg "Setting up Cron & Telegram Bots"
 (
 mkdir -p /usr/local/etc/xray/quota
@@ -334,18 +339,17 @@ for proto in vmess vless trojan; do
         done < "$FILE"
     fi
 done
-
-SSH_FILE="/usr/local/etc/xray/ssh.txt"
-if [[ -f "$SSH_FILE" ]]; then
-    while IFS="|" read -r user pass exp limit status; do
+# SSH Auto-Kill
+S_FILE="/usr/local/etc/xray/ssh.txt"
+if [[ -f "$S_FILE" ]]; then
+    while IFS="|" read -r user exp limit status; do
         EXP_S=$(date -d "$exp" +%s 2>/dev/null)
         if [[ -n "$EXP_S" && "$NOW" -ge "$EXP_S" ]]; then
-            userdel -f "$user" 2>/dev/null
-            sed -i "/^$user|/d" "$SSH_FILE"
+            userdel -f "$user"
+            sed -i "/^$user|/d" $S_FILE
         fi
-    done < "$SSH_FILE"
+    done < "$S_FILE"
 fi
-
 Z_FILE="/etc/zivpn/zivpn.txt"
 Z_CONF="/etc/zivpn/config.json"
 if [[ -f "$Z_FILE" ]]; then
@@ -366,6 +370,7 @@ cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 CONFIG="/usr/local/etc/xray/config.json"
 LOG_FILE="/var/log/xray/access.log"
+AUTH_LOG="/var/log/auth.log"
 TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
 CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
 NOW=$(date +%s)
@@ -376,7 +381,12 @@ D1=$(date +"%Y/%m/%d %H:%M")
 D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
 D3=$(date -d "2 minutes ago" +"%Y/%m/%d %H:%M")
 
+S1=$(date +"%b %e %H:%M")
+S2=$(date -d "1 minute ago" +"%b %e %H:%M")
+S3=$(date -d "2 minutes ago" +"%b %e %H:%M")
+
 grep -E "^($D1|$D2|$D3)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); gsub(/:.*/,"",ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/xray_active.log
+grep -E "^($S1|$S2|$S3)" "$AUTH_LOG" | grep "dropbear" | grep "Password auth succeeded" | awk -F"'" '{print $2}' | sort -u > /tmp/ssh_active.log
 
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
@@ -417,15 +427,15 @@ for proto in vmess vless trojan; do
     done < "$FILE"
 done
 
-# SSH Limit Checking
-SSH_FILE="/usr/local/etc/xray/ssh.txt"
-if [[ -f "$SSH_FILE" ]]; then
-    while IFS="|" read -r user pass exp limit status; do
+# Limit for SSH
+S_FILE="/usr/local/etc/xray/ssh.txt"
+if [[ -f "$S_FILE" ]]; then
+    while IFS="|" read -r user exp limit status; do
         if [[ "$status" == LOCKED_IP_* ]]; then
             lock_time=${status#LOCKED_IP_}
             if [[ $((NOW - lock_time)) -ge 600 ]]; then
-                usermod -U "$user" 2>/dev/null
-                sed -i "s/^$user|.*/$user|$pass|$exp|$limit|ACTIVE/g" "$SSH_FILE"
+                passwd -u "$user" >/dev/null 2>&1
+                sed -i "s/^$user|.*/$user|$exp|$limit|ACTIVE/g" "$S_FILE"
                 if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
                     MSG="<b>✅ AKUN DI-UNLOCK OTOMATIS (SSH)</b>"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🔓 Status: Active (Hukuman 10 menit selesai)"
                     curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
@@ -438,18 +448,18 @@ if [[ -f "$SSH_FILE" ]]; then
         
         [[ -z "$limit" || "$limit" == "0" ]] && continue
         
-        active_ips=$(ps -u "$user" 2>/dev/null | grep -i dropbear | wc -l)
+        active_ips=$(grep -w "$user" /tmp/ssh_active.log | wc -l)
         if [[ "$active_ips" -gt "$limit" ]]; then
-            usermod -L "$user" 2>/dev/null
-            killall -u "$user" 2>/dev/null
-            sed -i "s/^$user|.*/$user|$pass|$exp|$limit|LOCKED_IP_${NOW}/g" "$SSH_FILE"
+            passwd -l "$user" >/dev/null 2>&1
+            sed -i "s/^$user|.*/$user|$exp|$limit|LOCKED_IP_${NOW}/g" "$S_FILE"
             if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (SSH)</b>"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit IP: $limit"$'\n'"🚨 Login IP/Conn: $active_ips"$'\n'"⛔ Status: Terkunci 10 Menit"
+                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (SSH)</b>"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit IP: $limit"$'\n'"🚨 Login IP: $active_ips"$'\n'"⛔ Status: Terkunci 10 Menit"
                 curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
             fi
         fi
-    done < "$SSH_FILE"
+    done < "$S_FILE"
 fi
+
 EOF
 chmod +x /usr/local/bin/xray-limit
 
@@ -513,22 +523,33 @@ TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
 CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
 [[ -z "$TOKEN" || -z "$CHATID" ]] && exit 0
 LOG_FILE="/var/log/xray/access.log"
+AUTH_LOG="/var/log/auth.log"
 
 D1=$(date +"%Y/%m/%d %H:%M")
 D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
 D3=$(date -d "2 minutes ago" +"%Y/%m/%d %H:%M")
 
+S1=$(date +"%b %e %H:%M")
+S2=$(date -d "1 minute ago" +"%b %e %H:%M")
+S3=$(date -d "2 minutes ago" +"%b %e %H:%M")
+
 grep -E "^($D1|$D2|$D3)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); gsub(/:.*/,"",ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/bot_active.log
+grep -E "^($S1|$S2|$S3)" "$AUTH_LOG" | grep "dropbear" | grep "Password auth succeeded" | awk -F"'" '{print $2}' | sort -u > /tmp/bot_ssh_active.log
 
 FULL_MSG=""
-for proto in vmess vless trojan; do
+for proto in ssh vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
     [[ ! -f "$FILE" ]] && continue
     
     PROTO_MSG=""
     FOUND=0
-    while IFS="|" read -r user id exp limit status quota; do
-        active_ips=$(grep -w "$user" /tmp/bot_active.log | wc -l)
+    while IFS="|" read -r user rest; do
+        if [[ "$proto" == "ssh" ]]; then
+            active_ips=$(grep -w "$user" /tmp/bot_ssh_active.log | wc -l)
+        else
+            active_ips=$(grep -w "$user" /tmp/bot_active.log | wc -l)
+        fi
+        
         if [[ "$active_ips" -gt 0 ]]; then
             PROTO_MSG+="👤 User: <code>$user</code> | 🌐 Login: $active_ips IP (dipakek $active_ips user)"$'\n\n'
             FOUND=1
@@ -540,23 +561,6 @@ for proto in vmess vless trojan; do
         FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}"
     fi
 done
-
-SSH_FILE="/usr/local/etc/xray/ssh.txt"
-if [[ -f "$SSH_FILE" ]]; then
-    SSH_MSG=""
-    FOUND_SSH=0
-    while IFS="|" read -r user pass exp limit status; do
-        active_ips=$(ps -u "$user" 2>/dev/null | grep -i dropbear | wc -l)
-        if [[ "$active_ips" -gt 0 ]]; then
-            SSH_MSG+="👤 User: <code>$user</code> | 🌐 Login: $active_ips Conn"$'\n\n'
-            FOUND_SSH=1
-        fi
-    done < "$SSH_FILE"
-    if [[ "$FOUND_SSH" -eq 1 ]]; then
-        SSH_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (SSH)</b>"$'\n\n'
-        FULL_MSG+="${SSH_HEADER}${SSH_MSG}"
-    fi
-fi
 
 if [[ -n "$FULL_MSG" ]]; then
     curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
@@ -576,7 +580,6 @@ CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
 [[ -z "$TOKEN" || -z "$CHATID" ]] && exit 0
 DATE=$(date +"%Y-%m-%d_%H-%M")
 ZIP_FILE="/tmp/Backup_${DATE}.zip"
-crontab -l > /etc/tendo_bot/crontab.bak 2>/dev/null
 cd /
 zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ >/dev/null 2>&1
 cd - >/dev/null 2>&1
@@ -599,17 +602,17 @@ chmod +x /usr/local/bin/bot-backup
 ) >/dev/null 2>&1 & install_spin
 print_ok "Sistem Auto & Cron Jobs"
 
-# --- 10. MENU SCRIPT ---
+# --- 9. MENU SCRIPT ---
 print_msg "Finalisasi Menu"
 (
 cat > /usr/bin/menu <<'END_MENU'
 #!/bin/bash
 CYAN='\033[0;36m'; YELLOW='\033[0;33m'; GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'; PURPLE='\033[0;35m'; WHITE='\033[1;37m'; NC='\033[0m'
 CONFIG="/usr/local/etc/xray/config.json"
+D_SSH="/usr/local/etc/xray/ssh.txt"
 D_VMESS="/usr/local/etc/xray/vmess.txt"
 D_VLESS="/usr/local/etc/xray/vless.txt"
 D_TROJAN="/usr/local/etc/xray/trojan.txt"
-D_SSH="/usr/local/etc/xray/ssh.txt"
 D_ZIVPN="/etc/zivpn/zivpn.txt"
 
 # ---------------------------------------------
@@ -630,7 +633,7 @@ function send_tele() {
 }
 
 # ---------------------------------------------
-# FUNGSI OUTPUT DETAIL AKUN XRAY & TELEGRAM BOT
+# FUNGSI OUTPUT DETAIL AKUN XRAY, SSH & TELEGRAM BOT
 # ---------------------------------------------
 function show_account_xray() {
     clear
@@ -675,52 +678,39 @@ function show_account_xray() {
         MSG+="————————————————————————————————————\n           TROJAN WS TLS\n————————————————————————————————————\n${link_ws_tls}\n"
         MSG+="————————————————————————————————————\n            TROJAN GRPC\n————————————————————————————————————\n${link_grpc_tls}\n"
         MSG+="————————————————————————————————————\n         TROJAN Upgrade TLS\n————————————————————————————————————\n${link_upg_tls}\n"
-        MSG+="——————————\n——————————————————————————\n"
+        MSG+="————————————————————————————————————\n"
+    elif [[ "$proto" == "SSH WS" ]]; then
+        MSG+="————————————————————————————————————\n               SSH WS\n————————————————————————————————————\n"
+        MSG+="Username       : ${user}\nPassword       : ${uuid}\nCITY           : ${city}\nISP            : ${isp}\nDomain         : ${domain}\n"
+        MSG+="Port WS TLS    : 443\nPort WS none TLS: 80\nPayload WSS    :\n\nGET / HTTP/1.1[crlf]Host: blog.ruangguru.com[crlf][crlf]PATCH / HTTP/1.1[crlf]Host: ${domain}[crlf]Upgrade: websocket[crlf][crlf][split]HTTP/ 1[crlf][crlf]\n\n"
+        MSG+="Limit IP       : ${limit} IP\nExpired On     : ${exp}\n"
+        MSG+="————————————————————————————————————\n"
     fi
 
     # Format Telegram Bot (Mono Links)
     MSG_BOT+="<b>————————————————————————————————————</b>\n               <b>${proto}</b>\n<b>————————————————————————————————————</b>\n"
     MSG_BOT+="Remarks        : <code>${user}</code>\nCITY           : ${city}\nISP            : ${isp}\nDomain         : <code>${domain}</code>\n"
-    MSG_BOT+="Port TLS       : 443\nPort none TLS  : 80\n"
-    if [[ "$proto" == "TROJAN" ]]; then MSG_BOT+="Key          : <code>${uuid}</code>\n"; else MSG_BOT+="id             : <code>${uuid}</code>\n"; fi
-    if [[ "$proto" == "VMESS" ]]; then MSG_BOT+="alterId        : 0\nSecurity       : auto\n"; elif [[ "$proto" == "VLESS" ]]; then MSG_BOT+="Encryption     : none\n"; fi
-    MSG_BOT+="network        : ws, grpc, upgrade\npath ws        : /${proto,,}\nserviceName    : ${proto,,}-grpc\npath upgrade   : /${proto,,}-upg\n"
-    MSG_BOT+="Limit IP       : ${limit} IP\nQuota Bandwidth: ${str_quota}\nUsage Bandwidth: ${usage} GB\nExpired On     : ${exp}\n"
-    MSG_BOT+="<b>————————————————————————————————————</b>\n           <b>${proto} WS TLS</b>\n<b>————————————————————————————————————</b>\n"
-    MSG_BOT+="<code>${link_ws_tls}</code>\n<b>————————————————————————————————————</b>\n"
-    if [[ -n "$link_ws_ntls" ]]; then
-        MSG_BOT+="          <b>${proto} WS NO TLS</b>\n<b>————————————————————————————————————</b>\n<code>${link_ws_ntls}</code>\n<b>————————————————————————————————————</b>\n"
-    fi
-    MSG_BOT+="             <b>${proto} GRPC</b>\n<b>————————————————————————————————————</b>\n<code>${link_grpc_tls}</code>\n<b>————————————————————————————————————</b>\n"
-    MSG_BOT+="         <b>${proto} Upgrade TLS</b>\n<b>————————————————————————————————————</b>\n<code>${link_upg_tls}</code>\n<b>————————————————————————————————————</b>\n"
-    if [[ -n "$link_upg_ntls" ]]; then
-        MSG_BOT+="        <b>${proto} Upgrade NO TLS</b>\n<b>————————————————————————————————————</b>\n<code>${link_upg_ntls}</code>\n<b>————————————————————————————————————</b>\n"
-    fi
-
-    echo -e "$MSG"
-    send_tele "$MSG_BOT"
-    echo ""
-    read -n 1 -s -r -p "Tekan enter untuk kembali..."
-}
-
-function show_account_ssh() {
-    clear
-    local user=$1; local pass=$2; local exp=$3; local limit=$4
-    local isp=$(cat /root/tendo/isp); local city=$(cat /root/tendo/city); local domain=$(cat /usr/local/etc/xray/domain)
     
-    local MSG="————————————————————————————————————\n               SSH WEBSOCKET\n————————————————————————————————————\n"
-    MSG+="Remarks        : ${user}\nCITY           : ${city}\nISP            : ${isp}\nDomain         : ${domain}\n"
-    MSG+="Port TLS       : 443\nPort none TLS  : 80\nPort Dropbear  : 109\n"
-    MSG+="Username       : ${user}\nPassword       : ${pass}\n"
-    MSG+="Payload WS     : GET / HTTP/1.1[crlf]Host: ${domain}[crlf]Upgrade: websocket[crlf][crlf]\n"
-    MSG+="Limit IP       : ${limit} IP\nExpired On     : ${exp}\n————————————————————————————————————\n"
-
-    local MSG_BOT="<b>————————————————————————————————————</b>\n               <b>SSH WEBSOCKET</b>\n<b>————————————————————————————————————</b>\n"
-    MSG_BOT+="Remarks        : <code>${user}</code>\nCITY           : ${city}\nISP            : ${isp}\nDomain         : <code>${domain}</code>\n"
-    MSG_BOT+="Port TLS       : 443\nPort none TLS  : 80\nPort Dropbear  : 109\n"
-    MSG_BOT+="Username       : <code>${user}</code>\nPassword       : <code>${pass}</code>\n"
-    MSG_BOT+="Payload WS     : <code>GET / HTTP/1.1[crlf]Host: ${domain}[crlf]Upgrade: websocket[crlf][crlf]</code>\n"
-    MSG_BOT+="Limit IP       : ${limit} IP\nExpired On     : ${exp}\n<b>————————————————————————————————————</b>\n"
+    if [[ "$proto" == "SSH WS" ]]; then
+        MSG_BOT+="Password       : <code>${uuid}</code>\nPort TLS       : 443\nPort none TLS  : 80\n"
+        MSG_BOT+="Limit IP       : ${limit} IP\nExpired On     : ${exp}\n"
+    else
+        MSG_BOT+="Port TLS       : 443\nPort none TLS  : 80\n"
+        if [[ "$proto" == "TROJAN" ]]; then MSG_BOT+="Key          : <code>${uuid}</code>\n"; else MSG_BOT+="id             : <code>${uuid}</code>\n"; fi
+        if [[ "$proto" == "VMESS" ]]; then MSG_BOT+="alterId        : 0\nSecurity       : auto\n"; elif [[ "$proto" == "VLESS" ]]; then MSG_BOT+="Encryption     : none\n"; fi
+        MSG_BOT+="network        : ws, grpc, upgrade\npath ws        : /${proto,,}\nserviceName    : ${proto,,}-grpc\npath upgrade   : /${proto,,}-upg\n"
+        MSG_BOT+="Limit IP       : ${limit} IP\nQuota Bandwidth: ${str_quota}\nUsage Bandwidth: ${usage} GB\nExpired On     : ${exp}\n"
+        MSG_BOT+="<b>————————————————————————————————————</b>\n           <b>${proto} WS TLS</b>\n<b>————————————————————————————————————</b>\n"
+        MSG_BOT+="<code>${link_ws_tls}</code>\n<b>————————————————————————————————————</b>\n"
+        if [[ -n "$link_ws_ntls" ]]; then
+            MSG_BOT+="          <b>${proto} WS NO TLS</b>\n<b>————————————————————————————————————</b>\n<code>${link_ws_ntls}</code>\n<b>————————————————————————————————————</b>\n"
+        fi
+        MSG_BOT+="             <b>${proto} GRPC</b>\n<b>————————————————————————————————————</b>\n<code>${link_grpc_tls}</code>\n<b>————————————————————————————————————</b>\n"
+        MSG_BOT+="         <b>${proto} Upgrade TLS</b>\n<b>————————————————————————————————————</b>\n<code>${link_upg_tls}</code>\n<b>————————————————————————————————————</b>\n"
+        if [[ -n "$link_upg_ntls" ]]; then
+            MSG_BOT+="        <b>${proto} Upgrade NO TLS</b>\n<b>————————————————————————————————————</b>\n<code>${link_upg_ntls}</code>\n<b>————————————————————————————————————</b>\n"
+        fi
+    fi
 
     echo -e "$MSG"
     send_tele "$MSG_BOT"
@@ -795,7 +785,7 @@ function header_main() {
     echo -e "${CYAN}│${NC}  RX      : $RX_MON"
     echo -e "${CYAN}│${NC}  TX      : $TX_MON"
     echo -e "${CYAN}│${NC}  —————————————————————————————————————"
-    echo -e "${CYAN}│${NC}  DAY     : $TOT_DAY    [$DAY_NAME]"
+    echo -e "${CYAN}│${NC}  DAY     : $TOT_DAY   [$DAY_NAME]"
     echo -e "${CYAN}│${NC}  RX      : $RX_DAY"
     echo -e "${CYAN}│${NC}  TX      : $TX_DAY"
     echo -e "${CYAN}│${NC}  TRAFFIC : $TRAFFIC Mbit/s"
@@ -812,7 +802,7 @@ function header_main() {
     echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}│                   ${YELLOW}LIST ACCOUNTS${NC}"
     echo -e "${CYAN}├───────────────────────────────────────────────────────${NC}"
-    printf "${CYAN}│${NC} SSH WS         : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_SSH"
+    printf "${CYAN}│${NC} SSH            : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_SSH"
     printf "${CYAN}│${NC} VMESS          : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_VMESS"
     printf "${CYAN}│${NC} VLESS          : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_VLESS"
     printf "${CYAN}│${NC} TROJAN         : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_TROJAN"
@@ -895,6 +885,52 @@ function bot_menu() {
 # ---------------------------------------------
 # MENU X-RAY MANAGER & FEATURES
 # ---------------------------------------------
+function ssh_menu() {
+    while true; do header_sub
+        echo -e "${CYAN}│${NC} [1] Create Account SSH"
+        echo -e "${CYAN}│${NC} [2] Delete Account SSH"
+        echo -e "${CYAN}│${NC} [3] Renew Account SSH"
+        echo -e "${CYAN}│${NC} [4] Check Config User"
+        echo -e "${CYAN}│${NC} [5] Trial Account SSH"
+        echo -e "${CYAN}│${NC} [6] Lock Account SSH"
+        echo -e "${CYAN}│${NC} [7] Unlock Account SSH"
+        echo -e "${CYAN}│${NC} [x] Back"
+        echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+        read -p " Select Menu : " opt
+        case $opt in
+            1) read -p " Username : " u; read -p " Password : " p; read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; read -p " Limit IP (0 for unlimited): " limit; [[ -z "$limit" ]] && limit=0; 
+               exp_date=$(date -d "+$ex days" +"%Y-%m-%d"); 
+               useradd -e "$exp_date" -s /bin/false -M "$u"; echo -e "$p\n$p" | passwd "$u" >/dev/null 2>&1
+               echo "$u|$exp_date|$limit|ACTIVE" >> $D_SSH; 
+               DMN=$(cat /usr/local/etc/xray/domain); show_account_xray "SSH WS" "$u" "$DMN" "$p" "$exp_date" "$limit" "0" "0.00" "" "" "" "" "";;
+            2) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; u=$(sed -n "${n}p" $D_SSH | cut -d'|' -f1); sed -i "${n}d" $D_SSH; userdel -f "$u" >/dev/null 2>&1; echo -e "${GREEN}User Deleted!${NC}"; sleep 2;;
+            3) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_SSH); u=$(echo "$line" | cut -d'|' -f1); exp_old=$(echo "$line" | cut -d'|' -f2); limit=$(echo "$line" | cut -d'|' -f3); stat=$(echo "$line" | cut -d'|' -f4); read -p " Add Days: " add_days; exp_new=$(date -d "$exp_old + $add_days days" +"%Y-%m-%d"); sed -i "${n}s/.*/$u|$exp_new|$limit|$stat/" $D_SSH; chage -E "$exp_new" "$u" >/dev/null 2>&1; echo -e "${GREEN}Account $u Renewed until $exp_new!${NC}"; sleep 2;;
+            4) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_SSH); u=$(echo "$line" | cut -d'|' -f1); exp_date=$(echo "$line" | cut -d'|' -f2); limit=$(echo "$line" | cut -d'|' -f3); DMN=$(cat /usr/local/etc/xray/domain); show_account_xray "SSH WS" "$u" "$DMN" "********" "$exp_date" "$limit" "0" "0.00" "" "" "" "" "";;
+            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; p="trial"; echo -e " Username (Trial): ${GREEN}$u${NC}"; read -p " Duration (e.g., 10m, 1h): " dur;
+               if [[ "$dur" == *m ]]; then add_str="+${dur%m} minutes"; elif [[ "$dur" == *h ]]; then add_str="+${dur%h} hours"; else add_str="+1 hours"; fi
+               exp_date=$(date -d "$add_str" +"%Y-%m-%d %H:%M:%S"); limit=1;
+               useradd -e $(date -d "$add_str" +"%Y-%m-%d") -s /bin/false -M "$u"; echo -e "$p\n$p" | passwd "$u" >/dev/null 2>&1
+               echo "$u|$exp_date|$limit|ACTIVE" >> $D_SSH; DMN=$(cat /usr/local/etc/xray/domain); show_account_xray "SSH WS" "$u" "$DMN" "$p" "$exp_date" "$limit" "0" "0.00" "" "" "" "" "";;
+            6) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_SSH); u=$(echo "$line" | cut -d'|' -f1); exp=$(echo "$line" | cut -d'|' -f2); limit=$(echo "$line" | cut -d'|' -f3); stat=$(echo "$line" | cut -d'|' -f4)
+               if [[ "$stat" == "ACTIVE" ]]; then
+                   passwd -l "$u" >/dev/null 2>&1
+                   sed -i "${n}s/.*/$u|$exp|$limit|LOCKED/" $D_SSH
+                   echo -e "${GREEN}Account $u Locked Successfully!${NC}"; sleep 2
+               else
+                   echo -e "${RED}Account is already locked!${NC}"; sleep 2
+               fi;;
+            7) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_SSH); u=$(echo "$line" | cut -d'|' -f1); exp=$(echo "$line" | cut -d'|' -f2); limit=$(echo "$line" | cut -d'|' -f3); stat=$(echo "$line" | cut -d'|' -f4)
+               if [[ "$stat" != "ACTIVE" ]]; then
+                   passwd -u "$u" >/dev/null 2>&1
+                   sed -i "${n}s/.*/$u|$exp|$limit|ACTIVE/" $D_SSH
+                   echo -e "${GREEN}Account $u Unlocked Successfully!${NC}"; sleep 2
+               else
+                   echo -e "${YELLOW}Account is already Active!${NC}"; sleep 2
+               fi;;
+            x) return;;
+        esac; done
+}
+
 function xray_manager_menu() {
     while true; do header_sub
         echo -e "${CYAN}│${NC} [1] VMESS ACCOUNT"
@@ -984,15 +1020,13 @@ function check_services() {
     
     if systemctl is-active --quiet xray; then X_ST="${GREEN}ON${NC}"; else X_ST="${RED}OFF${NC}"; fi
     if systemctl is-active --quiet zivpn; then Z_ST="${GREEN}ON${NC}"; else Z_ST="${RED}OFF${NC}"; fi
+    if systemctl is-active --quiet dropbear; then D_ST="${GREEN}ON${NC}"; else D_ST="${RED}OFF${NC}"; fi
     if systemctl is-active --quiet vnstat; then V_ST="${GREEN}ON${NC}"; else V_ST="${RED}OFF${NC}"; fi
     if iptables -L >/dev/null 2>&1; then I_ST="${GREEN}ON${NC}"; else I_ST="${RED}OFF${NC}"; fi
-    if systemctl is-active --quiet dropbear; then D_ST="${GREEN}ON${NC}"; else D_ST="${RED}OFF${NC}"; fi
-    if systemctl is-active --quiet ws-dropbear; then W_ST="${GREEN}ON${NC}"; else W_ST="${RED}OFF${NC}"; fi
     
     printf "${CYAN}│${NC} Xray Core       : %b${NC}\n" "$X_ST"
     printf "${CYAN}│${NC} ZIVPN UDP       : %b${NC}\n" "$Z_ST"
     printf "${CYAN}│${NC} SSH Dropbear    : %b${NC}\n" "$D_ST"
-    printf "${CYAN}│${NC} Golang WS Proxy : %b${NC}\n" "$W_ST"
     printf "${CYAN}│${NC} Vnstat Mon      : %b${NC}\n" "$V_ST"
     printf "${CYAN}│${NC} IPtables        : %b${NC}\n" "$I_ST"
     
@@ -1012,8 +1046,8 @@ function features_menu() {
         echo -e "${CYAN}│${NC} [8] Information System"
         echo -e "${CYAN}│${NC} [9] Backup Data VPS"
         echo -e "${CYAN}│${NC} [10] Restore Data VPS"
-        echo -e "${CYAN}│${NC} [11] Check Services"
-        echo -e "${CYAN}│${NC} [12] Rebuild VPS"
+        echo -e "${CYAN}│${NC} [11] Rebuild VPS"
+        echo -e "${CYAN}│${NC} [12] Check Services"
         echo -e "${CYAN}│${NC} [x] Back"
         echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
@@ -1029,10 +1063,10 @@ function features_menu() {
                echo -e "${YELLOW}Processing...${NC}"
                echo "$nd" > /usr/local/etc/xray/domain
                openssl req -x509 -newkey rsa:2048 -nodes -sha256 -keyout /usr/local/etc/xray/xray.key -out /usr/local/etc/xray/xray.crt -days 3650 -subj "/CN=$nd" >/dev/null 2>&1
-               systemctl restart xray
+               systemctl restart xray zivpn
                echo -e "${GREEN}Domain Berhasil Diperbarui menjadi: $nd${NC}"
                sleep 2;;
-            5) systemctl restart xray zivpn vnstat dropbear ws-dropbear; echo -e "${GREEN}Services Restarted!${NC}"; sleep 2;;
+            5) systemctl restart xray zivpn dropbear ws-proxy vnstat; echo -e "${GREEN}Services Restarted!${NC}"; sleep 2;;
             6) sync; echo 3 > /proc/sys/vm/drop_caches; echo -e "${GREEN}Cache Cleared!${NC}"; sleep 1;;
             7) auto_reboot_menu ;;
             8) neofetch; read -p "Enter...";;
@@ -1041,7 +1075,6 @@ function features_menu() {
                if ! command -v zip &> /dev/null; then apt-get install -y zip >/dev/null 2>&1; fi
                DATE=$(date +"%Y-%m-%d_%H-%M")
                ZIP_FILE="/root/Backup_${DATE}.zip"
-               crontab -l > /etc/tendo_bot/crontab.bak 2>/dev/null
                cd /
                zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ >/dev/null 2>&1
                cd - >/dev/null 2>&1
@@ -1084,12 +1117,23 @@ function features_menu() {
                        cd /
                        unzip -o /root/restore.zip >/dev/null 2>&1
                        cd - >/dev/null 2>&1
-                       if [[ -f "/etc/tendo_bot/crontab.bak" ]]; then
-                           crontab /etc/tendo_bot/crontab.bak
-                       fi
-                       chmod -R 755 /etc/tendo_bot
                        rm -f /root/restore.zip
-                       systemctl restart xray zivpn dropbear ws-dropbear
+                       
+                       # Perbaikan untuk restore bot telegram cron
+                       st_log=$(cat /etc/tendo_bot/log_stat 2>/dev/null)
+                       if [[ "$st_log" == ON* ]]; then
+                           dur=$(echo "$st_log" | grep -oP '\(\K[^\)]+')
+                           if [[ "$dur" == *m ]]; then c="*/${dur%m} * * * *"; elif [[ "$dur" == *h ]]; then c="0 */${dur%h} * * *"; fi
+                           crontab -l | grep -v "bot-login-notif" > /tmp/c.tmp; echo "$c /usr/local/bin/bot-login-notif" >> /tmp/c.tmp; crontab /tmp/c.tmp
+                       fi
+                       st_bak=$(cat /etc/tendo_bot/bak_stat 2>/dev/null)
+                       if [[ "$st_bak" == ON* ]]; then
+                           dur=$(echo "$st_bak" | grep -oP '\(\K[^\)]+')
+                           if [[ "$dur" == *m ]]; then c="*/${dur%m} * * * *"; elif [[ "$dur" == *h ]]; then c="0 */${dur%h} * * *"; fi
+                           crontab -l | grep -v "bot-backup" > /tmp/c.tmp; echo "$c /usr/local/bin/bot-backup" >> /tmp/c.tmp; crontab /tmp/c.tmp
+                       fi
+                       
+                       systemctl restart xray zivpn
                        echo -e "${GREEN}Restore Berhasil! Semua konfigurasi, bot, dan akun telah dipulihkan.${NC}"
                    else
                        echo -e "${RED}Gagal mengunduh file! Pastikan link direct yang dimasukkan valid.${NC}"
@@ -1097,78 +1141,16 @@ function features_menu() {
                fi
                read -p "Tekan Enter untuk kembali..."
                ;;
-            11) check_services ;;
-            12) rebuild_menu ;;
+            11) rebuild_menu ;;
+            12) check_services ;;
             x) return;;
         esac
     done
 }
 
 # ---------------------------------------------
-# FUNGSI MENU PROTOKOL (SSH, XRAY & ZIVPN)
+# FUNGSI MENU PROTOKOL (XRAY & ZIVPN)
 # ---------------------------------------------
-function ssh_menu() {
-    while true; do header_sub
-        echo -e "${CYAN}│${NC} [1] Create Account SSH"
-        echo -e "${CYAN}│${NC} [2] Delete Account SSH"
-        echo -e "${CYAN}│${NC} [3] Renew Account SSH"
-        echo -e "${CYAN}│${NC} [4] Check Config User"
-        echo -e "${CYAN}│${NC} [5] Trial Account SSH"
-        echo -e "${CYAN}│${NC} [6] Lock Account SSH"
-        echo -e "${CYAN}│${NC} [7] Unlock Account SSH"
-        echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
-        read -p " Select Menu : " opt
-        case $opt in
-            1) read -p " Username : " u; read -p " Password : " p; read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; read -p " Limit IP (0 for unlimited): " limit; [[ -z "$limit" ]] && limit=0
-               exp_date=$(date -d "+$ex days" +"%Y-%m-%d")
-               useradd -e $(date -d "+$ex days" +"%Y-%m-%d") -s /bin/false -M "$u" 2>/dev/null
-               echo "$u:$p" | chpasswd
-               echo "$u|$p|$exp_date|$limit|ACTIVE" >> $D_SSH
-               show_account_ssh "$u" "$p" "$exp_date" "$limit";;
-            2) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; u=$(sed -n "${n}p" $D_SSH | cut -d'|' -f1)
-               userdel -f "$u" 2>/dev/null
-               sed -i "${n}d" $D_SSH;;
-            3) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_SSH)
-               u=$(echo "$line" | cut -d'|' -f1); pass=$(echo "$line" | cut -d'|' -f2); exp_old=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5)
-               read -p " Add Days: " add_days; exp_new=$(date -d "$exp_old + $add_days days" +"%Y-%m-%d")
-               chage -E $(date -d "$exp_new" +"%Y-%m-%d") "$u" 2>/dev/null
-               sed -i "${n}s/.*/$u|$pass|$exp_new|$limit|$stat/" $D_SSH
-               echo -e "${GREEN}Account $u Renewed until $exp_new!${NC}"; sleep 2;;
-            4) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_SSH)
-               u=$(echo "$line" | cut -d'|' -f1); pass=$(echo "$line" | cut -d'|' -f2); exp_date=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4)
-               show_account_ssh "$u" "$pass" "$exp_date" "$limit";;
-            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; p="$u"
-               read -p " Duration (e.g., 10m, 1h): " dur;
-               if [[ "$dur" == *m ]]; then add_str="+${dur%m} minutes"; elif [[ "$dur" == *h ]]; then add_str="+${dur%h} hours"; else add_str="+1 hours"; fi
-               exp_date=$(date -d "$add_str" +"%Y-%m-%d %H:%M:%S"); limit=1
-               useradd -e $(date -d "$add_str" +"%Y-%m-%d") -s /bin/false -M "$u" 2>/dev/null
-               echo "$u:$p" | chpasswd
-               echo "$u|$p|$exp_date|$limit|ACTIVE" >> $D_SSH
-               show_account_ssh "$u" "$p" "$exp_date" "$limit";;
-            6) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_SSH)
-               u=$(echo "$line" | cut -d'|' -f1); pass=$(echo "$line" | cut -d'|' -f2); exp=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5)
-               if [[ "$stat" == "ACTIVE" ]]; then
-                   usermod -L "$u" 2>/dev/null
-                   killall -u "$u" 2>/dev/null
-                   sed -i "${n}s/.*/$u|$pass|$exp|$limit|LOCKED/" $D_SSH
-                   echo -e "${GREEN}Account $u Locked Successfully!${NC}"; sleep 2
-               else
-                   echo -e "${RED}Account is already locked!${NC}"; sleep 2
-               fi;;
-            7) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_SSH)
-               u=$(echo "$line" | cut -d'|' -f1); pass=$(echo "$line" | cut -d'|' -f2); exp=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5)
-               if [[ "$stat" != "ACTIVE" ]]; then
-                   usermod -U "$u" 2>/dev/null
-                   sed -i "${n}s/.*/$u|$pass|$exp|$limit|ACTIVE/" $D_SSH
-                   echo -e "${GREEN}Account $u Unlocked Successfully!${NC}"; sleep 2
-               else
-                   echo -e "${YELLOW}Account is already Active!${NC}"; sleep 2
-               fi;;
-            x) return;;
-        esac; done
-}
-
 function vmess_menu() {
     while true; do header_sub
         echo -e "${CYAN}│${NC} [1] Create Account Vmess"
@@ -1381,8 +1363,8 @@ function zivpn_menu() {
 }
 
 while true; do header_main
-    echo -e "${CYAN}│${NC} [1] SSH MANAGER          [4] BOT TELEGRAM SETUP"
-    echo -e "${CYAN}│${NC} [2] X-RAY MANAGER        [5] FEATURES"
+    echo -e "${CYAN}│${NC} [1] SSH WS MANAGER       [4] FEATURES & SERVICES"
+    echo -e "${CYAN}│${NC} [2] X-RAY MANAGER        [5] BOT TELEGRAM SETUP"
     echo -e "${CYAN}│${NC} [3] ZIVPN UDP            [x] EXIT"
     echo -e "${CYAN}────────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
@@ -1396,8 +1378,8 @@ while true; do header_main
         1) ssh_menu ;;
         2) xray_manager_menu ;;
         3) zivpn_menu ;;
-        4) bot_menu ;;
-        5) features_menu ;;
+        4) features_menu ;;
+        5) bot_menu ;;
         x) exit ;;
     esac; done
 END_MENU
