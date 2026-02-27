@@ -51,6 +51,9 @@ else
     echo "Gagal melakukan pointing domain. Melanjutkan instalasi..."
 fi
 
+# Menyimpan domain ke file agar bisa dibaca oleh menu
+echo "$SUB_DOMAIN" > /etc/vps_domain
+
 # 3. Instalasi Dropbear Versi 2019 (Compile dari Source)
 echo "Menginstal Dropbear Versi 2019..."
 cd /usr/local/src
@@ -165,6 +168,10 @@ echo "Membuat menu manajemen akun..."
 cat > /usr/local/bin/menu <<'EOF'
 #!/bin/bash
 clear
+
+# Mengambil variabel domain yang sudah disimpan sebelumnya
+MY_DOMAIN=$(cat /etc/vps_domain)
+
 echo "================================="
 echo "       MENU MANAJEMEN AKUN       "
 echo "================================="
@@ -183,6 +190,7 @@ case $menu_option in
         echo -e "$pass_ssh\n$pass_ssh" | passwd $user_ssh >/dev/null 2>&1
         echo "================================="
         echo "Akun SSH/Dropbear Berhasil Dibuat!"
+        echo "Domain   : $MY_DOMAIN"
         echo "Username : $user_ssh"
         echo "Password : $pass_ssh"
         echo "Expired  : 30 Hari"
@@ -197,6 +205,7 @@ case $menu_option in
         systemctl restart xray
         echo "================================="
         echo "Akun X-ray Vless Berhasil Dibuat!"
+        echo "Domain   : $MY_DOMAIN"
         echo "Username : $user_xray"
         echo "UUID     : $new_uuid"
         echo "Path     : /xray"
