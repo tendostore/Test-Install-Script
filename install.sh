@@ -191,7 +191,8 @@ import socket, threading, sys
 
 def handle_client(client_socket):
     try:
-        request = client_socket.recv(4096).decode('utf-8', errors='ignore')
+        # Menelan request HTTP dan dummy body agar tidak masuk ke Dropbear
+        request = client_socket.recv(8192).decode('utf-8', errors='ignore')
         if not request: return
         
         response = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
@@ -203,7 +204,7 @@ def handle_client(client_socket):
         def forward(src, dst):
             try:
                 while True:
-                    data = src.recv(4096)
+                    data = src.recv(8192)
                     if not data: break
                     dst.send(data)
             except: pass
@@ -246,7 +247,7 @@ systemctl restart ws-proxy
 ) >/dev/null 2>&1 & install_spin
 print_ok "SSH Websocket Proxy"
 
-# --- 6. XRAY CONFIG (FIXED QUOTA API ROUTING & LOGLEVEL INFO) ---
+# --- 6. XRAY CONFIG (DIHAPUS XVER UNTUK DEST 10015) ---
 print_msg "Install Xray Core & Config"
 (
     bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
@@ -261,13 +262,13 @@ cat > $CONFIG_FILE <<EOF
   "inbounds": [
     { "listen": "127.0.0.1", "port": 10085, "protocol": "dokodemo-door", "settings": { "address": "127.0.0.1" }, "tag": "api" },
     { "tag": "inbound-443", "port": 443, "protocol": "vless", "settings": { "clients": [ { "id": "$UUID_SYS", "flow": "xtls-rprx-vision", "level": 0, "email": "system" } ], "decryption": "none", "fallbacks": [ 
-        { "dest": 10015, "xver": 1 },
+        { "dest": 10015 },
         { "path": "/vmess", "dest": 10001, "xver": 1 }, { "path": "/vless", "dest": 10002, "xver": 1 }, { "path": "/trojan", "dest": 10003, "xver": 1 },
         { "path": "/vmess-upg", "dest": 10004, "xver": 1 }, { "path": "/vless-upg", "dest": 10005, "xver": 1 }, { "path": "/trojan-upg", "dest": 10006, "xver": 1 },
         { "alpn": "h2", "path": "/vmess-grpc", "dest": 10007, "xver": 1 }, { "alpn": "h2", "path": "/vless-grpc", "dest": 10008, "xver": 1 }, { "alpn": "h2", "path": "/trojan-grpc", "dest": 10009, "xver": 1 }
     ] }, "streamSettings": { "network": "tcp", "security": "tls", "tlsSettings": { "alpn": ["h2", "http/1.1"], "certificates": [ { "certificateFile": "/usr/local/etc/xray/xray.crt", "keyFile": "/usr/local/etc/xray/xray.key" } ] } } },
     { "tag": "inbound-80", "port": 80, "protocol": "vless", "settings": { "clients": [], "decryption": "none", "fallbacks": [ 
-        { "dest": 10015, "xver": 1 },
+        { "dest": 10015 },
         { "path": "/vmess", "dest": 10001, "xver": 1 }, { "path": "/vless", "dest": 10002, "xver": 1 }, { "path": "/trojan", "dest": 10003, "xver": 1 },
         { "path": "/vmess-upg", "dest": 10004, "xver": 1 }, { "path": "/vless-upg", "dest": 10005, "xver": 1 }, { "path": "/trojan-upg", "dest": 10006, "xver": 1 }
     ] }, "streamSettings": { "network": "tcp", "security": "none" } },
