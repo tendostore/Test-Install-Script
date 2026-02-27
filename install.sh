@@ -1,15 +1,18 @@
 #!/bin/bash
 # ==========================================
 # Auto Install SSH WS & X-ray (Port 443 & 80)
+# Dropbear Version: 2019
 # ==========================================
 
 # 1. Melewati prompt "Enter" selama instalasi
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y -q
 apt-get upgrade -y -q
-apt-get install -y -q curl jq nginx dropbear uuid-runtime
+# Menghapus dropbear bawaan jika ada, dan menginstal dependensi untuk kompilasi Dropbear 2019
+apt-get remove -y dropbear dropbear-run
+apt-get install -y -q curl jq nginx uuid-runtime bzip2 zlib1g-dev make gcc build-essential wget python3
 
-# 2. Konfigurasi Cloudflare
+# 2. Konfigurasi Cloudflare & Pointing Domain Random
 CF_ID="mbuntoncity@gmail.com"
 CF_KEY="96bee4f14ef23e42c4509efc125c0eac5c02e"
 CF_ZONE_ID="14f2e85e62d1d73bf0ce1579f1c3300c"
@@ -22,7 +25,7 @@ DOMAIN=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID
      -H "Content-Type: application/json" | jq -r '.result.name')
 
 if [ "$DOMAIN" == "null" ] || [ -z "$DOMAIN" ]; then
-    echo "Gagal mengambil domain dari Cloudflare. Periksa API Key dan Zone ID."
+    echo "Gagal mengambil domain dari Cloudflare. Pastikan API Key dan Zone ID valid."
     exit 1
 fi
 
@@ -31,17 +34,53 @@ RANDOM_STR=$(tr -dc a-z0-9 </dev/urandom | head -c 5)
 SUB_DOMAIN="${RANDOM_STR}.${DOMAIN}"
 IP_VPS=$(curl -s ifconfig.me)
 
-echo "Domain acak yang digunakan: $SUB_DOMAIN"
-echo "Menambahkan DNS Record ke Cloudflare..."
+echo "Domain acak yang dibuat: $SUB_DOMAIN"
+echo "Menambahkan DNS Record (Pointing) ke Cloudflare..."
 
-# Update DNS Record ke Cloudflare
-curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
+# Update DNS Record ke Cloudflare (Otomatis Pointing)
+RECORD_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
      -H "X-Auth-Email: ${CF_ID}" \
      -H "X-Auth-Key: ${CF_KEY}" \
      -H "Content-Type: application/json" \
-     --data '{"type":"A","name":"'${SUB_DOMAIN}'","content":"'${IP_VPS}'","ttl":120,"proxied":false}'
+     --data '{"type":"A","name":"'${SUB_DOMAIN}'","content":"'${IP_VPS}'","ttl":120,"proxied":false}')
 
-# 3. Instalasi X-ray Core
+CHECK_SUCCESS=$(echo $RECORD_RESPONSE | jq -r '.success')
+if [ "$CHECK_SUCCESS" = "true" ]; then
+    echo "Pointing domain $SUB_DOMAIN ke IP $IP_VPS berhasil!"
+else
+    echo "Gagal melakukan pointing domain. Melanjutkan instalasi..."
+fi
+
+# 3. Instalasi Dropbear Versi 2019 (Compile dari Source)
+echo "Menginstal Dropbear Versi 2019..."
+cd /usr/local/src
+wget -q https://matt.ucc.asn.au/dropbear/releases/dropbear-2019.78.tar.bz2
+tar -xvjf dropbear-2019.78.tar.bz2
+cd dropbear-2019.78
+./configure --prefix=/usr
+make
+make install
+
+# Membuat service systemd untuk Dropbear 2019 agar berjalan di port 143
+cat > /etc/systemd/system/dropbear.service <<EOF
+[Unit]
+Description=Dropbear SSH daemon 2019
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/dropbear -F -R -p 143
+ExecReload=/bin/kill -HUP \$MAINPID
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable dropbear
+systemctl start dropbear
+
+# 4. Instalasi X-ray Core
 echo "Menginstal X-ray Core..."
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install --beta -y
 
@@ -85,19 +124,19 @@ EOF
 systemctl restart xray
 systemctl enable xray
 
-# 4. Konfigurasi Nginx sebagai Reverse Proxy untuk Port 80 (Non-TLS) dan 443 (TLS)
-# Catatan: Untuk Port 443 yang optimal, kamu perlu menginstal sertifikat SSL (misal: acme.sh).
-# Script ini menyiapkan blok server dasar.
+# 5. Konfigurasi Nginx sebagai Reverse Proxy untuk Port 80 (Non-TLS) dan 443 (TLS)
+echo "Mengonfigurasi Nginx..."
 cat > /etc/nginx/conf.d/vps.conf <<EOF
 server {
     listen 80;
     listen 443 ssl http2;
     server_name ${SUB_DOMAIN};
 
-    # Konfigurasi Dummy SSL (Ganti dengan path sertifikat asli dari acme.sh nantinya jika diperlukan)
+    # Konfigurasi Dummy SSL bawaan Nginx (Snakeoil)
     ssl_certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;
     ssl_certificate_key /etc/ssl/private/ssl-cert-snakeoil.key;
 
+    # Routing X-ray
     location /xray {
         proxy_redirect off;
         proxy_pass http://127.0.0.1:8080;
@@ -107,9 +146,10 @@ server {
         proxy_set_header Host \$http_host;
     }
 
+    # Routing SSH Websocket
     location /sshws {
         proxy_redirect off;
-        proxy_pass http://127.0.0.1:8880; # Asumsi port websocket python/Go untuk SSH
+        proxy_pass http://127.0.0.1:8880; 
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -120,7 +160,7 @@ EOF
 
 systemctl restart nginx
 
-# 5. Membuat Script Menu Interaktif
+# 6. Membuat Script Menu Interaktif
 echo "Membuat menu manajemen akun..."
 cat > /usr/local/bin/menu <<'EOF'
 #!/bin/bash
@@ -128,7 +168,7 @@ clear
 echo "================================="
 echo "       MENU MANAJEMEN AKUN       "
 echo "================================="
-echo "1. Buat Akun SSH"
+echo "1. Buat Akun SSH & Dropbear"
 echo "2. Buat Akun X-ray (Vless)"
 echo "3. Keluar"
 echo "================================="
@@ -142,7 +182,7 @@ case $menu_option in
         useradd -e `date -d "30 days" +"%Y-%m-%d"` -s /bin/false -M $user_ssh
         echo -e "$pass_ssh\n$pass_ssh" | passwd $user_ssh >/dev/null 2>&1
         echo "================================="
-        echo "Akun SSH Berhasil Dibuat!"
+        echo "Akun SSH/Dropbear Berhasil Dibuat!"
         echo "Username : $user_ssh"
         echo "Password : $pass_ssh"
         echo "Expired  : 30 Hari"
@@ -176,5 +216,6 @@ chmod +x /usr/local/bin/menu
 echo "================================================="
 echo "Instalasi Selesai!"
 echo "Domain yang digunakan : $SUB_DOMAIN"
+echo "Dropbear versi        : 2019.78 (Berjalan di Port 143)"
 echo "Untuk mengelola akun, ketik perintah: menu"
 echo "================================================="
