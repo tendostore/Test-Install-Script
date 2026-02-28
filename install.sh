@@ -15,8 +15,11 @@ green='\e[0;32m'
 
 clear
 echo -e "\e[32mMenyiapkan package dasar terlebih dahulu...\e[0m"
+# Memaksa Ubuntu agar tidak memunculkan pop-up persetujuan instalasi
+export DEBIAN_FRONTEND=noninteractive
+
 apt-get update -y
-apt-get install -y curl wget lsof jq psmisc unzip cron bash-completion tar xz-utils iptables
+apt-get install -y curl wget lsof jq psmisc unzip cron bash-completion tar xz-utils iptables debconf-utils
 clear
 
 export IP=$( curl -sS ipv4.icanhazip.com )
@@ -85,13 +88,14 @@ function print_success() {
 
 function first_setup(){
     timedatectl set-timezone Asia/Jakarta
+    
+    # Menjawab pop-up iptables secara otomatis
     echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
     echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
     
     apt-get update -y
     apt-get install --no-install-recommends software-properties-common -y
     if [[ $(cat /etc/os-release | grep -w ID | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/ID//g') == "ubuntu" ]]; then
-        # Menghapus penambahan PPA karena error 404 di Ubuntu Jammy
         apt-get install haproxy -y
     elif [[ $(cat /etc/os-release | grep -w ID | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/ID//g') == "debian" ]]; then
         apt-get install haproxy -y
@@ -114,7 +118,8 @@ function base_package() {
     systemctl restart chronyd
     apt-get install ntpdate -y
     ntpdate pool.ntp.org
-    apt-get install -y speedtest-cli vnstat libnss3-dev libnspr4-dev pkg-config libpam0g-dev libcap-ng-dev libcap-ng-utils libselinux1-dev libcurl4-nss-dev flex bison make libnss3-tools libevent-dev bc rsyslog dos2unix zlib1g-dev libssl-dev libsqlite3-dev sed dirmngr libxml-parser-perl build-essential gcc g++ python htop lsof tar wget curl ruby zip unzip p7zip-full python3-pip libc6 util-linux build-essential msmtp-mta ca-certificates bsd-mailx iptables iptables-persistent netfilter-persistent net-tools openssl ca-certificates gnupg gnupg2 ca-certificates lsb-release gcc shc make cmake git screen socat xz-utils apt-transport-https gnupg1 dnsutils cron bash-completion ntpdate chrony jq openvpn easy-rsa bzip2 psmisc
+    
+    apt-get install -y speedtest-cli vnstat libnss3-dev libnspr4-dev pkg-config libpam0g-dev libcap-ng-dev libcap-ng-utils libselinux1-dev libcurl4-nss-dev flex bison make libnss3-tools libevent-dev bc rsyslog dos2unix zlib1g-dev libssl-dev libsqlite3-dev sed dirmngr libxml-parser-perl build-essential gcc g++ python3 htop lsof tar wget curl ruby zip unzip p7zip-full python3-pip libc6 util-linux build-essential msmtp-mta ca-certificates bsd-mailx iptables iptables-persistent netfilter-persistent net-tools openssl ca-certificates gnupg gnupg2 ca-certificates lsb-release gcc shc make cmake git screen socat xz-utils apt-transport-https gnupg1 dnsutils cron bash-completion ntpdate chrony jq openvpn easy-rsa bzip2 psmisc
     print_success "Packet Yang Dibutuhkan"
 }
 
@@ -177,7 +182,6 @@ function pasang_domain_otomatis() {
 function pasang_ssl() {
     print_install "Memasang SSL Pada Domain"
     
-    # Membunuh process yang memakai port 80 agar acme.sh berjalan lancar
     echo -e "Membersihkan port 80..."
     fuser -k 80/tcp >/dev/null 2>&1 || true
     lsof -t -i tcp:80 -s tcp:listen | xargs kill -9 >/dev/null 2>&1 || true
