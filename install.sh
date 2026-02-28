@@ -114,74 +114,69 @@ systemctl restart xray
 systemctl enable xray
 
 # ==========================================
-# 5. SSH WEBSOCKET PYTHON (SMART PROXY - ANTI PREMATURE CLOSE)
+# 5. SSH WEBSOCKET PYTHON (SMART PROXY ULTIMATE)
 # ==========================================
-echo -e "[INFO] Menyiapkan SSH WebSocket Service (Smart Proxy Handler)..."
+echo -e "[INFO] Menyiapkan SSH WebSocket Service (Smart Proxy Ultimate)..."
 cat > /usr/local/bin/ssh-ws.py << 'END'
-import socket, threading, sys
+import socket, threading
 
-def forward_client_to_target(client, target):
-    sent_101 = False
-    ssh_started = False
+def proxy_handler(client_socket):
     try:
-        while True:
-            data = client.recv(4096)
-            if not data: break
-            
-            if ssh_started:
-                # Jika SSH sudah terhubung penuh, jadikan tunnel murni
-                target.send(data)
-            else:
-                req_str = ""
-                try: 
-                    req_str = data.decode('utf-8', 'ignore')
-                except: 
-                    pass
-                
-                # Deteksi jika client sudah mengirimkan identifikasi SSH asli
-                if "SSH-2.0-" in req_str:
-                    ssh_started = True
-                    # Potong garbage HTTP, ambil murni data SSH-nya saja lalu kirim ke Dropbear
-                    idx = req_str.find("SSH-2.0-")
-                    ssh_data = data[idx:]
-                    target.send(ssh_data)
-                    
-                    if not sent_101:
-                        res = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
-                        client.send(res.encode('utf-8'))
-                        sent_101 = True
-                else:
-                    # Jika masih berupa garbage payload (HTTP / GET / PATCH / Split)
-                    if not sent_101:
-                        res = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
-                        client.send(res.encode('utf-8'))
-                        sent_101 = True
-                    # Telen/Buang sisa garbage-nya (jangan dikirim ke target Dropbear agar tidak DC)
-    except: pass
-    finally:
-        client.close()
-        target.close()
-
-def forward_target_to_client(client, target):
-    try:
-        while True:
-            data = target.recv(4096)
-            if not data: break
-            client.send(data)
-    except: pass
-    finally:
-        client.close()
-        target.close()
-
-def handle_client(client):
-    try:
-        target = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        target.connect(('127.0.0.1', 143)) # Forward ke Dropbear 143
+        target_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        target_socket.connect(('127.0.0.1', 143))
         
-        threading.Thread(target=forward_client_to_target, args=(client, target)).start()
-        threading.Thread(target=forward_target_to_client, args=(client, target)).start()
+        state = {'sent_101': False}
+        
+        def server_to_client():
+            try:
+                while True:
+                    data = target_socket.recv(4096)
+                    if not data: break
+                    
+                    # Pastikan balasan 101 terkirim sebelum Dropbear mengirimkan banner SSH-nya
+                    if not state['sent_101']:
+                        res = b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+                        client_socket.send(res)
+                        state['sent_101'] = True
+                        
+                    client_socket.send(data)
+            except: pass
+            finally:
+                client_socket.close()
+                target_socket.close()
+                
+        def client_to_server():
+            try:
+                while True:
+                    data = client_socket.recv(4096)
+                    if not data: break
+                    
+                    req = data.decode('utf-8', 'ignore')
+                    is_http = any(m in req for m in ["GET ", "POST ", "PUT ", "DELETE ", "OPTIONS ", "HEAD ", "PATCH ", "HTTP/"])
+                    
+                    # Logika cerdas: Temukan sinyal SSH murni dan teruskan, buang sisa teks HTTP
+                    if "SSH-2.0-" in req:
+                        idx = req.find("SSH-2.0-")
+                        target_socket.send(data[idx:])
+                    elif is_http:
+                        if not state['sent_101']:
+                            res = b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+                            client_socket.send(res)
+                            state['sent_101'] = True
+                        # Jangan teruskan 'data' ini ke target, agar tidak terjadi Premature Close!
+                        continue
+                    else:
+                        # Forward murni
+                        target_socket.send(data)
+            except: pass
+            finally:
+                client_socket.close()
+                target_socket.close()
+                
+        threading.Thread(target=server_to_client).start()
+        threading.Thread(target=client_to_server).start()
     except:
-        client.close()
+        client_socket.close()
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -189,7 +184,7 @@ server.bind(('127.0.0.1', 10002))
 server.listen(100)
 while True:
     client, addr = server.accept()
-    threading.Thread(target=handle_client, args=(client,)).start()
+    threading.Thread(target=proxy_handler, args=(client,)).start()
 END
 
 cat > /etc/systemd/system/ssh-ws.service << END
