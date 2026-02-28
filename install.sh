@@ -47,7 +47,7 @@ curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_re
 mkdir -p /etc/xray
 echo "$SUBDOMAIN" > /etc/xray/domain
 
-echo -e "[INFO] Menunggu 15 detik untuk propagasi DNS Cloudflare agar SSL tidak gagal..."
+echo -e "[INFO] Menunggu 15 detik untuk propagasi DNS Cloudflare agar SSL Let's Encrypt tidak gagal..."
 sleep 15
 
 # ==========================================
@@ -114,29 +114,45 @@ systemctl restart xray
 systemctl enable xray
 
 # ==========================================
-# 5. SSH WEBSOCKET PYTHON (ANTI SPLIT PAYLOAD BUG)
+# 5. SSH WEBSOCKET PYTHON (ANTI ILLEGAL PACKET SIZE BUG)
 # ==========================================
-echo -e "[INFO] Menyiapkan SSH WebSocket Service (Robust Handler)..."
+echo -e "[INFO] Menyiapkan SSH WebSocket Service (Anti Split & Illegal Packet Handler)..."
 cat > /usr/local/bin/ssh-ws.py << 'END'
 import socket, threading, sys
 
 def forward_client_to_target(client, target):
+    sent_101 = False
+    upgraded = False
     try:
         while True:
             data = client.recv(4096)
             if not data: break
             
-            req_str = ""
-            try:
-                req_str = data.decode('utf-8', 'ignore')
-            except:
-                pass
-            
-            # Jika terdeteksi string HTTP apa pun dari payload split, langsung respon 101
-            if "HTTP" in req_str or req_str.startswith(("GET", "POST", "PATCH", "PUT", "HEAD", "OPTIONS")):
-                res = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
-                client.send(res.encode('utf-8'))
+            if not upgraded:
+                req_str = ""
+                try: req_str = data.decode('utf-8', 'ignore')
+                except: pass
+                
+                # Mendeteksi apakah ini adalah header HTTP
+                if req_str.startswith(("GET ", "POST ", "PATCH ", "PUT ", "HEAD ", "OPTIONS ")):
+                    if not sent_101:
+                        # Hanya kirim 101 satu kali saja
+                        res = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+                        client.send(res.encode('utf-8'))
+                        sent_101 = True
+                    
+                    # Cek apakah header penutup sudah diterima (Upgrade: websocket)
+                    if "Upgrade: websocket" in req_str or "Upgrade: Websocket" in req_str or "upgrade: websocket" in req_str:
+                        upgraded = True
+                        
+                    # Jangan forward request HTTP ke Dropbear agar tidak putus (Premature Close)
+                    continue
+                else:
+                    # Jika data bukan HTTP (misal: SSH Handshake atau raw binary), forward ke Dropbear!
+                    upgraded = True
+                    target.send(data)
             else:
+                # Jika sudah di-upgrade, jadikan tunnel murni
                 target.send(data)
     except: pass
     finally:
