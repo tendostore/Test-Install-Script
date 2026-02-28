@@ -114,46 +114,49 @@ systemctl restart xray
 systemctl enable xray
 
 # ==========================================
-# 5. SSH WEBSOCKET PYTHON (ANTI ILLEGAL PACKET SIZE BUG)
+# 5. SSH WEBSOCKET PYTHON (SMART PROXY - ANTI PREMATURE CLOSE)
 # ==========================================
-echo -e "[INFO] Menyiapkan SSH WebSocket Service (Anti Split & Illegal Packet Handler)..."
+echo -e "[INFO] Menyiapkan SSH WebSocket Service (Smart Proxy Handler)..."
 cat > /usr/local/bin/ssh-ws.py << 'END'
 import socket, threading, sys
 
 def forward_client_to_target(client, target):
     sent_101 = False
-    upgraded = False
+    ssh_started = False
     try:
         while True:
             data = client.recv(4096)
             if not data: break
             
-            if not upgraded:
+            if ssh_started:
+                # Jika SSH sudah terhubung penuh, jadikan tunnel murni
+                target.send(data)
+            else:
                 req_str = ""
-                try: req_str = data.decode('utf-8', 'ignore')
-                except: pass
+                try: 
+                    req_str = data.decode('utf-8', 'ignore')
+                except: 
+                    pass
                 
-                # Mendeteksi apakah ini adalah header HTTP
-                if req_str.startswith(("GET ", "POST ", "PATCH ", "PUT ", "HEAD ", "OPTIONS ")):
+                # Deteksi jika client sudah mengirimkan identifikasi SSH asli
+                if "SSH-2.0-" in req_str:
+                    ssh_started = True
+                    # Potong garbage HTTP, ambil murni data SSH-nya saja lalu kirim ke Dropbear
+                    idx = req_str.find("SSH-2.0-")
+                    ssh_data = data[idx:]
+                    target.send(ssh_data)
+                    
                     if not sent_101:
-                        # Hanya kirim 101 satu kali saja
                         res = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
                         client.send(res.encode('utf-8'))
                         sent_101 = True
-                    
-                    # Cek apakah header penutup sudah diterima (Upgrade: websocket)
-                    if "Upgrade: websocket" in req_str or "Upgrade: Websocket" in req_str or "upgrade: websocket" in req_str:
-                        upgraded = True
-                        
-                    # Jangan forward request HTTP ke Dropbear agar tidak putus (Premature Close)
-                    continue
                 else:
-                    # Jika data bukan HTTP (misal: SSH Handshake atau raw binary), forward ke Dropbear!
-                    upgraded = True
-                    target.send(data)
-            else:
-                # Jika sudah di-upgrade, jadikan tunnel murni
-                target.send(data)
+                    # Jika masih berupa garbage payload (HTTP / GET / PATCH / Split)
+                    if not sent_101:
+                        res = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+                        client.send(res.encode('utf-8'))
+                        sent_101 = True
+                    # Telen/Buang sisa garbage-nya (jangan dikirim ke target Dropbear agar tidak DC)
     except: pass
     finally:
         client.close()
