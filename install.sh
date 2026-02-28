@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==========================================
 # Auto Installer Xray Vless & SSH WS + Dropbear 2019 (TLS & Non-TLS)
-# Support Custom Split Payload (Awan Abu-abu / DNS Only)
+# Support Custom Split Payload (Direct Port 80 Multiplexer)
 # ==========================================
 
 # Mematikan semua prompt interaktif selama instalasi
@@ -53,10 +53,12 @@ sleep 15
 # ==========================================
 # 2. GENERATE SSL / TLS CERTIFICATE (PORT 443)
 # ==========================================
-echo -e "[INFO] Membuat Sertifikat SSL Let's Encrypt..."
+echo -e "[INFO] Menghentikan service yang mengganggu port 80..."
 systemctl stop nginx
+systemctl stop ssh-ws 2>/dev/null
+
+echo -e "[INFO] Membuat Sertifikat SSL Let's Encrypt..."
 certbot certonly --standalone -d ${SUBDOMAIN} --non-interactive --agree-tos --email ${CF_ID}
-systemctl start nginx
 
 # ==========================================
 # 3. INSTALASI DROPBEAR 2019
@@ -114,82 +116,107 @@ systemctl restart xray
 systemctl enable xray
 
 # ==========================================
-# 5. SSH WEBSOCKET PYTHON (SMART PROXY ULTIMATE)
+# 5. SSH WEBSOCKET PYTHON (DIRECT PORT 80 MASTER MULTIPLEXER)
 # ==========================================
-echo -e "[INFO] Menyiapkan SSH WebSocket Service (Smart Proxy Ultimate)..."
+echo -e "[INFO] Menyiapkan SSH WebSocket Service (Master Multiplexer)..."
 cat > /usr/local/bin/ssh-ws.py << 'END'
-import socket, threading
+import socket, threading, sys
 
-def proxy_handler(client_socket):
+def proxy(source, destination):
     try:
-        target_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        target_socket.connect(('127.0.0.1', 143))
-        
-        state = {'sent_101': False}
-        
-        def server_to_client():
-            try:
-                while True:
-                    data = target_socket.recv(4096)
-                    if not data: break
-                    
-                    # Pastikan balasan 101 terkirim sebelum Dropbear mengirimkan banner SSH-nya
-                    if not state['sent_101']:
-                        res = b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
-                        client_socket.send(res)
-                        state['sent_101'] = True
-                        
-                    client_socket.send(data)
-            except: pass
-            finally:
-                client_socket.close()
-                target_socket.close()
-                
-        def client_to_server():
-            try:
-                while True:
-                    data = client_socket.recv(4096)
-                    if not data: break
-                    
-                    req = data.decode('utf-8', 'ignore')
-                    is_http = any(m in req for m in ["GET ", "POST ", "PUT ", "DELETE ", "OPTIONS ", "HEAD ", "PATCH ", "HTTP/"])
-                    
-                    # Logika cerdas: Temukan sinyal SSH murni dan teruskan, buang sisa teks HTTP
-                    if "SSH-2.0-" in req:
-                        idx = req.find("SSH-2.0-")
-                        target_socket.send(data[idx:])
-                    elif is_http:
-                        if not state['sent_101']:
-                            res = b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
-                            client_socket.send(res)
-                            state['sent_101'] = True
-                        # Jangan teruskan 'data' ini ke target, agar tidak terjadi Premature Close!
-                        continue
-                    else:
-                        # Forward murni
-                        target_socket.send(data)
-            except: pass
-            finally:
-                client_socket.close()
-                target_socket.close()
-                
-        threading.Thread(target=server_to_client).start()
-        threading.Thread(target=client_to_server).start()
-    except:
-        client_socket.close()
+        while True:
+            data = source.recv(8192)
+            if not data: break
+            destination.send(data)
+    except: pass
+    finally:
+        source.close()
+        destination.close()
 
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-server.bind(('127.0.0.1', 10002))
-server.listen(100)
-while True:
-    client, addr = server.accept()
-    threading.Thread(target=proxy_handler, args=(client,)).start()
+def client_to_ssh(client, target):
+    ssh_started = False
+    try:
+        while True:
+            data = client.recv(8192)
+            if not data: break
+            
+            if not ssh_started:
+                req_str = ""
+                try: req_str = data.decode('utf-8', 'ignore')
+                except: pass
+                
+                if "SSH-2.0-" in req_str:
+                    ssh_started = True
+                    idx = req_str.find("SSH-2.0-")
+                    target.send(data[idx:])
+                elif "HTTP/" in req_str or "GET " in req_str or "PATCH " in req_str or "POST " in req_str or "PUT " in req_str:
+                    # Telen sampah payload split dari HTTP Custom agar tidak bikin Dropbear DC
+                    continue
+                else:
+                    target.send(data)
+            else:
+                target.send(data)
+    except: pass
+    finally:
+        client.close()
+        target.close()
+
+def handle_client(client):
+    try:
+        data = client.recv(8192)
+        if not data:
+            client.close()
+            return
+        
+        req_str = ""
+        try: req_str = data.decode('utf-8', 'ignore')
+        except: pass
+        
+        # Multiplexer: Deteksi apakah request ini untuk Vless atau SSH
+        if "/vless" in req_str:
+            target = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            target.connect(('127.0.0.1', 10001))
+            target.send(data) # Lempar request HTTP utuh ke Xray
+            threading.Thread(target=proxy, args=(client, target)).start()
+            threading.Thread(target=proxy, args=(target, client)).start()
+        else:
+            target = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            target.connect(('127.0.0.1', 143))
+            
+            if "HTTP" in req_str or req_str.startswith(('GET', 'POST', 'PATCH', 'PUT', 'OPTIONS')):
+                res = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+                client.send(res.encode())
+                
+                # Jika SSH handshake asli nyangkut di paket pertama, amankan
+                if "SSH-2.0-" in req_str:
+                    idx = req_str.find("SSH-2.0-")
+                    target.send(data[idx:])
+            else:
+                target.send(data)
+                
+            threading.Thread(target=client_to_ssh, args=(client, target)).start()
+            threading.Thread(target=proxy, args=(target, client)).start()
+    except:
+        client.close()
+
+def start_server(port):
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind(('0.0.0.0', port))
+    server.listen(100)
+    while True:
+        client, addr = server.accept()
+        threading.Thread(target=handle_client, args=(client,)).start()
+
+# Jalankan di Port 80, 8080 (Non-TLS Direct) dan 10002 (Bypass dari Nginx 443)
+threading.Thread(target=start_server, args=(80,)).start()
+threading.Thread(target=start_server, args=(8080,)).start()
+threading.Thread(target=start_server, args=(10002,)).start()
 END
 
 cat > /etc/systemd/system/ssh-ws.service << END
 [Unit]
-Description=SSH WebSocket Python
+Description=SSH WebSocket Python Direct
 After=network.target
 
 [Service]
@@ -206,14 +233,12 @@ systemctl enable ssh-ws
 systemctl restart ssh-ws
 
 # ==========================================
-# 6. SETUP NGINX (MULTIPLEXER MULTI PORT 80/443 TLS)
+# 6. SETUP NGINX (HANYA UNTUK TLS 443)
 # ==========================================
-echo -e "[INFO] Konfigurasi Nginx untuk TLS 443 & Non-TLS 80..."
+echo -e "[INFO] Konfigurasi Nginx HANYA untuk TLS 443..."
 rm -f /etc/nginx/sites-enabled/default
 cat > /etc/nginx/conf.d/vps.conf << END
 server {
-    listen 80;
-    listen 8080;
     listen 443 ssl http2;
     server_name $SUBDOMAIN;
 
@@ -222,7 +247,7 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
 
-    # SSH WebSocket Path (Payload Bug -> /)
+    # SSH WebSocket Path (Payload TLS -> /)
     location / {
         proxy_pass http://127.0.0.1:10002;
         proxy_http_version 1.1;
