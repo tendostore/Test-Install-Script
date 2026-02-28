@@ -47,6 +47,9 @@ curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_re
 mkdir -p /etc/xray
 echo "$SUBDOMAIN" > /etc/xray/domain
 
+echo -e "[INFO] Menunggu 15 detik untuk propagasi DNS Cloudflare agar SSL tidak gagal..."
+sleep 15
+
 # ==========================================
 # 2. GENERATE SSL / TLS CERTIFICATE (PORT 443)
 # ==========================================
