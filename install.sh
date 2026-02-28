@@ -14,8 +14,12 @@ red='\e[1;31m'
 green='\e[0;32m'
 
 clear
-export IP=$( curl -sS icanhazip.com )
+echo -e "\e[32mMenyiapkan package dasar terlebih dahulu...\e[0m"
+apt-get update -y
+apt-get install -y curl wget lsof jq psmisc unzip cron bash-completion tar xz-utils iptables
 clear
+
+export IP=$( curl -sS ipv4.icanhazip.com )
 
 echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "  Developer » AutoScript Custom Edition"
@@ -47,12 +51,11 @@ if [ "$(systemd-detect-virt)" == "openvz" ]; then
 		exit 1
 fi
 
-MYIP=$(curl -sS ipv4.icanhazip.com)
 echo -e "\e[32mMemulai Instalasi Otomatis...\e[0m"
 sleep 2
 clear
 
-# Kredensial Cloudflare (Sesuai Permintaan)
+# Kredensial Cloudflare
 CF_ID="mbuntoncity@gmail.com"
 CF_KEY="96bee4f14ef23e42c4509efc125c0eac5c02e"
 CF_ZONE_ID="14f2e85e62d1d73bf0ce1579f1c3300c"
@@ -85,7 +88,7 @@ function first_setup(){
     echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
     echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
     
-    sudo apt update -y
+    apt-get update -y
     apt-get install --no-install-recommends software-properties-common -y
     if [[ $(cat /etc/os-release | grep -w ID | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/ID//g') == "ubuntu" ]]; then
         add-apt-repository ppa:vbernat/haproxy-2.0 -y
@@ -93,7 +96,7 @@ function first_setup(){
     elif [[ $(cat /etc/os-release | grep -w ID | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/ID//g') == "debian" ]]; then
         curl https://haproxy.debian.net/bernat.debian.org.gpg | gpg --dearmor >/usr/share/keyrings/haproxy.debian.net.gpg
         echo deb "[signed-by=/usr/share/keyrings/haproxy.debian.net.gpg]" http://haproxy.debian.net buster-backports-1.8 main >/etc/apt/sources.list.d/haproxy.list
-        sudo apt-get update
+        apt-get update -y
         apt-get -y install haproxy=1.8.\*
     fi
     print_success "Dependencies"
@@ -101,20 +104,20 @@ function first_setup(){
 
 function nginx_install() {
     print_install "Setup Nginx"
-    sudo apt-get install nginx -y 
+    apt-get install nginx -y 
     print_success "Nginx"
 }
 
 function base_package() {
     print_install "Menginstall Packet Yang Dibutuhkan"
-    apt update -y
-    apt upgrade -y
-    apt install zip pwgen openssl netcat socat cron bash-completion figlet jq -y
+    apt-get update -y
+    apt-get upgrade -y
+    apt-get install zip pwgen openssl netcat socat cron bash-completion figlet jq -y
     systemctl enable chronyd
     systemctl restart chronyd
-    apt install ntpdate -y
+    apt-get install ntpdate -y
     ntpdate pool.ntp.org
-    sudo apt-get install -y speedtest-cli vnstat libnss3-dev libnspr4-dev pkg-config libpam0g-dev libcap-ng-dev libcap-ng-utils libselinux1-dev libcurl4-nss-dev flex bison make libnss3-tools libevent-dev bc rsyslog dos2unix zlib1g-dev libssl-dev libsqlite3-dev sed dirmngr libxml-parser-perl build-essential gcc g++ python htop lsof tar wget curl ruby zip unzip p7zip-full python3-pip libc6 util-linux build-essential msmtp-mta ca-certificates bsd-mailx iptables iptables-persistent netfilter-persistent net-tools openssl ca-certificates gnupg gnupg2 ca-certificates lsb-release gcc shc make cmake git screen socat xz-utils apt-transport-https gnupg1 dnsutils cron bash-completion ntpdate chrony jq openvpn easy-rsa bzip2
+    apt-get install -y speedtest-cli vnstat libnss3-dev libnspr4-dev pkg-config libpam0g-dev libcap-ng-dev libcap-ng-utils libselinux1-dev libcurl4-nss-dev flex bison make libnss3-tools libevent-dev bc rsyslog dos2unix zlib1g-dev libssl-dev libsqlite3-dev sed dirmngr libxml-parser-perl build-essential gcc g++ python htop lsof tar wget curl ruby zip unzip p7zip-full python3-pip libc6 util-linux build-essential msmtp-mta ca-certificates bsd-mailx iptables iptables-persistent netfilter-persistent net-tools openssl ca-certificates gnupg gnupg2 ca-certificates lsb-release gcc shc make cmake git screen socat xz-utils apt-transport-https gnupg1 dnsutils cron bash-completion ntpdate chrony jq openvpn easy-rsa bzip2 psmisc
     print_success "Packet Yang Dibutuhkan"
 }
 
@@ -124,13 +127,14 @@ function make_folder_xray() {
     mkdir -p /var/log/xray
     mkdir -p /usr/bin/xray/
     mkdir -p /var/www/html
+    mkdir -p /var/lib/kyt
     mkdir -p /etc/kyt/limit/vless/ip
     mkdir -p /etc/kyt/limit/ssh/ip
     mkdir -p /etc/vless
     mkdir -p /etc/ssh
     mkdir -p /etc/user-create
     
-    chown www-data.www-data /var/log/xray
+    chown www-data:www-data /var/log/xray
     chmod +x /var/log/xray
     touch /var/log/xray/access.log
     touch /var/log/xray/error.log
@@ -154,7 +158,7 @@ function pasang_domain_otomatis() {
         
     ROOT_DOMAIN=$(echo $DOMAIN_INFO | jq -r '.result.name')
     if [[ "$ROOT_DOMAIN" == "null" || -z "$ROOT_DOMAIN" ]]; then
-        ROOT_DOMAIN="vpn-server.site" # Fallback sementara jika API gagal membaca
+        ROOT_DOMAIN="vpn-server.site" # Fallback sementara
     fi
     
     SUB=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)
@@ -175,14 +179,23 @@ function pasang_domain_otomatis() {
 
 function pasang_ssl() {
     print_install "Memasang SSL Pada Domain"
+    
+    # Membunuh process yang memakai port 80 agar acme.sh berjalan lancar
+    echo -e "Membersihkan port 80..."
+    fuser -k 80/tcp >/dev/null 2>&1 || true
+    lsof -t -i tcp:80 -s tcp:listen | xargs kill -9 >/dev/null 2>&1 || true
+    
     rm -rf /etc/xray/xray.key
     rm -rf /etc/xray/xray.crt
     domain=$(cat /root/domain)
     STOPWEBSERVER=$(lsof -i:80 | cut -d' ' -f1 | awk 'NR==2 {print $1}')
+    if [[ ! -z "$STOPWEBSERVER" ]]; then
+        systemctl stop $STOPWEBSERVER >/dev/null 2>&1
+    fi
+    systemctl stop nginx >/dev/null 2>&1
+    
     rm -rf /root/.acme.sh
     mkdir /root/.acme.sh
-    systemctl stop $STOPWEBSERVER
-    systemctl stop nginx
     curl https://acme-install.netlify.app/acme.sh -o /root/.acme.sh/acme.sh
     chmod +x /root/.acme.sh/acme.sh
     /root/.acme.sh/acme.sh --upgrade --auto-upgrade
@@ -196,7 +209,7 @@ function pasang_ssl() {
 function install_xray() {
     print_install "Core Xray 1.8.1 Latest Version"
     domainSock_dir="/run/xray";! [ -d $domainSock_dir ] && mkdir  $domainSock_dir
-    chown www-data.www-data $domainSock_dir
+    chown www-data:www-data $domainSock_dir
     
     xraycore_link="https://github.com/XTLS/Xray-core/releases/download/v1.8.1/xray-linux-64.zip"
     bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data --version 1.8.1
@@ -367,8 +380,8 @@ function ins_epro(){
     netfilter-persistent save
     netfilter-persistent reload
 
-    apt autoclean -y >/dev/null 2>&1
-    apt autoremove -y >/dev/null 2>&1
+    apt-get autoclean -y >/dev/null 2>&1
+    apt-get autoremove -y >/dev/null 2>&1
     print_success "ePro WebSocket Proxy"
 }
 
@@ -512,6 +525,4 @@ rm -rf /root/*.zip
 rm -rf /root/*.sh
 secs_to_human "$(($(date +%s) - ${start}))"
 echo -e "${green} Script Successfull Installed"
-echo -e "${YELLOW} Server akan direboot secara otomatis dalam 5 detik...${NC}"
-sleep 5
-reboot
+echo -e "${YELLOW} Silakan ketik 'reboot' secara manual di terminal untuk menerapkan semua perubahan.${NC}"
