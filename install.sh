@@ -91,13 +91,10 @@ function first_setup(){
     apt-get update -y
     apt-get install --no-install-recommends software-properties-common -y
     if [[ $(cat /etc/os-release | grep -w ID | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/ID//g') == "ubuntu" ]]; then
-        add-apt-repository ppa:vbernat/haproxy-2.0 -y
-        apt-get -y install haproxy=2.0.\*
+        # Menghapus penambahan PPA karena error 404 di Ubuntu Jammy
+        apt-get install haproxy -y
     elif [[ $(cat /etc/os-release | grep -w ID | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/ID//g') == "debian" ]]; then
-        curl https://haproxy.debian.net/bernat.debian.org.gpg | gpg --dearmor >/usr/share/keyrings/haproxy.debian.net.gpg
-        echo deb "[signed-by=/usr/share/keyrings/haproxy.debian.net.gpg]" http://haproxy.debian.net buster-backports-1.8 main >/etc/apt/sources.list.d/haproxy.list
-        apt-get update -y
-        apt-get -y install haproxy=1.8.\*
+        apt-get install haproxy -y
     fi
     print_success "Dependencies"
 }
