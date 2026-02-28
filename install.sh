@@ -1,355 +1,517 @@
 #!/bin/bash
-# ==========================================
-# Auto Installer Xray Vless & SSH WS + Dropbear 2019 (TLS & Non-TLS)
-# Support Custom Split Payload (Direct Port 80 Multiplexer)
-# ==========================================
+Green="\e[92;1m"
+RED="\033[31m"
+YELLOW="\033[33m"
+BLUE="\033[36m"
+FONT="\033[0m"
+GREENBG="\033[42;37m"
+REDBG="\033[41;37m"
+OK="${Green}  »${FONT}"
+ERROR="${RED}[ERROR]${FONT}"
+GRAY="\e[1;30m"
+NC='\e[0m'
+red='\e[1;31m'
+green='\e[0;32m'
 
-# Mematikan semua prompt interaktif selama instalasi
-export DEBIAN_FRONTEND=noninteractive
+clear
+export IP=$( curl -sS icanhazip.com )
+clear
 
-# Konfigurasi Cloudflare dari User
+echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "  Developer » AutoScript Custom Edition"
+echo -e "  » Xray VLESS & SSH WebSocket Only"
+echo -e "  » Dropbear 2019 + Auto Random Domain CF"
+echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+sleep 2
+
+if [[ $( uname -m | awk '{print $1}' ) == "x86_64" ]]; then
+    echo -e "${OK} Your Architecture Is Supported ( ${green}$( uname -m )${NC} )"
+else
+    echo -e "${ERROR} Your Architecture Is Not Supported"
+    exit 1
+fi
+
+if [[ $IP == "" ]]; then
+    echo -e "${ERROR} IP Address ( ${YELLOW}Not Detected${NC} )"
+else
+    echo -e "${OK} IP Address ( ${green}$IP${NC} )"
+fi
+
+if [ "${EUID}" -ne 0 ]; then
+		echo "You need to run this script as root"
+		exit 1
+fi
+if [ "$(systemd-detect-virt)" == "openvz" ]; then
+		echo "OpenVZ is not supported"
+		exit 1
+fi
+
+MYIP=$(curl -sS ipv4.icanhazip.com)
+echo -e "\e[32mMemulai Instalasi Otomatis...\e[0m"
+sleep 2
+clear
+
+# Kredensial Cloudflare (Sesuai Permintaan)
 CF_ID="mbuntoncity@gmail.com"
 CF_KEY="96bee4f14ef23e42c4509efc125c0eac5c02e"
 CF_ZONE_ID="14f2e85e62d1d73bf0ce1579f1c3300c"
 
-echo -e "[INFO] Memulai proses update dan instalasi dependensi dasar..."
-apt-get update -yq
-apt-get upgrade -yq
-apt-get install -yq curl wget jq nginx python3 tar bzip2 make gcc build-essential uuid-runtime stunnel4 net-tools certbot
+REPO="https://raw.githubusercontent.com/Kucrut-jr/instalasi/main/"
+start=$(date +%s)
 
-# ==========================================
-# 1. SETUP CLOUDFLARE DOMAIN RANDOM (AWAN ABU-ABU / DNS ONLY)
-# ==========================================
-echo -e "[INFO] Mengambil nama domain dari Cloudflare Zone ID..."
-DOMAIN_INFO=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}" \
-     -H "X-Auth-Email: ${CF_ID}" \
-     -H "X-Auth-Key: ${CF_KEY}" \
-     -H "Content-Type: application/json")
-     
-ROOT_DOMAIN=$(echo $DOMAIN_INFO | jq -r .result.name)
-
-if [ "$ROOT_DOMAIN" == "null" ] || [ -z "$ROOT_DOMAIN" ]; then
-    echo -e "[ERROR] Gagal mengambil nama domain dari Cloudflare. Cek API Key/Zone ID."
-    ROOT_DOMAIN="domain-error.com"
-fi
-
-RANDOM_STR=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)
-SUBDOMAIN="${RANDOM_STR}.${ROOT_DOMAIN}"
-IP_SERVER=$(curl -sS ifconfig.me)
-
-echo -e "[INFO] Pointing domain: ${SUBDOMAIN} (Mode: DNS Only / Awan Abu-abu)..."
-curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
-     -H "X-Auth-Email: ${CF_ID}" \
-     -H "X-Auth-Key: ${CF_KEY}" \
-     -H "Content-Type: application/json" \
-     --data '{"type":"A","name":"'${SUBDOMAIN}'","content":"'${IP_SERVER}'","ttl":120,"proxied":false}' | jq -r .success
-
-mkdir -p /etc/xray
-echo "$SUBDOMAIN" > /etc/xray/domain
-
-echo -e "[INFO] Menunggu 15 detik untuk propagasi DNS Cloudflare agar SSL Let's Encrypt tidak gagal..."
-sleep 15
-
-# ==========================================
-# 2. GENERATE SSL / TLS CERTIFICATE (PORT 443)
-# ==========================================
-echo -e "[INFO] Menghentikan service yang mengganggu port 80..."
-systemctl stop nginx
-systemctl stop ssh-ws 2>/dev/null
-
-echo -e "[INFO] Membuat Sertifikat SSL Let's Encrypt..."
-certbot certonly --standalone -d ${SUBDOMAIN} --non-interactive --agree-tos --email ${CF_ID}
-
-# ==========================================
-# 3. INSTALASI DROPBEAR 2019
-# ==========================================
-echo -e "[INFO] Mengunduh dan mengkompilasi Dropbear versi 2019.78..."
-apt-get remove -yq dropbear
-cd /usr/local/src
-wget -q https://matt.ucc.asn.au/dropbear/releases/dropbear-2019.78.tar.bz2
-tar -xjf dropbear-2019.78.tar.bz2
-cd dropbear-2019.78
-./configure --disable-zlib
-make 
-make install
-
-mkdir -p /etc/dropbear
-cat > /etc/default/dropbear << END
-NO_START=0
-DROPBEAR_PORT=143
-DROPBEAR_EXTRA_ARGS="-p 109"
-DROPBEAR_BANNER="/etc/issue.net"
-DROPBEAR_RECEIVE_WINDOW=65536
-END
-
-dropbear -p 143 -p 109 -R
-
-# ==========================================
-# 4. INSTALASI XRAY (VLESS)
-# ==========================================
-echo -e "[INFO] Menginstal Xray Core..."
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install --beta
-UUID=$(uuidgen)
-
-cat > /usr/local/etc/xray/config.json << END
-{
-  "inbounds": [
-    {
-      "port": 10001,
-      "listen": "127.0.0.1",
-      "protocol": "vless",
-      "settings": {
-        "clients": [{"id": "${UUID}"}],
-        "decryption": "none"
-      },
-      "streamSettings": {
-        "network": "ws",
-        "wsSettings": {"path": "/vless"}
-      }
-    }
-  ],
-  "outbounds": [{"protocol": "freedom"}]
+secs_to_human() {
+    echo "Installation time : $((${1} / 3600)) hours $(((${1} / 60) % 60)) minute's $((${1} % 60)) seconds"
 }
-END
 
-systemctl restart xray
-systemctl enable xray
+function print_install() {
+	echo -e "${green} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ${FONT}"
+    echo -e "${YELLOW} » $1 ${FONT}"
+	echo -e "${green} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ${FONT}"
+    sleep 1
+}
 
-# ==========================================
-# 5. SSH WEBSOCKET PYTHON (DIRECT PORT 80 MASTER MULTIPLEXER)
-# ==========================================
-echo -e "[INFO] Menyiapkan SSH WebSocket Service (Master Multiplexer)..."
-cat > /usr/local/bin/ssh-ws.py << 'END'
-import socket, threading, sys
+function print_success() {
+    if [[ 0 -eq $? ]]; then
+		echo -e "${green} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ${FONT}"
+        echo -e "${Green} » $1 berhasil dipasang"
+		echo -e "${green} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ${FONT}"
+        sleep 2
+    fi
+}
 
-def proxy(source, destination):
-    try:
-        while True:
-            data = source.recv(8192)
-            if not data: break
-            destination.send(data)
-    except: pass
-    finally:
-        source.close()
-        destination.close()
+function first_setup(){
+    timedatectl set-timezone Asia/Jakarta
+    echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
+    echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
+    
+    sudo apt update -y
+    apt-get install --no-install-recommends software-properties-common -y
+    if [[ $(cat /etc/os-release | grep -w ID | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/ID//g') == "ubuntu" ]]; then
+        add-apt-repository ppa:vbernat/haproxy-2.0 -y
+        apt-get -y install haproxy=2.0.\*
+    elif [[ $(cat /etc/os-release | grep -w ID | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/ID//g') == "debian" ]]; then
+        curl https://haproxy.debian.net/bernat.debian.org.gpg | gpg --dearmor >/usr/share/keyrings/haproxy.debian.net.gpg
+        echo deb "[signed-by=/usr/share/keyrings/haproxy.debian.net.gpg]" http://haproxy.debian.net buster-backports-1.8 main >/etc/apt/sources.list.d/haproxy.list
+        sudo apt-get update
+        apt-get -y install haproxy=1.8.\*
+    fi
+    print_success "Dependencies"
+}
 
-def client_to_ssh(client, target):
-    ssh_started = False
-    try:
-        while True:
-            data = client.recv(8192)
-            if not data: break
-            
-            if not ssh_started:
-                req_str = ""
-                try: req_str = data.decode('utf-8', 'ignore')
-                except: pass
-                
-                if "SSH-2.0-" in req_str:
-                    ssh_started = True
-                    idx = req_str.find("SSH-2.0-")
-                    target.send(data[idx:])
-                elif "HTTP/" in req_str or "GET " in req_str or "PATCH " in req_str or "POST " in req_str or "PUT " in req_str:
-                    # Telen sampah payload split dari HTTP Custom agar tidak bikin Dropbear DC
-                    continue
-                else:
-                    target.send(data)
-            else:
-                target.send(data)
-    except: pass
-    finally:
-        client.close()
-        target.close()
+function nginx_install() {
+    print_install "Setup Nginx"
+    sudo apt-get install nginx -y 
+    print_success "Nginx"
+}
 
-def handle_client(client):
-    try:
-        data = client.recv(8192)
-        if not data:
-            client.close()
-            return
+function base_package() {
+    print_install "Menginstall Packet Yang Dibutuhkan"
+    apt update -y
+    apt upgrade -y
+    apt install zip pwgen openssl netcat socat cron bash-completion figlet jq -y
+    systemctl enable chronyd
+    systemctl restart chronyd
+    apt install ntpdate -y
+    ntpdate pool.ntp.org
+    sudo apt-get install -y speedtest-cli vnstat libnss3-dev libnspr4-dev pkg-config libpam0g-dev libcap-ng-dev libcap-ng-utils libselinux1-dev libcurl4-nss-dev flex bison make libnss3-tools libevent-dev bc rsyslog dos2unix zlib1g-dev libssl-dev libsqlite3-dev sed dirmngr libxml-parser-perl build-essential gcc g++ python htop lsof tar wget curl ruby zip unzip p7zip-full python3-pip libc6 util-linux build-essential msmtp-mta ca-certificates bsd-mailx iptables iptables-persistent netfilter-persistent net-tools openssl ca-certificates gnupg gnupg2 ca-certificates lsb-release gcc shc make cmake git screen socat xz-utils apt-transport-https gnupg1 dnsutils cron bash-completion ntpdate chrony jq openvpn easy-rsa bzip2
+    print_success "Packet Yang Dibutuhkan"
+}
+
+function make_folder_xray() {
+    print_install "Membuat direktori instalasi"
+    mkdir -p /etc/xray
+    mkdir -p /var/log/xray
+    mkdir -p /usr/bin/xray/
+    mkdir -p /var/www/html
+    mkdir -p /etc/kyt/limit/vless/ip
+    mkdir -p /etc/kyt/limit/ssh/ip
+    mkdir -p /etc/vless
+    mkdir -p /etc/ssh
+    mkdir -p /etc/user-create
+    
+    chown www-data.www-data /var/log/xray
+    chmod +x /var/log/xray
+    touch /var/log/xray/access.log
+    touch /var/log/xray/error.log
+    touch /etc/xray/domain
+    touch /etc/vless/.vless.db
+    touch /etc/ssh/.ssh.db
+    echo "& plughin Account" >>/etc/vless/.vless.db
+    echo "& plughin Account" >>/etc/ssh/.ssh.db
+    
+    curl -s ifconfig.me > /etc/xray/ipvps
+    print_success "Direktori Berhasil Dibuat"
+}
+
+function pasang_domain_otomatis() {
+    print_install "Menyiapkan Domain Acak via Cloudflare"
+    
+    DOMAIN_INFO=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID" \
+        -H "X-Auth-Email: $CF_ID" \
+        -H "X-Auth-Key: $CF_KEY" \
+        -H "Content-Type: application/json")
         
-        req_str = ""
-        try: req_str = data.decode('utf-8', 'ignore')
-        except: pass
+    ROOT_DOMAIN=$(echo $DOMAIN_INFO | jq -r '.result.name')
+    if [[ "$ROOT_DOMAIN" == "null" || -z "$ROOT_DOMAIN" ]]; then
+        ROOT_DOMAIN="vpn-server.site" # Fallback sementara jika API gagal membaca
+    fi
+    
+    SUB=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)
+    DOMAIN="${SUB}.${ROOT_DOMAIN}"
+    
+    echo "Membuat Record DNS untuk $DOMAIN"
+    curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records" \
+        -H "X-Auth-Email: $CF_ID" \
+        -H "X-Auth-Key: $CF_KEY" \
+        -H "Content-Type: application/json" \
+        --data '{"type":"A","name":"'${DOMAIN}'","content":"'${IP}'","ttl":120,"proxied":false}' > /dev/null 2>&1
         
-        # Multiplexer: Deteksi apakah request ini untuk Vless atau SSH
-        if "/vless" in req_str:
-            target = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            target.connect(('127.0.0.1', 10001))
-            target.send(data) # Lempar request HTTP utuh ke Xray
-            threading.Thread(target=proxy, args=(client, target)).start()
-            threading.Thread(target=proxy, args=(target, client)).start()
-        else:
-            target = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            target.connect(('127.0.0.1', 143))
-            
-            if "HTTP" in req_str or req_str.startswith(('GET', 'POST', 'PATCH', 'PUT', 'OPTIONS')):
-                res = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
-                client.send(res.encode())
-                
-                # Jika SSH handshake asli nyangkut di paket pertama, amankan
-                if "SSH-2.0-" in req_str:
-                    idx = req_str.find("SSH-2.0-")
-                    target.send(data[idx:])
-            else:
-                target.send(data)
-                
-            threading.Thread(target=client_to_ssh, args=(client, target)).start()
-            threading.Thread(target=proxy, args=(target, client)).start()
-    except:
-        client.close()
+    echo "IP=" >> /var/lib/kyt/ipvps.conf
+    echo $DOMAIN > /etc/xray/domain
+    echo $DOMAIN > /root/domain
+    print_success "Domain $DOMAIN berhasil dikonfigurasi"
+}
 
-def start_server(port):
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server.bind(('0.0.0.0', port))
-    server.listen(100)
-    while True:
-        client, addr = server.accept()
-        threading.Thread(target=handle_client, args=(client,)).start()
+function pasang_ssl() {
+    print_install "Memasang SSL Pada Domain"
+    rm -rf /etc/xray/xray.key
+    rm -rf /etc/xray/xray.crt
+    domain=$(cat /root/domain)
+    STOPWEBSERVER=$(lsof -i:80 | cut -d' ' -f1 | awk 'NR==2 {print $1}')
+    rm -rf /root/.acme.sh
+    mkdir /root/.acme.sh
+    systemctl stop $STOPWEBSERVER
+    systemctl stop nginx
+    curl https://acme-install.netlify.app/acme.sh -o /root/.acme.sh/acme.sh
+    chmod +x /root/.acme.sh/acme.sh
+    /root/.acme.sh/acme.sh --upgrade --auto-upgrade
+    /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+    /root/.acme.sh/acme.sh --issue -d $domain --standalone -k ec-256
+    ~/.acme.sh/acme.sh --installcert -d $domain --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
+    chmod 777 /etc/xray/xray.key
+    print_success "SSL Certificate"
+}
 
-# Jalankan di Port 80, 8080 (Non-TLS Direct) dan 10002 (Bypass dari Nginx 443)
-threading.Thread(target=start_server, args=(80,)).start()
-threading.Thread(target=start_server, args=(8080,)).start()
-threading.Thread(target=start_server, args=(10002,)).start()
-END
+function install_xray() {
+    print_install "Core Xray 1.8.1 Latest Version"
+    domainSock_dir="/run/xray";! [ -d $domainSock_dir ] && mkdir  $domainSock_dir
+    chown www-data.www-data $domainSock_dir
+    
+    xraycore_link="https://github.com/XTLS/Xray-core/releases/download/v1.8.1/xray-linux-64.zip"
+    bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data --version 1.8.1
 
-cat > /etc/systemd/system/ssh-ws.service << END
+    mkdir -p /usr/bin/xray
+    mkdir -p /etc/xray
+    mkdir -p /usr/local/etc/xray
+    
+    cd `mktemp -d`
+    curl -sL "$xraycore_link" -o xray.zip
+    unzip -q xray.zip && rm -rf xray.zip
+    mv xray /usr/local/bin/xray
+    chmod +x /usr/local/bin/xray
+
+    systemctl restart xray
+    sleep 0.5
+ 
+    wget -O /etc/xray/config.json "${REPO}config/config.json" >/dev/null 2>&1
+    wget -O /etc/systemd/system/runn.service "${REPO}files/runn.service" >/dev/null 2>&1
+    
+    domain=$(cat /etc/xray/domain)
+    IPVS=$(cat /etc/xray/ipvps)
+    
+    curl -s ipinfo.io/city >>/etc/xray/city
+    curl -s ipinfo.io/org | cut -d " " -f 2-10 >>/etc/xray/isp
+    print_install "Memasang Konfigurasi Packet"
+    wget -O /etc/haproxy/haproxy.cfg "${REPO}config/haproxy.cfg" >/dev/null 2>&1
+    wget -O /etc/nginx/conf.d/xray.conf "${REPO}config/xray.conf" >/dev/null 2>&1
+    sed -i "s/xxx/${domain}/g" /etc/haproxy/haproxy.cfg
+    sed -i "s/xxx/${domain}/g" /etc/nginx/conf.d/xray.conf
+    curl ${REPO}config/nginx.conf > /etc/nginx/nginx.conf
+    
+    cat /etc/xray/xray.crt /etc/xray/xray.key | tee /etc/haproxy/hap.pem
+
+    chmod +x /etc/systemd/system/runn.service
+    rm -rf /etc/systemd/system/xray.service.d
+    cat >/etc/systemd/system/xray.service <<EOF
 [Unit]
-Description=SSH WebSocket Python Direct
-After=network.target
+Description=Xray Service
+Documentation=https://github.com
+After=network.target nss-lookup.target
 
 [Service]
-Type=simple
-ExecStart=/usr/bin/python3 /usr/local/bin/ssh-ws.py
-Restart=always
+User=www-data
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+ExecStart=/usr/local/bin/xray run -config /etc/xray/config.json
+Restart=on-failure
+RestartPreventExitStatus=23
+LimitNPROC=10000
+LimitNOFILE=1000000
 
+[Install]
+WantedBy=multi-user.target
+EOF
+    print_success "Konfigurasi Packet"
+}
+
+function ssh(){
+    print_install "Memasang Password SSH & Konfigurasi Dasar"
+    wget -O /etc/pam.d/common-password "${REPO}files/password" >/dev/null 2>&1
+    chmod +x /etc/pam.d/common-password
+
+    cd
+    cat > /etc/systemd/system/rc-local.service <<-END
+[Unit]
+Description=/etc/rc.local
+ConditionPathExists=/etc/rc.local
+[Service]
+Type=forking
+ExecStart=/etc/rc.local start
+TimeoutSec=0
+StandardOutput=tty
+RemainAfterExit=yes
+SysVStartPriority=99
 [Install]
 WantedBy=multi-user.target
 END
 
-systemctl daemon-reload
-systemctl enable ssh-ws
-systemctl restart ssh-ws
-
-# ==========================================
-# 6. SETUP NGINX (HANYA UNTUK TLS 443)
-# ==========================================
-echo -e "[INFO] Konfigurasi Nginx HANYA untuk TLS 443..."
-rm -f /etc/nginx/sites-enabled/default
-cat > /etc/nginx/conf.d/vps.conf << END
-server {
-    listen 443 ssl http2;
-    server_name $SUBDOMAIN;
-
-    ssl_certificate /etc/letsencrypt/live/$SUBDOMAIN/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$SUBDOMAIN/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-
-    # SSH WebSocket Path (Payload TLS -> /)
-    location / {
-        proxy_pass http://127.0.0.1:10002;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "Upgrade";
-        proxy_set_header Host \$host;
-    }
-
-    # Xray Vless Path
-    location /vless {
-        proxy_pass http://127.0.0.1:10001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "Upgrade";
-        proxy_set_header Host \$host;
-    }
-}
+    cat > /etc/rc.local <<-END
+#!/bin/sh -e
+exit 0
 END
 
-systemctl restart nginx
+    chmod +x /etc/rc.local
+    systemctl enable rc-local
+    systemctl start rc-local.service
 
-# ==========================================
-# 7. MENU CREATOR SCRIPT
-# ==========================================
-echo -e "[INFO] Membuat script menu..."
-cat > /usr/bin/menu << 'EOF'
-#!/bin/bash
-DOMAIN=$(cat /etc/xray/domain)
-IP=$(curl -sS ifconfig.me)
+    echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+    sed -i '$ i\echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6' /etc/rc.local
 
-clear
-echo -e "======================================"
-echo -e "         MENU CREATE ACCOUNT          "
-echo -e "======================================"
-echo -e "1. Create Akun SSH / Dropbear WS"
-echo -e "2. Create Akun Xray Vless WS"
-echo -e "3. Exit"
-echo -e "======================================"
-read -p "Pilih Menu (1-3): " menu_opt
+    ln -fs /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
+    sed -i 's/AcceptEnv/#AcceptEnv/g' /etc/ssh/sshd_config
+    print_success "Password SSH"
+}
 
-if [ "$menu_opt" == "1" ]; then
-    read -p "Username: " user
-    read -p "Password: " pass
-    read -p "Expired (Hari): " exp
-    
-    useradd -e `date -d "$exp days" +"%Y-%m-%d"` -s /bin/false -M $user
-    echo -e "$pass\n$pass\n" | passwd $user &> /dev/null
-    
-    clear
-    echo -e "======================================"
-    echo -e "        DETAIL AKUN SSH WS            "
-    echo -e "======================================"
-    echo -e "Domain      : $DOMAIN"
-    echo -e "IP Server   : $IP"
-    echo -e "Username    : $user"
-    echo -e "Password    : $pass"
-    echo -e "Port TLS    : 443"
-    echo -e "Port Non-TLS: 80, 8080"
-    echo -e "Path Payload: /"
-    echo -e "Expired     : $exp Hari"
-    echo -e "======================================"
-    echo -e "Payload WS Non-TLS (Port 80):"
-    echo -e "GET / HTTP/1.1[crlf]Host: $DOMAIN[crlf]Connection: Upgrade[crlf]Upgrade: websocket[crlf][crlf]"
-    echo -e "Payload WS TLS (Port 443):"
-    echo -e "GET wss://$DOMAIN/ HTTP/1.1[crlf]Host: $DOMAIN[crlf]Connection: Upgrade[crlf]Upgrade: websocket[crlf][crlf]"
-    
-elif [ "$menu_opt" == "2" ]; then
-    read -p "Username (Vless): " user
-    read -p "Expired (Hari): " exp
-    
-    uuid=$(uuidgen)
-    sed -i '/"clients": \[/a {"id": "'$uuid'", "email": "'$user'" },' /usr/local/etc/xray/config.json
-    systemctl restart xray
-    
-    clear
-    echo -e "======================================"
-    echo -e "        DETAIL AKUN VLESS WS          "
-    echo -e "======================================"
-    echo -e "Domain      : $DOMAIN"
-    echo -e "IP Server   : $IP"
-    echo -e "Username    : $user"
-    echo -e "UUID        : $uuid"
-    echo -e "Port TLS    : 443"
-    echo -e "Port Non-TLS: 80, 8080"
-    echo -e "Path        : /vless"
-    echo -e "Expired     : $exp Hari"
-    echo -e "======================================"
-    echo -e "Link Vless TLS (443) :"
-    echo -e "vless://${uuid}@${DOMAIN}:443?path=/vless&security=tls&encryption=none&host=${DOMAIN}&type=ws&sni=${DOMAIN}#${user}"
-    echo -e "======================================"
-    echo -e "Link Vless Non-TLS (80) :"
-    echo -e "vless://${uuid}@${DOMAIN}:80?path=/vless&security=none&encryption=none&host=${DOMAIN}&type=ws#${user}"
-    echo -e "======================================"
+function ins_SSHD(){
+    print_install "Memasang SSHD"
+    wget -q -O /etc/ssh/sshd_config "${REPO}files/sshd" >/dev/null 2>&1
+    chmod 700 /etc/ssh/sshd_config
+    systemctl restart ssh
+    print_success "SSHD"
+}
 
-elif [ "$menu_opt" == "3" ]; then
-    exit
-else
-    echo "Pilihan salah!"
-fi
+function ins_dropbear(){
+    print_install "Menginstall Dropbear 2019"
+    apt-get remove dropbear -y > /dev/null 2>&1
+    apt-get install zlib1g-dev -y > /dev/null 2>&1
+    
+    cd /usr/src
+    wget https://matt.ucc.asn.au/dropbear/releases/dropbear-2019.78.tar.bz2 > /dev/null 2>&1
+    tar xjf dropbear-2019.78.tar.bz2
+    cd dropbear-2019.78
+    ./configure > /dev/null 2>&1
+    make && make install > /dev/null 2>&1
+    
+    # Konfigurasi Dropbear
+    mkdir -p /etc/dropbear
+    wget -q -O /etc/default/dropbear "${REPO}config/dropbear.conf"
+    chmod +x /etc/default/dropbear
+    
+    cat > /etc/systemd/system/dropbear.service << 'EOF'
+[Unit]
+Description=Dropbear SSH daemon
+After=network.target
+
+[Service]
+EnvironmentFile=-/etc/default/dropbear
+ExecStart=/usr/local/sbin/dropbear -F -R $DROPBEAR_EXTRA_ARGS
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
 EOF
 
-chmod +x /usr/bin/menu
+    systemctl daemon-reload
+    systemctl enable dropbear
+    systemctl start dropbear
+    cd
+    print_success "Dropbear 2019.78"
+}
 
-echo -e "\n\n[SUCCESS] Instalasi Selesai!"
-echo -e "Ketik 'menu' di terminal untuk membuat akun SSH atau Vless."
+function ins_epro(){
+    print_install "Menginstall ePro WebSocket Proxy"
+    wget -O /usr/bin/ws "${REPO}files/ws" >/dev/null 2>&1
+    wget -O /usr/bin/tun.conf "${REPO}config/tun.conf" >/dev/null 2>&1
+    wget -O /etc/systemd/system/ws.service "${REPO}files/ws.service" >/dev/null 2>&1
+    chmod +x /etc/systemd/system/ws.service
+    chmod +x /usr/bin/ws
+    chmod 644 /usr/bin/tun.conf
+    
+    systemctl disable ws
+    systemctl stop ws
+    systemctl enable ws
+    systemctl start ws
+    systemctl restart ws
+    
+    wget -q -O /usr/local/share/xray/geosite.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" >/dev/null 2>&1
+    wget -q -O /usr/local/share/xray/geoip.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" >/dev/null 2>&1
+    
+    iptables -A FORWARD -m string --string "get_peers" --algo bm -j DROP
+    iptables -A FORWARD -m string --string "BitTorrent" --algo bm -j DROP
+    iptables-save > /etc/iptables.up.rules
+    iptables-restore -t < /etc/iptables.up.rules
+    netfilter-persistent save
+    netfilter-persistent reload
+
+    apt autoclean -y >/dev/null 2>&1
+    apt autoremove -y >/dev/null 2>&1
+    print_success "ePro WebSocket Proxy"
+}
+
+function build_menu() {
+    print_install "Membuat Local Menu System"
+    cat > /usr/local/sbin/menu << 'EOF'
+#!/bin/bash
+clear
+domain=$(cat /etc/xray/domain)
+echo "================================================="
+echo "               MENU PREMIUM SCRIPT               "
+echo "           (Xray VLESS & SSH WebSocket)          "
+echo "================================================="
+echo " 1. Create SSH WebSocket Account"
+echo " 2. Create Xray VLESS Account"
+echo " 3. Exit"
+echo "================================================="
+read -p "Pilih menu [1-3]: " opt
+echo ""
+
+case $opt in
+    1)
+        read -p "Username : " user
+        read -p "Password : " pass
+        read -p "Expired (Hari): " masaaktif
+        exp=$(date -d "+$masaaktif days" +"%Y-%m-%d")
+        useradd -e `date -d "$masaaktif days" +"%Y-%m-%d"` -s /bin/false -M $user
+        echo -e "$pass\n$pass" | passwd $user &> /dev/null
+        
+        clear
+        echo "================================================="
+        echo "          Detail Akun SSH WebSocket              "
+        echo "================================================="
+        echo "Domain     : $domain"
+        echo "Username   : $user"
+        echo "Password   : $pass"
+        echo "Port TLS   : 443"
+        echo "Port NTLS  : 80"
+        echo "Dropbear   : 109, 143"
+        echo "Path WS    : /"
+        echo "Expired    : $exp"
+        echo "================================================="
+        ;;
+    2)
+        read -p "Username : " user
+        read -p "Expired (Hari): " masaaktif
+        uuid=$(cat /proc/sys/kernel/random/uuid)
+        exp=$(date -d "+$masaaktif days" +"%Y-%m-%d")
+        
+        # Inject to Xray Config (Contoh logic standar)
+        sed -i '/#vless$/a\### '"$user $exp"'\n},{"id": "'""$uuid""'","email": "'""$user""'"' /etc/xray/config.json
+        systemctl restart xray
+        
+        clear
+        echo "================================================="
+        echo "             Detail Akun Xray VLESS              "
+        echo "================================================="
+        echo "Remarks    : $user"
+        echo "Domain     : $domain"
+        echo "Port       : 443"
+        echo "ID (UUID)  : $uuid"
+        echo "Encryption : none"
+        echo "Network    : ws"
+        echo "Path       : /vless"
+        echo "TLS        : tls"
+        echo "Expired    : $exp"
+        echo "================================================="
+        ;;
+    3)
+        exit 0
+        ;;
+    *)
+        echo "Pilihan tidak valid!"
+        ;;
+esac
+EOF
+    chmod +x /usr/local/sbin/menu
+    print_success "Local Menu System"
+}
+
+function ins_restart(){
+    print_install "Restarting All Packet"
+    systemctl restart ssh
+    systemctl restart dropbear
+    systemctl restart haproxy
+    systemctl restart ws
+    systemctl restart nginx
+    systemctl restart xray
+    history -c
+    echo "unset HISTFILE" >> /etc/profile
+    print_success "All Packet"
+}
+
+function profile(){
+    cat >/root/.profile <<EOF
+if [ "$BASH" ]; then
+    if [ -f ~/.bashrc ]; then
+        . ~/.bashrc
+    fi
+fi
+mesg n || true
+menu
+EOF
+    chmod 644 /root/.profile
+}
+
+function enable_services(){
+    systemctl daemon-reload
+    systemctl start netfilter-persistent
+    systemctl enable --now rc-local
+    systemctl enable --now netfilter-persistent
+    systemctl enable --now nginx
+    systemctl enable --now xray
+    systemctl enable --now haproxy
+    systemctl enable --now ws
+}
+
+function instal(){
+    clear
+    first_setup
+    nginx_install
+    base_package
+    make_folder_xray
+    pasang_domain_otomatis
+    pasang_ssl
+    install_xray
+    ssh
+    ins_SSHD
+    ins_dropbear
+    ins_epro
+    build_menu
+    ins_restart
+    profile
+    enable_services
+}
+
+instal
+echo ""
+history -c
+rm -rf /root/*.zip
+rm -rf /root/*.sh
+secs_to_human "$(($(date +%s) - ${start}))"
+echo -e "${green} Script Successfull Installed"
+echo -e "${YELLOW} Server akan direboot secara otomatis dalam 5 detik...${NC}"
+sleep 5
+reboot
