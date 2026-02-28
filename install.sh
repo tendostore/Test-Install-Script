@@ -1,6 +1,7 @@
 #!/bin/bash
 # ==========================================
 # Auto Installer Xray Vless & SSH WS + Dropbear 2019 (TLS & Non-TLS)
+# Support Custom Split Payload (Awan Abu-abu / DNS Only)
 # ==========================================
 
 # Mematikan semua prompt interaktif selama instalasi
@@ -17,7 +18,7 @@ apt-get upgrade -yq
 apt-get install -yq curl wget jq nginx python3 tar bzip2 make gcc build-essential uuid-runtime stunnel4 net-tools certbot
 
 # ==========================================
-# 1. SETUP CLOUDFLARE DOMAIN RANDOM
+# 1. SETUP CLOUDFLARE DOMAIN RANDOM (AWAN ABU-ABU / DNS ONLY)
 # ==========================================
 echo -e "[INFO] Mengambil nama domain dari Cloudflare Zone ID..."
 DOMAIN_INFO=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}" \
@@ -32,26 +33,24 @@ if [ "$ROOT_DOMAIN" == "null" ] || [ -z "$ROOT_DOMAIN" ]; then
     ROOT_DOMAIN="domain-error.com"
 fi
 
-# Generate Subdomain Random (6 Karakter)
 RANDOM_STR=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)
 SUBDOMAIN="${RANDOM_STR}.${ROOT_DOMAIN}"
 IP_SERVER=$(curl -sS ifconfig.me)
 
-echo -e "[INFO] Pointing domain acak: ${SUBDOMAIN} ke IP: ${IP_SERVER}..."
+echo -e "[INFO] Pointing domain: ${SUBDOMAIN} (Mode: DNS Only / Awan Abu-abu)..."
 curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
      -H "X-Auth-Email: ${CF_ID}" \
      -H "X-Auth-Key: ${CF_KEY}" \
      -H "Content-Type: application/json" \
      --data '{"type":"A","name":"'${SUBDOMAIN}'","content":"'${IP_SERVER}'","ttl":120,"proxied":false}' | jq -r .success
 
-# Simpan domain untuk digunakan sistem
 mkdir -p /etc/xray
 echo "$SUBDOMAIN" > /etc/xray/domain
 
 # ==========================================
 # 2. GENERATE SSL / TLS CERTIFICATE (PORT 443)
 # ==========================================
-echo -e "[INFO] Membuat Sertifikat SSL Let's Encrypt untuk ${SUBDOMAIN}..."
+echo -e "[INFO] Membuat Sertifikat SSL Let's Encrypt..."
 systemctl stop nginx
 certbot certonly --standalone -d ${SUBDOMAIN} --non-interactive --agree-tos --email ${CF_ID}
 systemctl start nginx
@@ -69,7 +68,6 @@ cd dropbear-2019.78
 make 
 make install
 
-# Konfigurasi Dropbear
 mkdir -p /etc/dropbear
 cat > /etc/default/dropbear << END
 NO_START=0
@@ -79,9 +77,7 @@ DROPBEAR_BANNER="/etc/issue.net"
 DROPBEAR_RECEIVE_WINDOW=65536
 END
 
-# Start manual untuk instalasi dari source
 dropbear -p 143 -p 109 -R
-echo -e "[INFO] Dropbear 2019 terinstal pada port 143, 109."
 
 # ==========================================
 # 4. INSTALASI XRAY (VLESS)
@@ -115,37 +111,60 @@ systemctl restart xray
 systemctl enable xray
 
 # ==========================================
-# 5. SSH WEBSOCKET PYTHON SCRIPT
+# 5. SSH WEBSOCKET PYTHON (ANTI SPLIT PAYLOAD BUG)
 # ==========================================
-echo -e "[INFO] Menyiapkan SSH WebSocket Service..."
+echo -e "[INFO] Menyiapkan SSH WebSocket Service (Robust Handler)..."
 cat > /usr/local/bin/ssh-ws.py << 'END'
 import socket, threading, sys
-def handle_client(client_socket):
+
+def forward_client_to_target(client, target):
     try:
-        request = client_socket.recv(1024).decode('utf-8')
-        if "HTTP" in request:
-            response = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
-            client_socket.send(response.encode())
-        
-        target = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        target.connect(('127.0.0.1', 143)) # Forward ke Dropbear
-
-        def forward(source, destination):
+        while True:
+            data = client.recv(4096)
+            if not data: break
+            
+            req_str = ""
             try:
-                while True:
-                    data = source.recv(4096)
-                    if not data: break
-                    destination.send(data)
-            except: pass
+                req_str = data.decode('utf-8', 'ignore')
+            except:
+                pass
+            
+            # Jika terdeteksi string HTTP apa pun dari payload split, langsung respon 101
+            if "HTTP" in req_str or req_str.startswith(("GET", "POST", "PATCH", "PUT", "HEAD", "OPTIONS")):
+                res = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+                client.send(res.encode('utf-8'))
+            else:
+                target.send(data)
+    except: pass
+    finally:
+        client.close()
+        target.close()
 
-        threading.Thread(target=forward, args=(client_socket, target)).start()
-        threading.Thread(target=forward, args=(target, client_socket)).start()
+def forward_target_to_client(client, target):
+    try:
+        while True:
+            data = target.recv(4096)
+            if not data: break
+            client.send(data)
+    except: pass
+    finally:
+        client.close()
+        target.close()
+
+def handle_client(client):
+    try:
+        target = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        target.connect(('127.0.0.1', 143)) # Forward ke Dropbear 143
+        
+        threading.Thread(target=forward_client_to_target, args=(client, target)).start()
+        threading.Thread(target=forward_target_to_client, args=(client, target)).start()
     except:
-        client_socket.close()
+        client.close()
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind(('127.0.0.1', 10002))
-server.listen(5)
+server.listen(100)
 while True:
     client, addr = server.accept()
     threading.Thread(target=handle_client, args=(client,)).start()
@@ -167,7 +186,7 @@ END
 
 systemctl daemon-reload
 systemctl enable ssh-ws
-systemctl start ssh-ws
+systemctl restart ssh-ws
 
 # ==========================================
 # 6. SETUP NGINX (MULTIPLEXER MULTI PORT 80/443 TLS)
