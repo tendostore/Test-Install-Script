@@ -11,6 +11,8 @@
 #           + Backup & Restore Fix Data Telegram Bot & Cron
 #           + Main Menu UI Overhaul (SSH Menu at No 1)
 #           + Fixed Payload Buffer Issue (Premature Connection Close)
+#           + Setup Custom Banner SSH & Change Banner Feature
+#           + Fixed Restore Bug: Auto Re-create System Users for SSH
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -168,10 +170,23 @@ print_ok "Domain & SSL"
 # --- 6. SSH, DROPBEAR, UDPGW & WS PROXY ---
 print_msg "Install SSH, Dropbear 2019, WS Proxy & UDPGW"
 (
+    # SSH Banner Default
+    cat > /etc/issue.net << 'EOF'
+<font color="#00FFFF">┌────────────────────────────────────────┐</font><br>
+<font color="#00FFFF">│</font> <font color="#00FF00"><b>          PREMIUM SSH SERVER          </b></font> <font color="#00FFFF">│</font><br>
+<font color="#00FFFF">├────────────────────────────────────────┤</font><br>
+<font color="#00FFFF">│</font> <font color="#FFD700">Version   :</font> <font color="#FFFFFF">v01.03.26</font>                  <font color="#00FFFF">│</font><br>
+<font color="#00FFFF">│</font> <font color="#FFD700">Owner     :</font> <font color="#FFFFFF">Tendo Store</font>                <font color="#00FFFF">│</font><br>
+<font color="#00FFFF">│</font> <font color="#FFD700">Telegram  :</font> <font color="#FFFFFF">@tendo_32</font>                  <font color="#00FFFF">│</font><br>
+<font color="#00FFFF">└────────────────────────────────────────┘</font><br>
+<font color="#FF0000">    Strictly No Spam, DDOS, or Hacking   </font><br>
+EOF
+
     # OpenSSH Config
     sed -i 's/#Port 22/Port 22/g' /etc/ssh/sshd_config
     sed -i '/Port 22/a Port 444' /etc/ssh/sshd_config
     echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
+    echo "Banner /etc/issue.net" >> /etc/ssh/sshd_config
     systemctl restart ssh >/dev/null 2>&1 || systemctl restart sshd >/dev/null 2>&1
 
     # Dropbear 2019 Build
@@ -188,14 +203,14 @@ print_msg "Install SSH, Dropbear 2019, WS Proxy & UDPGW"
     dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key >/dev/null 2>&1
     dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key >/dev/null 2>&1
 
-    # Dropbear Service
+    # Dropbear Service with Banner
     cat > /etc/systemd/system/dropbear.service <<EOF
 [Unit]
 Description=Dropbear SSH Daemon
 After=network.target
 
 [Service]
-ExecStart=/usr/local/sbin/dropbear -F -p 90 -W 65536
+ExecStart=/usr/local/sbin/dropbear -F -p 90 -W 65536 -b /etc/issue.net
 Restart=always
 
 [Install]
@@ -647,7 +662,7 @@ CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
 DATE=$(date +"%Y-%m-%d_%H-%M")
 ZIP_FILE="/tmp/Backup_${DATE}.zip"
 cd /
-zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ >/dev/null 2>&1
+zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ etc/issue.net >/dev/null 2>&1
 cd - >/dev/null 2>&1
 [[ ! -f "$ZIP_FILE" ]] && exit 0
 
@@ -882,7 +897,7 @@ function header_main() {
     printf "${CYAN}│${NC} STATUS  : XRAY: %b ${CYAN}|${NC} SSH/WS: %b ${CYAN}|${NC} ZIVPN: %b\n" "$X_ST" "$D_ST" "$Z_ST"
     echo -e "${CYAN}└───────────────────────────────────────────────────────${NC}"
     
-    # LIST ACCOUNTS BOX
+    # LIST ACCOUNTS BOX (Menyambung dengan menu)
     echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}│                   ${YELLOW}LIST ACCOUNTS${NC}"
     echo -e "${CYAN}├───────────────────────────────────────────────────────${NC}"
@@ -891,7 +906,7 @@ function header_main() {
     printf "${CYAN}│${NC} VLESS          : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_VLESS"
     printf "${CYAN}│${NC} TROJAN         : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_TROJAN"
     printf "${CYAN}│${NC} ZIVPN          : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_ZIVPN"
-    echo -e "${CYAN}└───────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}├───────────────────────────────────────────────────────${NC}"
 }
 
 function header_sub() {
@@ -1129,6 +1144,7 @@ function features_menu() {
         echo -e "${CYAN}│${NC} [10] Restore Data VPS"
         echo -e "${CYAN}│${NC} [11] Rebuild VPS"
         echo -e "${CYAN}│${NC} [12] Check Services"
+        echo -e "${CYAN}│${NC} [13] Change Banner SSH"
         echo -e "${CYAN}│${NC} [x] Back"
         echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
@@ -1157,7 +1173,7 @@ function features_menu() {
                DATE=$(date +"%Y-%m-%d_%H-%M")
                ZIP_FILE="/root/Backup_${DATE}.zip"
                cd /
-               zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ >/dev/null 2>&1
+               zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ etc/issue.net >/dev/null 2>&1
                cd - >/dev/null 2>&1
                
                if [[ ! -f "$ZIP_FILE" ]]; then
@@ -1194,7 +1210,7 @@ function features_menu() {
                    echo -e "${YELLOW}Mengunduh file backup...${NC}"
                    wget -qO /root/restore.zip "$link_res"
                    if [[ -f "/root/restore.zip" ]]; then
-                       echo -e "${YELLOW}Mengekstrak dan memulihkan data (X-ray, ZIVPN, Domain, Bot)...${NC}"
+                       echo -e "${YELLOW}Mengekstrak dan memulihkan data (X-ray, ZIVPN, Domain, Bot, Banner)...${NC}"
                        cd /
                        unzip -o /root/restore.zip >/dev/null 2>&1
                        cd - >/dev/null 2>&1
@@ -1217,8 +1233,21 @@ function features_menu() {
                            crontab -l | grep -v "bot-backup" > /tmp/c.tmp; echo "$c /usr/local/bin/bot-backup" >> /tmp/c.tmp; crontab /tmp/c.tmp
                        fi
 
-                       systemctl restart xray zivpn dropbear ws-proxy stunnel4 sshd
-                       echo -e "${GREEN}Restore Berhasil! Semua konfigurasi dan akun telah dipulihkan.${NC}"
+                       # Perbaikan Restore SSH (Re-Create System Users from ssh.txt backup)
+                       if [[ -f "/usr/local/etc/xray/ssh.txt" ]]; then
+                           while IFS="|" read -r u p exp limit stat quota; do
+                               [[ -z "$u" ]] && continue
+                               grep -q "/bin/false" /etc/shells || echo "/bin/false" >> /etc/shells
+                               useradd -e $(date -d "$exp" +"%Y-%m-%d") -s /bin/false -M "$u" 2>/dev/null
+                               echo "$u:$p" | chpasswd 2>/dev/null
+                               if [[ "$stat" == "LOCKED"* || "$stat" == "LOCKED" ]]; then
+                                   usermod -L "$u" 2>/dev/null
+                               fi
+                           done < "/usr/local/etc/xray/ssh.txt"
+                       fi
+
+                       systemctl restart xray zivpn dropbear ws-proxy stunnel4 ssh sshd
+                       echo -e "${GREEN}Restore Berhasil! Semua konfigurasi dan akun telah dipulihkan sepenuhnya.${NC}"
                    else
                        echo -e "${RED}Gagal mengunduh file! Pastikan link direct yang dimasukkan valid.${NC}"
                    fi
@@ -1227,6 +1256,14 @@ function features_menu() {
                ;;
             11) rebuild_menu ;;
             12) check_services ;;
+            13) clear
+                echo -e "${YELLOW}Silakan edit banner SSH di Nano Text Editor.${NC}"
+                echo -e "${YELLOW}Cara save: Tekan [CTRL+X], lalu ketik [Y], lalu tekan [Enter].${NC}"
+                sleep 4
+                nano /etc/issue.net
+                systemctl restart ssh sshd dropbear 2>/dev/null
+                echo -e "${GREEN}Banner SSH Berhasil Diperbarui!${NC}"
+                sleep 2;;
             x) return;;
         esac
     done
@@ -1450,9 +1487,9 @@ while true; do header_main
     echo -e "${CYAN}│${NC} [1] SSH ACCOUNT          [4] BOT TELEGRAM SETUP"
     echo -e "${CYAN}│${NC} [2] X-RAY MANAGER        [5] FEATURES"
     echo -e "${CYAN}│${NC} [3] ZIVPN UDP            [x] EXIT"
-    echo -e "${CYAN}────────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}└───────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
-    echo -e "${CYAN}│${NC}  Version   :  v18.02.26                  ${NC}"
+    echo -e "${CYAN}│${NC}  Version   :  v01.03.26                  ${NC}"
     echo -e "${CYAN}│${NC}  Owner     :  Tendo Store                ${NC}"
     echo -e "${CYAN}│${NC}  Telegram  :  @tendo_32                  ${NC}"
     echo -e "${CYAN}│${NC}  Expiry In :  Lifetime                   ${NC}"
