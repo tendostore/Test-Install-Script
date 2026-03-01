@@ -151,6 +151,11 @@ make >/dev/null 2>&1
 make install >/dev/null 2>&1
 cd .. && rm -rf dropbear-2019.78*
 
+# Generate Dropbear Host Keys (FIX)
+mkdir -p /etc/dropbear
+dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key >/dev/null 2>&1
+dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key >/dev/null 2>&1
+
 # Dropbear Service
 cat > /etc/systemd/system/dropbear.service <<EOF
 [Unit]
@@ -451,7 +456,7 @@ function ssh_menu() {
         echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
-            1) read -p " Username : " u; read -p " Password : " p; read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "$ex days" +"%Y-%m-%d"); useradd -e $(date -d "$ex days" +"%Y-%m-%d") -s /bin/false -M $u; echo -e "$p\n$p" | passwd $u >/dev/null 2>&1
+            1) read -p " Username : " u; read -p " Password : " p; read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "$ex days" +"%Y-%m-%d"); grep -q "/bin/false" /etc/shells || echo "/bin/false" >> /etc/shells; useradd -e $(date -d "$ex days" +"%Y-%m-%d") -s /bin/false -M $u; echo "$u:$p" | chpasswd
                DMN=$(cat /usr/local/etc/xray/domain); clear
                echo -e "————————————————————————————————————"
                echo -e "          ACCOUNT SSH / WS"
