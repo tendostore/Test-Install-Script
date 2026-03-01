@@ -12,18 +12,20 @@
 #           + Fixed Payload Buffer Issue (Premature Connection Close)
 #           + Setup Custom Banner SSH & Change Banner Feature
 #           + Fixed Restore Bug: Auto Re-create System Users for SSH
-#           + Layout Merge & Unified Same Username/Password for all Protocol
-#           + STRICT VALIDATION: Block Duplicate Username & UUID
-#           + NEW UI MAIN MENU PERFECT CENTER & Custom HTML Banner Default
+#           + STRICT VALIDATION: Block Duplicate Username & ID
+#           + NEW UI PERFECT CENTER & Custom HTML Banner Default
+#           + FORCE AUTO-YES (Bypass All apt/dpkg/needrestart Popups)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
 # --- WARNA & UI ---
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; BLUE='\033[0;34m'; PURPLE='\033[0;35m'; CYAN='\033[0;36m'; NC='\033[0m'; WHITE='\033[1;37m'
 
-# --- ANTI INTERACTIVE ---
+# --- ANTI INTERACTIVE GLOBALS ---
 export DEBIAN_FRONTEND=noninteractive
+export DEBIAN_PRIORITY=critical
 export NEEDRESTART_MODE=a
+export NEEDRESTART_SUSPEND=1
 
 # --- ANIMASI INSTALL (BOUNCING SCANNER) ---
 function install_spin() {
@@ -111,6 +113,7 @@ DATA_ZIVPN="/etc/zivpn/zivpn.txt"
 # --- 3. OPTIMIZATION ---
 print_msg "Optimasi Sistem & Swap"
 (
+    export DEBIAN_FRONTEND=noninteractive
     rm -f /var/lib/apt/lists/lock
     echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
     echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
@@ -125,12 +128,19 @@ print_ok "Optimasi Sistem"
 # --- 4. DEPENDENCIES ---
 print_msg "Install Dependencies"
 (
-    apt-get update -y
+    export DEBIAN_FRONTEND=noninteractive
+    export NEEDRESTART_MODE=a
+    mkdir -p /etc/needrestart/conf.d
+    echo "\$nrconf{restart} = 'a';" > /etc/needrestart/conf.d/restart.conf
+    echo "\$nrconf{kernelhints} = 0;" >> /etc/needrestart/conf.d/restart.conf
+    sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf 2>/dev/null
+
+    apt-get update -y -q
     echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
     echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
-    apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl socat jq openssl uuid-runtime net-tools vnstat wget gnupg1 bc iproute2 iptables iptables-persistent python3 neofetch cron zip unzip stunnel4 bzip2 zlib1g-dev build-essential gcc make cmake
+    apt-get install -y -q -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl socat jq openssl uuid-runtime net-tools vnstat wget gnupg1 bc iproute2 iptables iptables-persistent python3 neofetch cron zip unzip stunnel4 bzip2 zlib1g-dev build-essential gcc make cmake
     curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | bash
-    apt-get install speedtest -y
+    apt-get install -y -q speedtest
     touch /root/.hushlogin; chmod -x /etc/update-motd.d/* 2>/dev/null
     sed -i '/neofetch/d' /root/.bashrc; echo "neofetch" >> /root/.bashrc
     echo 'echo -e "Welcome Tendo! Type \e[1;32mmenu\e[0m to start."' >> /root/.bashrc
@@ -172,6 +182,7 @@ print_ok "Domain & SSL"
 # --- 6. SSH, DROPBEAR, UDPGW & WS PROXY ---
 print_msg "Install SSH, Dropbear 2019, WS Proxy & UDPGW"
 (
+    export DEBIAN_FRONTEND=noninteractive
     # SSH Banner Default NEW HTML
     cat > /etc/issue.net << 'EOF'
 <font color="#00FFFF">┌──────────────────────────────────────┐</font><br>
@@ -328,6 +339,7 @@ print_ok "SSH, Dropbear & UDPGW"
 # --- 7. XRAY CONFIG (FIXED QUOTA API ROUTING & LOGLEVEL INFO + SSH FALLBACK) ---
 print_msg "Install Xray Core & Config"
 (
+    export DEBIAN_FRONTEND=noninteractive
     bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
     UUID_SYS=$(uuidgen)
 
@@ -713,28 +725,6 @@ print_line() {
     echo -e "${CYAN}│${NC}${text}${pad}${CYAN}│${NC}"
 }
 
-print_center() {
-    local text="$1"
-    local clean_text=$(echo -e "$text" | sed -r 's/\x1b\[[0-9;]*m//g' | sed -r 's/\x1b\[[0-9;]*K//g')
-    local len=${#clean_text}
-    local spaces=$(( 54 - len ))
-    local pad_l=$(( spaces / 2 ))
-    local pad_r=$(( spaces - pad_l ))
-    local str_l=$(printf '%*s' "$pad_l" "")
-    local str_r=$(printf '%*s' "$pad_r" "")
-    echo -e "${CYAN}│${NC}${str_l}${text}${str_r}${CYAN}│${NC}"
-}
-
-menu_line() {
-    local text="$1"
-    local clean_text=$(echo -e "$text" | sed -r 's/\x1b\[[0-9;]*m//g' | sed -r 's/\x1b\[[0-9;]*K//g')
-    local len=${#clean_text}
-    local spaces=$(( 54 - 1 - len )) 
-    local pad=""
-    if (( spaces > 0 )); then pad=$(printf '%*s' "$spaces" ""); fi
-    echo -e "${CYAN}│${NC} ${text}${pad}${CYAN}│${NC}"
-}
-
 # ---------------------------------------------
 # FUNGSI VALIDASI DUPLIKAT AKUN
 # ---------------------------------------------
@@ -935,7 +925,7 @@ function header_main() {
     ACC_ZIVPN=$(wc -l < "$D_ZIVPN" 2>/dev/null || echo 0)
 
     echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
-    print_center "${YELLOW}AUTO SCRIPT TENDO STORE ( AIO )${NC}"
+    print_line "           ${YELLOW}AUTO SCRIPT TENDO STORE ( AIO )${NC}"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
@@ -963,12 +953,12 @@ function header_main() {
     if systemctl is-active --quiet dropbear; then D_ST="${GREEN}ON${NC}"; else D_ST="${RED}OFF${NC}"; fi
     
     echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
-    print_line " STATUS  : XRAY: ${X_ST} | SSH/WS: ${D_ST} | ZIVPN: ${Z_ST}"
+    print_line "  STATUS  : XRAY: ${X_ST} | SSH/WS: ${D_ST} | ZIVPN: ${Z_ST}"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
-    print_center "${YELLOW}LIST ACCOUNTS${NC}"
-    print_line "  ————————————————————————————"
+    print_line "                    ${YELLOW}LIST ACCOUNTS${NC}"
+    print_line "             ————————————————————————————"
     
     local f_ssh=$(printf "%-4s" "$ACC_SSH")
     local f_vm=$(printf "%-4s" "$ACC_VMESS")
@@ -976,24 +966,24 @@ function header_main() {
     local f_tr=$(printf "%-4s" "$ACC_TROJAN")
     local f_zi=$(printf "%-4s" "$ACC_ZIVPN")
     
-    print_line " SSH/WS         : ${WHITE}${f_ssh}${NC} USER"
-    print_line " VMESS          : ${WHITE}${f_vm}${NC} USER"
-    print_line " VLESS          : ${WHITE}${f_vl}${NC} USER"
-    print_line " TROJAN         : ${WHITE}${f_tr}${NC} USER"
-    print_line " ZIVPN          : ${WHITE}${f_zi}${NC} USER"
+    print_line "           SSH/WS         : ${WHITE}${f_ssh}${NC} USER"
+    print_line "           VMESS          : ${WHITE}${f_vm}${NC} USER"
+    print_line "           VLESS          : ${WHITE}${f_vl}${NC} USER"
+    print_line "           TROJAN         : ${WHITE}${f_tr}${NC} USER"
+    print_line "           ZIVPN          : ${WHITE}${f_zi}${NC} USER"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
-    echo -e "     ${CYAN}┌───────────────────────────────────────┐${NC}"
-    echo -e "     ${CYAN}│${NC}   Version   :  ${WHITE}v01.03.26${NC}              ${CYAN}│${NC}"
-    echo -e "     ${CYAN}│${NC}   Owner     :  ${WHITE}Tendo Store${NC}            ${CYAN}│${NC}"
-    echo -e "     ${CYAN}│${NC}   Telegram  :  ${WHITE}@tendo_32${NC}              ${CYAN}│${NC}"
-    echo -e "     ${CYAN}│${NC}   Expiry In :  ${WHITE}Lifetime${NC}               ${CYAN}│${NC}"
-    echo -e "     ${CYAN}└───────────────────────────────────────┘${NC}"
+    echo -e "        ${CYAN}┌──────────────────────────────────────┐${NC}"
+    echo -e "        ${CYAN}│${NC}       Version   :  ${WHITE}v01.03.26${NC}          ${CYAN}│${NC}"
+    echo -e "        ${CYAN}│${NC}       Owner     :  ${WHITE}Tendo Store${NC}        ${CYAN}│${NC}"
+    echo -e "        ${CYAN}│${NC}       Telegram  :  ${WHITE}@tendo_32${NC}          ${CYAN}│${NC}"
+    echo -e "        ${CYAN}│${NC}       Expiry In :  ${WHITE}Lifetime${NC}           ${CYAN}│${NC}"
+    echo -e "        ${CYAN}└──────────────────────────────────────┘${NC}"
 }
 
 function header_sub() {
     clear; echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
-    print_center "${YELLOW}TENDO STORE - SUB MENU${NC}"
+    print_line "                 ${YELLOW}TENDO STORE - SUB MENU${NC}"
     echo -e "${CYAN}├──────────────────────────────────────────────────────┤${NC}"
 }
 
@@ -1061,10 +1051,10 @@ function bot_menu() {
         print_line " Notif Log : ${YELLOW}${st_log}${NC}"
         print_line " Notif Bak : ${YELLOW}${st_bak}${NC}"
         print_line " ————————————————————————————————————————"
-        menu_line "[1] Change BOT API & CHATID"
-        menu_line "[2] Set notifikasi User login"
-        menu_line "[3] Set notifikasi backup"
-        menu_line "[x] Back"
+        print_line " [1] Change BOT API & CHATID"
+        print_line " [2] Set notifikasi User login"
+        print_line " [3] Set notifikasi backup"
+        print_line " [x] Back"
         echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
@@ -1081,14 +1071,14 @@ function bot_menu() {
 # ---------------------------------------------
 function ssh_menu() {
     while true; do header_sub
-        menu_line "[1] Create Account SSH"
-        menu_line "[2] Delete Account SSH"
-        menu_line "[3] Renew Account SSH"
-        menu_line "[4] Check Config User"
-        menu_line "[5] Trial Account SSH"
-        menu_line "[6] Lock Account SSH"
-        menu_line "[7] Unlock Account SSH"
-        menu_line "[x] Back"
+        print_line " [1] Create Account SSH"
+        print_line " [2] Delete Account SSH"
+        print_line " [3] Renew Account SSH"
+        print_line " [4] Check Config User"
+        print_line " [5] Trial Account SSH"
+        print_line " [6] Lock Account SSH"
+        print_line " [7] Unlock Account SSH"
+        print_line " [x] Back"
         echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
@@ -1126,10 +1116,10 @@ function ssh_menu() {
 
 function xray_manager_menu() {
     while true; do header_sub
-        menu_line "[1] VMESS ACCOUNT"
-        menu_line "[2] VLESS ACCOUNT"
-        menu_line "[3] TROJAN ACCOUNT"
-        menu_line "[x] Back"
+        print_line " [1] VMESS ACCOUNT"
+        print_line " [2] VLESS ACCOUNT"
+        print_line " [3] TROJAN ACCOUNT"
+        print_line " [x] Back"
         echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
@@ -1174,14 +1164,14 @@ function auto_reboot_menu() {
 
 function rebuild_menu() {
     header_sub
-    print_center "${RED}WARNING: REBUILD AKAN MENGHAPUS SELURUH DATA VPS!${NC}"
-    print_center "Pastikan anda sudah melakukan Backup Data VPS."
+    print_line "           ${RED}WARNING: REBUILD HAPUS DATA!${NC}"
+    print_line "           Pastikan anda sudah Backup."
     print_line " ————————————————————————————————————————"
-    menu_line "[1] Ubuntu 22.04"
-    menu_line "[2] Ubuntu 20.04"
-    menu_line "[3] Debian 12"
-    menu_line "[4] Debian 11"
-    menu_line "[x] Cancel"
+    print_line " [1] Ubuntu 22.04"
+    print_line " [2] Ubuntu 20.04"
+    print_line " [3] Debian 12"
+    print_line " [4] Debian 11"
+    print_line " [x] Cancel"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     read -p " Pilih OS untuk Rebuild: " opt
     case $opt in
@@ -1228,20 +1218,20 @@ function check_services() {
 
 function features_menu() {
     while true; do header_sub
-        menu_line "[1] Check Bandwidth"
-        menu_line "[2] Speedtest by Ookla"
-        menu_line "[3] Check Benchmark VPS"
-        menu_line "[4] Change Domain VPS"
-        menu_line "[5] Restart All Services"
-        menu_line "[6] Clear Cache RAM"
-        menu_line "[7] Set Auto Reboot"
-        menu_line "[8] Information System"
-        menu_line "[9] Backup Data VPS"
-        menu_line "[10] Restore Data VPS"
-        menu_line "[11] Rebuild VPS"
-        menu_line "[12] Check Services"
-        menu_line "[13] Change Banner SSH"
-        menu_line "[x] Back"
+        print_line " [1] Check Bandwidth"
+        print_line " [2] Speedtest by Ookla"
+        print_line " [3] Check Benchmark VPS"
+        print_line " [4] Change Domain VPS"
+        print_line " [5] Restart All Services"
+        print_line " [6] Clear Cache RAM"
+        print_line " [7] Set Auto Reboot"
+        print_line " [8] Information System"
+        print_line " [9] Backup Data VPS"
+        print_line " [10] Restore Data VPS"
+        print_line " [11] Rebuild VPS"
+        print_line " [12] Check Services"
+        print_line " [13] Change Banner SSH"
+        print_line " [x] Back"
         echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
@@ -1249,7 +1239,7 @@ function features_menu() {
             2) speedtest; read -p "Enter...";;
             3) echo -e "${YELLOW}Running Benchmark...${NC}"; wget -qO- bench.sh | bash; read -p "Enter...";;
             4) header_sub
-               print_center "${YELLOW}WARNING: Mengganti domain akan memperbarui sertifikat SSL!${NC}"
+               print_line " ${YELLOW}WARNING: Domain ubah = Update SSL!${NC}"
                echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
                read -p "Masukan Domain Baru: " nd
                if [[ -z "$nd" ]]; then continue; fi
@@ -1370,14 +1360,14 @@ function features_menu() {
 # ---------------------------------------------
 function vmess_menu() {
     while true; do header_sub
-        menu_line "[1] Create Account Vmess"
-        menu_line "[2] Delete Account Vmess"
-        menu_line "[3] Renew Account Vmess"
-        menu_line "[4] Check Config User"
-        menu_line "[5] Trial Account Vmess"
-        menu_line "[6] Lock Account Vmess"
-        menu_line "[7] Unlock Account Vmess"
-        menu_line "[x] Back"
+        print_line " [1] Create Account Vmess"
+        print_line " [2] Delete Account Vmess"
+        print_line " [3] Renew Account Vmess"
+        print_line " [4] Check Config User"
+        print_line " [5] Trial Account Vmess"
+        print_line " [6] Lock Account Vmess"
+        print_line " [7] Unlock Account Vmess"
+        print_line " [x] Back"
         echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
@@ -1439,14 +1429,14 @@ function vmess_menu() {
 
 function vless_menu() {
     while true; do header_sub
-        menu_line "[1] Create Account Vless"
-        menu_line "[2] Delete Account Vless"
-        menu_line "[3] Renew Account Vless"
-        menu_line "[4] Check Config User"
-        menu_line "[5] Trial Account Vless"
-        menu_line "[6] Lock Account Vless"
-        menu_line "[7] Unlock Account Vless"
-        menu_line "[x] Back"
+        print_line " [1] Create Account Vless"
+        print_line " [2] Delete Account Vless"
+        print_line " [3] Renew Account Vless"
+        print_line " [4] Check Config User"
+        print_line " [5] Trial Account Vless"
+        print_line " [6] Lock Account Vless"
+        print_line " [7] Unlock Account Vless"
+        print_line " [x] Back"
         echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
@@ -1508,14 +1498,14 @@ function vless_menu() {
 
 function trojan_menu() {
     while true; do header_sub
-        menu_line "[1] Create Account Trojan"
-        menu_line "[2] Delete Account Trojan"
-        menu_line "[3] Renew Account Trojan"
-        menu_line "[4] Check Config User"
-        menu_line "[5] Trial Account Trojan"
-        menu_line "[6] Lock Account Trojan"
-        menu_line "[7] Unlock Account Trojan"
-        menu_line "[x] Back"
+        print_line " [1] Create Account Trojan"
+        print_line " [2] Delete Account Trojan"
+        print_line " [3] Renew Account Trojan"
+        print_line " [4] Check Config User"
+        print_line " [5] Trial Account Trojan"
+        print_line " [6] Lock Account Trojan"
+        print_line " [7] Unlock Account Trojan"
+        print_line " [x] Back"
         echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
@@ -1574,12 +1564,12 @@ function trojan_menu() {
 
 function zivpn_menu() {
     while true; do header_sub
-        menu_line "[1] Create Account ZIVPN"
-        menu_line "[2] Delete Account ZIVPN"
-        menu_line "[3] Renew Account ZIVPN"
-        menu_line "[4] Check Config User"
-        menu_line "[5] Trial Account ZIVPN"
-        menu_line "[x] Back"
+        print_line " [1] Create Account ZIVPN"
+        print_line " [2] Delete Account ZIVPN"
+        print_line " [3] Renew Account ZIVPN"
+        print_line " [4] Check Config User"
+        print_line " [5] Trial Account ZIVPN"
+        print_line " [x] Back"
         echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
@@ -1600,9 +1590,9 @@ function zivpn_menu() {
 
 while true; do header_main
     echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
-    print_line "[1] SSH ACCOUNT          [4] BOT TELEGRAM SETUP"
-    print_line "[2] X-RAY MANAGER        [5] FEATURES"
-    print_line "[3] ZIVPN UDP            [x] EXIT"
+    print_line " [1] SSH ACCOUNT          [4] BOT TELEGRAM SETUP"
+    print_line " [2] X-RAY MANAGER        [5] FEATURES"
+    print_line " [3] ZIVPN UDP            [x] EXIT"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     read -p " Select Menu : " opt
     case $opt in
