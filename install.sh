@@ -13,8 +13,9 @@
 #           + Setup Custom Banner SSH & Change Banner Feature
 #           + Fixed Restore Bug: Auto Re-create System Users for SSH
 #           + STRICT VALIDATION: Block Duplicate Username & ID
-#           + NEW UI PERFECT CENTER & Custom HTML Banner Default
 #           + FORCE AUTO-YES (Bypass All apt/dpkg/needrestart Popups)
+#           + NEW UI PERFECT CENTER (Dynamic Padding Borders) & LIST USER
+#           + AUTO REBOOT After Restore & Banner AIO Text
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -183,10 +184,10 @@ print_ok "Domain & SSL"
 print_msg "Install SSH, Dropbear 2019, WS Proxy & UDPGW"
 (
     export DEBIAN_FRONTEND=noninteractive
-    # SSH Banner Default NEW HTML
+    # SSH Banner Default NEW HTML (AIO)
     cat > /etc/issue.net << 'EOF'
 <font color="#00FFFF">┌──────────────────────────────────────┐</font><br>
-<font color="#00FFFF">│</font><font color="#00FF00"><b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PREMIUM SSH SERVER</b></font><br>
+<font color="#00FFFF">│</font><font color="#00FF00"><b>&nbsp;&nbsp;&nbsp;AUTO SCRIPT TENDO STORE ( AIO )</b></font><br>
 <font color="#00FFFF">├──────────────────────────────────────┤</font><br>
 <font color="#00FFFF">│</font>&nbsp;<font color="#FFD700">Version&nbsp;&nbsp;&nbsp;:</font>&nbsp;<font color="#FFFFFF">v01.03.26</font><br>
 <font color="#00FFFF">│</font>&nbsp;<font color="#FFD700">Owner&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</font>&nbsp;<font color="#FFFFFF">Tendo&nbsp;Store</font><br>
@@ -713,7 +714,7 @@ D_TROJAN="/usr/local/etc/xray/trojan.txt"
 D_ZIVPN="/etc/zivpn/zivpn.txt"
 
 # ---------------------------------------------
-# FUNGSI HELPER UI
+# FUNGSI HELPER UI - KOTAK PRESISI (DYNAMIC PADDING)
 # ---------------------------------------------
 print_line() {
     local text="$1"
@@ -723,6 +724,18 @@ print_line() {
     local pad=""
     if (( spaces > 0 )); then pad=$(printf '%*s' "$spaces" ""); fi
     echo -e "${CYAN}│${NC}${text}${pad}${CYAN}│${NC}"
+}
+
+print_center() {
+    local text="$1"
+    local clean_text=$(echo -e "$text" | sed -r 's/\x1b\[[0-9;]*m//g' | sed -r 's/\x1b\[[0-9;]*K//g')
+    local len=${#clean_text}
+    local spaces=$(( 54 - len ))
+    local pad_l=$(( spaces / 2 ))
+    local pad_r=$(( spaces - pad_l ))
+    local str_l=$(printf '%*s' "$pad_l" "")
+    local str_r=$(printf '%*s' "$pad_r" "")
+    echo -e "${CYAN}│${NC}${str_l}${text}${str_r}${CYAN}│${NC}"
 }
 
 # ---------------------------------------------
@@ -925,7 +938,7 @@ function header_main() {
     ACC_ZIVPN=$(wc -l < "$D_ZIVPN" 2>/dev/null || echo 0)
 
     echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
-    print_line "           ${YELLOW}AUTO SCRIPT TENDO STORE ( AIO )${NC}"
+    print_center "${YELLOW}AUTO SCRIPT TENDO STORE ( AIO )${NC}"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
@@ -957,8 +970,8 @@ function header_main() {
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
-    print_line "                    ${YELLOW}LIST ACCOUNTS${NC}"
-    print_line "             ————————————————————————————"
+    print_center "${YELLOW}LIST USER${NC}"
+    print_center "————————————————————————————"
     
     local f_ssh=$(printf "%-4s" "$ACC_SSH")
     local f_vm=$(printf "%-4s" "$ACC_VMESS")
@@ -966,25 +979,25 @@ function header_main() {
     local f_tr=$(printf "%-4s" "$ACC_TROJAN")
     local f_zi=$(printf "%-4s" "$ACC_ZIVPN")
     
-    print_line "           SSH/WS         : ${WHITE}${f_ssh}${NC} USER"
-    print_line "           VMESS          : ${WHITE}${f_vm}${NC} USER"
-    print_line "           VLESS          : ${WHITE}${f_vl}${NC} USER"
-    print_line "           TROJAN         : ${WHITE}${f_tr}${NC} USER"
-    print_line "           ZIVPN          : ${WHITE}${f_zi}${NC} USER"
+    print_line "            SSH/WS         : ${WHITE}${f_ssh}${NC} USER"
+    print_line "            VMESS          : ${WHITE}${f_vm}${NC} USER"
+    print_line "            VLESS          : ${WHITE}${f_vl}${NC} USER"
+    print_line "            TROJAN         : ${WHITE}${f_tr}${NC} USER"
+    print_line "            ZIVPN          : ${WHITE}${f_zi}${NC} USER"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     echo -e "        ${CYAN}┌──────────────────────────────────────┐${NC}"
-    echo -e "        ${CYAN}│${NC}       Version   :  ${WHITE}v01.03.26${NC}          ${CYAN}│${NC}"
-    echo -e "        ${CYAN}│${NC}       Owner     :  ${WHITE}Tendo Store${NC}        ${CYAN}│${NC}"
-    echo -e "        ${CYAN}│${NC}       Telegram  :  ${WHITE}@tendo_32${NC}          ${CYAN}│${NC}"
-    echo -e "        ${CYAN}│${NC}       Expiry In :  ${WHITE}Lifetime${NC}           ${CYAN}│${NC}"
+    echo -e "        ${CYAN}│${NC}       Version   :  ${WHITE}v01.03.26${NC}         ${CYAN}│${NC}"
+    echo -e "        ${CYAN}│${NC}       Owner     :  ${WHITE}Tendo Store${NC}       ${CYAN}│${NC}"
+    echo -e "        ${CYAN}│${NC}       Telegram  :  ${WHITE}@tendo_32${NC}         ${CYAN}│${NC}"
+    echo -e "        ${CYAN}│${NC}       Expiry In :  ${WHITE}Lifetime${NC}          ${CYAN}│${NC}"
     echo -e "        ${CYAN}└──────────────────────────────────────┘${NC}"
 }
 
 function header_sub() {
     clear; echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
-    print_line "                 ${YELLOW}TENDO STORE - SUB MENU${NC}"
-    echo -e "${CYAN}├──────────────────────────────────────────────────────┤${NC}"
+    print_center "${YELLOW}TENDO STORE - SUB MENU${NC}"
+    echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
 }
 
 # ---------------------------------------------
@@ -995,9 +1008,9 @@ function menu_login_notif() {
         local st=$(cat /etc/tendo_bot/log_stat 2>/dev/null || echo "OFF")
         print_line " ————————————————————————————————————————"
         print_line "        Status [${st}]"
-        print_line "   1.)  OFF"
-        print_line "   2.)  Set Time Notif (h) jam (m) menit"
-        print_line "   x.)  Exit"
+        print_line "  [1]  OFF"
+        print_line "  [2]  Set Time Notif (h) jam (m) menit"
+        print_line "  [x]  Exit"
         print_line " ————————————————————————————————————————"
         echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Pilihan: " opt2
@@ -1018,9 +1031,9 @@ function menu_backup_notif() {
         local st=$(cat /etc/tendo_bot/bak_stat 2>/dev/null || echo "OFF")
         print_line " ————————————————————————————————————————"
         print_line "        Status [${st}]"
-        print_line "   1.)  OFF"
-        print_line "   2.)  Set Time Backup (h) jam (m) menit"
-        print_line "   x.)  Exit"
+        print_line "  [1]  OFF"
+        print_line "  [2]  Set Time Backup (h) jam (m) menit"
+        print_line "  [x]  Exit"
         print_line " ————————————————————————————————————————"
         echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Pilihan: " opt3
@@ -1041,8 +1054,8 @@ function bot_menu() {
         local st_log=$(cat /etc/tendo_bot/log_stat 2>/dev/null || echo "OFF")
         local st_bak=$(cat /etc/tendo_bot/bak_stat 2>/dev/null || echo "OFF")
         
-        local cur_tok=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ' | sed 's/.\{10\}$/**********/')
-        [[ -z "$cur_tok" ]] && cur_tok="Not setup"
+        local cur_tok=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
+        [[ -z "$cur_tok" ]] && cur_tok="Not setup" || cur_tok=$(echo "$cur_tok" | sed 's/.\{10\}$/**********/')
         local cur_id=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
         [[ -z "$cur_id" ]] && cur_id="Not setup"
 
@@ -1164,8 +1177,8 @@ function auto_reboot_menu() {
 
 function rebuild_menu() {
     header_sub
-    print_line "           ${RED}WARNING: REBUILD HAPUS DATA!${NC}"
-    print_line "           Pastikan anda sudah Backup."
+    print_center "${RED}WARNING: REBUILD HAPUS DATA VPS!${NC}"
+    print_center "Pastikan anda sudah melakukan Backup Data."
     print_line " ————————————————————————————————————————"
     print_line " [1] Ubuntu 22.04"
     print_line " [2] Ubuntu 20.04"
@@ -1239,7 +1252,7 @@ function features_menu() {
             2) speedtest; read -p "Enter...";;
             3) echo -e "${YELLOW}Running Benchmark...${NC}"; wget -qO- bench.sh | bash; read -p "Enter...";;
             4) header_sub
-               print_line " ${YELLOW}WARNING: Domain ubah = Update SSL!${NC}"
+               print_center "${YELLOW}WARNING: Mengganti domain = Update Sertifikat SSL!${NC}"
                echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
                read -p "Masukan Domain Baru: " nd
                if [[ -z "$nd" ]]; then continue; fi
@@ -1319,26 +1332,33 @@ function features_menu() {
                            crontab -l | grep -v "bot-backup" > /tmp/c.tmp; echo "$c /usr/local/bin/bot-backup" >> /tmp/c.tmp; crontab /tmp/c.tmp
                        fi
 
-                       # Perbaikan Restore SSH (Re-Create System Users from ssh.txt backup)
+                       # Perbaikan Sangat Solid untuk Restore SSH
                        if [[ -f "/usr/local/etc/xray/ssh.txt" ]]; then
                            while IFS="|" read -r u p exp limit stat quota; do
                                [[ -z "$u" ]] && continue
                                grep -q "/bin/false" /etc/shells || echo "/bin/false" >> /etc/shells
-                               useradd -e $(date -d "$exp" +"%Y-%m-%d") -s /bin/false -M "$u" 2>/dev/null
+                               if id "$u" &>/dev/null; then
+                                   usermod -e $(date -d "$exp" +"%Y-%m-%d" 2>/dev/null) -s /bin/false "$u" 2>/dev/null
+                               else
+                                   useradd -e $(date -d "$exp" +"%Y-%m-%d" 2>/dev/null) -s /bin/false -M "$u" 2>/dev/null
+                               fi
                                echo "$u:$p" | chpasswd 2>/dev/null
                                if [[ "$stat" == "LOCKED"* || "$stat" == "LOCKED" ]]; then
                                    usermod -L "$u" 2>/dev/null
+                               else
+                                   usermod -U "$u" 2>/dev/null
                                fi
                            done < "/usr/local/etc/xray/ssh.txt"
                        fi
 
-                       systemctl restart xray zivpn dropbear ws-proxy stunnel4 ssh sshd
-                       echo -e "${GREEN}Restore Berhasil! Semua konfigurasi dan akun telah dipulihkan sepenuhnya.${NC}"
+                       echo -e "${GREEN}Restore Berhasil! VPS akan di Reboot dalam 3 Detik untuk Menerapkan semua Konfigurasi.${NC}"
+                       sleep 3
+                       reboot
                    else
                        echo -e "${RED}Gagal mengunduh file! Pastikan link direct yang dimasukkan valid.${NC}"
+                       read -p "Tekan Enter untuk kembali..."
                    fi
                fi
-               read -p "Tekan Enter untuk kembali..."
                ;;
             11) rebuild_menu ;;
             12) check_services ;;
