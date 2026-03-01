@@ -9,13 +9,14 @@
 #           + Full Telegram Bot Integration (Include SSH Notif)
 #           + Limit Multi Login SSH & X-Ray
 #           + Backup & Restore Fix Data Telegram Bot & Cron
+#           + Fixed Payload Buffer Issue (Premature Connection Close)
 #           + Setup Custom Banner SSH & Change Banner Feature
 #           + Fixed Restore Bug: Auto Re-create System Users for SSH
 #           + STRICT VALIDATION: Block Duplicate Username & ID
 #           + FORCE AUTO-YES (Bypass All apt/dpkg/needrestart Popups)
-#           + NEW UI PERFECT CENTER & LIST USER
+#           + NEW UI LIST USER Menyamping & Open-Right Border SysInfo
 #           + AUTO REBOOT After Restore & Banner AIO Text
-#           + TELEGRAM NOTIF UPDATE: Added IP, DOMAIN, ISP & Quota Usage
+#           + TELEGRAM NOTIF UPDATE: Fix SSH Pgrep Detection & Quota
 #           + [HOTFIX] Fixed HTTP Custom Reconnect Bug (Daemon WS Proxy)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
@@ -254,7 +255,7 @@ def handle_client(client_socket):
             
         sockets = [client_socket, remote_socket]
         while True:
-            r, _, _ = select.select(sockets, [], [])
+            r, _, _ = select.select(sockets, [], [], 300)
             if not r:
                 break
             if client_socket in r:
@@ -532,6 +533,8 @@ done
 S_FILE="/usr/local/etc/xray/ssh.txt"
 if [[ -f "$S_FILE" ]]; then
     while IFS="|" read -r user pass exp limit status; do
+        user=$(echo "$user" | tr -d '\r\n')
+        [[ -z "$user" ]] && continue
         if [[ "$status" == LOCKED_IP_* ]]; then
             lock_time=${status#LOCKED_IP_}
             if [[ $((NOW - lock_time)) -ge 600 ]]; then
@@ -549,7 +552,7 @@ if [[ -f "$S_FILE" ]]; then
         
         [[ -z "$limit" || "$limit" == "0" ]] && continue
         
-        active_logins=$(ps -u "$user" -o pid= 2>/dev/null | wc -l)
+        active_logins=$(pgrep -u "$user" 2>/dev/null | wc -l)
         if [[ "$active_logins" -gt "$limit" ]]; then
             usermod -L "$user" 2>/dev/null
             killall -u "$user" 2>/dev/null
@@ -673,7 +676,9 @@ if [[ -f "$S_FILE" ]]; then
     PROTO_MSG=""
     FOUND=0
     while IFS="|" read -r user pass exp limit status; do
-        active_logins=$(ps -u "$user" -o pid= 2>/dev/null | wc -l)
+        user=$(echo "$user" | tr -d '\r\n')
+        [[ -z "$user" ]] && continue
+        active_logins=$(pgrep -u "$user" 2>/dev/null | wc -l)
         if [[ "$active_logins" -gt 0 ]]; then
             PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Session"$'\n'
             FOUND=1
@@ -970,23 +975,23 @@ function header_main() {
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
-    print_line "  OS      : ${WHITE}${OS}${NC}"
-    print_line "  RAM     : ${WHITE}${RAM}MB${NC}"
-    print_line "  SWAP    : ${WHITE}${SWAP}MB${NC}"
-    print_line "  CITY    : ${WHITE}${CITY}${NC}"
-    print_line "  ISP     : ${WHITE}${ISP}${NC}"
-    print_line "  IP      : ${WHITE}${IP}${NC}"
-    print_line "  DOMAIN  : ${YELLOW}${DOMAIN}${NC}"
-    print_line "  UPTIME  : ${WHITE}${UPTIME}${NC}"
-    print_line "  ————————————————————————————"
-    print_line "  MONTH   : ${TOT_MON}    [${MONTH_NAME}]"
-    print_line "  RX      : ${RX_MON}"
-    print_line "  TX      : ${TX_MON}"
-    print_line "  ————————————————————————————"
-    print_line "  DAY     : ${TOT_DAY}    [${DAY_NAME}]"
-    print_line "  RX      : ${RX_DAY}"
-    print_line "  TX      : ${TX_DAY}"
-    print_line "  TRAFFIC : ${TRAFFIC} Mbit/s"
+    echo -e "${CYAN}│${NC}  OS      : ${WHITE}${OS}${NC}"
+    echo -e "${CYAN}│${NC}  RAM     : ${WHITE}${RAM}MB${NC}"
+    echo -e "${CYAN}│${NC}  SWAP    : ${WHITE}${SWAP}MB${NC}"
+    echo -e "${CYAN}│${NC}  CITY    : ${WHITE}${CITY}${NC}"
+    echo -e "${CYAN}│${NC}  ISP     : ${WHITE}${ISP}${NC}"
+    echo -e "${CYAN}│${NC}  IP      : ${WHITE}${IP}${NC}"
+    echo -e "${CYAN}│${NC}  DOMAIN  : ${YELLOW}${DOMAIN}${NC}"
+    echo -e "${CYAN}│${NC}  UPTIME  : ${WHITE}${UPTIME}${NC}"
+    echo -e "${CYAN}│${NC}  ————————————————————————————"
+    echo -e "${CYAN}│${NC}  MONTH   : ${TOT_MON}    [${MONTH_NAME}]"
+    echo -e "${CYAN}│${NC}  RX      : ${RX_MON}"
+    echo -e "${CYAN}│${NC}  TX      : ${TX_MON}"
+    echo -e "${CYAN}│${NC}  ————————————————————————————"
+    echo -e "${CYAN}│${NC}  DAY     : ${TOT_DAY}    [${DAY_NAME}]"
+    echo -e "${CYAN}│${NC}  RX      : ${RX_DAY}"
+    echo -e "${CYAN}│${NC}  TX      : ${TX_DAY}"
+    echo -e "${CYAN}│${NC}  TRAFFIC : ${TRAFFIC} Mbit/s"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     if systemctl is-active --quiet xray; then X_ST="${GREEN}ON${NC}"; else X_ST="${RED}OFF${NC}"; fi
@@ -1001,17 +1006,8 @@ function header_main() {
     print_center "${YELLOW}LIST USER${NC}"
     print_center "————————————————————————————"
     
-    local f_ssh=$(printf "%-4s" "$ACC_SSH")
-    local f_vm=$(printf "%-4s" "$ACC_VMESS")
-    local f_vl=$(printf "%-4s" "$ACC_VLESS")
-    local f_tr=$(printf "%-4s" "$ACC_TROJAN")
-    local f_zi=$(printf "%-4s" "$ACC_ZIVPN")
-    
-    print_line "            SSH/WS         : ${WHITE}${f_ssh}${NC} USER"
-    print_line "            VMESS          : ${WHITE}${f_vm}${NC} USER"
-    print_line "            VLESS          : ${WHITE}${f_vl}${NC} USER"
-    print_line "            TROJAN         : ${WHITE}${f_tr}${NC} USER"
-    print_line "            ZIVPN          : ${WHITE}${f_zi}${NC} USER"
+    print_line "   SSH/WS : ${WHITE}${ACC_SSH}${NC} USER  |  VMESS : ${WHITE}${ACC_VMESS}${NC} USER  |  VLESS: ${WHITE}${ACC_VLESS}${NC} USER"
+    print_line "   TROJAN : ${WHITE}${ACC_TROJAN}${NC} USER  |  ZIVPN : ${WHITE}${ACC_ZIVPN}${NC} USER"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     echo -e "        ${CYAN}┌──────────────────────────────────────┐${NC}"
