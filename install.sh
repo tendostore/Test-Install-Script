@@ -4,18 +4,18 @@
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL)
 #   Update: Added List Accounts (Count) on Dashboard
 #           + Added WS, GRPC, HTTPUpgrade Networks
-#           + Added SSH, Dropbear, UDPGW, Robust WS Python Proxy
+#           + Added SSH, Dropbear, UDPGW
 #           + UI Update: Auto Domain & Bouncing Scanner Spinner
 #           + Full Telegram Bot Integration (Include SSH Notif)
 #           + Limit Multi Login SSH & X-Ray
 #           + Backup & Restore Fix Data Telegram Bot & Cron
-#           + Fixed Payload Buffer Issue (Premature Connection Close)
 #           + Setup Custom Banner SSH & Change Banner Feature
 #           + Fixed Restore Bug: Auto Re-create System Users for SSH
 #           + STRICT VALIDATION: Block Duplicate Username & ID
 #           + FORCE AUTO-YES (Bypass All apt/dpkg/needrestart Popups)
-#           + NEW UI PERFECT CENTER (Dynamic Padding Borders) & LIST USER
-#           + AUTO REBOOT After Restore & Banner AIO Text
+#           + NEW UI PERFECT CENTER & LIST USER
+#           + [HOTFIX] Fixed HTTP Custom Reconnect Bug (Robust WS Proxy)
+#           + Removed Side Borders on Version Info Box
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -232,42 +232,46 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload && systemctl enable dropbear >/dev/null 2>&1 && systemctl start dropbear >/dev/null 2>&1
 
-    # WS Python Proxy (Robust Fix Payload)
+    # WS Python Proxy (SUPER ROBUST - Fixes HTTP Custom Reconnect Issue)
     cat > /usr/local/bin/ws-proxy.py << 'EOF'
-import socket, threading
+import socket, select, threading
 
 def handle_client(client_socket):
+    remote_socket = None
     try:
         remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         remote_socket.connect(('127.0.0.1', 90))
         
         request = client_socket.recv(8192)
-        
         if b"HTTP/" in request:
-            response = b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
-            client_socket.sendall(response)
-            
+            client_socket.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
             parts = request.split(b"\r\n\r\n", 1)
             if len(parts) == 2 and len(parts[1]) > 0:
                 remote_socket.sendall(parts[1])
         else:
             remote_socket.sendall(request)
             
-        def forward(src, dst):
-            try:
-                while True:
-                    data = src.recv(8192)
-                    if not data: break
-                    dst.sendall(data)
+        sockets = [client_socket, remote_socket]
+        while True:
+            r, _, _ = select.select(sockets, [], [], 300)
+            if not r:
+                break
+            if client_socket in r:
+                data = client_socket.recv(8192)
+                if not data: break
+                remote_socket.sendall(data)
+            if remote_socket in r:
+                data = remote_socket.recv(8192)
+                if not data: break
+                client_socket.sendall(data)
+    except:
+        pass
+    finally:
+        if remote_socket:
+            try: remote_socket.close()
             except: pass
-            finally:
-                src.close()
-                dst.close()
-                
-        threading.Thread(target=forward, args=(client_socket, remote_socket)).start()
-        threading.Thread(target=forward, args=(remote_socket, client_socket)).start()
-    except Exception:
-        client_socket.close()
+        try: client_socket.close()
+        except: pass
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -276,7 +280,9 @@ server.listen(100)
 while True:
     try:
         client, addr = server.accept()
-        threading.Thread(target=handle_client, args=(client,)).start()
+        t = threading.Thread(target=handle_client, args=(client,))
+        t.daemon = True
+        t.start()
     except:
         pass
 EOF
@@ -987,10 +993,10 @@ function header_main() {
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     echo -e "        ${CYAN}┌──────────────────────────────────────┐${NC}"
-    echo -e "        ${CYAN}│${NC}       Version   :  ${WHITE}v01.03.26${NC}         ${CYAN}│${NC}"
-    echo -e "        ${CYAN}│${NC}       Owner     :  ${WHITE}Tendo Store${NC}       ${CYAN}│${NC}"
-    echo -e "        ${CYAN}│${NC}       Telegram  :  ${WHITE}@tendo_32${NC}         ${CYAN}│${NC}"
-    echo -e "        ${CYAN}│${NC}       Expiry In :  ${WHITE}Lifetime${NC}          ${CYAN}│${NC}"
+    echo -e "                Version   :  ${WHITE}v01.03.26${NC}         "
+    echo -e "                Owner     :  ${WHITE}Tendo Store${NC}       "
+    echo -e "                Telegram  :  ${WHITE}@tendo_32${NC}         "
+    echo -e "                Expiry In :  ${WHITE}Lifetime${NC}          "
     echo -e "        ${CYAN}└──────────────────────────────────────┘${NC}"
 }
 
