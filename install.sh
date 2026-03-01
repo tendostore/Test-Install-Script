@@ -14,9 +14,9 @@
 #           + Fixed Restore Bug: Auto Re-create System Users for SSH
 #           + STRICT VALIDATION: Block Duplicate Username & ID
 #           + FORCE AUTO-YES (Bypass All apt/dpkg/needrestart Popups)
-#           + NEW UI LIST USER Menyamping & Open-Right Border SysInfo
-#           + AUTO REBOOT After Restore & Banner AIO Text
-#           + TELEGRAM NOTIF UPDATE: Fix SSH Pgrep Detection & Quota
+#           + NEW UI LIST USER Menyamping Center & Open-Right SysInfo
+#           + NO REBOOT After Restore
+#           + TELEGRAM NOTIF UPDATE: Fix SSH User PID Tracker
 #           + [HOTFIX] Fixed HTTP Custom Reconnect Bug (Daemon WS Proxy)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
@@ -255,7 +255,7 @@ def handle_client(client_socket):
             
         sockets = [client_socket, remote_socket]
         while True:
-            r, _, _ = select.select(sockets, [], [], 300)
+            r, _, _ = select.select(sockets, [], [])
             if not r:
                 break
             if client_socket in r:
@@ -552,14 +552,17 @@ if [[ -f "$S_FILE" ]]; then
         
         [[ -z "$limit" || "$limit" == "0" ]] && continue
         
-        active_logins=$(pgrep -u "$user" 2>/dev/null | wc -l)
-        if [[ "$active_logins" -gt "$limit" ]]; then
-            usermod -L "$user" 2>/dev/null
-            killall -u "$user" 2>/dev/null
-            sed -i "s/^$user|.*/$user|$pass|$exp|$limit|LOCKED_IP_${NOW}/g" "$S_FILE"
-            if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit Session: $limit"$'\n'"🚨 Login Session: $active_logins"$'\n'"⛔ Status: Terkunci 10 Menit"
-                curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
+        uid=$(id -u "$user" 2>/dev/null)
+        if [[ -n "$uid" ]]; then
+            active_logins=$(ps -U "$uid" --no-headers 2>/dev/null | wc -l)
+            if [[ "$active_logins" -gt "$limit" ]]; then
+                usermod -L "$user" 2>/dev/null
+                killall -u "$user" 2>/dev/null
+                sed -i "s/^$user|.*/$user|$pass|$exp|$limit|LOCKED_IP_${NOW}/g" "$S_FILE"
+                if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
+                    MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit Session: $limit"$'\n'"🚨 Login Session: $active_logins"$'\n'"⛔ Status: Terkunci 10 Menit"
+                    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
+                fi
             fi
         fi
     done < "$S_FILE"
@@ -678,10 +681,13 @@ if [[ -f "$S_FILE" ]]; then
     while IFS="|" read -r user pass exp limit status; do
         user=$(echo "$user" | tr -d '\r\n')
         [[ -z "$user" ]] && continue
-        active_logins=$(pgrep -u "$user" 2>/dev/null | wc -l)
-        if [[ "$active_logins" -gt 0 ]]; then
-            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Session"$'\n'
-            FOUND=1
+        uid=$(id -u "$user" 2>/dev/null)
+        if [[ -n "$uid" ]]; then
+            active_logins=$(ps -U "$uid" --no-headers 2>/dev/null | wc -l)
+            if [[ "$active_logins" -gt 0 ]]; then
+                PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Session"$'\n'
+                FOUND=1
+            fi
         fi
     done < "$S_FILE"
     
@@ -1006,8 +1012,13 @@ function header_main() {
     print_center "${YELLOW}LIST USER${NC}"
     print_center "————————————————————————————"
     
-    print_line "   SSH/WS : ${WHITE}${ACC_SSH}${NC} USER  |  VMESS : ${WHITE}${ACC_VMESS}${NC} USER  |  VLESS: ${WHITE}${ACC_VLESS}${NC} USER"
-    print_line "   TROJAN : ${WHITE}${ACC_TROJAN}${NC} USER  |  ZIVPN : ${WHITE}${ACC_ZIVPN}${NC} USER"
+    local acc_all=$((ACC_SSH + ACC_VMESS + ACC_VLESS + ACC_TROJAN + ACC_ZIVPN))
+    
+    local STR1="SSH/WS : ${WHITE}${ACC_SSH}${NC} USR  |  VMESS : ${WHITE}${ACC_VMESS}${NC} USR  |  VLESS: ${WHITE}${ACC_VLESS}${NC} USR"
+    local STR2="TROJAN : ${WHITE}${ACC_TROJAN}${NC} USR  |  ZIVPN : ${WHITE}${ACC_ZIVPN}${NC} USR  |  ALL  : ${WHITE}${acc_all}${NC} USR"
+    
+    print_center "$STR1"
+    print_center "$STR2"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     echo -e "        ${CYAN}┌──────────────────────────────────────┐${NC}"
@@ -1379,9 +1390,8 @@ function features_menu() {
                            done < "/usr/local/etc/xray/ssh.txt"
                        fi
 
-                       echo -e "${GREEN}Restore Berhasil! VPS akan di Reboot dalam 3 Detik untuk Menerapkan semua Konfigurasi.${NC}"
-                       sleep 3
-                       reboot
+                       systemctl restart xray zivpn dropbear ws-proxy stunnel4 ssh sshd
+                       echo -e "${GREEN}Restore Berhasil! Semua konfigurasi dan akun telah dipulihkan sepenuhnya.${NC}"
                    else
                        echo -e "${RED}Gagal mengunduh file! Pastikan link direct yang dimasukkan valid.${NC}"
                        read -p "Tekan Enter untuk kembali..."
