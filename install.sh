@@ -9,10 +9,12 @@
 #           + Full Telegram Bot Integration (Include SSH Notif)
 #           + Limit Multi Login SSH & X-Ray
 #           + Backup & Restore Fix Data Telegram Bot & Cron
-#           + Main Menu UI Overhaul (SSH Menu at No 1)
 #           + Fixed Payload Buffer Issue (Premature Connection Close)
 #           + Setup Custom Banner SSH & Change Banner Feature
 #           + Fixed Restore Bug: Auto Re-create System Users for SSH
+#           + Layout Merge & Unified Same Username/Password for all Protocol
+#           + STRICT VALIDATION: Block Duplicate Username & UUID
+#           + NEW UI MAIN MENU & Custom HTML Banner Default
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -170,16 +172,16 @@ print_ok "Domain & SSL"
 # --- 6. SSH, DROPBEAR, UDPGW & WS PROXY ---
 print_msg "Install SSH, Dropbear 2019, WS Proxy & UDPGW"
 (
-    # SSH Banner Default
+    # SSH Banner Default NEW HTML
     cat > /etc/issue.net << 'EOF'
-<font color="#00FFFF">┌────────────────────────────────────────┐</font><br>
-<font color="#00FFFF">│</font> <font color="#00FF00"><b>          PREMIUM SSH SERVER          </b></font> <font color="#00FFFF">│</font><br>
-<font color="#00FFFF">├────────────────────────────────────────┤</font><br>
-<font color="#00FFFF">│</font> <font color="#FFD700">Version   :</font> <font color="#FFFFFF">v01.03.26</font>                  <font color="#00FFFF">│</font><br>
-<font color="#00FFFF">│</font> <font color="#FFD700">Owner     :</font> <font color="#FFFFFF">Tendo Store</font>                <font color="#00FFFF">│</font><br>
-<font color="#00FFFF">│</font> <font color="#FFD700">Telegram  :</font> <font color="#FFFFFF">@tendo_32</font>                  <font color="#00FFFF">│</font><br>
-<font color="#00FFFF">└────────────────────────────────────────┘</font><br>
-<font color="#FF0000">    Strictly No Spam, DDOS, or Hacking   </font><br>
+<font color="#00FFFF">┌──────────────────────────────────────┐</font><br>
+<font color="#00FFFF">│</font><font color="#00FF00"><b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PREMIUM SSH SERVER</b></font><br>
+<font color="#00FFFF">├──────────────────────────────────────┤</font><br>
+<font color="#00FFFF">│</font>&nbsp;<font color="#FFD700">Version&nbsp;&nbsp;&nbsp;:</font>&nbsp;<font color="#FFFFFF">v01.03.26</font><br>
+<font color="#00FFFF">│</font>&nbsp;<font color="#FFD700">Owner&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</font>&nbsp;<font color="#FFFFFF">Tendo&nbsp;Store</font><br>
+<font color="#00FFFF">│</font>&nbsp;<font color="#FFD700">Telegram&nbsp;&nbsp;:</font>&nbsp;<font color="#FFFFFF">@tendo_32</font><br>
+<font color="#00FFFF">└──────────────────────────────────────┘</font><br>
+<font color="#FF0000"><b>&nbsp;&nbsp;Strictly No Spam, DDOS, or Hacking</b></font><br>
 EOF
 
     # OpenSSH Config
@@ -429,14 +431,16 @@ if [[ -f "$S_FILE" ]]; then
     done < "$S_FILE"
 fi
 
+# ZIVPN Expiry
 Z_FILE="/etc/zivpn/zivpn.txt"
 Z_CONF="/etc/zivpn/config.json"
 if [[ -f "$Z_FILE" ]]; then
-    while IFS="|" read -r pass exp; do
+    while IFS="|" read -r f1 f2 f3; do
+        if [[ -z "$f3" ]]; then u="unknown"; p="$f1"; exp="$f2"; else u="$f1"; p="$f2"; exp="$f3"; fi
         EXP_S=$(date -d "$exp" +%s 2>/dev/null)
         if [[ -n "$EXP_S" && "$NOW" -ge "$EXP_S" ]]; then
-            jq --arg p "$pass" 'del(.auth.config[] | select(. == $p))' $Z_CONF > /tmp/z && mv /tmp/z $Z_CONF
-            sed -i "/^$pass|/d" $Z_FILE
+            jq --arg pwd "$p" 'del(.auth.config[] | select(. == $pwd))' $Z_CONF > /tmp/z && mv /tmp/z $Z_CONF
+            if [[ "$u" == "unknown" ]]; then sed -i "/^$p|/d" $Z_FILE; else sed -i "/^$u|/d" $Z_FILE; fi
             systemctl restart zivpn
         fi
     done < "$Z_FILE"
@@ -697,6 +701,34 @@ D_TROJAN="/usr/local/etc/xray/trojan.txt"
 D_ZIVPN="/etc/zivpn/zivpn.txt"
 
 # ---------------------------------------------
+# FUNGSI VALIDASI DUPLIKAT AKUN
+# ---------------------------------------------
+function check_exists() {
+    local user=$1
+    if grep -q "^$user|" $D_SSH $D_VMESS $D_VLESS $D_TROJAN $D_ZIVPN 2>/dev/null; then
+        echo -e "${RED}Username '$user' sudah terdaftar! Silakan gunakan username lain.${NC}"
+        sleep 2
+        return 1
+    fi
+    if id "$user" &>/dev/null; then
+        echo -e "${RED}Username '$user' sudah ada di sistem Linux! Silakan gunakan username lain.${NC}"
+        sleep 2
+        return 1
+    fi
+    return 0
+}
+
+function check_uuid() {
+    local uuid=$1
+    if grep -q "|$uuid|" $D_VMESS $D_VLESS $D_TROJAN 2>/dev/null; then
+        echo -e "${RED}Password/UUID '$uuid' sudah digunakan! Silakan gunakan yang lain.${NC}"
+        sleep 2
+        return 1
+    fi
+    return 0
+}
+
+# ---------------------------------------------
 # PENGIRIM TELEGRAM BOT
 # ---------------------------------------------
 function send_tele() {
@@ -757,8 +789,8 @@ function show_account_xray() {
     
     if [[ "$proto" == "VMESS" ]]; then
         MSG+="————————————————————————————————————\n               VMESS\n————————————————————————————————————\n"
-        MSG+="Remarks        : ${user}\nCITY           : ${city}\nISP            : ${isp}\nDomain         : ${domain}\n"
-        MSG+="Port TLS       : 443\nPort none TLS  : 80\nid             : ${uuid}\nalterId        : 0\n"
+        MSG+="Username       : ${user}\nPassword / ID  : ${uuid}\nCITY           : ${city}\nISP            : ${isp}\nDomain         : ${domain}\n"
+        MSG+="Port TLS       : 443\nPort none TLS  : 80\nalterId        : 0\n"
         MSG+="Security       : auto\nnetwork        : ws, grpc, upgrade\npath ws        : /vmess\n"
         MSG+="serviceName    : vmess-grpc\npath upgrade   : /vmess-upg\nLimit IP       : ${limit} IP\n"
         MSG+="Quota Bandwidth: ${str_quota}\nUsage Bandwidth: ${usage} GB\nExpired On     : ${exp}\n"
@@ -769,8 +801,8 @@ function show_account_xray() {
         MSG+="————————————————————————————————————\n        VMESS Upgrade NO TLS\n————————————————————————————————————\n${link_upg_ntls}\n————————————————————————————————————\n"
     elif [[ "$proto" == "VLESS" ]]; then
         MSG+="————————————————————————————————————\n               VLESS\n————————————————————————————————————\n"
-        MSG+="Remarks        : ${user}\nCITY           : ${city}\nISP            : ${isp}\nDomain         : ${domain}\n"
-        MSG+="Port TLS       : 443\nPort none TLS  : 80\nid             : ${uuid}\nEncryption     : none\n"
+        MSG+="Username       : ${user}\nPassword / ID  : ${uuid}\nCITY           : ${city}\nISP            : ${isp}\nDomain         : ${domain}\n"
+        MSG+="Port TLS       : 443\nPort none TLS  : 80\nEncryption     : none\n"
         MSG+="Network        : ws, grpc, upgrade\nPath ws        : /vless\nserviceName    : vless-grpc\n"
         MSG+="Path upgrade   : /vless-upg\nLimit IP       : ${limit} IP\nQuota Bandwidth: ${str_quota}\n"
         MSG+="Usage Bandwidth: ${usage} GB\nExpired On     : ${exp}\n"
@@ -781,8 +813,8 @@ function show_account_xray() {
         MSG+="————————————————————————————————————\n        VLESS Upgrade NO TLS\n————————————————————————————————————\n${link_upg_ntls}\n————————————————————————————————————\n"
     elif [[ "$proto" == "TROJAN" ]]; then
         MSG+="————————————————————————————————————\n               TROJAN\n————————————————————————————————————\n"
-        MSG+="Remarks      : ${user}\nCITY         : ${city}\nISP          : ${isp}\nDomain       : ${domain}\n"
-        MSG+="Port         : 443\nKey          : ${uuid}\nNetwork      : ws, grpc, upgrade\n"
+        MSG+="Username     : ${user}\nPassword     : ${uuid}\nCITY         : ${city}\nISP          : ${isp}\nDomain       : ${domain}\n"
+        MSG+="Port         : 443\nNetwork      : ws, grpc, upgrade\n"
         MSG+="Path ws      : /trojan\nserviceName  : trojan-grpc\nPath upgrade : /trojan-upg\n"
         MSG+="Limit IP     : ${limit} IP\nQuota Limit  : ${str_quota}\nUsage Traffic: ${usage} GB\nExpired On   : ${exp}\n"
         MSG+="————————————————————————————————————\n           TROJAN WS TLS\n————————————————————————————————————\n${link_ws_tls}\n"
@@ -793,9 +825,9 @@ function show_account_xray() {
 
     # Format Telegram Bot (Mono Links)
     MSG_BOT+="<b>————————————————————————————————————</b>\n               <b>${proto}</b>\n<b>————————————————————————————————————</b>\n"
-    MSG_BOT+="Remarks        : <code>${user}</code>\nCITY           : ${city}\nISP            : ${isp}\nDomain         : <code>${domain}</code>\n"
+    MSG_BOT+="Username       : <code>${user}</code>\nCITY           : ${city}\nISP            : ${isp}\nDomain         : <code>${domain}</code>\n"
     MSG_BOT+="Port TLS       : 443\nPort none TLS  : 80\n"
-    if [[ "$proto" == "TROJAN" ]]; then MSG_BOT+="Key          : <code>${uuid}</code>\n"; else MSG_BOT+="id             : <code>${uuid}</code>\n"; fi
+    if [[ "$proto" == "TROJAN" ]]; then MSG_BOT+="Password       : <code>${uuid}</code>\n"; else MSG_BOT+="Password / ID  : <code>${uuid}</code>\n"; fi
     if [[ "$proto" == "VMESS" ]]; then MSG_BOT+="alterId        : 0\nSecurity       : auto\n"; elif [[ "$proto" == "VLESS" ]]; then MSG_BOT+="Encryption     : none\n"; fi
     MSG_BOT+="network        : ws, grpc, upgrade\npath ws        : /${proto,,}\nserviceName    : ${proto,,}-grpc\npath upgrade   : /${proto,,}-upg\n"
     MSG_BOT+="Limit IP       : ${limit} IP\nQuota Bandwidth: ${str_quota}\nUsage Bandwidth: ${usage} GB\nExpired On     : ${exp}\n"
@@ -818,16 +850,16 @@ function show_account_xray() {
 
 function show_account_zivpn() {
     clear
-    local pass=$1; local domain=$2; local exp=$3
+    local user=$1; local pass=$2; local domain=$3; local exp=$4
     local isp=$(cat /root/tendo/isp); local city=$(cat /root/tendo/city); local ip=$(cat /root/tendo/ip)
 
     local MSG=""
     MSG+="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  ACCOUNT ZIVPN UDP\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    MSG+="Password   : ${pass}\nCITY       : ${city}\nISP        : ${isp}\nIP ISP     : ${ip}\nDomain     : ${domain}\nExpired On : ${exp}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    MSG+="Username   : ${user}\nPassword   : ${pass}\nCITY       : ${city}\nISP        : ${isp}\nIP ISP     : ${ip}\nDomain     : ${domain}\nExpired On : ${exp}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     
     local MSG_BOT=""
     MSG_BOT+="<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n  <b>ACCOUNT ZIVPN UDP</b>\n<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
-    MSG_BOT+="Password   : <code>${pass}</code>\nCITY       : ${city}\nISP        : ${isp}\nIP ISP     : <code>${ip}</code>\nDomain     : <code>${domain}</code>\nExpired On : ${exp}\n<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
+    MSG_BOT+="Username   : <code>${user}</code>\nPassword   : <code>${pass}</code>\nCITY       : ${city}\nISP        : ${isp}\nIP ISP     : <code>${ip}</code>\nDomain     : <code>${domain}</code>\nExpired On : ${exp}\n<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
 
     echo -e "$MSG"
     send_tele "$MSG_BOT"
@@ -867,52 +899,60 @@ function header_main() {
     ACC_TROJAN=$(wc -l < "$D_TROJAN" 2>/dev/null || echo 0)
     ACC_ZIVPN=$(wc -l < "$D_ZIVPN" 2>/dev/null || echo 0)
 
-    echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
-    echo -e "${CYAN}│              ${YELLOW}TENDO STORE ULTIMATE${NC}"
-    echo -e "${CYAN}├───────────────────────────────────────────────────────${NC}"
-    printf "${CYAN}│${NC} OS      : ${WHITE}%-s${NC}\n" "$OS"
-    printf "${CYAN}│${NC} RAM     : ${WHITE}%-s${NC}\n" "${RAM}MB"
-    printf "${CYAN}│${NC} SWAP    : ${WHITE}%-s${NC}\n" "${SWAP}MB"
-    printf "${CYAN}│${NC} CITY    : ${WHITE}%-s${NC}\n" "$CITY"
-    printf "${CYAN}│${NC} ISP     : ${WHITE}%-s${NC}\n" "$ISP"
-    printf "${CYAN}│${NC} IP      : ${WHITE}%-s${NC}\n" "$IP"
-    printf "${CYAN}│${NC} DOMAIN  : ${YELLOW}%-s${NC}\n" "$DOMAIN"
-    printf "${CYAN}│${NC} UPTIME  : ${WHITE}%-s${NC}\n" "$UPTIME"
-    echo -e "${CYAN}├───────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
+    echo -e "                  ${YELLOW}AUTO SCRIPT TENDO STORE ( AIO )${NC}"
+    echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
+    
+    echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
+    printf "${CYAN}│${NC}  OS      : ${WHITE}%-s${NC}\n" "$OS"
+    printf "${CYAN}│${NC}  RAM     : ${WHITE}%-s${NC}\n" "${RAM}MB"
+    printf "${CYAN}│${NC}  SWAP    : ${WHITE}%-s${NC}\n" "${SWAP}MB"
+    printf "${CYAN}│${NC}  CITY    : ${WHITE}%-s${NC}\n" "$CITY"
+    printf "${CYAN}│${NC}  ISP     : ${WHITE}%-s${NC}\n" "$ISP"
+    printf "${CYAN}│${NC}  IP      : ${WHITE}%-s${NC}\n" "$IP"
+    printf "${CYAN}│${NC}  DOMAIN  : ${YELLOW}%-s${NC}\n" "$DOMAIN"
+    printf "${CYAN}│${NC}  UPTIME  : ${WHITE}%-s${NC}\n" "$UPTIME"
+    echo -e "${CYAN}│${NC}  ————————————————————————————"
     echo -e "${CYAN}│${NC}  MONTH   : $TOT_MON    [$MONTH_NAME]"
     echo -e "${CYAN}│${NC}  RX      : $RX_MON"
     echo -e "${CYAN}│${NC}  TX      : $TX_MON"
-    echo -e "${CYAN}│${NC}  —————————————————————————————————————"
+    echo -e "${CYAN}│${NC}  ————————————————————————————"
     echo -e "${CYAN}│${NC}  DAY     : $TOT_DAY    [$DAY_NAME]"
     echo -e "${CYAN}│${NC}  RX      : $RX_DAY"
     echo -e "${CYAN}│${NC}  TX      : $TX_DAY"
     echo -e "${CYAN}│${NC}  TRAFFIC : $TRAFFIC Mbit/s"
-    echo -e "${CYAN}├───────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     if systemctl is-active --quiet xray; then X_ST="${GREEN}ON${NC}"; else X_ST="${RED}OFF${NC}"; fi
     if systemctl is-active --quiet zivpn; then Z_ST="${GREEN}ON${NC}"; else Z_ST="${RED}OFF${NC}"; fi
     if systemctl is-active --quiet dropbear; then D_ST="${GREEN}ON${NC}"; else D_ST="${RED}OFF${NC}"; fi
-    if iptables -L >/dev/null 2>&1; then I_ST="${GREEN}ON${NC}"; else I_ST="${RED}OFF${NC}"; fi
     
+    echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
     printf "${CYAN}│${NC} STATUS  : XRAY: %b ${CYAN}|${NC} SSH/WS: %b ${CYAN}|${NC} ZIVPN: %b\n" "$X_ST" "$D_ST" "$Z_ST"
-    echo -e "${CYAN}└───────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
-    # LIST ACCOUNTS BOX (Menyambung dengan menu)
-    echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
-    echo -e "${CYAN}│                   ${YELLOW}LIST ACCOUNTS${NC}"
-    echo -e "${CYAN}├───────────────────────────────────────────────────────${NC}"
-    printf "${CYAN}│${NC} SSH/WS         : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_SSH"
-    printf "${CYAN}│${NC} VMESS          : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_VMESS"
-    printf "${CYAN}│${NC} VLESS          : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_VLESS"
-    printf "${CYAN}│${NC} TROJAN         : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_TROJAN"
-    printf "${CYAN}│${NC} ZIVPN          : ${WHITE}%-4s${NC} ACCOUNT\n" "$ACC_ZIVPN"
-    echo -e "${CYAN}├───────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
+    echo -e "${CYAN}│${NC}                   ${YELLOW}LIST ACCOUNTS${NC}"
+    echo -e "${CYAN}│${NC}  ————————————————————————————"
+    printf "${CYAN}│${NC} SSH/WS         : ${WHITE}%-4s${NC} USER\n" "$ACC_SSH"
+    printf "${CYAN}│${NC} VMESS          : ${WHITE}%-4s${NC} USER\n" "$ACC_VMESS"
+    printf "${CYAN}│${NC} VLESS          : ${WHITE}%-4s${NC} USER\n" "$ACC_VLESS"
+    printf "${CYAN}│${NC} TROJAN         : ${WHITE}%-4s${NC} USER\n" "$ACC_TROJAN"
+    printf "${CYAN}│${NC} ZIVPN          : ${WHITE}%-4s${NC} USER\n" "$ACC_ZIVPN"
+    echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
+    
+    echo -e "     ${CYAN}┌───────────────────────────────────────┐${NC}"
+    echo -e "         Version   :  ${WHITE}v01.03.26${NC}"
+    echo -e "         Owner     :  ${WHITE}Tendo Store${NC}"
+    echo -e "         Telegram  :  ${WHITE}@tendo_32${NC}"
+    echo -e "         Expiry In :  ${WHITE}Lifetime${NC}"
+    echo -e "     ${CYAN}└───────────────────────────────────────┘${NC}"
 }
 
 function header_sub() {
-    clear; echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
-    echo -e "${CYAN}│              ${YELLOW}TENDO STORE - SUB MENU${NC}"
-    echo -e "${CYAN}└───────────────────────────────────────────────────────${NC}"
+    clear; echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
+    echo -e "${CYAN}│              ${YELLOW}TENDO STORE - SUB MENU${NC}                  ${CYAN}│${NC}"
+    echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
 }
 
 # ---------------------------------------------
@@ -970,7 +1010,7 @@ function bot_menu() {
         echo -e "${CYAN}│${NC} [2] Set notifikasi User login"
         echo -e "${CYAN}│${NC} [3] Set notifikasi backup"
         echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+        echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
             1) read -p " Bot Token: " bt; read -p " Chat ID: " ci; echo "$bt" > /etc/tendo_bot/bot_token; echo "$ci" > /etc/tendo_bot/chat_id; echo -e "${GREEN}Saved Successfully!${NC}"; sleep 1;;
@@ -994,16 +1034,20 @@ function ssh_menu() {
         echo -e "${CYAN}│${NC} [6] Lock Account SSH"
         echo -e "${CYAN}│${NC} [7] Unlock Account SSH"
         echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+        echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
-            1) read -p " Username : " u; read -p " Password : " p; read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; read -p " Limit IP (0 for unlimited): " limit; [[ -z "$limit" ]] && limit=0; exp_date=$(date -d "+$ex days" +"%Y-%m-%d"); grep -q "/bin/false" /etc/shells || echo "/bin/false" >> /etc/shells; useradd -e $(date -d "$ex days" +"%Y-%m-%d") -s /bin/false -M $u; echo "$u:$p" | chpasswd; echo "$u|$p|$exp_date|$limit|ACTIVE" >> $D_SSH; DMN=$(cat /usr/local/etc/xray/domain); show_account_ssh "$u" "$p" "$DMN" "$exp_date" "$limit";;
+            1) read -p " Username : " u; [[ -z "$u" ]] && continue
+               if ! check_exists "$u"; then continue; fi
+               read -p " Password : " p; read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; read -p " Limit IP (0 for unlimited): " limit; [[ -z "$limit" ]] && limit=0
+               exp_date=$(date -d "+$ex days" +"%Y-%m-%d")
+               grep -q "/bin/false" /etc/shells || echo "/bin/false" >> /etc/shells; useradd -e $(date -d "$ex days" +"%Y-%m-%d") -s /bin/false -M $u; echo "$u:$p" | chpasswd; echo "$u|$p|$exp_date|$limit|ACTIVE" >> $D_SSH; DMN=$(cat /usr/local/etc/xray/domain); show_account_ssh "$u" "$p" "$DMN" "$exp_date" "$limit";;
             2) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; u=$(sed -n "${n}p" $D_SSH | cut -d'|' -f1); sed -i "${n}d" $D_SSH; userdel -f $u 2>/dev/null; echo -e "${GREEN}Account SSH Deleted!${NC}"; sleep 2;;
             3) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_SSH); u=$(echo "$line" | cut -d'|' -f1); p=$(echo "$line" | cut -d'|' -f2); exp_old=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5); read -p " Add Days: " add_days; exp_new=$(date -d "$exp_old + $add_days days" +"%Y-%m-%d"); sed -i "${n}s/.*/$u|$p|$exp_new|$limit|$stat/" $D_SSH; chage -E $(date -d "$exp_new" +"%Y-%m-%d") $u 2>/dev/null; echo -e "${GREEN}Account $u Renewed until $exp_new!${NC}"; sleep 2;;
             4) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_SSH); u=$(echo "$line" | cut -d'|' -f1); p=$(echo "$line" | cut -d'|' -f2); exp_date=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); DMN=$(cat /usr/local/etc/xray/domain); show_account_ssh "$u" "$p" "$DMN" "$exp_date" "$limit";;
-            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; pass="$u"; read -p " Duration (e.g., 10m, 1h): " dur;
+            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; p="$u"; read -p " Duration (e.g., 10m, 1h): " dur;
                if [[ "$dur" == *m ]]; then add_str="+${dur%m} minutes"; elif [[ "$dur" == *h ]]; then add_str="+${dur%h} hours"; else add_str="+1 hours"; fi
-               exp_date=$(date -d "$add_str" +"%Y-%m-%d %H:%M:%S"); limit=1; grep -q "/bin/false" /etc/shells || echo "/bin/false" >> /etc/shells; useradd -e $(date -d "$add_str" +"%Y-%m-%d") -s /bin/false -M $u; echo "$u:$pass" | chpasswd; echo "$u|$pass|$exp_date|$limit|ACTIVE" >> $D_SSH; DMN=$(cat /usr/local/etc/xray/domain); show_account_ssh "$u" "$pass" "$DMN" "$exp_date" "$limit";;
+               exp_date=$(date -d "$add_str" +"%Y-%m-%d %H:%M:%S"); limit=1; grep -q "/bin/false" /etc/shells || echo "/bin/false" >> /etc/shells; useradd -e $(date -d "$add_str" +"%Y-%m-%d") -s /bin/false -M $u; echo "$u:$p" | chpasswd; echo "$u|$p|$exp_date|$limit|ACTIVE" >> $D_SSH; DMN=$(cat /usr/local/etc/xray/domain); show_account_ssh "$u" "$p" "$DMN" "$exp_date" "$limit";;
             6) nl $D_SSH; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_SSH); u=$(echo "$line" | cut -d'|' -f1); p=$(echo "$line" | cut -d'|' -f2); exp=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5)
                if [[ "$stat" == "ACTIVE" ]]; then
                    usermod -L "$u" 2>/dev/null; killall -u "$u" 2>/dev/null
@@ -1031,7 +1075,7 @@ function xray_manager_menu() {
         echo -e "${CYAN}│${NC} [2] VLESS ACCOUNT"
         echo -e "${CYAN}│${NC} [3] TROJAN ACCOUNT"
         echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+        echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
             1) vmess_menu ;;
@@ -1076,13 +1120,13 @@ function rebuild_menu() {
     header_sub
     echo -e "${RED}WARNING: REBUILD AKAN MENGHAPUS SELURUH DATA VPS!${NC}"
     echo -e "Pastikan anda sudah melakukan Backup Data VPS."
-    echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}│${NC} [1] Ubuntu 22.04"
     echo -e "${CYAN}│${NC} [2] Ubuntu 20.04"
     echo -e "${CYAN}│${NC} [3] Debian 12"
     echo -e "${CYAN}│${NC} [4] Debian 11"
     echo -e "${CYAN}│${NC} [x] Cancel"
-    echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
     read -p " Pilih OS untuk Rebuild: " opt
     case $opt in
         1) os="ubuntu 22.04" ;;
@@ -1146,7 +1190,7 @@ function features_menu() {
         echo -e "${CYAN}│${NC} [12] Check Services"
         echo -e "${CYAN}│${NC} [13] Change Banner SSH"
         echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+        echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
             1) vnstat -l -i $(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1); read -p "Enter...";;
@@ -1154,7 +1198,7 @@ function features_menu() {
             3) echo -e "${YELLOW}Running Benchmark...${NC}"; wget -qO- bench.sh | bash; read -p "Enter...";;
             4) header_sub
                echo -e "${YELLOW}WARNING: Mengganti domain akan memperbarui sertifikat SSL!${NC}"
-               echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+               echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
                read -p "Masukan Domain Baru: " nd
                if [[ -z "$nd" ]]; then continue; fi
                echo -e "${YELLOW}Processing...${NC}"
@@ -1282,10 +1326,15 @@ function vmess_menu() {
         echo -e "${CYAN}│${NC} [6] Lock Account Vmess"
         echo -e "${CYAN}│${NC} [7] Unlock Account Vmess"
         echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+        echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
-            1) read -p " Username : " u; read -p " UUID (Enter for random): " uid_in; [[ -z "$uid_in" ]] && id=$(uuidgen) || id="$uid_in"; read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; read -p " Limit IP (0 for unlimited): " limit; [[ -z "$limit" ]] && limit=0; read -p " Quota Bandwidth GB (0 for unlimited): " quota; [[ -z "$quota" ]] && quota=0; exp_date=$(date -d "+$ex days" +"%Y-%m-%d"); jq --arg u "$u" --arg id "$id" '(.inbounds[] | select(.protocol == "vmess")).settings.clients += [{"id":$id,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray >/dev/null 2>&1 & echo "$u|$id|$exp_date|$limit|ACTIVE|$quota" >> $D_VMESS; echo "0 0" > "/usr/local/etc/xray/quota/$u"
+            1) read -p " Username : " u; [[ -z "$u" ]] && continue
+               if ! check_exists "$u"; then continue; fi
+               read -p " Password (ID/UUID) : " p; [[ -z "$p" ]] && p=$(uuidgen); id="$p"
+               if ! check_uuid "$id"; then continue; fi
+               read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; read -p " Limit IP (0 for unlimited): " limit; [[ -z "$limit" ]] && limit=0; read -p " Quota Bandwidth GB (0 for unlimited): " quota; [[ -z "$quota" ]] && quota=0
+               exp_date=$(date -d "+$ex days" +"%Y-%m-%d"); jq --arg u "$u" --arg id "$id" '(.inbounds[] | select(.protocol == "vmess")).settings.clients += [{"id":$id,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray >/dev/null 2>&1 & echo "$u|$id|$exp_date|$limit|ACTIVE|$quota" >> $D_VMESS; echo "0 0" > "/usr/local/etc/xray/quota/$u"
                DMN=$(cat /usr/local/etc/xray/domain)
                ws_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                ws_ntls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
@@ -1304,7 +1353,7 @@ function vmess_menu() {
                upg_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                upg_ntls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
                show_account_xray "VMESS" "$u" "$DMN" "$id" "$exp_date" "$limit" "$quota" "$usage_gb" "vmess://$ws_tls" "vmess://$ws_ntls" "vmess://$grpc_tls" "vmess://$upg_tls" "vmess://$upg_ntls";;
-            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; id=$(uuidgen); read -p " Duration (e.g., 10m, 1h): " dur;
+            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; p="$u"; id="$p"; read -p " Duration (e.g., 10m, 1h): " dur;
                if [[ "$dur" == *m ]]; then add_str="+${dur%m} minutes"; elif [[ "$dur" == *h ]]; then add_str="+${dur%h} hours"; else add_str="+1 hours"; fi
                exp_date=$(date -d "$add_str" +"%Y-%m-%d %H:%M:%S"); limit=1; quota=0; jq --arg u "$u" --arg id "$id" '(.inbounds[] | select(.protocol == "vmess")).settings.clients += [{"id":$id,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray >/dev/null 2>&1 & echo "$u|$id|$exp_date|$limit|ACTIVE|$quota" >> $D_VMESS; echo "0 0" > "/usr/local/etc/xray/quota/$u"
                DMN=$(cat /usr/local/etc/xray/domain)
@@ -1346,10 +1395,15 @@ function vless_menu() {
         echo -e "${CYAN}│${NC} [6] Lock Account Vless"
         echo -e "${CYAN}│${NC} [7] Unlock Account Vless"
         echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+        echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
-            1) read -p " Username : " u; read -p " UUID (Enter for random): " uid_in; [[ -z "$uid_in" ]] && id=$(uuidgen) || id="$uid_in"; read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; read -p " Limit IP (0 for unlimited): " limit; [[ -z "$limit" ]] && limit=0; read -p " Quota Bandwidth GB (0 for unlimited): " quota; [[ -z "$quota" ]] && quota=0; exp_date=$(date -d "+$ex days" +"%Y-%m-%d"); jq --arg u "$u" --arg id "$id" '(.inbounds[] | select(.protocol == "vless")).settings.clients += [{"id":$id,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray >/dev/null 2>&1 & echo "$u|$id|$exp_date|$limit|ACTIVE|$quota" >> $D_VLESS; echo "0 0" > "/usr/local/etc/xray/quota/$u"
+            1) read -p " Username : " u; [[ -z "$u" ]] && continue
+               if ! check_exists "$u"; then continue; fi
+               read -p " Password (ID/UUID) : " p; [[ -z "$p" ]] && p=$(uuidgen); id="$p"
+               if ! check_uuid "$id"; then continue; fi
+               read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; read -p " Limit IP (0 for unlimited): " limit; [[ -z "$limit" ]] && limit=0; read -p " Quota Bandwidth GB (0 for unlimited): " quota; [[ -z "$quota" ]] && quota=0
+               exp_date=$(date -d "+$ex days" +"%Y-%m-%d"); jq --arg u "$u" --arg id "$id" '(.inbounds[] | select(.protocol == "vless")).settings.clients += [{"id":$id,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray >/dev/null 2>&1 & echo "$u|$id|$exp_date|$limit|ACTIVE|$quota" >> $D_VLESS; echo "0 0" > "/usr/local/etc/xray/quota/$u"
                DMN=$(cat /usr/local/etc/xray/domain)
                ws_tls="vless://${id}@${DMN}:443?path=%2Fvless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${u}"
                ws_ntls="vless://${id}@${DMN}:80?path=%2Fvless&security=none&encryption=none&host=${DMN}&type=ws#${u}"
@@ -1368,7 +1422,7 @@ function vless_menu() {
                upg_tls="vless://${id}@${DMN}:443?path=%2Fvless-upg&security=tls&encryption=none&host=${DMN}&type=httpupgrade&sni=${DMN}#${u}"
                upg_ntls="vless://${id}@${DMN}:80?path=%2Fvless-upg&security=none&encryption=none&host=${DMN}&type=httpupgrade#${u}"
                show_account_xray "VLESS" "$u" "$DMN" "$id" "$exp_date" "$limit" "$quota" "$usage_gb" "$ws_tls" "$ws_ntls" "$grpc_tls" "$upg_tls" "$upg_ntls";;
-            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; id=$(uuidgen); read -p " Duration (e.g., 10m, 1h): " dur;
+            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; p="$u"; id="$p"; read -p " Duration (e.g., 10m, 1h): " dur;
                if [[ "$dur" == *m ]]; then add_str="+${dur%m} minutes"; elif [[ "$dur" == *h ]]; then add_str="+${dur%h} hours"; else add_str="+1 hours"; fi
                exp_date=$(date -d "$add_str" +"%Y-%m-%d %H:%M:%S"); limit=1; quota=0; jq --arg u "$u" --arg id "$id" '(.inbounds[] | select(.protocol == "vless")).settings.clients += [{"id":$id,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray >/dev/null 2>&1 & echo "$u|$id|$exp_date|$limit|ACTIVE|$quota" >> $D_VLESS; echo "0 0" > "/usr/local/etc/xray/quota/$u"
                DMN=$(cat /usr/local/etc/xray/domain)
@@ -1410,10 +1464,15 @@ function trojan_menu() {
         echo -e "${CYAN}│${NC} [6] Lock Account Trojan"
         echo -e "${CYAN}│${NC} [7] Unlock Account Trojan"
         echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+        echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
-            1) read -p " Username : " u; read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; read -p " Limit IP (0 for unlimited): " limit; [[ -z "$limit" ]] && limit=0; read -p " Quota Bandwidth GB (0 for unlimited): " quota; [[ -z "$quota" ]] && quota=0; exp_date=$(date -d "+$ex days" +"%Y-%m-%d"); pass="$u"; jq --arg p "$pass" --arg u "$u" '(.inbounds[] | select(.protocol == "trojan")).settings.clients += [{"password":$p,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray >/dev/null 2>&1 & echo "$u|$pass|$exp_date|$limit|ACTIVE|$quota" >> $D_TROJAN; echo "0 0" > "/usr/local/etc/xray/quota/$u"
+            1) read -p " Username : " u; [[ -z "$u" ]] && continue
+               if ! check_exists "$u"; then continue; fi
+               read -p " Password : " p; [[ -z "$p" ]] && p="$u"; pass="$p"
+               if ! check_uuid "$pass"; then continue; fi
+               read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; read -p " Limit IP (0 for unlimited): " limit; [[ -z "$limit" ]] && limit=0; read -p " Quota Bandwidth GB (0 for unlimited): " quota; [[ -z "$quota" ]] && quota=0
+               exp_date=$(date -d "+$ex days" +"%Y-%m-%d"); jq --arg p "$pass" --arg u "$u" '(.inbounds[] | select(.protocol == "trojan")).settings.clients += [{"password":$p,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray >/dev/null 2>&1 & echo "$u|$pass|$exp_date|$limit|ACTIVE|$quota" >> $D_TROJAN; echo "0 0" > "/usr/local/etc/xray/quota/$u"
                DMN=$(cat /usr/local/etc/xray/domain)
                ws_tls="trojan://${pass}@${DMN}:443?path=%2Ftrojan&security=tls&host=${DMN}&type=ws&sni=${DMN}#${u}"
                ws_ntls="trojan://${pass}@${DMN}:80?path=%2Ftrojan&security=none&host=${DMN}&type=ws#${u}"
@@ -1430,7 +1489,7 @@ function trojan_menu() {
                grpc_tls="trojan://${pass}@${DMN}:443?security=tls&host=${DMN}&type=grpc&serviceName=trojan-grpc&sni=${DMN}#${u}"
                upg_tls="trojan://${pass}@${DMN}:443?path=%2Ftrojan-upg&security=tls&host=${DMN}&type=httpupgrade&sni=${DMN}#${u}"
                show_account_xray "TROJAN" "$u" "$DMN" "$pass" "$exp_date" "$limit" "$quota" "$usage_gb" "$ws_tls" "$ws_ntls" "$grpc_tls" "$upg_tls" "";;
-            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; pass="$u"; read -p " Duration (e.g., 10m, 1h): " dur;
+            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; p="$u"; pass="$p"; read -p " Duration (e.g., 10m, 1h): " dur;
                if [[ "$dur" == *m ]]; then add_str="+${dur%m} minutes"; elif [[ "$dur" == *h ]]; then add_str="+${dur%h} hours"; else add_str="+1 hours"; fi
                exp_date=$(date -d "$add_str" +"%Y-%m-%d %H:%M:%S"); limit=1; quota=0; jq --arg p "$pass" --arg u "$u" '(.inbounds[] | select(.protocol == "trojan")).settings.clients += [{"password":$p,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; systemctl restart xray >/dev/null 2>&1 & echo "$u|$pass|$exp_date|$limit|ACTIVE|$quota" >> $D_TROJAN; echo "0 0" > "/usr/local/etc/xray/quota/$u"
                DMN=$(cat /usr/local/etc/xray/domain)
@@ -1469,31 +1528,30 @@ function zivpn_menu() {
         echo -e "${CYAN}│${NC} [4] Check Config User"
         echo -e "${CYAN}│${NC} [5] Trial Account ZIVPN"
         echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
+        echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
         read -p " Select Menu : " opt
         case $opt in
-            1) read -p " Password: " p; read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "$ex days" +"%Y-%m-%d"); jq --arg p "$p" '.auth.config += [$p]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn >/dev/null 2>&1 & echo "$p|$exp" >> $D_ZIVPN; DMN=$(cat /usr/local/etc/xray/domain); show_account_zivpn "$p" "$DMN" "$exp";;
-            2) nl $D_ZIVPN; read -p "No: " n; [[ -z "$n" ]] && continue; p=$(sed -n "${n}p" $D_ZIVPN | cut -d'|' -f1); sed -i "${n}d" $D_ZIVPN; jq --arg p "$p" 'del(.auth.config[] | select(. == $p))' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn >/dev/null 2>&1 &;;
-            3) nl $D_ZIVPN; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_ZIVPN); p=$(echo "$line" | cut -d'|' -f1); exp_old=$(echo "$line" | cut -d'|' -f2); read -p " Add Days: " add_days; exp_new=$(date -d "$exp_old + $add_days days" +"%Y-%m-%d"); sed -i "${n}s/.*/$p|$exp_new/" $D_ZIVPN; echo -e "${GREEN}ZIVPN Account $p Renewed until $exp_new!${NC}"; systemctl restart zivpn >/dev/null 2>&1 & sleep 2;;
-            4) nl $D_ZIVPN; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_ZIVPN); p=$(echo "$line" | cut -d'|' -f1); exp=$(echo "$line" | cut -d'|' -f2); DMN=$(cat /usr/local/etc/xray/domain); show_account_zivpn "$p" "$DMN" "$exp";;
-            5) p="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Password (Trial): ${GREEN}$p${NC}"; read -p " Duration (e.g., 10m, 1h): " dur;
+            1) read -p " Username : " u; [[ -z "$u" ]] && continue
+               if ! check_exists "$u"; then continue; fi
+               read -p " Password : " p; [[ -z "$p" ]] && p="$u"
+               if grep -q "|$p|" $D_ZIVPN 2>/dev/null || grep -q "^$p|" $D_ZIVPN 2>/dev/null; then echo -e "${RED}Password '$p' sudah digunakan!${NC}"; sleep 2; continue; fi
+               read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "$ex days" +"%Y-%m-%d"); jq --arg pwd "$p" '.auth.config += [$pwd]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn >/dev/null 2>&1 & echo "$u|$p|$exp" >> $D_ZIVPN; DMN=$(cat /usr/local/etc/xray/domain); show_account_zivpn "$u" "$p" "$DMN" "$exp";;
+            2) nl $D_ZIVPN; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_ZIVPN); IFS="|" read -r f1 f2 f3 <<< "$line"; if [[ -z "$f3" ]]; then p="$f1"; else p="$f2"; fi; sed -i "${n}d" $D_ZIVPN; jq --arg pwd "$p" 'del(.auth.config[] | select(. == $pwd))' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn >/dev/null 2>&1 &;;
+            3) nl $D_ZIVPN; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_ZIVPN); IFS="|" read -r f1 f2 f3 <<< "$line"; if [[ -z "$f3" ]]; then u="unknown"; p="$f1"; exp_old="$f2"; else u="$f1"; p="$f2"; exp_old="$f3"; fi; read -p " Add Days: " add_days; exp_new=$(date -d "$exp_old + $add_days days" +"%Y-%m-%d"); if [[ "$u" == "unknown" ]]; then sed -i "${n}s/.*/$p|$exp_new/" $D_ZIVPN; else sed -i "${n}s/.*/$u|$p|$exp_new/" $D_ZIVPN; fi; echo -e "${GREEN}ZIVPN Account Renewed until $exp_new!${NC}"; systemctl restart zivpn >/dev/null 2>&1 & sleep 2;;
+            4) nl $D_ZIVPN; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_ZIVPN); IFS="|" read -r f1 f2 f3 <<< "$line"; if [[ -z "$f3" ]]; then u="unknown"; p="$f1"; exp="$f2"; else u="$f1"; p="$f2"; exp="$f3"; fi; DMN=$(cat /usr/local/etc/xray/domain); show_account_zivpn "$u" "$p" "$DMN" "$exp";;
+            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; p="$u"; read -p " Duration (e.g., 10m, 1h): " dur;
                if [[ "$dur" == *m ]]; then add_str="+${dur%m} minutes"; elif [[ "$dur" == *h ]]; then add_str="+${dur%h} hours"; else add_str="+1 hours"; fi
-               exp=$(date -d "$add_str" +"%Y-%m-%d %H:%M:%S"); jq --arg p "$p" '.auth.config += [$p]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn >/dev/null 2>&1 & echo "$p|$exp" >> $D_ZIVPN; DMN=$(cat /usr/local/etc/xray/domain); show_account_zivpn "$p" "$DMN" "$exp";;
+               exp=$(date -d "$add_str" +"%Y-%m-%d %H:%M:%S"); jq --arg pwd "$p" '.auth.config += [$pwd]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; systemctl restart zivpn >/dev/null 2>&1 & echo "$u|$p|$exp" >> $D_ZIVPN; DMN=$(cat /usr/local/etc/xray/domain); show_account_zivpn "$u" "$p" "$DMN" "$exp";;
             x) return;;
         esac; done
 }
 
 while true; do header_main
+    echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
     echo -e "${CYAN}│${NC} [1] SSH ACCOUNT          [4] BOT TELEGRAM SETUP"
     echo -e "${CYAN}│${NC} [2] X-RAY MANAGER        [5] FEATURES"
     echo -e "${CYAN}│${NC} [3] ZIVPN UDP            [x] EXIT"
-    echo -e "${CYAN}└───────────────────────────────────────────────────────${NC}"
-    echo -e "${CYAN}┌───────────────────────────────────────────────────────${NC}"
-    echo -e "${CYAN}│${NC}  Version   :  v01.03.26                  ${NC}"
-    echo -e "${CYAN}│${NC}  Owner     :  Tendo Store                ${NC}"
-    echo -e "${CYAN}│${NC}  Telegram  :  @tendo_32                  ${NC}"
-    echo -e "${CYAN}│${NC}  Expiry In :  Lifetime                   ${NC}"
-    echo -e "${CYAN}└───────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     read -p " Select Menu : " opt
     case $opt in
         1) ssh_menu ;;
