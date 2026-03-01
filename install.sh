@@ -9,14 +9,15 @@
 #           + Full Telegram Bot Integration (Include SSH Notif)
 #           + Limit Multi Login SSH & X-Ray
 #           + Backup & Restore Fix Data Telegram Bot & Cron
+#           + Fixed Payload Buffer Issue (Premature Connection Close)
 #           + Setup Custom Banner SSH & Change Banner Feature
 #           + Fixed Restore Bug: Auto Re-create System Users for SSH
 #           + STRICT VALIDATION: Block Duplicate Username & ID
 #           + FORCE AUTO-YES (Bypass All apt/dpkg/needrestart Popups)
-#           + NEW UI LIST USER (3x2 Grid Center) & Open-Right SysInfo
+#           + NEW UI LIST USER Menyamping Center & Open-Right SysInfo
 #           + NO REBOOT After Restore
-#           + TELEGRAM NOTIF UPDATE: Fix SSH User Cron PATH
-#           + [HOTFIX] Fixed HTTP Custom Reconnect Bug (Daemon WS Proxy)
+#           + TELEGRAM NOTIF UPDATE: Fix SSH User PID Tracker 100%
+#           + Menu Bot Telegram Token/ID UI Adjusted
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -144,8 +145,8 @@ print_msg "Install Dependencies"
     curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | bash
     apt-get install -y -q speedtest
     touch /root/.hushlogin; chmod -x /etc/update-motd.d/* 2>/dev/null
-    sed -i '/neofetch/d' /root/.bashrc; echo "neofetch" >> /root/.bashrc
-    echo 'echo -e "Welcome Tendo! Type \e[1;32mmenu\e[0m to start."' >> /root/.bashrc
+    sed -i '/neofetch/d' /root/.bashrc
+    echo 'echo -e "Welcome To Tendo Store Auto Script! Type \e[1;32mmenu\e[0m to start."' >> /root/.bashrc
 ) >/dev/null 2>&1 & install_spin
 print_ok "Dependencies"
 
@@ -505,7 +506,7 @@ for proto in vmess vless trojan; do
                 sed -i "s/^$user|.*/$user|$id|$exp|$limit|ACTIVE|$quota/g" "$FILE"
                 systemctl restart xray
                 if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                    MSG="<b>✅ AKUN DI-UNLOCK OTOMATIS (${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🔓 Status: Active (Hukuman 10 menit selesai)"
+                    MSG="<b>✅ AKUN DI-UNLOCK OTOMATIS (${proto^^})</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n👤 User: <code>$user</code>\n🔓 Status: Active (Hukuman 10 menit selesai)"
                     curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
                 fi
             fi
@@ -522,7 +523,7 @@ for proto in vmess vless trojan; do
             sed -i "s/^$user|.*/$user|$id|$exp|$limit|LOCKED_IP_${NOW}|$quota/g" "$FILE"
             systemctl restart xray
             if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit IP: $limit"$'\n'"🚨 Login IP: $active_ips"$'\n'"⛔ Status: Terkunci 10 Menit"
+                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (${proto^^})</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n👤 User: <code>$user</code>\n🌐 Limit IP: $limit\n🚨 Login IP: $active_ips\n⛔ Status: Terkunci 10 Menit"
                 curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
             fi
         fi
@@ -541,7 +542,7 @@ if [[ -f "$S_FILE" ]]; then
                 usermod -U "$user" 2>/dev/null
                 sed -i "s/^$user|.*/$user|$pass|$exp|$limit|ACTIVE/g" "$S_FILE"
                 if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                    MSG="<b>✅ AKUN DI-UNLOCK OTOMATIS (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🔓 Status: Active (Hukuman 10 menit selesai)"
+                    MSG="<b>✅ AKUN DI-UNLOCK OTOMATIS (SSH)</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n👤 User: <code>$user</code>\n🔓 Status: Active (Hukuman 10 menit selesai)"
                     curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
                 fi
             fi
@@ -552,13 +553,15 @@ if [[ -f "$S_FILE" ]]; then
         
         [[ -z "$limit" || "$limit" == "0" ]] && continue
         
-        active_logins=$( /usr/bin/pgrep -u "$user" | wc -l )
+        # Absolute SSH Process Tracker
+        active_logins=$(ps -eo ruser,comm | grep -E "(dropbear|sshd)" | awk '{print $1}' | grep -w "$user" | wc -l)
+        
         if [[ "$active_logins" -gt "$limit" ]]; then
             usermod -L "$user" 2>/dev/null
             killall -u "$user" 2>/dev/null
             sed -i "s/^$user|.*/$user|$pass|$exp|$limit|LOCKED_IP_${NOW}/g" "$S_FILE"
             if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit Session: $limit"$'\n'"🚨 Login Session: $active_logins"$'\n'"⛔ Status: Terkunci 10 Menit"
+                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (SSH)</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n👤 User: <code>$user</code>\n🌐 Limit Session: $limit\n🚨 Login Session: $active_logins\n⛔ Status: Terkunci 10 Menit"
                 curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
             fi
         fi
@@ -615,7 +618,7 @@ for proto in vmess vless trojan; do
             rm -f "$QUOTA_FILE"
             systemctl restart xray
             if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                MSG="<b>🚫 KUOTA HABIS (AKUN DIHAPUS - ${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"📊 Batas Kuota: ${quota} GB"$'\n'"⛔ Status: Akun Otomatis Dihapus"
+                MSG="<b>🚫 KUOTA HABIS (AKUN DIHAPUS - ${proto^^})</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n👤 User: <code>$user</code>\n📊 Batas Kuota: ${quota} GB\n⛔ Status: Akun Otomatis Dihapus"
                 curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
             fi
         fi
@@ -660,18 +663,18 @@ for proto in vmess vless trojan; do
             else
                 usage_gb="0.00"
             fi
-            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_ips IP | Kuota: ${usage_gb}GB"$'\n'
+            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_ips IP | Kuota: ${usage_gb}GB\n"
             FOUND=1
         fi
     done < "$FILE"
     
     if [[ "$FOUND" -eq 1 ]]; then
-        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'
-        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}"$'\n'
+        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (${proto^^})</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n"
+        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}\n"
     fi
 done
 
-# Check SSH Active
+# Check SSH Active Absolute Tracker
 S_FILE="/usr/local/etc/xray/ssh.txt"
 if [[ -f "$S_FILE" ]]; then
     PROTO_MSG=""
@@ -679,16 +682,19 @@ if [[ -f "$S_FILE" ]]; then
     while IFS="|" read -r user pass exp limit status; do
         user=$(echo "$user" | tr -d '[:space:]')
         [[ -z "$user" ]] && continue
-        active_logins=$( /usr/bin/pgrep -u "$user" | wc -l )
+        
+        # Exact Process Tracker for SSH user
+        active_logins=$(ps -eo ruser,comm | grep -E "(dropbear|sshd)" | awk '{print $1}' | grep -w "$user" | wc -l)
+        
         if [[ "$active_logins" -gt 0 ]]; then
-            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Session"$'\n'
+            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Session\n"
             FOUND=1
         fi
     done < "$S_FILE"
     
     if [[ "$FOUND" -eq 1 ]]; then
-        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'
-        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}"$'\n'
+        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (SSH)</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n"
+        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}\n"
     fi
 fi
 
@@ -723,7 +729,14 @@ cd - >/dev/null 2>&1
 curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendDocument" \
     -F "chat_id=${CHATID}" \
     -F "document=@${ZIP_FILE}" \
-    -F "caption=📦 AUTOBACKUP VPS"$'\n\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"📅 Date: ${DATE}"$'\n'"✅ Backup Successfully generated." > /dev/null
+    -F "caption=📦 AUTOBACKUP VPS
+
+IP     : ${IP_VPS}
+DOMAIN : ${DOM_VPS}
+ISP    : ${ISP_VPS}
+
+📅 Date: ${DATE}
+✅ Backup Successfully generated." > /dev/null
 rm -f $ZIP_FILE
 EOF
 chmod +x /usr/local/bin/bot-backup
@@ -1014,20 +1027,11 @@ function header_main() {
     
     local acc_all=$((ACC_SSH + ACC_VMESS + ACC_VLESS + ACC_TROJAN + ACC_ZIVPN))
     
-    local f_ssh=$(printf "%-2s" "$ACC_SSH")
-    local f_vm=$(printf "%-2s" "$ACC_VMESS")
-    local f_vl=$(printf "%-2s" "$ACC_VLESS")
-    local f_tr=$(printf "%-2s" "$ACC_TROJAN")
-    local f_zi=$(printf "%-2s" "$ACC_ZIVPN")
-    local f_all=$(printf "%-2s" "$acc_all")
-    
-    local STR1="SSH/WS : ${WHITE}${f_ssh}${NC} USR  |  VMESS : ${WHITE}${f_vm}${NC} USR"
-    local STR2="VLESS  : ${WHITE}${f_vl}${NC} USR  |  TROJAN: ${WHITE}${f_tr}${NC} USR"
-    local STR3="ZIVPN  : ${WHITE}${f_zi}${NC} USR  |  ALL   : ${WHITE}${f_all}${NC} USR"
+    local STR1="SSH/WS : ${WHITE}${ACC_SSH}${NC} USR  |  VMESS : ${WHITE}${ACC_VMESS}${NC} USR  |  VLESS: ${WHITE}${ACC_VLESS}${NC} USR"
+    local STR2="TROJAN : ${WHITE}${ACC_TROJAN}${NC} USR  |  ZIVPN : ${WHITE}${ACC_ZIVPN}${NC} USR  |  ALL  : ${WHITE}${acc_all}${NC} USR"
     
     print_center "$STR1"
     print_center "$STR2"
-    print_center "$STR3"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     echo -e "        ${CYAN}┌──────────────────────────────────────┐${NC}"
@@ -1103,8 +1107,10 @@ function bot_menu() {
         local cur_id=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
         [[ -z "$cur_id" ]] && cur_id="Not setup"
 
-        print_line " Bot Token : ${GREEN}${cur_tok}${NC}"
-        print_line " Chat ID   : ${GREEN}${cur_id}${NC}"
+        print_line " Bot Token :"
+        print_line " ${GREEN}${cur_tok}${NC}"
+        print_line " Chat ID   :"
+        print_line " ${GREEN}${cur_id}${NC}"
         print_line " Notif Log : ${YELLOW}${st_log}${NC}"
         print_line " Notif Bak : ${YELLOW}${st_bak}${NC}"
         print_line " ————————————————————————————————————————"
