@@ -14,7 +14,7 @@
 #           + Fixed Restore Bug: Auto Re-create System Users for SSH
 #           + Layout Merge & Unified Same Username/Password for all Protocol
 #           + STRICT VALIDATION: Block Duplicate Username & UUID
-#           + NEW UI MAIN MENU & Custom HTML Banner Default
+#           + NEW UI MAIN MENU PERFECT CENTER & Custom HTML Banner Default
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -525,7 +525,7 @@ if [[ -f "$S_FILE" ]]; then
         
         [[ -z "$limit" || "$limit" == "0" ]] && continue
         
-        active_logins=$(ps -u "$user" 2>/dev/null | grep -E "sshd|dropbear" | wc -l)
+        active_logins=$(ps -u "$user" 2>/dev/null | grep -E "sshd|dropbear" | grep -v "grep" | wc -l)
         if [[ "$active_logins" -gt "$limit" ]]; then
             usermod -L "$user" 2>/dev/null
             killall -u "$user" 2>/dev/null
@@ -634,7 +634,7 @@ if [[ -f "$S_FILE" ]]; then
     PROTO_MSG=""
     FOUND=0
     while IFS="|" read -r user pass exp limit status; do
-        active_logins=$(ps -u "$user" 2>/dev/null | grep -E "sshd|dropbear" | wc -l)
+        active_logins=$(ps -u "$user" 2>/dev/null | grep -E "sshd|dropbear" | grep -v "grep" | wc -l)
         if [[ "$active_logins" -gt 0 ]]; then
             PROTO_MSG+="👤 User: <code>$user</code> | 🌐 Login: $active_logins Session (dipakek $active_logins user)"$'\n\n'
             FOUND=1
@@ -699,6 +699,41 @@ D_VMESS="/usr/local/etc/xray/vmess.txt"
 D_VLESS="/usr/local/etc/xray/vless.txt"
 D_TROJAN="/usr/local/etc/xray/trojan.txt"
 D_ZIVPN="/etc/zivpn/zivpn.txt"
+
+# ---------------------------------------------
+# FUNGSI HELPER UI
+# ---------------------------------------------
+print_line() {
+    local text="$1"
+    local clean_text=$(echo -e "$text" | sed -r 's/\x1b\[[0-9;]*m//g' | sed -r 's/\x1b\[[0-9;]*K//g')
+    local len=${#clean_text}
+    local spaces=$(( 54 - len ))
+    local pad=""
+    if (( spaces > 0 )); then pad=$(printf '%*s' "$spaces" ""); fi
+    echo -e "${CYAN}│${NC}${text}${pad}${CYAN}│${NC}"
+}
+
+print_center() {
+    local text="$1"
+    local clean_text=$(echo -e "$text" | sed -r 's/\x1b\[[0-9;]*m//g' | sed -r 's/\x1b\[[0-9;]*K//g')
+    local len=${#clean_text}
+    local spaces=$(( 54 - len ))
+    local pad_l=$(( spaces / 2 ))
+    local pad_r=$(( spaces - pad_l ))
+    local str_l=$(printf '%*s' "$pad_l" "")
+    local str_r=$(printf '%*s' "$pad_r" "")
+    echo -e "${CYAN}│${NC}${str_l}${text}${str_r}${CYAN}│${NC}"
+}
+
+menu_line() {
+    local text="$1"
+    local clean_text=$(echo -e "$text" | sed -r 's/\x1b\[[0-9;]*m//g' | sed -r 's/\x1b\[[0-9;]*K//g')
+    local len=${#clean_text}
+    local spaces=$(( 54 - 1 - len )) 
+    local pad=""
+    if (( spaces > 0 )); then pad=$(printf '%*s' "$spaces" ""); fi
+    echo -e "${CYAN}│${NC} ${text}${pad}${CYAN}│${NC}"
+}
 
 # ---------------------------------------------
 # FUNGSI VALIDASI DUPLIKAT AKUN
@@ -900,27 +935,27 @@ function header_main() {
     ACC_ZIVPN=$(wc -l < "$D_ZIVPN" 2>/dev/null || echo 0)
 
     echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
-    echo -e "                  ${YELLOW}AUTO SCRIPT TENDO STORE ( AIO )${NC}"
+    print_center "${YELLOW}AUTO SCRIPT TENDO STORE ( AIO )${NC}"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
-    printf "${CYAN}│${NC}  OS      : ${WHITE}%-s${NC}\n" "$OS"
-    printf "${CYAN}│${NC}  RAM     : ${WHITE}%-s${NC}\n" "${RAM}MB"
-    printf "${CYAN}│${NC}  SWAP    : ${WHITE}%-s${NC}\n" "${SWAP}MB"
-    printf "${CYAN}│${NC}  CITY    : ${WHITE}%-s${NC}\n" "$CITY"
-    printf "${CYAN}│${NC}  ISP     : ${WHITE}%-s${NC}\n" "$ISP"
-    printf "${CYAN}│${NC}  IP      : ${WHITE}%-s${NC}\n" "$IP"
-    printf "${CYAN}│${NC}  DOMAIN  : ${YELLOW}%-s${NC}\n" "$DOMAIN"
-    printf "${CYAN}│${NC}  UPTIME  : ${WHITE}%-s${NC}\n" "$UPTIME"
-    echo -e "${CYAN}│${NC}  ————————————————————————————"
-    echo -e "${CYAN}│${NC}  MONTH   : $TOT_MON    [$MONTH_NAME]"
-    echo -e "${CYAN}│${NC}  RX      : $RX_MON"
-    echo -e "${CYAN}│${NC}  TX      : $TX_MON"
-    echo -e "${CYAN}│${NC}  ————————————————————————————"
-    echo -e "${CYAN}│${NC}  DAY     : $TOT_DAY    [$DAY_NAME]"
-    echo -e "${CYAN}│${NC}  RX      : $RX_DAY"
-    echo -e "${CYAN}│${NC}  TX      : $TX_DAY"
-    echo -e "${CYAN}│${NC}  TRAFFIC : $TRAFFIC Mbit/s"
+    print_line "  OS      : ${WHITE}${OS}${NC}"
+    print_line "  RAM     : ${WHITE}${RAM}MB${NC}"
+    print_line "  SWAP    : ${WHITE}${SWAP}MB${NC}"
+    print_line "  CITY    : ${WHITE}${CITY}${NC}"
+    print_line "  ISP     : ${WHITE}${ISP}${NC}"
+    print_line "  IP      : ${WHITE}${IP}${NC}"
+    print_line "  DOMAIN  : ${YELLOW}${DOMAIN}${NC}"
+    print_line "  UPTIME  : ${WHITE}${UPTIME}${NC}"
+    print_line "  ————————————————————————————"
+    print_line "  MONTH   : ${TOT_MON}    [${MONTH_NAME}]"
+    print_line "  RX      : ${RX_MON}"
+    print_line "  TX      : ${TX_MON}"
+    print_line "  ————————————————————————————"
+    print_line "  DAY     : ${TOT_DAY}    [${DAY_NAME}]"
+    print_line "  RX      : ${RX_DAY}"
+    print_line "  TX      : ${TX_DAY}"
+    print_line "  TRAFFIC : ${TRAFFIC} Mbit/s"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     if systemctl is-active --quiet xray; then X_ST="${GREEN}ON${NC}"; else X_ST="${RED}OFF${NC}"; fi
@@ -928,31 +963,38 @@ function header_main() {
     if systemctl is-active --quiet dropbear; then D_ST="${GREEN}ON${NC}"; else D_ST="${RED}OFF${NC}"; fi
     
     echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
-    printf "${CYAN}│${NC} STATUS  : XRAY: %b ${CYAN}|${NC} SSH/WS: %b ${CYAN}|${NC} ZIVPN: %b\n" "$X_ST" "$D_ST" "$Z_ST"
+    print_line " STATUS  : XRAY: ${X_ST} | SSH/WS: ${D_ST} | ZIVPN: ${Z_ST}"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
-    echo -e "${CYAN}│${NC}                   ${YELLOW}LIST ACCOUNTS${NC}"
-    echo -e "${CYAN}│${NC}  ————————————————————————————"
-    printf "${CYAN}│${NC} SSH/WS         : ${WHITE}%-4s${NC} USER\n" "$ACC_SSH"
-    printf "${CYAN}│${NC} VMESS          : ${WHITE}%-4s${NC} USER\n" "$ACC_VMESS"
-    printf "${CYAN}│${NC} VLESS          : ${WHITE}%-4s${NC} USER\n" "$ACC_VLESS"
-    printf "${CYAN}│${NC} TROJAN         : ${WHITE}%-4s${NC} USER\n" "$ACC_TROJAN"
-    printf "${CYAN}│${NC} ZIVPN          : ${WHITE}%-4s${NC} USER\n" "$ACC_ZIVPN"
+    print_center "${YELLOW}LIST ACCOUNTS${NC}"
+    print_line "  ————————————————————————————"
+    
+    local f_ssh=$(printf "%-4s" "$ACC_SSH")
+    local f_vm=$(printf "%-4s" "$ACC_VMESS")
+    local f_vl=$(printf "%-4s" "$ACC_VLESS")
+    local f_tr=$(printf "%-4s" "$ACC_TROJAN")
+    local f_zi=$(printf "%-4s" "$ACC_ZIVPN")
+    
+    print_line " SSH/WS         : ${WHITE}${f_ssh}${NC} USER"
+    print_line " VMESS          : ${WHITE}${f_vm}${NC} USER"
+    print_line " VLESS          : ${WHITE}${f_vl}${NC} USER"
+    print_line " TROJAN         : ${WHITE}${f_tr}${NC} USER"
+    print_line " ZIVPN          : ${WHITE}${f_zi}${NC} USER"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     echo -e "     ${CYAN}┌───────────────────────────────────────┐${NC}"
-    echo -e "         Version   :  ${WHITE}v01.03.26${NC}"
-    echo -e "         Owner     :  ${WHITE}Tendo Store${NC}"
-    echo -e "         Telegram  :  ${WHITE}@tendo_32${NC}"
-    echo -e "         Expiry In :  ${WHITE}Lifetime${NC}"
+    echo -e "     ${CYAN}│${NC}   Version   :  ${WHITE}v01.03.26${NC}              ${CYAN}│${NC}"
+    echo -e "     ${CYAN}│${NC}   Owner     :  ${WHITE}Tendo Store${NC}            ${CYAN}│${NC}"
+    echo -e "     ${CYAN}│${NC}   Telegram  :  ${WHITE}@tendo_32${NC}              ${CYAN}│${NC}"
+    echo -e "     ${CYAN}│${NC}   Expiry In :  ${WHITE}Lifetime${NC}               ${CYAN}│${NC}"
     echo -e "     ${CYAN}└───────────────────────────────────────┘${NC}"
 }
 
 function header_sub() {
     clear; echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
-    echo -e "${CYAN}│              ${YELLOW}TENDO STORE - SUB MENU${NC}                  ${CYAN}│${NC}"
-    echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
+    print_center "${YELLOW}TENDO STORE - SUB MENU${NC}"
+    echo -e "${CYAN}├──────────────────────────────────────────────────────┤${NC}"
 }
 
 # ---------------------------------------------
@@ -961,12 +1003,13 @@ function header_sub() {
 function menu_login_notif() {
     while true; do header_sub
         local st=$(cat /etc/tendo_bot/log_stat 2>/dev/null || echo "OFF")
-        echo -e " ————————————————————————————————————————"
-        echo -e "        Status [${st}]"
-        echo -e "   1.)  OFF"
-        echo -e "   2.)  Set Time Notif (h) untuk jam dan (m) untuk meniit"
-        echo -e "   x.)  Exit"
-        echo -e " ————————————————————————————————————————"
+        print_line " ————————————————————————————————————————"
+        print_line "        Status [${st}]"
+        print_line "   1.)  OFF"
+        print_line "   2.)  Set Time Notif (h) jam (m) menit"
+        print_line "   x.)  Exit"
+        print_line " ————————————————————————————————————————"
+        echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Pilihan: " opt2
         case $opt2 in
             1) echo "OFF" > /etc/tendo_bot/log_stat; crontab -l | grep -v "bot-login-notif" > /tmp/c.tmp; crontab /tmp/c.tmp; echo -e "${GREEN}Turned OFF${NC}"; sleep 1;;
@@ -983,12 +1026,13 @@ function menu_login_notif() {
 function menu_backup_notif() {
     while true; do header_sub
         local st=$(cat /etc/tendo_bot/bak_stat 2>/dev/null || echo "OFF")
-        echo -e " ————————————————————————————————————————"
-        echo -e "        Status [${st}]"
-        echo -e "   1.)  OFF"
-        echo -e "   2.)  Set Time Backup (h) untuk jam dan (m) untuk meniit"
-        echo -e "   x.)  Exit"
-        echo -e " ————————————————————————————————————————"
+        print_line " ————————————————————————————————————————"
+        print_line "        Status [${st}]"
+        print_line "   1.)  OFF"
+        print_line "   2.)  Set Time Backup (h) jam (m) menit"
+        print_line "   x.)  Exit"
+        print_line " ————————————————————————————————————————"
+        echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Pilihan: " opt3
         case $opt3 in
             1) echo "OFF" > /etc/tendo_bot/bak_stat; crontab -l | grep -v "bot-backup" > /tmp/c.tmp; crontab /tmp/c.tmp; echo -e "${GREEN}Turned OFF${NC}"; sleep 1;;
@@ -1006,11 +1050,22 @@ function bot_menu() {
     while true; do header_sub
         local st_log=$(cat /etc/tendo_bot/log_stat 2>/dev/null || echo "OFF")
         local st_bak=$(cat /etc/tendo_bot/bak_stat 2>/dev/null || echo "OFF")
-        echo -e "${CYAN}│${NC} [1] Change BOT API & CHATID"
-        echo -e "${CYAN}│${NC} [2] Set notifikasi User login"
-        echo -e "${CYAN}│${NC} [3] Set notifikasi backup"
-        echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
+        
+        local cur_tok=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ' | sed 's/.\{10\}$/**********/')
+        [[ -z "$cur_tok" ]] && cur_tok="Not setup"
+        local cur_id=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
+        [[ -z "$cur_id" ]] && cur_id="Not setup"
+
+        print_line " Bot Token : ${GREEN}${cur_tok}${NC}"
+        print_line " Chat ID   : ${GREEN}${cur_id}${NC}"
+        print_line " Notif Log : ${YELLOW}${st_log}${NC}"
+        print_line " Notif Bak : ${YELLOW}${st_bak}${NC}"
+        print_line " ————————————————————————————————————————"
+        menu_line "[1] Change BOT API & CHATID"
+        menu_line "[2] Set notifikasi User login"
+        menu_line "[3] Set notifikasi backup"
+        menu_line "[x] Back"
+        echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
             1) read -p " Bot Token: " bt; read -p " Chat ID: " ci; echo "$bt" > /etc/tendo_bot/bot_token; echo "$ci" > /etc/tendo_bot/chat_id; echo -e "${GREEN}Saved Successfully!${NC}"; sleep 1;;
@@ -1026,15 +1081,15 @@ function bot_menu() {
 # ---------------------------------------------
 function ssh_menu() {
     while true; do header_sub
-        echo -e "${CYAN}│${NC} [1] Create Account SSH"
-        echo -e "${CYAN}│${NC} [2] Delete Account SSH"
-        echo -e "${CYAN}│${NC} [3] Renew Account SSH"
-        echo -e "${CYAN}│${NC} [4] Check Config User"
-        echo -e "${CYAN}│${NC} [5] Trial Account SSH"
-        echo -e "${CYAN}│${NC} [6] Lock Account SSH"
-        echo -e "${CYAN}│${NC} [7] Unlock Account SSH"
-        echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
+        menu_line "[1] Create Account SSH"
+        menu_line "[2] Delete Account SSH"
+        menu_line "[3] Renew Account SSH"
+        menu_line "[4] Check Config User"
+        menu_line "[5] Trial Account SSH"
+        menu_line "[6] Lock Account SSH"
+        menu_line "[7] Unlock Account SSH"
+        menu_line "[x] Back"
+        echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
             1) read -p " Username : " u; [[ -z "$u" ]] && continue
@@ -1071,11 +1126,11 @@ function ssh_menu() {
 
 function xray_manager_menu() {
     while true; do header_sub
-        echo -e "${CYAN}│${NC} [1] VMESS ACCOUNT"
-        echo -e "${CYAN}│${NC} [2] VLESS ACCOUNT"
-        echo -e "${CYAN}│${NC} [3] TROJAN ACCOUNT"
-        echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
+        menu_line "[1] VMESS ACCOUNT"
+        menu_line "[2] VLESS ACCOUNT"
+        menu_line "[3] TROJAN ACCOUNT"
+        menu_line "[x] Back"
+        echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
             1) vmess_menu ;;
@@ -1090,15 +1145,16 @@ function auto_reboot_menu() {
     while true; do header_sub
         if [[ -f "/etc/cron.d/autoreboot" ]]; then
             local st=$(cat /etc/cron.d/autoreboot | awk '{print $2":"$1}')
-            echo -e "        Status [ON - $st]"
+            print_line "        Status [ON - $st]"
         else
-            echo -e "        Status [OFF]"
+            print_line "        Status [OFF]"
         fi
-        echo -e " ————————————————————————————————————————"
-        echo -e "   1.)  Turn ON (Set Time)"
-        echo -e "   2.)  Turn OFF"
-        echo -e "   x.)  Exit"
-        echo -e " ————————————————————————————————————————"
+        print_line " ————————————————————————————————————————"
+        print_line "   1.)  Turn ON (Set Time)"
+        print_line "   2.)  Turn OFF"
+        print_line "   x.)  Exit"
+        print_line " ————————————————————————————————————————"
+        echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Pilihan: " opt
         case $opt in
             1) read -p " Set Jam (0-23): " hr
@@ -1118,15 +1174,15 @@ function auto_reboot_menu() {
 
 function rebuild_menu() {
     header_sub
-    echo -e "${RED}WARNING: REBUILD AKAN MENGHAPUS SELURUH DATA VPS!${NC}"
-    echo -e "Pastikan anda sudah melakukan Backup Data VPS."
-    echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
-    echo -e "${CYAN}│${NC} [1] Ubuntu 22.04"
-    echo -e "${CYAN}│${NC} [2] Ubuntu 20.04"
-    echo -e "${CYAN}│${NC} [3] Debian 12"
-    echo -e "${CYAN}│${NC} [4] Debian 11"
-    echo -e "${CYAN}│${NC} [x] Cancel"
-    echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
+    print_center "${RED}WARNING: REBUILD AKAN MENGHAPUS SELURUH DATA VPS!${NC}"
+    print_center "Pastikan anda sudah melakukan Backup Data VPS."
+    print_line " ————————————————————————————————————————"
+    menu_line "[1] Ubuntu 22.04"
+    menu_line "[2] Ubuntu 20.04"
+    menu_line "[3] Debian 12"
+    menu_line "[4] Debian 11"
+    menu_line "[x] Cancel"
+    echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     read -p " Pilih OS untuk Rebuild: " opt
     case $opt in
         1) os="ubuntu 22.04" ;;
@@ -1152,10 +1208,6 @@ function rebuild_menu() {
 
 function check_services() {
     header_sub
-    echo -e "${CYAN}┌───────────────────────────────────────────────${NC}"
-    echo -e "${CYAN}│               SERVICES STATUS                 ${NC}"
-    echo -e "${CYAN}├───────────────────────────────────────────────${NC}"
-    
     if systemctl is-active --quiet xray; then X_ST="${GREEN}ON${NC}"; else X_ST="${RED}OFF${NC}"; fi
     if systemctl is-active --quiet zivpn; then Z_ST="${GREEN}ON${NC}"; else Z_ST="${RED}OFF${NC}"; fi
     if systemctl is-active --quiet dropbear; then D_ST="${GREEN}ON${NC}"; else D_ST="${RED}OFF${NC}"; fi
@@ -1163,42 +1215,42 @@ function check_services() {
     if systemctl is-active --quiet vnstat; then V_ST="${GREEN}ON${NC}"; else V_ST="${RED}OFF${NC}"; fi
     if iptables -L >/dev/null 2>&1; then I_ST="${GREEN}ON${NC}"; else I_ST="${RED}OFF${NC}"; fi
     
-    printf "${CYAN}│${NC} Xray Core       : %b${NC}\n" "$X_ST"
-    printf "${CYAN}│${NC} Dropbear SSH    : %b${NC}\n" "$D_ST"
-    printf "${CYAN}│${NC} WS SSH Proxy    : %b${NC}\n" "$W_ST"
-    printf "${CYAN}│${NC} ZIVPN UDP       : %b${NC}\n" "$Z_ST"
-    printf "${CYAN}│${NC} Vnstat Mon      : %b${NC}\n" "$V_ST"
-    printf "${CYAN}│${NC} IPtables        : %b${NC}\n" "$I_ST"
+    print_line " Xray Core       : ${X_ST}"
+    print_line " Dropbear SSH    : ${D_ST}"
+    print_line " WS SSH Proxy    : ${W_ST}"
+    print_line " ZIVPN UDP       : ${Z_ST}"
+    print_line " Vnstat Mon      : ${V_ST}"
+    print_line " IPtables        : ${I_ST}"
     
-    echo -e "${CYAN}└───────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     read -p "Enter..."
 }
 
 function features_menu() {
     while true; do header_sub
-        echo -e "${CYAN}│${NC} [1] Check Bandwidth (Vnstat)"
-        echo -e "${CYAN}│${NC} [2] Speedtest by Ookla (Official)"
-        echo -e "${CYAN}│${NC} [3] Check Benchmark VPS (YABS)"
-        echo -e "${CYAN}│${NC} [4] Change Domain VPS"
-        echo -e "${CYAN}│${NC} [5] Restart All Services"
-        echo -e "${CYAN}│${NC} [6] Clear Cache RAM"
-        echo -e "${CYAN}│${NC} [7] Set Auto Reboot"
-        echo -e "${CYAN}│${NC} [8] Information System"
-        echo -e "${CYAN}│${NC} [9] Backup Data VPS"
-        echo -e "${CYAN}│${NC} [10] Restore Data VPS"
-        echo -e "${CYAN}│${NC} [11] Rebuild VPS"
-        echo -e "${CYAN}│${NC} [12] Check Services"
-        echo -e "${CYAN}│${NC} [13] Change Banner SSH"
-        echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
+        menu_line "[1] Check Bandwidth"
+        menu_line "[2] Speedtest by Ookla"
+        menu_line "[3] Check Benchmark VPS"
+        menu_line "[4] Change Domain VPS"
+        menu_line "[5] Restart All Services"
+        menu_line "[6] Clear Cache RAM"
+        menu_line "[7] Set Auto Reboot"
+        menu_line "[8] Information System"
+        menu_line "[9] Backup Data VPS"
+        menu_line "[10] Restore Data VPS"
+        menu_line "[11] Rebuild VPS"
+        menu_line "[12] Check Services"
+        menu_line "[13] Change Banner SSH"
+        menu_line "[x] Back"
+        echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
             1) vnstat -l -i $(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1); read -p "Enter...";;
             2) speedtest; read -p "Enter...";;
             3) echo -e "${YELLOW}Running Benchmark...${NC}"; wget -qO- bench.sh | bash; read -p "Enter...";;
             4) header_sub
-               echo -e "${YELLOW}WARNING: Mengganti domain akan memperbarui sertifikat SSL!${NC}"
-               echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
+               print_center "${YELLOW}WARNING: Mengganti domain akan memperbarui sertifikat SSL!${NC}"
+               echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
                read -p "Masukan Domain Baru: " nd
                if [[ -z "$nd" ]]; then continue; fi
                echo -e "${YELLOW}Processing...${NC}"
@@ -1318,15 +1370,15 @@ function features_menu() {
 # ---------------------------------------------
 function vmess_menu() {
     while true; do header_sub
-        echo -e "${CYAN}│${NC} [1] Create Account Vmess"
-        echo -e "${CYAN}│${NC} [2] Delete Account Vmess"
-        echo -e "${CYAN}│${NC} [3] Renew Account Vmess"
-        echo -e "${CYAN}│${NC} [4] Check Config User"
-        echo -e "${CYAN}│${NC} [5] Trial Account Vmess"
-        echo -e "${CYAN}│${NC} [6] Lock Account Vmess"
-        echo -e "${CYAN}│${NC} [7] Unlock Account Vmess"
-        echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
+        menu_line "[1] Create Account Vmess"
+        menu_line "[2] Delete Account Vmess"
+        menu_line "[3] Renew Account Vmess"
+        menu_line "[4] Check Config User"
+        menu_line "[5] Trial Account Vmess"
+        menu_line "[6] Lock Account Vmess"
+        menu_line "[7] Unlock Account Vmess"
+        menu_line "[x] Back"
+        echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
             1) read -p " Username : " u; [[ -z "$u" ]] && continue
@@ -1387,15 +1439,15 @@ function vmess_menu() {
 
 function vless_menu() {
     while true; do header_sub
-        echo -e "${CYAN}│${NC} [1] Create Account Vless"
-        echo -e "${CYAN}│${NC} [2] Delete Account Vless"
-        echo -e "${CYAN}│${NC} [3] Renew Account Vless"
-        echo -e "${CYAN}│${NC} [4] Check Config User"
-        echo -e "${CYAN}│${NC} [5] Trial Account Vless"
-        echo -e "${CYAN}│${NC} [6] Lock Account Vless"
-        echo -e "${CYAN}│${NC} [7] Unlock Account Vless"
-        echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
+        menu_line "[1] Create Account Vless"
+        menu_line "[2] Delete Account Vless"
+        menu_line "[3] Renew Account Vless"
+        menu_line "[4] Check Config User"
+        menu_line "[5] Trial Account Vless"
+        menu_line "[6] Lock Account Vless"
+        menu_line "[7] Unlock Account Vless"
+        menu_line "[x] Back"
+        echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
             1) read -p " Username : " u; [[ -z "$u" ]] && continue
@@ -1456,15 +1508,15 @@ function vless_menu() {
 
 function trojan_menu() {
     while true; do header_sub
-        echo -e "${CYAN}│${NC} [1] Create Account Trojan"
-        echo -e "${CYAN}│${NC} [2] Delete Account Trojan"
-        echo -e "${CYAN}│${NC} [3] Renew Account Trojan"
-        echo -e "${CYAN}│${NC} [4] Check Config User"
-        echo -e "${CYAN}│${NC} [5] Trial Account Trojan"
-        echo -e "${CYAN}│${NC} [6] Lock Account Trojan"
-        echo -e "${CYAN}│${NC} [7] Unlock Account Trojan"
-        echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
+        menu_line "[1] Create Account Trojan"
+        menu_line "[2] Delete Account Trojan"
+        menu_line "[3] Renew Account Trojan"
+        menu_line "[4] Check Config User"
+        menu_line "[5] Trial Account Trojan"
+        menu_line "[6] Lock Account Trojan"
+        menu_line "[7] Unlock Account Trojan"
+        menu_line "[x] Back"
+        echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
             1) read -p " Username : " u; [[ -z "$u" ]] && continue
@@ -1522,13 +1574,13 @@ function trojan_menu() {
 
 function zivpn_menu() {
     while true; do header_sub
-        echo -e "${CYAN}│${NC} [1] Create Account ZIVPN"
-        echo -e "${CYAN}│${NC} [2] Delete Account ZIVPN"
-        echo -e "${CYAN}│${NC} [3] Renew Account ZIVPN"
-        echo -e "${CYAN}│${NC} [4] Check Config User"
-        echo -e "${CYAN}│${NC} [5] Trial Account ZIVPN"
-        echo -e "${CYAN}│${NC} [x] Back"
-        echo -e "${CYAN}──────────────────────────────────────────────────────${NC}"
+        menu_line "[1] Create Account ZIVPN"
+        menu_line "[2] Delete Account ZIVPN"
+        menu_line "[3] Renew Account ZIVPN"
+        menu_line "[4] Check Config User"
+        menu_line "[5] Trial Account ZIVPN"
+        menu_line "[x] Back"
+        echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
             1) read -p " Username : " u; [[ -z "$u" ]] && continue
@@ -1548,9 +1600,9 @@ function zivpn_menu() {
 
 while true; do header_main
     echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
-    echo -e "${CYAN}│${NC} [1] SSH ACCOUNT          [4] BOT TELEGRAM SETUP"
-    echo -e "${CYAN}│${NC} [2] X-RAY MANAGER        [5] FEATURES"
-    echo -e "${CYAN}│${NC} [3] ZIVPN UDP            [x] EXIT"
+    print_line "[1] SSH ACCOUNT          [4] BOT TELEGRAM SETUP"
+    print_line "[2] X-RAY MANAGER        [5] FEATURES"
+    print_line "[3] ZIVPN UDP            [x] EXIT"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     read -p " Select Menu : " opt
     case $opt in
