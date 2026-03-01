@@ -9,12 +9,11 @@
 #           + Full Telegram Bot Integration (Include SSH Notif)
 #           + Limit Multi Login SSH & X-Ray
 #           + Backup & Restore Fix Data Telegram Bot & Cron
-#           + Fixed Payload Buffer Issue (Premature Connection Close)
 #           + Setup Custom Banner SSH & Change Banner Feature
 #           + Fixed Restore Bug: Auto Re-create System Users for SSH
 #           + STRICT VALIDATION: Block Duplicate Username & ID
 #           + FORCE AUTO-YES (Bypass All apt/dpkg/needrestart Popups)
-#           + NEW UI PERFECT CENTER (Dynamic Padding Borders) & LIST USER
+#           + NEW UI PERFECT CENTER & LIST USER
 #           + AUTO REBOOT After Restore & Banner AIO Text
 #           + TELEGRAM NOTIF UPDATE: Added IP, DOMAIN, ISP & Quota Usage
 #           + [HOTFIX] Fixed HTTP Custom Reconnect Bug (Daemon WS Proxy)
@@ -255,7 +254,7 @@ def handle_client(client_socket):
             
         sockets = [client_socket, remote_socket]
         while True:
-            r, _, _ = select.select(sockets, [], [], 300)
+            r, _, _ = select.select(sockets, [], [])
             if not r:
                 break
             if client_socket in r:
@@ -505,7 +504,7 @@ for proto in vmess vless trojan; do
                 sed -i "s/^$user|.*/$user|$id|$exp|$limit|ACTIVE|$quota/g" "$FILE"
                 systemctl restart xray
                 if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                    MSG="<b>✅ AKUN DI-UNLOCK OTOMATIS (${proto^^})</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n👤 User: <code>$user</code>\n🔓 Status: Active (Hukuman 10 menit selesai)"
+                    MSG="<b>✅ AKUN DI-UNLOCK OTOMATIS (${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🔓 Status: Active (Hukuman 10 menit selesai)"
                     curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
                 fi
             fi
@@ -522,7 +521,7 @@ for proto in vmess vless trojan; do
             sed -i "s/^$user|.*/$user|$id|$exp|$limit|LOCKED_IP_${NOW}|$quota/g" "$FILE"
             systemctl restart xray
             if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (${proto^^})</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n👤 User: <code>$user</code>\n🌐 Limit IP: $limit\n🚨 Login IP: $active_ips\n⛔ Status: Terkunci 10 Menit"
+                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit IP: $limit"$'\n'"🚨 Login IP: $active_ips"$'\n'"⛔ Status: Terkunci 10 Menit"
                 curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
             fi
         fi
@@ -539,7 +538,7 @@ if [[ -f "$S_FILE" ]]; then
                 usermod -U "$user" 2>/dev/null
                 sed -i "s/^$user|.*/$user|$pass|$exp|$limit|ACTIVE/g" "$S_FILE"
                 if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                    MSG="<b>✅ AKUN DI-UNLOCK OTOMATIS (SSH)</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n👤 User: <code>$user</code>\n🔓 Status: Active (Hukuman 10 menit selesai)"
+                    MSG="<b>✅ AKUN DI-UNLOCK OTOMATIS (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🔓 Status: Active (Hukuman 10 menit selesai)"
                     curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
                 fi
             fi
@@ -550,13 +549,13 @@ if [[ -f "$S_FILE" ]]; then
         
         [[ -z "$limit" || "$limit" == "0" ]] && continue
         
-        active_logins=$(pgrep -u "$user" 2>/dev/null | wc -l)
+        active_logins=$(ps -u "$user" -o pid= 2>/dev/null | wc -l)
         if [[ "$active_logins" -gt "$limit" ]]; then
             usermod -L "$user" 2>/dev/null
             killall -u "$user" 2>/dev/null
             sed -i "s/^$user|.*/$user|$pass|$exp|$limit|LOCKED_IP_${NOW}/g" "$S_FILE"
             if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (SSH)</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n👤 User: <code>$user</code>\n🌐 Limit Session: $limit\n🚨 Login Session: $active_logins\n⛔ Status: Terkunci 10 Menit"
+                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit Session: $limit"$'\n'"🚨 Login Session: $active_logins"$'\n'"⛔ Status: Terkunci 10 Menit"
                 curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
             fi
         fi
@@ -613,7 +612,7 @@ for proto in vmess vless trojan; do
             rm -f "$QUOTA_FILE"
             systemctl restart xray
             if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                MSG="<b>🚫 KUOTA HABIS (AKUN DIHAPUS - ${proto^^})</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n👤 User: <code>$user</code>\n📊 Batas Kuota: ${quota} GB\n⛔ Status: Akun Otomatis Dihapus"
+                MSG="<b>🚫 KUOTA HABIS (AKUN DIHAPUS - ${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"📊 Batas Kuota: ${quota} GB"$'\n'"⛔ Status: Akun Otomatis Dihapus"
                 curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
             fi
         fi
@@ -657,14 +656,14 @@ for proto in vmess vless trojan; do
             else
                 usage_gb="0.00"
             fi
-            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_ips IP | Kuota: ${usage_gb}GB\n"
+            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_ips IP | Kuota: ${usage_gb}GB"$'\n'
             FOUND=1
         fi
     done < "$FILE"
     
     if [[ "$FOUND" -eq 1 ]]; then
-        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (${proto^^})</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n"
-        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}\n"
+        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'
+        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}"$'\n'
     fi
 done
 
@@ -674,16 +673,16 @@ if [[ -f "$S_FILE" ]]; then
     PROTO_MSG=""
     FOUND=0
     while IFS="|" read -r user pass exp limit status; do
-        active_logins=$(pgrep -u "$user" 2>/dev/null | wc -l)
+        active_logins=$(ps -u "$user" -o pid= 2>/dev/null | wc -l)
         if [[ "$active_logins" -gt 0 ]]; then
-            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Session\n"
+            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Session"$'\n'
             FOUND=1
         fi
     done < "$S_FILE"
     
     if [[ "$FOUND" -eq 1 ]]; then
-        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (SSH)</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n"
-        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}\n"
+        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'
+        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}"$'\n'
     fi
 fi
 
@@ -718,14 +717,7 @@ cd - >/dev/null 2>&1
 curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendDocument" \
     -F "chat_id=${CHATID}" \
     -F "document=@${ZIP_FILE}" \
-    -F "caption=📦 AUTOBACKUP VPS
-
-IP     : ${IP_VPS}
-DOMAIN : ${DOM_VPS}
-ISP    : ${ISP_VPS}
-
-📅 Date: ${DATE}
-✅ Backup Successfully generated." > /dev/null
+    -F "caption=📦 AUTOBACKUP VPS"$'\n\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"📅 Date: ${DATE}"$'\n'"✅ Backup Successfully generated." > /dev/null
 rm -f $ZIP_FILE
 EOF
 chmod +x /usr/local/bin/bot-backup
@@ -1022,10 +1014,12 @@ function header_main() {
     print_line "            ZIVPN          : ${WHITE}${f_zi}${NC} USER"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
+    echo -e "        ${CYAN}┌──────────────────────────────────────┐${NC}"
     echo -e "                Version   :  ${WHITE}v01.03.26${NC}         "
     echo -e "                Owner     :  ${WHITE}Tendo Store${NC}       "
     echo -e "                Telegram  :  ${WHITE}@tendo_32${NC}         "
     echo -e "                Expiry In :  ${WHITE}Lifetime${NC}          "
+    echo -e "        ${CYAN}└──────────────────────────────────────┘${NC}"
 }
 
 function header_sub() {
