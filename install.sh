@@ -4,12 +4,13 @@
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL)
 #   Update: Added List Accounts (Count) on Dashboard
 #           + Added WS, GRPC, HTTPUpgrade Networks
-#           + Added SSH, Dropbear, UDPGW, WS Python Proxy
+#           + Added SSH, Dropbear, UDPGW, Robust WS Python Proxy
 #           + UI Update: Auto Domain & Bouncing Scanner Spinner
 #           + Full Telegram Bot Integration (Include SSH Notif)
 #           + Limit Multi Login SSH & X-Ray
-#           + Backup & Restore Fix Data Telegram Bot
+#           + Backup & Restore Fix Data Telegram Bot & Cron
 #           + Main Menu UI Overhaul (SSH Menu at No 1)
+#           + Fixed Payload Buffer Issue (Premature Connection Close)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -202,35 +203,53 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload && systemctl enable dropbear >/dev/null 2>&1 && systemctl start dropbear >/dev/null 2>&1
 
-    # WS Python Proxy
+    # WS Python Proxy (Robust Fix Payload)
     cat > /usr/local/bin/ws-proxy.py << 'EOF'
 import socket, threading
+
 def handle_client(client_socket):
-    remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    remote_socket.connect(('127.0.0.1', 90))
-    request = client_socket.recv(4096)
-    if b"HTTP/" in request:
-        response = b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
-        client_socket.sendall(response)
-    else:
-        remote_socket.sendall(request)
-    def forward(src, dst):
-        try:
-            while True:
-                data = src.recv(4096)
-                if not data: break
-                dst.sendall(data)
-        except: pass
-        finally:
-            src.close(); dst.close()
-    threading.Thread(target=forward, args=(client_socket, remote_socket)).start()
-    threading.Thread(target=forward, args=(remote_socket, client_socket)).start()
+    try:
+        remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        remote_socket.connect(('127.0.0.1', 90))
+        
+        request = client_socket.recv(8192)
+        
+        if b"HTTP/" in request:
+            response = b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+            client_socket.sendall(response)
+            
+            parts = request.split(b"\r\n\r\n", 1)
+            if len(parts) == 2 and len(parts[1]) > 0:
+                remote_socket.sendall(parts[1])
+        else:
+            remote_socket.sendall(request)
+            
+        def forward(src, dst):
+            try:
+                while True:
+                    data = src.recv(8192)
+                    if not data: break
+                    dst.sendall(data)
+            except: pass
+            finally:
+                src.close()
+                dst.close()
+                
+        threading.Thread(target=forward, args=(client_socket, remote_socket)).start()
+        threading.Thread(target=forward, args=(remote_socket, client_socket)).start()
+    except Exception:
+        client_socket.close()
+
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind(('0.0.0.0', 10015))
 server.listen(100)
 while True:
-    client, addr = server.accept()
-    threading.Thread(target=handle_client, args=(client,)).start()
+    try:
+        client, addr = server.accept()
+        threading.Thread(target=handle_client, args=(client,)).start()
+    except:
+        pass
 EOF
     cat > /etc/systemd/system/ws-proxy.service <<EOF
 [Unit]
@@ -304,15 +323,15 @@ cat > $CONFIG_FILE <<EOF
   "inbounds": [
     { "listen": "127.0.0.1", "port": 10085, "protocol": "dokodemo-door", "settings": { "address": "127.0.0.1" }, "tag": "api" },
     { "tag": "inbound-443", "port": 443, "protocol": "vless", "settings": { "clients": [ { "id": "$UUID_SYS", "flow": "xtls-rprx-vision", "level": 0, "email": "system" } ], "decryption": "none", "fallbacks": [ 
-        { "dest": 10015, "xver": 1 },
         { "path": "/vmess", "dest": 10001, "xver": 1 }, { "path": "/vless", "dest": 10002, "xver": 1 }, { "path": "/trojan", "dest": 10003, "xver": 1 },
         { "path": "/vmess-upg", "dest": 10004, "xver": 1 }, { "path": "/vless-upg", "dest": 10005, "xver": 1 }, { "path": "/trojan-upg", "dest": 10006, "xver": 1 },
-        { "alpn": "h2", "path": "/vmess-grpc", "dest": 10007, "xver": 1 }, { "alpn": "h2", "path": "/vless-grpc", "dest": 10008, "xver": 1 }, { "alpn": "h2", "path": "/trojan-grpc", "dest": 10009, "xver": 1 }
+        { "alpn": "h2", "path": "/vmess-grpc", "dest": 10007, "xver": 1 }, { "alpn": "h2", "path": "/vless-grpc", "dest": 10008, "xver": 1 }, { "alpn": "h2", "path": "/trojan-grpc", "dest": 10009, "xver": 1 },
+        { "dest": 10015, "xver": 1 }
     ] }, "streamSettings": { "network": "tcp", "security": "tls", "tlsSettings": { "alpn": ["h2", "http/1.1"], "certificates": [ { "certificateFile": "/usr/local/etc/xray/xray.crt", "keyFile": "/usr/local/etc/xray/xray.key" } ] } } },
     { "tag": "inbound-80", "port": 80, "protocol": "vless", "settings": { "clients": [], "decryption": "none", "fallbacks": [ 
-        { "dest": 10015, "xver": 1 },
         { "path": "/vmess", "dest": 10001, "xver": 1 }, { "path": "/vless", "dest": 10002, "xver": 1 }, { "path": "/trojan", "dest": 10003, "xver": 1 },
-        { "path": "/vmess-upg", "dest": 10004, "xver": 1 }, { "path": "/vless-upg", "dest": 10005, "xver": 1 }, { "path": "/trojan-upg", "dest": 10006, "xver": 1 }
+        { "path": "/vmess-upg", "dest": 10004, "xver": 1 }, { "path": "/vless-upg", "dest": 10005, "xver": 1 }, { "path": "/trojan-upg", "dest": 10006, "xver": 1 },
+        { "dest": 10015, "xver": 1 }
     ] }, "streamSettings": { "network": "tcp", "security": "none" } },
     { "tag": "vmess_ws", "port": 10001, "listen": "127.0.0.1", "protocol": "vmess", "settings": { "clients": [] }, "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "acceptProxyProtocol": true, "path": "/vmess" } } },
     { "tag": "vless_ws", "port": 10002, "listen": "127.0.0.1", "protocol": "vless", "settings": { "clients": [], "decryption": "none" }, "streamSettings": { "network": "ws", "security": "none", "wsSettings": { "acceptProxyProtocol": true, "path": "/vless" } } },
