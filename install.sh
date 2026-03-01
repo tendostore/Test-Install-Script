@@ -4,18 +4,20 @@
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL)
 #   Update: Added List Accounts (Count) on Dashboard
 #           + Added WS, GRPC, HTTPUpgrade Networks
-#           + Added SSH, Dropbear, UDPGW
+#           + Added SSH, Dropbear, UDPGW, Robust WS Python Proxy
 #           + UI Update: Auto Domain & Bouncing Scanner Spinner
 #           + Full Telegram Bot Integration (Include SSH Notif)
 #           + Limit Multi Login SSH & X-Ray
 #           + Backup & Restore Fix Data Telegram Bot & Cron
+#           + Fixed Payload Buffer Issue (Premature Connection Close)
 #           + Setup Custom Banner SSH & Change Banner Feature
 #           + Fixed Restore Bug: Auto Re-create System Users for SSH
 #           + STRICT VALIDATION: Block Duplicate Username & ID
 #           + FORCE AUTO-YES (Bypass All apt/dpkg/needrestart Popups)
-#           + NEW UI PERFECT CENTER & LIST USER
-#           + [HOTFIX] Fixed HTTP Custom Reconnect Bug (Robust WS Proxy)
-#           + Removed Side Borders on Version Info Box
+#           + NEW UI PERFECT CENTER (Dynamic Padding Borders) & LIST USER
+#           + AUTO REBOOT After Restore & Banner AIO Text
+#           + TELEGRAM NOTIF UPDATE: Added IP, DOMAIN, ISP & Quota Usage
+#           + [HOTFIX] Fixed HTTP Custom Reconnect Bug (Daemon WS Proxy)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -476,6 +478,10 @@ TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
 CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
 NOW=$(date +%s)
 
+IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
+DOM_VPS=$(cat /usr/local/etc/xray/domain 2>/dev/null)
+ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
+
 [[ ! -f "$LOG_FILE" ]] && exit 0
 
 D1=$(date +"%Y/%m/%d %H:%M")
@@ -499,7 +505,7 @@ for proto in vmess vless trojan; do
                 sed -i "s/^$user|.*/$user|$id|$exp|$limit|ACTIVE|$quota/g" "$FILE"
                 systemctl restart xray
                 if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                    MSG="<b>✅ AKUN DI-UNLOCK OTOMATIS (${proto^^})</b>"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🔓 Status: Active (Hukuman 10 menit selesai)"
+                    MSG="<b>✅ AKUN DI-UNLOCK OTOMATIS (${proto^^})</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n👤 User: <code>$user</code>\n🔓 Status: Active (Hukuman 10 menit selesai)"
                     curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
                 fi
             fi
@@ -516,7 +522,7 @@ for proto in vmess vless trojan; do
             sed -i "s/^$user|.*/$user|$id|$exp|$limit|LOCKED_IP_${NOW}|$quota/g" "$FILE"
             systemctl restart xray
             if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (${proto^^})</b>"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit IP: $limit"$'\n'"🚨 Login IP: $active_ips"$'\n'"⛔ Status: Terkunci 10 Menit"
+                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (${proto^^})</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n👤 User: <code>$user</code>\n🌐 Limit IP: $limit\n🚨 Login IP: $active_ips\n⛔ Status: Terkunci 10 Menit"
                 curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
             fi
         fi
@@ -533,7 +539,7 @@ if [[ -f "$S_FILE" ]]; then
                 usermod -U "$user" 2>/dev/null
                 sed -i "s/^$user|.*/$user|$pass|$exp|$limit|ACTIVE/g" "$S_FILE"
                 if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                    MSG="<b>✅ AKUN DI-UNLOCK OTOMATIS (SSH)</b>"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🔓 Status: Active (Hukuman 10 menit selesai)"
+                    MSG="<b>✅ AKUN DI-UNLOCK OTOMATIS (SSH)</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n👤 User: <code>$user</code>\n🔓 Status: Active (Hukuman 10 menit selesai)"
                     curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
                 fi
             fi
@@ -544,13 +550,13 @@ if [[ -f "$S_FILE" ]]; then
         
         [[ -z "$limit" || "$limit" == "0" ]] && continue
         
-        active_logins=$(ps -u "$user" 2>/dev/null | grep -E "sshd|dropbear" | grep -v "grep" | wc -l)
+        active_logins=$(pgrep -u "$user" 2>/dev/null | wc -l)
         if [[ "$active_logins" -gt "$limit" ]]; then
             usermod -L "$user" 2>/dev/null
             killall -u "$user" 2>/dev/null
             sed -i "s/^$user|.*/$user|$pass|$exp|$limit|LOCKED_IP_${NOW}/g" "$S_FILE"
             if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (SSH)</b>"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit Session: $limit"$'\n'"🚨 Login Session: $active_logins"$'\n'"⛔ Status: Terkunci 10 Menit"
+                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (SSH)</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n👤 User: <code>$user</code>\n🌐 Limit Session: $limit\n🚨 Login Session: $active_logins\n⛔ Status: Terkunci 10 Menit"
                 curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
             fi
         fi
@@ -565,6 +571,10 @@ cat > /usr/local/bin/xray-quota <<'EOF'
 CONFIG="/usr/local/etc/xray/config.json"
 TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
 CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
+
+IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
+DOM_VPS=$(cat /usr/local/etc/xray/domain 2>/dev/null)
+ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 STATS=$(/usr/local/bin/xray api statsquery -server=127.0.0.1:10085 2>/dev/null)
 for proto in vmess vless trojan; do
@@ -603,7 +613,7 @@ for proto in vmess vless trojan; do
             rm -f "$QUOTA_FILE"
             systemctl restart xray
             if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                MSG="<b>🚫 KUOTA HABIS (AKUN DIHAPUS - ${proto^^})</b>"$'\n\n'"👤 User: <code>$user</code>"$'\n'"📊 Batas Kuota: ${quota} GB"$'\n'"⛔ Status: Akun Otomatis Dihapus"
+                MSG="<b>🚫 KUOTA HABIS (AKUN DIHAPUS - ${proto^^})</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n👤 User: <code>$user</code>\n📊 Batas Kuota: ${quota} GB\n⛔ Status: Akun Otomatis Dihapus"
                 curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
             fi
         fi
@@ -619,6 +629,10 @@ TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
 CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
 [[ -z "$TOKEN" || -z "$CHATID" ]] && exit 0
 LOG_FILE="/var/log/xray/access.log"
+
+IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
+DOM_VPS=$(cat /usr/local/etc/xray/domain 2>/dev/null)
+ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 D1=$(date +"%Y/%m/%d %H:%M")
 D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
@@ -636,14 +650,21 @@ for proto in vmess vless trojan; do
     while IFS="|" read -r user id exp limit status quota; do
         active_ips=$(grep -w "$user" /tmp/bot_active.log | wc -l)
         if [[ "$active_ips" -gt 0 ]]; then
-            PROTO_MSG+="👤 User: <code>$user</code> | 🌐 Login: $active_ips IP (dipakek $active_ips user)"$'\n\n'
+            QUOTA_FILE="/usr/local/etc/xray/quota/${user}"
+            if [[ -f "$QUOTA_FILE" ]]; then
+                read total_acc last_api < "$QUOTA_FILE"
+                usage_gb=$(awk "BEGIN {printf \"%.2f\", $total_acc/1073741824}")
+            else
+                usage_gb="0.00"
+            fi
+            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_ips IP | Kuota: ${usage_gb}GB\n"
             FOUND=1
         fi
     done < "$FILE"
     
     if [[ "$FOUND" -eq 1 ]]; then
-        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (${proto^^})</b>"$'\n\n'
-        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}"
+        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (${proto^^})</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n"
+        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}\n"
     fi
 done
 
@@ -653,16 +674,16 @@ if [[ -f "$S_FILE" ]]; then
     PROTO_MSG=""
     FOUND=0
     while IFS="|" read -r user pass exp limit status; do
-        active_logins=$(ps -u "$user" 2>/dev/null | grep -E "sshd|dropbear" | grep -v "grep" | wc -l)
+        active_logins=$(pgrep -u "$user" 2>/dev/null | wc -l)
         if [[ "$active_logins" -gt 0 ]]; then
-            PROTO_MSG+="👤 User: <code>$user</code> | 🌐 Login: $active_logins Session (dipakek $active_logins user)"$'\n\n'
+            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Session\n"
             FOUND=1
         fi
     done < "$S_FILE"
     
     if [[ "$FOUND" -eq 1 ]]; then
-        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (SSH)</b>"$'\n\n'
-        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}"
+        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (SSH)</b>\nIP     : ${IP_VPS}\nDOMAIN : ${DOM_VPS}\nISP    : ${ISP_VPS}\n\n"
+        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}\n"
     fi
 fi
 
@@ -683,6 +704,11 @@ TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
 CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
 [[ -z "$TOKEN" || -z "$CHATID" ]] && exit 0
 DATE=$(date +"%Y-%m-%d_%H-%M")
+
+IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
+DOM_VPS=$(cat /usr/local/etc/xray/domain 2>/dev/null)
+ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
+
 ZIP_FILE="/tmp/Backup_${DATE}.zip"
 cd /
 zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ etc/issue.net >/dev/null 2>&1
@@ -693,6 +719,10 @@ curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendDocument" \
     -F "chat_id=${CHATID}" \
     -F "document=@${ZIP_FILE}" \
     -F "caption=📦 AUTOBACKUP VPS
+
+IP     : ${IP_VPS}
+DOMAIN : ${DOM_VPS}
+ISP    : ${ISP_VPS}
 
 📅 Date: ${DATE}
 ✅ Backup Successfully generated." > /dev/null
@@ -992,12 +1022,10 @@ function header_main() {
     print_line "            ZIVPN          : ${WHITE}${f_zi}${NC} USER"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
-    echo -e "        ${CYAN}┌──────────────────────────────────────┐${NC}"
     echo -e "                Version   :  ${WHITE}v01.03.26${NC}         "
     echo -e "                Owner     :  ${WHITE}Tendo Store${NC}       "
     echo -e "                Telegram  :  ${WHITE}@tendo_32${NC}         "
     echo -e "                Expiry In :  ${WHITE}Lifetime${NC}          "
-    echo -e "        ${CYAN}└──────────────────────────────────────┘${NC}"
 }
 
 function header_sub() {
@@ -1297,12 +1325,16 @@ function features_menu() {
                
                local bot_tok=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
                local chat_id=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
+               local IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
+               local DOM_VPS=$(cat /usr/local/etc/xray/domain 2>/dev/null)
+               local ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
+               
                if [[ -n "$bot_tok" && -n "$chat_id" ]]; then
                    echo -e "${YELLOW}Mengirim backup ke Telegram Bot...${NC}"
                    curl -s -X POST "https://api.telegram.org/bot${bot_tok}/sendDocument" \
                        -F "chat_id=${chat_id}" \
                        -F "document=@${ZIP_FILE}" \
-                       -F "caption=📦 MANUAL BACKUP VPS"$'\n\n'"📅 Date: ${DATE}"$'\n'"✅ Backup Successfully generated."$'\n'"🔗 Direct Link: ${LINK}" > /dev/null
+                       -F "caption=📦 MANUAL BACKUP VPS"$'\n\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"📅 Date: ${DATE}"$'\n'"✅ Backup Successfully generated."$'\n'"🔗 Direct Link: ${LINK}" > /dev/null
                    echo -e "${GREEN}File backup berhasil dikirim ke Telegram!${NC}"
                fi
                read -p "Tekan Enter untuk kembali..."
