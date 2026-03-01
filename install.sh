@@ -9,14 +9,13 @@
 #           + Full Telegram Bot Integration (Include SSH Notif)
 #           + Limit Multi Login SSH & X-Ray
 #           + Backup & Restore Fix Data Telegram Bot & Cron
-#           + Fixed Payload Buffer Issue (Premature Connection Close)
 #           + Setup Custom Banner SSH & Change Banner Feature
 #           + Fixed Restore Bug: Auto Re-create System Users for SSH
 #           + STRICT VALIDATION: Block Duplicate Username & ID
 #           + FORCE AUTO-YES (Bypass All apt/dpkg/needrestart Popups)
-#           + NEW UI LIST USER Menyamping Center & Open-Right SysInfo
+#           + NEW UI LIST USER (3x2 Grid Center) & Open-Right SysInfo
 #           + NO REBOOT After Restore
-#           + TELEGRAM NOTIF UPDATE: Fix SSH User PID Tracker
+#           + TELEGRAM NOTIF UPDATE: Fix SSH User Cron PATH
 #           + [HOTFIX] Fixed HTTP Custom Reconnect Bug (Daemon WS Proxy)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
@@ -472,6 +471,7 @@ chmod +x /usr/local/bin/xray-exp
 # Script Limit IP (Auto Lock 10 Mins with dynamic IP extraction + RealTime Filter)
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 CONFIG="/usr/local/etc/xray/config.json"
 LOG_FILE="/var/log/xray/access.log"
 TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
@@ -533,7 +533,7 @@ done
 S_FILE="/usr/local/etc/xray/ssh.txt"
 if [[ -f "$S_FILE" ]]; then
     while IFS="|" read -r user pass exp limit status; do
-        user=$(echo "$user" | tr -d '\r\n')
+        user=$(echo "$user" | tr -d '[:space:]')
         [[ -z "$user" ]] && continue
         if [[ "$status" == LOCKED_IP_* ]]; then
             lock_time=${status#LOCKED_IP_}
@@ -552,17 +552,14 @@ if [[ -f "$S_FILE" ]]; then
         
         [[ -z "$limit" || "$limit" == "0" ]] && continue
         
-        uid=$(id -u "$user" 2>/dev/null)
-        if [[ -n "$uid" ]]; then
-            active_logins=$(ps -U "$uid" --no-headers 2>/dev/null | wc -l)
-            if [[ "$active_logins" -gt "$limit" ]]; then
-                usermod -L "$user" 2>/dev/null
-                killall -u "$user" 2>/dev/null
-                sed -i "s/^$user|.*/$user|$pass|$exp|$limit|LOCKED_IP_${NOW}/g" "$S_FILE"
-                if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                    MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit Session: $limit"$'\n'"🚨 Login Session: $active_logins"$'\n'"⛔ Status: Terkunci 10 Menit"
-                    curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
-                fi
+        active_logins=$( /usr/bin/pgrep -u "$user" | wc -l )
+        if [[ "$active_logins" -gt "$limit" ]]; then
+            usermod -L "$user" 2>/dev/null
+            killall -u "$user" 2>/dev/null
+            sed -i "s/^$user|.*/$user|$pass|$exp|$limit|LOCKED_IP_${NOW}/g" "$S_FILE"
+            if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
+                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit Session: $limit"$'\n'"🚨 Login Session: $active_logins"$'\n'"⛔ Status: Terkunci 10 Menit"
+                curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
             fi
         fi
     done < "$S_FILE"
@@ -630,6 +627,7 @@ chmod +x /usr/local/bin/xray-quota
 # Script Telegram Login Notif (SPLIT PROTOCOL & REAL-TIME 2 MINS FILTER + SSH)
 cat > /usr/local/bin/bot-login-notif <<'EOF'
 #!/bin/bash
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
 CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
 [[ -z "$TOKEN" || -z "$CHATID" ]] && exit 0
@@ -679,15 +677,12 @@ if [[ -f "$S_FILE" ]]; then
     PROTO_MSG=""
     FOUND=0
     while IFS="|" read -r user pass exp limit status; do
-        user=$(echo "$user" | tr -d '\r\n')
+        user=$(echo "$user" | tr -d '[:space:]')
         [[ -z "$user" ]] && continue
-        uid=$(id -u "$user" 2>/dev/null)
-        if [[ -n "$uid" ]]; then
-            active_logins=$(ps -U "$uid" --no-headers 2>/dev/null | wc -l)
-            if [[ "$active_logins" -gt 0 ]]; then
-                PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Session"$'\n'
-                FOUND=1
-            fi
+        active_logins=$( /usr/bin/pgrep -u "$user" | wc -l )
+        if [[ "$active_logins" -gt 0 ]]; then
+            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Session"$'\n'
+            FOUND=1
         fi
     done < "$S_FILE"
     
@@ -763,6 +758,11 @@ print_line() {
     local pad=""
     if (( spaces > 0 )); then pad=$(printf '%*s' "$spaces" ""); fi
     echo -e "${CYAN}│${NC}${text}${pad}${CYAN}│${NC}"
+}
+
+print_line_open() {
+    local text="$1"
+    echo -e "${CYAN}│${NC}${text}"
 }
 
 print_center() {
@@ -981,23 +981,23 @@ function header_main() {
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
-    echo -e "${CYAN}│${NC}  OS      : ${WHITE}${OS}${NC}"
-    echo -e "${CYAN}│${NC}  RAM     : ${WHITE}${RAM}MB${NC}"
-    echo -e "${CYAN}│${NC}  SWAP    : ${WHITE}${SWAP}MB${NC}"
-    echo -e "${CYAN}│${NC}  CITY    : ${WHITE}${CITY}${NC}"
-    echo -e "${CYAN}│${NC}  ISP     : ${WHITE}${ISP}${NC}"
-    echo -e "${CYAN}│${NC}  IP      : ${WHITE}${IP}${NC}"
-    echo -e "${CYAN}│${NC}  DOMAIN  : ${YELLOW}${DOMAIN}${NC}"
-    echo -e "${CYAN}│${NC}  UPTIME  : ${WHITE}${UPTIME}${NC}"
-    echo -e "${CYAN}│${NC}  ————————————————————————————"
-    echo -e "${CYAN}│${NC}  MONTH   : ${TOT_MON}    [${MONTH_NAME}]"
-    echo -e "${CYAN}│${NC}  RX      : ${RX_MON}"
-    echo -e "${CYAN}│${NC}  TX      : ${TX_MON}"
-    echo -e "${CYAN}│${NC}  ————————————————————————————"
-    echo -e "${CYAN}│${NC}  DAY     : ${TOT_DAY}    [${DAY_NAME}]"
-    echo -e "${CYAN}│${NC}  RX      : ${RX_DAY}"
-    echo -e "${CYAN}│${NC}  TX      : ${TX_DAY}"
-    echo -e "${CYAN}│${NC}  TRAFFIC : ${TRAFFIC} Mbit/s"
+    print_line_open "  OS      : ${WHITE}${OS}${NC}"
+    print_line_open "  RAM     : ${WHITE}${RAM}MB${NC}"
+    print_line_open "  SWAP    : ${WHITE}${SWAP}MB${NC}"
+    print_line_open "  CITY    : ${WHITE}${CITY}${NC}"
+    print_line_open "  ISP     : ${WHITE}${ISP}${NC}"
+    print_line_open "  IP      : ${WHITE}${IP}${NC}"
+    print_line_open "  DOMAIN  : ${YELLOW}${DOMAIN}${NC}"
+    print_line_open "  UPTIME  : ${WHITE}${UPTIME}${NC}"
+    print_line_open "  ————————————————————————————"
+    print_line_open "  MONTH   : ${TOT_MON}    [${MONTH_NAME}]"
+    print_line_open "  RX      : ${RX_MON}"
+    print_line_open "  TX      : ${TX_MON}"
+    print_line_open "  ————————————————————————————"
+    print_line_open "  DAY     : ${TOT_DAY}    [${DAY_NAME}]"
+    print_line_open "  RX      : ${RX_DAY}"
+    print_line_open "  TX      : ${TX_DAY}"
+    print_line_open "  TRAFFIC : ${TRAFFIC} Mbit/s"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     if systemctl is-active --quiet xray; then X_ST="${GREEN}ON${NC}"; else X_ST="${RED}OFF${NC}"; fi
@@ -1014,11 +1014,20 @@ function header_main() {
     
     local acc_all=$((ACC_SSH + ACC_VMESS + ACC_VLESS + ACC_TROJAN + ACC_ZIVPN))
     
-    local STR1="SSH/WS : ${WHITE}${ACC_SSH}${NC} USR  |  VMESS : ${WHITE}${ACC_VMESS}${NC} USR  |  VLESS: ${WHITE}${ACC_VLESS}${NC} USR"
-    local STR2="TROJAN : ${WHITE}${ACC_TROJAN}${NC} USR  |  ZIVPN : ${WHITE}${ACC_ZIVPN}${NC} USR  |  ALL  : ${WHITE}${acc_all}${NC} USR"
+    local f_ssh=$(printf "%-2s" "$ACC_SSH")
+    local f_vm=$(printf "%-2s" "$ACC_VMESS")
+    local f_vl=$(printf "%-2s" "$ACC_VLESS")
+    local f_tr=$(printf "%-2s" "$ACC_TROJAN")
+    local f_zi=$(printf "%-2s" "$ACC_ZIVPN")
+    local f_all=$(printf "%-2s" "$acc_all")
+    
+    local STR1="SSH/WS : ${WHITE}${f_ssh}${NC} USR  |  VMESS : ${WHITE}${f_vm}${NC} USR"
+    local STR2="VLESS  : ${WHITE}${f_vl}${NC} USR  |  TROJAN: ${WHITE}${f_tr}${NC} USR"
+    local STR3="ZIVPN  : ${WHITE}${f_zi}${NC} USR  |  ALL   : ${WHITE}${f_all}${NC} USR"
     
     print_center "$STR1"
     print_center "$STR2"
+    print_center "$STR3"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     
     echo -e "        ${CYAN}┌──────────────────────────────────────┐${NC}"
@@ -1391,7 +1400,8 @@ function features_menu() {
                        fi
 
                        systemctl restart xray zivpn dropbear ws-proxy stunnel4 ssh sshd
-                       echo -e "${GREEN}Restore Berhasil! Semua konfigurasi dan akun telah dipulihkan sepenuhnya.${NC}"
+                       echo -e "${GREEN}Restore Berhasil! Layanan telah di-restart otomatis untuk menerapkan konfigurasi.${NC}"
+                       sleep 3
                    else
                        echo -e "${RED}Gagal mengunduh file! Pastikan link direct yang dimasukkan valid.${NC}"
                        read -p "Tekan Enter untuk kembali..."
