@@ -1270,8 +1270,9 @@ def send_welcome(message):
     btn_info = types.InlineKeyboardButton("ℹ️ Informasi", callback_data="info_akun")
     btn_donasi = types.InlineKeyboardButton("💳 Donasi", callback_data="donasi")
     btn_admin = types.InlineKeyboardButton("📞 Hubungi Admin", url="https://t.me/tendo_32")
+    btn_order = types.InlineKeyboardButton("🛒 Order Premium", url="https://wa.me/message/MAROWFSVEZWDL1")
     
-    markup.add(btn_ssh, btn_xray, btn_zi, btn_info, btn_donasi, btn_admin)
+    markup.add(btn_ssh, btn_xray, btn_zi, btn_info, btn_donasi, btn_admin, btn_order)
     bot.send_message(message.chat.id, "Selamat datang! Silakan pilih menu interaktif di bawah ini untuk membuat akun VPN free.", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -1294,7 +1295,8 @@ def callback_query(call):
             types.InlineKeyboardButton("➕ Create ZIVPN", callback_data="proto_zivpn"),
             types.InlineKeyboardButton("ℹ️ Informasi", callback_data="info_akun"),
             types.InlineKeyboardButton("💳 Donasi", callback_data="donasi"),
-            types.InlineKeyboardButton("📞 Hubungi Admin", url="https://t.me/tendo_32")
+            types.InlineKeyboardButton("📞 Hubungi Admin", url="https://t.me/tendo_32"),
+            types.InlineKeyboardButton("🛒 Order Premium", url="https://wa.me/message/MAROWFSVEZWDL1")
         )
         bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Selamat datang! Silakan pilih menu interaktif di bawah ini untuk membuat akun VPN free.", reply_markup=markup)
     
