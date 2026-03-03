@@ -1159,13 +1159,13 @@ if [[ "$ACTION" == "check" ]]; then
 fi
 
 if [[ "$ACTION" == "info" ]]; then
-    echo "<b>📊 INFORMASI AKUN VPS AKTIF</b>"
+    echo "<b>📊 INFORMASI JUMLAH USER AKTIF</b>"
     echo "<b>--------------------------------</b>"
-    if [[ -f "$D_SSH" ]]; then echo "<b>[ 🔹 SSH / WS ]</b>"; awk -F'|' '{print "👤 <code>"$1"</code> ⏳ "$3}' $D_SSH; echo ""; fi
-    if [[ -f "$D_VMESS" ]]; then echo "<b>[ 🔹 VMESS ]</b>"; awk -F'|' '{print "👤 <code>"$1"</code> ⏳ "$3}' $D_VMESS; echo ""; fi
-    if [[ -f "$D_VLESS" ]]; then echo "<b>[ 🔹 VLESS ]</b>"; awk -F'|' '{print "👤 <code>"$1"</code> ⏳ "$3}' $D_VLESS; echo ""; fi
-    if [[ -f "$D_TROJAN" ]]; then echo "<b>[ 🔹 TROJAN ]</b>"; awk -F'|' '{print "👤 <code>"$1"</code> ⏳ "$3}' $D_TROJAN; echo ""; fi
-    if [[ -f "$D_ZIVPN" ]]; then echo "<b>[ 🔹 ZIVPN ]</b>"; awk -F'|' '{if($3=="") print "👤 <code>"$1"</code> ⏳ "$2; else print "👤 <code>"$1"</code> ⏳ "$3}' $D_ZIVPN; echo ""; fi
+    if [[ -f "$D_SSH" ]]; then c=$(wc -l < "$D_SSH" 2>/dev/null || echo 0); echo "<b>[ 🔹 SSH / WS ] : $c User</b>"; fi
+    if [[ -f "$D_VMESS" ]]; then c=$(wc -l < "$D_VMESS" 2>/dev/null || echo 0); echo "<b>[ 🔹 VMESS ] : $c User</b>"; fi
+    if [[ -f "$D_VLESS" ]]; then c=$(wc -l < "$D_VLESS" 2>/dev/null || echo 0); echo "<b>[ 🔹 VLESS ] : $c User</b>"; fi
+    if [[ -f "$D_TROJAN" ]]; then c=$(wc -l < "$D_TROJAN" 2>/dev/null || echo 0); echo "<b>[ 🔹 TROJAN ] : $c User</b>"; fi
+    if [[ -f "$D_ZIVPN" ]]; then c=$(wc -l < "$D_ZIVPN" 2>/dev/null || echo 0); echo "<b>[ 🔹 ZIVPN ] : $c User</b>"; fi
     exit 0
 fi
 
@@ -1230,7 +1230,7 @@ if [[ "$ACTION" == "create" ]]; then
         MSG_BOT+="Username       : <code>${USER}</code>\nCITY           : ${CITY}\nISP            : ${ISP}\nDomain         : <code>${DMN}</code>\nPort TLS       : 443\nPort none TLS  : 80\n"
         MSG_BOT+="Password       : <code>${uuid}</code>\n"
         MSG_BOT+="network        : ws, grpc, upgrade\npath ws        : /trojan\nserviceName    : trojan-grpc\npath upgrade   : /trojan-upg\n"
-        MSG_BOT+="Limit IP       : ${limit} IP\nQuota Bandwidth: ${str_quota}\nUsage Bandwidth: ${usage} GB\nExpired On     : ${exp_date}\n"
+        MSG_BOT+="Limit IP       : ${limit} IP\nQuota Bandwidth: ${str_quota}\nUsage Traffic: ${usage} GB\nExpired On     : ${exp_date}\n"
         MSG_BOT+="<b>————————————————————————————————————</b>\n           <b>TROJAN WS TLS</b>\n<b>————————————————————————————————————</b>\n<code>${link_ws_tls}</code>\n<b>————————————————————————————————————</b>\n"
         MSG_BOT+="             <b>TROJAN GRPC</b>\n<b>————————————————————————————————————</b>\n<code>${link_grpc_tls}</code>\n<b>————————————————————————————————————</b>\n"
         MSG_BOT+="         <b>TROJAN Upgrade TLS</b>\n<b>————————————————————————————————————</b>\n<code>${link_upg_tls}</code>\n<b>————————————————————————————————————</b>\n"
@@ -1315,9 +1315,9 @@ def callback_query(call):
     elif call.data.startswith("proto_"):
         proto = call.data.split("_")[1]
         msg = bot.send_message(call.message.chat.id, f"💬 <b>MEMBUAT AKUN {proto.upper()}</b>\n\nSilakan ketik Username yang Anda inginkan (tanpa spasi):", parse_mode="HTML")
-        bot.register_next_step_handler(msg, ask_duration, proto)
+        bot.register_next_step_handler(msg, process_username, proto)
 
-def ask_duration(message, proto):
+def process_username(message, proto):
     username = message.text.strip().replace(" ", "")
     if not username:
         bot.send_message(message.chat.id, "❌ Username tidak valid. Silakan ulangi /start")
@@ -1328,10 +1328,22 @@ def ask_duration(message, proto):
         bot.send_message(message.chat.id, f"❌ Username <b>{username}</b> sudah digunakan! Silakan ulangi /start dan gunakan nama lain.", parse_mode="HTML")
         return
         
-    msg = bot.send_message(message.chat.id, f"✅ Username <b>{username}</b> tersedia!\n\nMasukkan durasi masa aktif yang diinginkan dalam hari (Maksimal 5 hari):", parse_mode="HTML")
-    bot.register_next_step_handler(msg, execute_creation, proto, username)
+    if proto == "ssh":
+        msg = bot.send_message(message.chat.id, f"🔑 Username <b>{username}</b> tersedia!\n\nSilakan ketik <b>Password</b> untuk akun SSH ini:", parse_mode="HTML")
+        bot.register_next_step_handler(msg, ask_duration_ssh, proto, username)
+    else:
+        msg = bot.send_message(message.chat.id, f"✅ Username <b>{username}</b> tersedia!\n\nMasukkan durasi masa aktif yang diinginkan dalam hari (Maksimal 5 hari):", parse_mode="HTML")
+        bot.register_next_step_handler(msg, execute_creation, proto, username, username)
 
-def execute_creation(message, proto, username):
+def ask_duration_ssh(message, proto, username):
+    password = message.text.strip()
+    if not password:
+        bot.send_message(message.chat.id, "❌ Password tidak valid. Silakan ulangi /start")
+        return
+    msg = bot.send_message(message.chat.id, f"✅ Password diterima!\n\nMasukkan durasi masa aktif yang diinginkan dalam hari (Maksimal 5 hari):", parse_mode="HTML")
+    bot.register_next_step_handler(msg, execute_creation, proto, username, password)
+
+def execute_creation(message, proto, username, password):
     try:
         days = int(message.text.strip())
         if days > 5: days = 5
@@ -1340,7 +1352,7 @@ def execute_creation(message, proto, username):
         days = 1
         
     bot.send_message(message.chat.id, f"⏳ Sedang memproses pembuatan akun {proto.upper()} untuk {username} ({days} Hari)...")
-    res = subprocess.run(["/usr/local/bin/client-bot-helper.sh", "create", proto, username, username, str(days)], capture_output=True, text=True)
+    res = subprocess.run(["/usr/local/bin/client-bot-helper.sh", "create", proto, username, password, str(days)], capture_output=True, text=True)
     bot.send_message(message.chat.id, res.stdout.replace('\\n', '\n'), parse_mode="HTML")
 
 bot.infinity_polling()
