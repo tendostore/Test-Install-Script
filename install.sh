@@ -2,7 +2,7 @@
 # ==================================================
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
-#   Update: Fixed Quota Counter for Unlimited Accounts & Dynamic MB/GB Units
+#   Update: Strict Absolute Unique IP Parser & 2-Min Window
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -460,7 +460,7 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-exp
 
-# Script Limit IP (Auto Lock 10 Mins with dynamic IP extraction + RealTime Filter)
+# Script Limit IP (Auto Lock 10 Mins with strict unique IP extraction)
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -478,9 +478,8 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 D1=$(date +"%Y/%m/%d %H:%M")
 D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
-D3=$(date -d "2 minutes ago" +"%Y/%m/%d %H:%M")
 
-grep -E "^($D1|$D2|$D3)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); gsub(/:.*/,"",ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/xray_active.log
+grep -E "^($D1|$D2)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); sub(/:[0-9]+$/, "", ip); email=$NF; if(email!="") print ip, email; break; } }' > /tmp/xray_active.log
 
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
@@ -508,7 +507,7 @@ for proto in vmess vless trojan; do
         
         [[ -z "$limit" || "$limit" == "0" ]] && continue
         
-        active_ips=$(grep -w "$user" /tmp/xray_active.log | awk '{print $1}' | sort -u | wc -l)
+        active_ips=$(awk -v u="$user" '$2 == u {print $1}' /tmp/xray_active.log | sort -u | wc -l)
         if [[ "$active_ips" -gt "$limit" ]]; then
             jq --arg u "$user" '(.inbounds[] | select(.protocol == "'$proto'")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
             sed -i "s/^$user|.*/$user|$id|$exp|$limit|LOCKED_IP_${NOW}|$quota/g" "$FILE"
@@ -623,7 +622,7 @@ done
 EOF
 chmod +x /usr/local/bin/xray-quota
 
-# Script Telegram Login Notif (SPLIT PROTOCOL & REAL-TIME 2 MINS FILTER + SSH)
+# Script Telegram Login Notif (Strict Accurate IPs + dynamic unit)
 cat > /usr/local/bin/bot-login-notif <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -638,9 +637,8 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 D1=$(date +"%Y/%m/%d %H:%M")
 D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
-D3=$(date -d "2 minutes ago" +"%Y/%m/%d %H:%M")
 
-grep -E "^($D1|$D2|$D3)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); gsub(/:.*/,"",ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/bot_active.log
+grep -E "^($D1|$D2)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); sub(/:[0-9]+$/, "", ip); email=$NF; if(email!="") print ip, email; break; } }' > /tmp/bot_active.log
 
 FULL_MSG=""
 for proto in vmess vless trojan; do
@@ -650,7 +648,7 @@ for proto in vmess vless trojan; do
     PROTO_MSG=""
     FOUND=0
     while IFS="|" read -r user id exp limit status quota; do
-        active_ips=$(grep -w "$user" /tmp/bot_active.log | wc -l)
+        active_ips=$(awk -v u="$user" '$2 == u {print $1}' /tmp/bot_active.log | sort -u | wc -l)
         if [[ "$active_ips" -gt 0 ]]; then
             QUOTA_FILE="/usr/local/etc/xray/quota/${user}"
             if [[ -f "$QUOTA_FILE" ]]; then
