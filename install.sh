@@ -3,7 +3,7 @@
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
-#   Updated: Fix API Quota Routing & Extreme CGNAT IP Filter
+#   Updated: FIX Cron PATH for Quota & 2-Mins IP Tail
 # ==================================================
 
 # --- WARNA & UI ---
@@ -225,7 +225,7 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload && systemctl enable dropbear >/dev/null 2>&1 && systemctl start dropbear >/dev/null 2>&1
 
-    # WS Python Proxy (SUPER ROBUST - Fixes HTTP Custom Reconnect Issue)
+    # WS Python Proxy
     cat > /usr/local/bin/ws-proxy.py << 'EOF'
 import socket, select, threading
 
@@ -336,14 +336,13 @@ EOF
 ) >/dev/null 2>&1 & install_spin
 print_ok "SSH, Dropbear & UDPGW"
 
-# --- 7. XRAY CONFIG (FIXED API QUOTA ROUTING & LOGLEVEL INFO) ---
+# --- 7. XRAY CONFIG ---
 print_msg "Install Xray Core & Config"
 (
     export DEBIAN_FRONTEND=noninteractive
     bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
     UUID_SYS=$(uuidgen)
 
-# PENTING: Outbound "freedom" dengan tag "api" DIHAPUS agar tidak bentrok dengan Xray internal API listener
 cat > $CONFIG_FILE <<EOF
 {
   "log": { "access": "/var/log/xray/access.log", "error": "/var/log/xray/error.log", "loglevel": "info" },
@@ -414,6 +413,7 @@ mkdir -p /usr/local/etc/xray/quota
 # Script Expiry Auto-Kill
 cat > /usr/local/bin/xray-exp <<'EOF'
 #!/bin/bash
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 CONFIG="/usr/local/etc/xray/config.json"
 NOW=$(date +%s)
 for proto in vmess vless trojan; do
@@ -460,7 +460,7 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-exp
 
-# Script Limit IP (Toleransi EXTREME CGNAT Provider Indonesia - Subnet /16 & /48)
+# Script Limit IP (Toleransi EXTREME CGNAT Provider Indonesia - 2 Menit Terakhir Saja)
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -476,11 +476,11 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 [[ ! -f "$LOG_FILE" ]] && exit 0
 
+# Jendela Waktu Paling Presisi (Hanya 2 Menit ke belakang, menghindari penumpukan rotasi IP Lama)
 D1=$(date +"%Y/%m/%d %H:%M")
 D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
-D3=$(date -d "2 minutes ago" +"%Y/%m/%d %H:%M")
 
-grep -E "^($D1|$D2|$D3)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]":"v6[3]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/xray_active.log
+tail -n 10000 "$LOG_FILE" | grep -E "^($D1|$D2)" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/xray_active.log
 
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
@@ -562,9 +562,10 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-limit
 
-# Script Quota (Accumulative Local System + Robust JSON Parse)
+# Script Quota (Fixed Cron PATH Issue)
 cat > /usr/local/bin/xray-quota <<'EOF'
 #!/bin/bash
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 CONFIG="/usr/local/etc/xray/config.json"
 TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
 CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
@@ -634,9 +635,8 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 D1=$(date +"%Y/%m/%d %H:%M")
 D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
-D3=$(date -d "2 minutes ago" +"%Y/%m/%d %H:%M")
 
-grep -E "^($D1|$D2|$D3)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]":"v6[3]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/bot_active.log
+tail -n 10000 "$LOG_FILE" | grep -E "^($D1|$D2)" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/bot_active.log
 
 FULL_MSG=""
 for proto in vmess vless trojan; do
@@ -1267,7 +1267,7 @@ except:
 
 bot = telebot.TeleBot(TOKEN)
 
-@bot.message_handler(commands=['menu'])
+@bot.message_handler(commands=['start', 'menu'])
 def send_welcome(message):
     markup = types.InlineKeyboardMarkup(row_width=2)
     btn_ssh = types.InlineKeyboardButton("➕ Create SSH", callback_data="proto_ssh")
@@ -1276,12 +1276,8 @@ def send_welcome(message):
     btn_info = types.InlineKeyboardButton("ℹ️ Informasi", callback_data="info_akun")
     btn_donasi = types.InlineKeyboardButton("💳 Donasi", callback_data="donasi")
     btn_admin = types.InlineKeyboardButton("📞 Hubungi Admin", url="https://t.me/tendo_32")
-    btn_premium = types.InlineKeyboardButton("🛒 Order Premium", url="https://wa.me/message/MAROWFSVEZWDL1")
     
-    markup.add(btn_ssh, btn_xray)
-    markup.add(btn_zi, btn_info)
-    markup.add(btn_donasi, btn_admin)
-    markup.add(btn_premium)
+    markup.add(btn_ssh, btn_xray, btn_zi, btn_info, btn_donasi, btn_admin)
     bot.send_message(message.chat.id, "Selamat datang! Silakan pilih menu interaktif di bawah ini untuk membuat akun VPN free.", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -1298,18 +1294,14 @@ def callback_query(call):
     
     elif call.data == "menu_main":
         markup = types.InlineKeyboardMarkup(row_width=2)
-        btn_ssh = types.InlineKeyboardButton("➕ Create SSH", callback_data="proto_ssh")
-        btn_xray = types.InlineKeyboardButton("➕ Create XRAY", callback_data="menu_xray")
-        btn_zi = types.InlineKeyboardButton("➕ Create ZIVPN", callback_data="proto_zivpn")
-        btn_info = types.InlineKeyboardButton("ℹ️ Informasi", callback_data="info_akun")
-        btn_donasi = types.InlineKeyboardButton("💳 Donasi", callback_data="donasi")
-        btn_admin = types.InlineKeyboardButton("📞 Hubungi Admin", url="https://t.me/tendo_32")
-        btn_premium = types.InlineKeyboardButton("🛒 Order Premium", url="https://wa.me/message/MAROWFSVEZWDL1")
-
-        markup.add(btn_ssh, btn_xray)
-        markup.add(btn_zi, btn_info)
-        markup.add(btn_donasi, btn_admin)
-        markup.add(btn_premium)
+        markup.add(
+            types.InlineKeyboardButton("➕ Create SSH", callback_data="proto_ssh"),
+            types.InlineKeyboardButton("➕ Create XRAY", callback_data="menu_xray"),
+            types.InlineKeyboardButton("➕ Create ZIVPN", callback_data="proto_zivpn"),
+            types.InlineKeyboardButton("ℹ️ Informasi", callback_data="info_akun"),
+            types.InlineKeyboardButton("💳 Donasi", callback_data="donasi"),
+            types.InlineKeyboardButton("📞 Hubungi Admin", url="https://t.me/tendo_32")
+        )
         bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Selamat datang! Silakan pilih menu interaktif di bawah ini untuk membuat akun VPN free.", reply_markup=markup)
     
     elif call.data == "info_akun":
@@ -1589,7 +1581,6 @@ function features_menu() {
                DATE=$(date +"%Y-%m-%d_%H-%M")
                ZIP_FILE="/root/Backup_${DATE}.zip"
                cd /
-               # Updated ZIP command to include Telegram Bot Scripts
                zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ etc/issue.net usr/local/bin/tendo-client-bot.py usr/local/bin/client-bot-helper.sh etc/systemd/system/tendo-client-bot.service >/dev/null 2>&1
                cd - >/dev/null 2>&1
                
@@ -1639,7 +1630,7 @@ function features_menu() {
                        
                        # Perbaikan Restore Setup Telegram Bot & Cron Jobs
                        chmod -R 777 /etc/tendo_bot/ 2>/dev/null
-                       systemctl daemon-reload # Reload incase systemd file was restored
+                       systemctl daemon-reload
                        chmod +x /usr/local/bin/client-bot-helper.sh 2>/dev/null
                        
                        (crontab -l 2>/dev/null | grep -v "xray-exp"; echo "* * * * * /usr/local/bin/xray-exp") | crontab -
