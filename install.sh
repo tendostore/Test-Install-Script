@@ -2,7 +2,7 @@
 # ==================================================
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
-#   Update: Strict Absolute Unique IP Parser & 2-Min Window
+#   Update: Limit 2 IP for Bot & /menu Command
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -189,11 +189,13 @@ print_msg "Install SSH, Dropbear 2019, WS Proxy & UDPGW"
 <font color="#FF0000"><b>&nbsp;&nbsp;Strictly No Spam, DDOS, or Hacking</b></font><br>
 EOF
 
-    # OpenSSH Config
+    # OpenSSH Config + Anti Ghost Session
     sed -i 's/#Port 22/Port 22/g' /etc/ssh/sshd_config
     sed -i '/Port 22/a Port 444' /etc/ssh/sshd_config
     echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
     echo "Banner /etc/issue.net" >> /etc/ssh/sshd_config
+    echo "ClientAliveInterval 30" >> /etc/ssh/sshd_config
+    echo "ClientAliveCountMax 2" >> /etc/ssh/sshd_config
     systemctl restart ssh >/dev/null 2>&1 || systemctl restart sshd >/dev/null 2>&1
 
     # Dropbear 2019 Build
@@ -210,14 +212,14 @@ EOF
     dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key >/dev/null 2>&1
     dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key >/dev/null 2>&1
 
-    # Dropbear Service with Banner
+    # Dropbear Service with Banner & KeepAlive
     cat > /etc/systemd/system/dropbear.service <<EOF
 [Unit]
 Description=Dropbear SSH Daemon
 After=network.target
 
 [Service]
-ExecStart=/usr/local/sbin/dropbear -F -p 90 -W 65536 -b /etc/issue.net
+ExecStart=/usr/local/sbin/dropbear -F -p 90 -W 65536 -K 30 -b /etc/issue.net
 Restart=always
 
 [Install]
@@ -460,7 +462,7 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-exp
 
-# Script Limit IP (Auto Lock 10 Mins with strict unique IP extraction)
+# Script Limit IP (Real-Time Socket Connection Test)
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -479,7 +481,19 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 D1=$(date +"%Y/%m/%d %H:%M")
 D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
 
-grep -E "^($D1|$D2)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); sub(/:[0-9]+$/, "", ip); email=$NF; if(email!="") print ip, email; break; } }' > /tmp/xray_active.log
+# 1. Ambil IP dan User dari log 2 menit terakhir
+grep -E "^($D1|$D2)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); sub(/:[0-9]+$/, "", ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/log_ip_user.txt
+
+# 2. Ambil IP yang SAAAT INI JUGA sedang punya soket koneksi hidup di VPS (Akurat 100%)
+ss -ntu | tail -n +2 | awk '{print $5}' | rev | cut -d: -f2- | rev | tr -d '[]' | sed 's/::ffff://g' | sort -u > /tmp/estab_ips.txt
+
+# 3. Cocokkan (Intersect)
+> /tmp/xray_active.log
+while read -r ip user; do
+    if grep -qw "$ip" /tmp/estab_ips.txt; then
+        echo "$ip $user" >> /tmp/xray_active.log
+    fi
+done < /tmp/log_ip_user.txt
 
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
@@ -507,6 +521,7 @@ for proto in vmess vless trojan; do
         
         [[ -z "$limit" || "$limit" == "0" ]] && continue
         
+        # Hitung jumlah IP yang real-time nyangkut di user ini
         active_ips=$(awk -v u="$user" '$2 == u {print $1}' /tmp/xray_active.log | sort -u | wc -l)
         if [[ "$active_ips" -gt "$limit" ]]; then
             jq --arg u "$user" '(.inbounds[] | select(.protocol == "'$proto'")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
@@ -622,7 +637,7 @@ done
 EOF
 chmod +x /usr/local/bin/xray-quota
 
-# Script Telegram Login Notif (Strict Accurate IPs + dynamic unit)
+# Script Telegram Login Notif (Real-Time Strict Accurate IPs)
 cat > /usr/local/bin/bot-login-notif <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -638,7 +653,15 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 D1=$(date +"%Y/%m/%d %H:%M")
 D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
 
-grep -E "^($D1|$D2)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); sub(/:[0-9]+$/, "", ip); email=$NF; if(email!="") print ip, email; break; } }' > /tmp/bot_active.log
+grep -E "^($D1|$D2)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); sub(/:[0-9]+$/, "", ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/log_ip_user.txt
+ss -ntu | tail -n +2 | awk '{print $5}' | rev | cut -d: -f2- | rev | tr -d '[]' | sed 's/::ffff://g' | sort -u > /tmp/estab_ips.txt
+
+> /tmp/bot_active.log
+while read -r ip user; do
+    if grep -qw "$ip" /tmp/estab_ips.txt; then
+        echo "$ip $user" >> /tmp/bot_active.log
+    fi
+done < /tmp/log_ip_user.txt
 
 FULL_MSG=""
 for proto in vmess vless trojan; do
@@ -1332,12 +1355,12 @@ def callback_query(call):
 def process_username(message, proto):
     username = message.text.strip().replace(" ", "")
     if not username:
-        bot.send_message(message.chat.id, "❌ Username tidak valid. Silakan ulangi /start")
+        bot.send_message(message.chat.id, "❌ Username tidak valid. Silakan ulangi /menu")
         return
         
     res = subprocess.run(["/usr/local/bin/client-bot-helper.sh", "check", proto, username], capture_output=True, text=True)
     if "EXISTS" in res.stdout:
-        bot.send_message(message.chat.id, f"❌ Username <b>{username}</b> sudah digunakan! Silakan ulangi /start dan gunakan nama lain.", parse_mode="HTML")
+        bot.send_message(message.chat.id, f"❌ Username <b>{username}</b> sudah digunakan! Silakan ulangi /menu dan gunakan nama lain.", parse_mode="HTML")
         return
         
     if proto == "ssh":
@@ -1350,7 +1373,7 @@ def process_username(message, proto):
 def ask_duration_ssh(message, proto, username):
     password = message.text.strip()
     if not password:
-        bot.send_message(message.chat.id, "❌ Password tidak valid. Silakan ulangi /start")
+        bot.send_message(message.chat.id, "❌ Password tidak valid. Silakan ulangi /menu")
         return
     msg = bot.send_message(message.chat.id, f"✅ Password diterima!\n\nMasukkan durasi masa aktif yang diinginkan dalam hari (Maksimal 5 hari):", parse_mode="HTML")
     bot.register_next_step_handler(msg, execute_creation, proto, username, password)
@@ -1389,7 +1412,7 @@ EOF
     systemctl restart tendo-client-bot >/dev/null 2>&1
     
     echo -e "${GREEN}Bot Client berhasil diinstall dan dijalankan!${NC}"
-    echo -e "${YELLOW}Silakan chat bot kamu di Telegram dan ketik /start${NC}"
+    echo -e "${YELLOW}Silakan chat bot kamu di Telegram dan ketik /menu${NC}"
     sleep 3
 }
 
@@ -1577,7 +1600,7 @@ function features_menu() {
                systemctl restart xray stunnel4
                echo -e "${GREEN}Domain Berhasil Diperbarui menjadi: $nd${NC}"
                sleep 2;;
-            5) systemctl restart xray zivpn vnstat dropbear stunnel4 ws-proxy tendo-client-bot; echo -e "${GREEN}Services Restarted!${NC}"; sleep 2;;
+            5) systemctl restart xray zivpn vnstat dropbear stunnel4 ws-proxy tendo-client-bot ssh sshd; echo -e "${GREEN}Services Restarted!${NC}"; sleep 2;;
             6) sync; echo 3 > /proc/sys/vm/drop_caches; echo -e "${GREEN}Cache Cleared!${NC}"; sleep 1;;
             7) auto_reboot_menu ;;
             8) neofetch; read -p "Enter...";;
