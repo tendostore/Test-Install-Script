@@ -3,7 +3,7 @@
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
-#   Updated: Kuota MB/GB Dinamis & Tombol Premium
+#   Updated: Kuota Dinamis, Premium Button, Backup Bot & CGNAT IP Toleransi
 # ==================================================
 
 # --- WARNA & UI ---
@@ -460,7 +460,7 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-exp
 
-# Script Limit IP (Auto Lock 10 Mins with dynamic IP extraction + RealTime Filter)
+# Script Limit IP (Toleransi CGNAT Provider Indonesia - Subnet /24 & /64)
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -480,7 +480,7 @@ D1=$(date +"%Y/%m/%d %H:%M")
 D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
 D3=$(date -d "2 minutes ago" +"%Y/%m/%d %H:%M")
 
-grep -E "^($D1|$D2|$D3)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); gsub(/:.*/,"",ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/xray_active.log
+grep -E "^($D1|$D2|$D3)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]":"v6[3]":"v6[4]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]"."v4[3]; } print subnet, email; break; } }' | sort -u > /tmp/xray_active.log
 
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
@@ -514,7 +514,7 @@ for proto in vmess vless trojan; do
             sed -i "s/^$user|.*/$user|$id|$exp|$limit|LOCKED_IP_${NOW}|$quota/g" "$FILE"
             systemctl restart xray
             if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit IP: $limit"$'\n'"🚨 Login IP: $active_ips"$'\n'"⛔ Status: Terkunci 10 Menit"
+                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit IP: $limit"$'\n'"🚨 Login Subnet: $active_ips"$'\n'"⛔ Status: Terkunci 10 Menit"
                 /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
             fi
         fi
@@ -619,7 +619,7 @@ done
 EOF
 chmod +x /usr/local/bin/xray-quota
 
-# Script Telegram Login Notif (SPLIT PROTOCOL & REAL-TIME 2 MINS FILTER + SSH)
+# Script Telegram Login Notif (Toleransi CGNAT + MB/GB Dinamis)
 cat > /usr/local/bin/bot-login-notif <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -636,7 +636,7 @@ D1=$(date +"%Y/%m/%d %H:%M")
 D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
 D3=$(date -d "2 minutes ago" +"%Y/%m/%d %H:%M")
 
-grep -E "^($D1|$D2|$D3)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); gsub(/:.*/,"",ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/bot_active.log
+grep -E "^($D1|$D2|$D3)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]":"v6[3]":"v6[4]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]"."v4[3]; } print subnet, email; break; } }' | sort -u > /tmp/bot_active.log
 
 FULL_MSG=""
 for proto in vmess vless trojan; do
@@ -721,7 +721,7 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 ZIP_FILE="/tmp/Backup_${DATE}.zip"
 cd /
-zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ etc/issue.net >/dev/null 2>&1
+zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ etc/issue.net usr/local/bin/tendo-client-bot.py usr/local/bin/client-bot-helper.sh etc/systemd/system/tendo-client-bot.service >/dev/null 2>&1
 cd - >/dev/null 2>&1
 [[ ! -f "$ZIP_FILE" ]] && exit 0
 
@@ -1589,7 +1589,8 @@ function features_menu() {
                DATE=$(date +"%Y-%m-%d_%H-%M")
                ZIP_FILE="/root/Backup_${DATE}.zip"
                cd /
-               zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ etc/issue.net >/dev/null 2>&1
+               # Updated ZIP command to include Telegram Bot Scripts
+               zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ etc/issue.net usr/local/bin/tendo-client-bot.py usr/local/bin/client-bot-helper.sh etc/systemd/system/tendo-client-bot.service >/dev/null 2>&1
                cd - >/dev/null 2>&1
                
                if [[ ! -f "$ZIP_FILE" ]]; then
@@ -1638,6 +1639,9 @@ function features_menu() {
                        
                        # Perbaikan Restore Setup Telegram Bot & Cron Jobs
                        chmod -R 777 /etc/tendo_bot/ 2>/dev/null
+                       systemctl daemon-reload # Reload incase systemd file was restored
+                       chmod +x /usr/local/bin/client-bot-helper.sh 2>/dev/null
+                       
                        (crontab -l 2>/dev/null | grep -v "xray-exp"; echo "* * * * * /usr/local/bin/xray-exp") | crontab -
                        (crontab -l 2>/dev/null | grep -v "xray-limit"; echo "* * * * * /usr/local/bin/xray-limit") | crontab -
                        (crontab -l 2>/dev/null | grep -v "xray-quota"; echo "* * * * * /usr/local/bin/xray-quota") | crontab -
