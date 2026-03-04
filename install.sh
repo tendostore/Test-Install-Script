@@ -2,7 +2,7 @@
 # ==================================================
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
-#   Update: Real-Time IPv6/IPv4 Socket Tracker, API Traffic Quota & Bot UI
+#   Update: Perfect IPv6/IPv4 Regex Parsing & Active Socket Match
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -338,7 +338,7 @@ EOF
 ) >/dev/null 2>&1 & install_spin
 print_ok "SSH, Dropbear & UDPGW"
 
-# --- 7. XRAY CONFIG (FIXED QUOTA API ROUTING & LOGLEVEL INFO + SSH FALLBACK) ---
+# --- 7. XRAY CONFIG ---
 print_msg "Install Xray Core & Config"
 (
     export DEBIAN_FRONTEND=noninteractive
@@ -503,8 +503,6 @@ for proto in vmess vless trojan; do
         elif (( diff > 0 )); then
             total_acc=$((total_acc + diff))
             touch "/tmp/xray_active_${user}"
-        else
-            rm -f "/tmp/xray_active_${user}"
         fi
         
         last_api=$current_api
@@ -528,7 +526,7 @@ done
 EOF
 chmod +x /usr/local/bin/xray-quota
 
-# Script Telegram Login Notif (API Active Verification - ANTI LONG DOWNLOAD BUG)
+# Script Telegram Login Notif (API Active Verification + Clean IPv6/IPv4 Parse)
 cat > /usr/local/bin/bot-login-notif <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -541,9 +539,16 @@ IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
 DOM_VPS=$(cat /usr/local/etc/xray/domain 2>/dev/null)
 ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
-# Ambil ribuan riwayat ke belakang dan cocokkan dengan socket real-time (Fix IPv6/IPv4)!
-tail -n 10000 "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); sub(/:[0-9]+$/, "", ip); gsub(/\[|\]/, "", ip); sub(/^::ffff:/, "", ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/log_ip_user.txt
-ss -ntu state established | awk 'NR>1 {print $5}' | rev | cut -d: -f2- | rev | tr -d '[]' | sed 's/::ffff://g' | sort -u > /tmp/estab_ips.txt
+tail -n 10000 "$LOG_FILE" | awk '/accepted/ {
+    ip=$3; 
+    sub(/:[0-9]+$/, "", ip); 
+    gsub(/\[|\]/, "", ip); 
+    sub(/^::ffff:/, "", ip); 
+    email=$NF; 
+    if(email!="") print ip, email; 
+}' | sort -u > /tmp/log_ip_user.txt
+
+ss -ntu state established | awk 'NR>1 {print $5}' | sed -E 's/:[0-9]+$//; s/\[|\]//g; s/::ffff://g' | sort -u > /tmp/estab_ips.txt
 
 > /tmp/bot_active.log
 while read -r ip user; do
@@ -567,7 +572,6 @@ for proto in vmess vless trojan; do
         if [[ "$active_ips" -gt 0 ]]; then
             is_active=1
         elif [[ -f "/tmp/xray_active_${user}" ]]; then
-            # Filter ganda: Abaikan jika file tracker nyangkut lebih dari 2 menit
             if [[ $(find "/tmp/xray_active_${user}" -mmin -2 -print) ]]; then
                 is_active=1
                 active_ips=1
@@ -630,7 +634,7 @@ fi
 EOF
 chmod +x /usr/local/bin/bot-login-notif
 
-# Script Limit IP 
+# Script Limit IP
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -646,8 +650,16 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 [[ ! -f "$LOG_FILE" ]] && exit 0
 
-tail -n 10000 "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); sub(/:[0-9]+$/, "", ip); gsub(/\[|\]/, "", ip); sub(/^::ffff:/, "", ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/log_ip_user.txt
-ss -ntu state established | awk 'NR>1 {print $5}' | rev | cut -d: -f2- | rev | tr -d '[]' | sed 's/::ffff://g' | sort -u > /tmp/estab_ips.txt
+tail -n 10000 "$LOG_FILE" | awk '/accepted/ {
+    ip=$3; 
+    sub(/:[0-9]+$/, "", ip); 
+    gsub(/\[|\]/, "", ip); 
+    sub(/^::ffff:/, "", ip); 
+    email=$NF; 
+    if(email!="") print ip, email; 
+}' | sort -u > /tmp/log_ip_user.txt
+
+ss -ntu state established | awk 'NR>1 {print $5}' | sed -E 's/:[0-9]+$//; s/\[|\]//g; s/::ffff://g' | sort -u > /tmp/estab_ips.txt
 
 > /tmp/xray_active.log
 while read -r ip user; do
