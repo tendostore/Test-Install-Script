@@ -3,7 +3,7 @@
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
-#   Updated: FIX Cron PATH for Quota & 2-Mins IP Tail
+#   Updated: FIX Live API Quota & 30-Seconds Precise CGNAT Filter
 # ==================================================
 
 # --- WARNA & UI ---
@@ -225,7 +225,7 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload && systemctl enable dropbear >/dev/null 2>&1 && systemctl start dropbear >/dev/null 2>&1
 
-    # WS Python Proxy
+    # WS Python Proxy (SUPER ROBUST - Fixes HTTP Custom Reconnect Issue)
     cat > /usr/local/bin/ws-proxy.py << 'EOF'
 import socket, select, threading
 
@@ -336,21 +336,22 @@ EOF
 ) >/dev/null 2>&1 & install_spin
 print_ok "SSH, Dropbear & UDPGW"
 
-# --- 7. XRAY CONFIG ---
+# --- 7. XRAY CONFIG (FIXED QUOTA API ROUTING & LOGLEVEL INFO) ---
 print_msg "Install Xray Core & Config"
 (
     export DEBIAN_FRONTEND=noninteractive
     bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
     UUID_SYS=$(uuidgen)
 
+# PENTING: Perbaikan Tag "api_in" dan "api_out" agar CLI StatsQuery tidak berbenturan
 cat > $CONFIG_FILE <<EOF
 {
   "log": { "access": "/var/log/xray/access.log", "error": "/var/log/xray/error.log", "loglevel": "info" },
-  "api": { "tag": "api", "services": [ "StatsService" ] },
+  "api": { "tag": "api_out", "services": [ "StatsService" ] },
   "stats": {},
   "policy": { "levels": { "0": { "statsUserUplink": true, "statsUserDownlink": true } }, "system": { "statsInboundUplink": true, "statsInboundDownlink": true } },
   "inbounds": [
-    { "listen": "127.0.0.1", "port": 10085, "protocol": "dokodemo-door", "settings": { "address": "127.0.0.1" }, "tag": "api" },
+    { "listen": "127.0.0.1", "port": 10085, "protocol": "dokodemo-door", "settings": { "address": "127.0.0.1" }, "tag": "api_in" },
     { "tag": "inbound-443", "port": 443, "protocol": "vless", "settings": { "clients": [ { "id": "$UUID_SYS", "flow": "xtls-rprx-vision", "level": 0, "email": "system" } ], "decryption": "none", "fallbacks": [ 
         { "path": "/vmess", "dest": 10001, "xver": 1 }, { "path": "/vless", "dest": 10002, "xver": 1 }, { "path": "/trojan", "dest": 10003, "xver": 1 },
         { "path": "/vmess-upg", "dest": 10004, "xver": 1 }, { "path": "/vless-upg", "dest": 10005, "xver": 1 }, { "path": "/trojan-upg", "dest": 10006, "xver": 1 },
@@ -376,7 +377,7 @@ cat > $CONFIG_FILE <<EOF
     { "protocol": "freedom", "tag": "direct" },
     { "protocol": "blackhole", "tag": "blocked" }
   ],
-  "routing": { "domainStrategy": "IPIfNonMatch", "rules": [ { "inboundTag": ["api"], "outboundTag": "api", "type": "field" }, { "type": "field", "outboundTag": "blocked", "protocol": [ "bittorrent" ] } ] }
+  "routing": { "domainStrategy": "IPIfNonMatch", "rules": [ { "inboundTag": ["api_in"], "outboundTag": "api_out", "type": "field" }, { "type": "field", "outboundTag": "blocked", "protocol": [ "bittorrent" ] } ] }
 }
 EOF
 ) >/dev/null 2>&1 & install_spin
@@ -460,7 +461,7 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-exp
 
-# Script Limit IP (Toleransi EXTREME CGNAT Provider Indonesia - 2 Menit Terakhir Saja)
+# Script Limit IP (Toleransi EXTREME CGNAT Provider Indonesia - Super Presisi 30 Detik Terakhir Saja)
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -476,11 +477,9 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 [[ ! -f "$LOG_FILE" ]] && exit 0
 
-# Jendela Waktu Paling Presisi (Hanya 2 Menit ke belakang, menghindari penumpukan rotasi IP Lama)
-D1=$(date +"%Y/%m/%d %H:%M")
-D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
-
-tail -n 10000 "$LOG_FILE" | grep -E "^($D1|$D2)" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/xray_active.log
+# Jendela Waktu Super Presisi (HANYA 30 DETIK KE BELAKANG, membuang sisa putaran IP lama)
+STRS=$(for i in {0..30}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
+tail -n 10000 "$LOG_FILE" | grep -E "^($STRS)" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/xray_active.log
 
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
@@ -562,7 +561,7 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-limit
 
-# Script Quota (Fixed Cron PATH Issue)
+# Script Quota (Fixed Cron PATH Issue & API Accumulation)
 cat > /usr/local/bin/xray-quota <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -620,7 +619,7 @@ done
 EOF
 chmod +x /usr/local/bin/xray-quota
 
-# Script Telegram Login Notif (Toleransi EXTREME CGNAT + MB/GB Dinamis)
+# Script Telegram Login Notif (30-Seconds IP Tail & Real-Time LIVE API Quota)
 cat > /usr/local/bin/bot-login-notif <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -633,10 +632,12 @@ IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
 DOM_VPS=$(cat /usr/local/etc/xray/domain 2>/dev/null)
 ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
-D1=$(date +"%Y/%m/%d %H:%M")
-D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
+# Filter 30 Detik Sangat Ketat!
+STRS=$(for i in {0..30}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
+tail -n 10000 "$LOG_FILE" | grep -E "^($STRS)" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/bot_active.log
 
-tail -n 10000 "$LOG_FILE" | grep -E "^($D1|$D2)" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/bot_active.log
+# Fetch LIVE data Xray (Bypass jeda cronjob)
+STATS=$(/usr/local/bin/xray api statsquery -server=127.0.0.1:10085 2>/dev/null)
 
 FULL_MSG=""
 for proto in vmess vless trojan; do
@@ -648,19 +649,38 @@ for proto in vmess vless trojan; do
     while IFS="|" read -r user id exp limit status quota; do
         active_ips=$(grep -w "$user" /tmp/bot_active.log | wc -l)
         if [[ "$active_ips" -gt 0 ]]; then
+            # Kalkulasi LIVE Quota (Menambahkan traffic berjalan detik ini)
+            down=$(echo "$STATS" | jq -r ".stat[]? | select(.name == \"user>>>${user}>>>traffic>>>downlink\") | .value" 2>/dev/null)
+            up=$(echo "$STATS" | jq -r ".stat[]? | select(.name == \"user>>>${user}>>>traffic>>>uplink\") | .value" 2>/dev/null)
+            [[ -z "$down" || "$down" == "null" ]] && down=0
+            [[ -z "$up" || "$up" == "null" ]] && up=0
+            current_api=$((down + up))
+
             QUOTA_FILE="/usr/local/etc/xray/quota/${user}"
             if [[ -f "$QUOTA_FILE" ]]; then
                 read total_acc last_api < "$QUOTA_FILE"
-                if [[ -z "$total_acc" || "$total_acc" == "null" ]]; then total_acc=0; fi
-                if (( total_acc < 1073741824 )); then
-                    usage_fmt=$(LC_ALL=C awk "BEGIN {printf \"%.2f\", $total_acc/1048576}")" MB"
+                [[ -z "$total_acc" ]] && total_acc=0
+                [[ -z "$last_api" ]] && last_api=0
+                
+                if (( current_api >= last_api )); then
+                    real_usage=$(( total_acc + (current_api - last_api) ))
                 else
-                    usage_fmt=$(LC_ALL=C awk "BEGIN {printf \"%.2f\", $total_acc/1073741824}")" GB"
+                    real_usage=$(( total_acc + current_api ))
                 fi
             else
-                usage_fmt="0.00 MB"
+                real_usage=$current_api
             fi
-            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_ips IP | Kuota: ${usage_fmt}"$'\n'
+
+            # Format MB / GB Dinamis Presisi
+            if (( real_usage < 1048576 )); then
+                usage_fmt=$(LC_ALL=C awk "BEGIN {printf \"%.2f\", $real_usage/1024}")" KB"
+            elif (( real_usage < 1073741824 )); then
+                usage_fmt=$(LC_ALL=C awk "BEGIN {printf \"%.2f\", $real_usage/1048576}")" MB"
+            else
+                usage_fmt=$(LC_ALL=C awk "BEGIN {printf \"%.2f\", $real_usage/1073741824}")" GB"
+            fi
+
+            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_ips IP | Usage: ${usage_fmt}"$'\n'
             FOUND=1
         fi
     done < "$FILE"
