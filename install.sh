@@ -3,7 +3,7 @@
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
-#   Updated: OpenSSH Routing, Buffer Ekstrem 100 Bytes, TCP_NODELAY
+#   Updated: Ghost IP Fix, Separated Notifications & Short Banner
 # ==================================================
 
 # --- WARNA & UI ---
@@ -177,16 +177,17 @@ print_ok "Domain & SSL"
 print_msg "Install SSH, Dropbear 2019, WS Proxy & UDPGW"
 (
     export DEBIAN_FRONTEND=noninteractive
-    # SSH Banner Default NEW HTML (AIO)
+    
+    # BANNER SSH PENDEK DAN PRESISI
     cat > /etc/issue.net << 'EOF'
-<font color="#00FFFF">┌──────────────────────────────────────┐</font><br>
-<font color="#00FFFF">│</font><font color="#00FF00"><b>&nbsp;&nbsp;&nbsp;AUTO SCRIPT TENDO STORE ( AIO )</b></font><br>
-<font color="#00FFFF">├──────────────────────────────────────┤</font><br>
-<font color="#00FFFF">│</font>&nbsp;<font color="#FFD700">Version&nbsp;&nbsp;&nbsp;:</font>&nbsp;<font color="#FFFFFF">v01.03.26</font><br>
-<font color="#00FFFF">│</font>&nbsp;<font color="#FFD700">Owner&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</font>&nbsp;<font color="#FFFFFF">Tendo&nbsp;Store</font><br>
-<font color="#00FFFF">│</font>&nbsp;<font color="#FFD700">Telegram&nbsp;&nbsp;:</font>&nbsp;<font color="#FFFFFF">@tendo_32</font><br>
-<font color="#00FFFF">└──────────────────────────────────────┘</font><br>
-<font color="#FF0000"><b>&nbsp;&nbsp;Strictly No Spam, DDOS, or Hacking</b></font><br>
+<font color="#00FFFF">┌────────────────────────┐</font><br>
+<font color="#00FFFF">│</font><font color="#00FF00"><b>&nbsp;AUTO SCRIPT TENDO STORE</b></font><br>
+<font color="#00FFFF">├────────────────────────┤</font><br>
+<font color="#00FFFF">│</font>&nbsp;<font color="#FFD700">Version&nbsp;:</font>&nbsp;<font color="#FFFFFF">v01.03.26</font><br>
+<font color="#00FFFF">│</font>&nbsp;<font color="#FFD700">Owner&nbsp;&nbsp;&nbsp;:</font>&nbsp;<font color="#FFFFFF">Tendo&nbsp;Store</font><br>
+<font color="#00FFFF">│</font>&nbsp;<font color="#FFD700">Telegram:</font>&nbsp;<font color="#FFFFFF">@tendo_32</font><br>
+<font color="#00FFFF">└────────────────────────┘</font><br>
+<font color="#FF0000"><b>&nbsp;No Spam, DDOS, Hacking!</b></font><br>
 EOF
 
     # OpenSSH Config
@@ -232,16 +233,12 @@ import socket, select, threading
 def handle_client(client_socket):
     remote_socket = None
     try:
-        # Aktifkan Anti-Lag TCP
         client_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         
         remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         remote_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        
-        # Pindah routing kembali ke OpenSSH langsung (port 22)
         remote_socket.connect(('127.0.0.1', 22))
         
-        # Buffer awal agak besar agar header HTTP Payload tidak terpotong saat handshake
         request = client_socket.recv(4096)
         if b"HTTP/" in request:
             client_socket.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
@@ -257,12 +254,10 @@ def handle_client(client_socket):
             if not r:
                 break
             if client_socket in r:
-                # Buffer Ekstrem Dikecilkan ke 100 sesuai request untuk tunneling real-time
                 data = client_socket.recv(100)
                 if not data: break
                 remote_socket.sendall(data)
             if remote_socket in r:
-                # Buffer Ekstrem Dikecilkan ke 100 sesuai request
                 data = remote_socket.recv(100)
                 if not data: break
                 client_socket.sendall(data)
@@ -469,7 +464,7 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-exp
 
-# Script Limit IP (Toleransi Ekstrem 30 Detik Terakhir Saja + Blokir IP Hantu)
+# Script Limit IP (Toleransi 30 Detik + Anti-IP Hantu)
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -485,10 +480,19 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 [[ ! -f "$LOG_FILE" ]] && exit 0
 
-# Waktu 30 detik ke belakang (diperpanjang sesuai request)
 STRS=$(for i in {0..30}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
-# Hapus 127.0.0.1 dari pembacaan log agar tidak ada "IP Hantu"
-tail -n 5000 "$LOG_FILE" | grep -E "^($STRS)" | grep "accepted" | grep -v "127.0.0.1" | grep -v "::1" | awk '{ for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/xray_active.log
+# Fix Hantu: Memastikan log memiliki format "email: username" yang sah (bukan sekadar 'accepted' dari scanner)
+tail -n 5000 "$LOG_FILE" | grep -E "^($STRS)" | grep "accepted" | grep "email: " | awk '{
+    for(i=1;i<=NF;i++) {
+        if($i=="accepted") { ip=$(i-1); sub(/:.*/,"",ip); }
+        if($i=="email:") { email=$(i+1); gsub(/[^a-zA-Z0-9_-]/, "", email); }
+    }
+    if(ip!="" && email!="") {
+        split(ip, v, ".");
+        if(length(v)==4) { subnet=v[1]"."v[2]; } else { subnet=ip; }
+        print subnet, email;
+    }
+}' | sort -u > /tmp/xray_active.log
 
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
@@ -626,7 +630,7 @@ done
 EOF
 chmod +x /usr/local/bin/xray-quota
 
-# Script Telegram Login Notif (30-Detik Presisi, Anti-Ghosting, Accurate SSH)
+# Script Telegram Login Notif (Pemisahan Chat Notif, 30 Detik, Anti-Ghosting, Accurate SSH)
 cat > /usr/local/bin/bot-login-notif <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -639,14 +643,23 @@ IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
 DOM_VPS=$(cat /usr/local/etc/xray/domain 2>/dev/null)
 ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
-# Filter 30 Detik Terakhir + Blokir Localhost (Anti-IP Hantu Vless)
+# Filter 30 Detik Terakhir + Memastikan Log Memiliki Email Pengguna Asli (Anti-Hantu)
 STRS=$(for i in {0..30}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
-tail -n 5000 "$LOG_FILE" | grep -E "^($STRS)" | grep "accepted" | grep -v "127.0.0.1" | grep -v "::1" | awk '{ for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/bot_active.log
+tail -n 5000 "$LOG_FILE" | grep -E "^($STRS)" | grep "accepted" | grep "email: " | awk '{
+    for(i=1;i<=NF;i++) {
+        if($i=="accepted") { ip=$(i-1); sub(/:.*/,"",ip); }
+        if($i=="email:") { email=$(i+1); gsub(/[^a-zA-Z0-9_-]/, "", email); }
+    }
+    if(ip!="" && email!="") {
+        split(ip, v, ".");
+        if(length(v)==4) { subnet=v[1]"."v[2]; } else { subnet=ip; }
+        print subnet, email;
+    }
+}' | sort -u > /tmp/bot_active.log
 
 # Fetch LIVE data Xray
 STATS=$(/usr/local/bin/xray api statsquery -server=127.0.0.1:10085 2>/dev/null)
 
-FULL_MSG=""
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
     [[ ! -f "$FILE" ]] && continue
@@ -689,9 +702,14 @@ for proto in vmess vless trojan; do
         fi
     done < "$FILE"
     
+    # Pengiriman Chat Telegram TERPISAH per Protokol
     if [[ "$FOUND" -eq 1 ]]; then
         PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'
-        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}"$'\n'
+        FULL_MSG="${PROTO_HEADER}${PROTO_MSG}"
+        /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+            -d "chat_id=${CHATID}" \
+            --data-urlencode "text=${FULL_MSG}" \
+            -d "parse_mode=HTML" > /dev/null
     fi
 done
 
@@ -712,17 +730,15 @@ if [[ -f "$S_FILE" ]]; then
         fi
     done < "$S_FILE"
     
+    # Pengiriman Chat Telegram TERPISAH untuk SSH
     if [[ "$FOUND" -eq 1 ]]; then
         PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'
-        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}"$'\n'
+        FULL_MSG="${PROTO_HEADER}${PROTO_MSG}"
+        /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+            -d "chat_id=${CHATID}" \
+            --data-urlencode "text=${FULL_MSG}" \
+            -d "parse_mode=HTML" > /dev/null
     fi
-fi
-
-if [[ -n "$FULL_MSG" ]]; then
-    /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
-        -d "chat_id=${CHATID}" \
-        --data-urlencode "text=${FULL_MSG}" \
-        -d "parse_mode=HTML" > /dev/null
 fi
 EOF
 chmod +x /usr/local/bin/bot-login-notif
