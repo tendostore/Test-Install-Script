@@ -3,6 +3,7 @@
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
+#   Updated: Kuota MB/GB Dinamis & Tombol Premium
 # ==================================================
 
 # --- WARNA & UI ---
@@ -650,11 +651,16 @@ for proto in vmess vless trojan; do
             QUOTA_FILE="/usr/local/etc/xray/quota/${user}"
             if [[ -f "$QUOTA_FILE" ]]; then
                 read total_acc last_api < "$QUOTA_FILE"
-                usage_gb=$(awk "BEGIN {printf \"%.2f\", $total_acc/1073741824}")
+                if [[ -z "$total_acc" || "$total_acc" == "null" ]]; then total_acc=0; fi
+                if (( total_acc < 1073741824 )); then
+                    usage_fmt=$(LC_ALL=C awk "BEGIN {printf \"%.2f\", $total_acc/1048576}")" MB"
+                else
+                    usage_fmt=$(LC_ALL=C awk "BEGIN {printf \"%.2f\", $total_acc/1073741824}")" GB"
+                fi
             else
-                usage_gb="0.00"
+                usage_fmt="0.00 MB"
             fi
-            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_ips IP | Kuota: ${usage_gb}GB"$'\n'
+            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_ips IP | Kuota: ${usage_fmt}"$'\n'
             FOUND=1
         fi
     done < "$FILE"
@@ -1261,7 +1267,7 @@ except:
 
 bot = telebot.TeleBot(TOKEN)
 
-@bot.message_handler(commands=['start', 'menu'])
+@bot.message_handler(commands=['menu'])
 def send_welcome(message):
     markup = types.InlineKeyboardMarkup(row_width=2)
     btn_ssh = types.InlineKeyboardButton("➕ Create SSH", callback_data="proto_ssh")
@@ -1270,8 +1276,12 @@ def send_welcome(message):
     btn_info = types.InlineKeyboardButton("ℹ️ Informasi", callback_data="info_akun")
     btn_donasi = types.InlineKeyboardButton("💳 Donasi", callback_data="donasi")
     btn_admin = types.InlineKeyboardButton("📞 Hubungi Admin", url="https://t.me/tendo_32")
+    btn_premium = types.InlineKeyboardButton("🛒 Order Premium", url="https://wa.me/message/MAROWFSVEZWDL1")
     
-    markup.add(btn_ssh, btn_xray, btn_zi, btn_info, btn_donasi, btn_admin)
+    markup.add(btn_ssh, btn_xray)
+    markup.add(btn_zi, btn_info)
+    markup.add(btn_donasi, btn_admin)
+    markup.add(btn_premium)
     bot.send_message(message.chat.id, "Selamat datang! Silakan pilih menu interaktif di bawah ini untuk membuat akun VPN free.", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -1288,14 +1298,18 @@ def callback_query(call):
     
     elif call.data == "menu_main":
         markup = types.InlineKeyboardMarkup(row_width=2)
-        markup.add(
-            types.InlineKeyboardButton("➕ Create SSH", callback_data="proto_ssh"),
-            types.InlineKeyboardButton("➕ Create XRAY", callback_data="menu_xray"),
-            types.InlineKeyboardButton("➕ Create ZIVPN", callback_data="proto_zivpn"),
-            types.InlineKeyboardButton("ℹ️ Informasi", callback_data="info_akun"),
-            types.InlineKeyboardButton("💳 Donasi", callback_data="donasi"),
-            types.InlineKeyboardButton("📞 Hubungi Admin", url="https://t.me/tendo_32")
-        )
+        btn_ssh = types.InlineKeyboardButton("➕ Create SSH", callback_data="proto_ssh")
+        btn_xray = types.InlineKeyboardButton("➕ Create XRAY", callback_data="menu_xray")
+        btn_zi = types.InlineKeyboardButton("➕ Create ZIVPN", callback_data="proto_zivpn")
+        btn_info = types.InlineKeyboardButton("ℹ️ Informasi", callback_data="info_akun")
+        btn_donasi = types.InlineKeyboardButton("💳 Donasi", callback_data="donasi")
+        btn_admin = types.InlineKeyboardButton("📞 Hubungi Admin", url="https://t.me/tendo_32")
+        btn_premium = types.InlineKeyboardButton("🛒 Order Premium", url="https://wa.me/message/MAROWFSVEZWDL1")
+
+        markup.add(btn_ssh, btn_xray)
+        markup.add(btn_zi, btn_info)
+        markup.add(btn_donasi, btn_admin)
+        markup.add(btn_premium)
         bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Selamat datang! Silakan pilih menu interaktif di bawah ini untuk membuat akun VPN free.", reply_markup=markup)
     
     elif call.data == "info_akun":
