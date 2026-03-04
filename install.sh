@@ -3,7 +3,7 @@
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
-#   Updated: FIX Live API Quota & 30-Seconds Precise CGNAT Filter
+#   Updated: 5-Second Anti-Ghost IP, Telegram Bot Restore & Menu
 # ==================================================
 
 # --- WARNA & UI ---
@@ -225,7 +225,7 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload && systemctl enable dropbear >/dev/null 2>&1 && systemctl start dropbear >/dev/null 2>&1
 
-    # WS Python Proxy (SUPER ROBUST - Fixes HTTP Custom Reconnect Issue)
+    # WS Python Proxy
     cat > /usr/local/bin/ws-proxy.py << 'EOF'
 import socket, select, threading
 
@@ -336,14 +336,13 @@ EOF
 ) >/dev/null 2>&1 & install_spin
 print_ok "SSH, Dropbear & UDPGW"
 
-# --- 7. XRAY CONFIG (FIXED QUOTA API ROUTING & LOGLEVEL INFO) ---
+# --- 7. XRAY CONFIG ---
 print_msg "Install Xray Core & Config"
 (
     export DEBIAN_FRONTEND=noninteractive
     bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
     UUID_SYS=$(uuidgen)
 
-# PENTING: Perbaikan Tag "api_in" dan "api_out" agar CLI StatsQuery tidak berbenturan
 cat > $CONFIG_FILE <<EOF
 {
   "log": { "access": "/var/log/xray/access.log", "error": "/var/log/xray/error.log", "loglevel": "info" },
@@ -461,7 +460,7 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-exp
 
-# Script Limit IP (Toleransi EXTREME CGNAT Provider Indonesia - Super Presisi 30 Detik Terakhir Saja)
+# Script Limit IP (Toleransi Ekstrem 5 Detik Terakhir Saja + Blokir IP Hantu)
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -477,9 +476,10 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 [[ ! -f "$LOG_FILE" ]] && exit 0
 
-# Jendela Waktu Super Presisi (HANYA 30 DETIK KE BELAKANG, membuang sisa putaran IP lama)
-STRS=$(for i in {0..30}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
-tail -n 10000 "$LOG_FILE" | grep -E "^($STRS)" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/xray_active.log
+# Waktu 5 detik ke belakang saja (super ketat)
+STRS=$(for i in {0..5}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
+# Hapus 127.0.0.1 dari pembacaan log agar tidak ada "IP Hantu"
+tail -n 5000 "$LOG_FILE" | grep -E "^($STRS)" | grep "accepted" | grep -v "127.0.0.1" | grep -v "::1" | awk '{ for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/xray_active.log
 
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
@@ -520,7 +520,7 @@ for proto in vmess vless trojan; do
     done < "$FILE"
 done
 
-# SSH Limit IP Lock
+# SSH Limit IP Lock (Penyempurnaan Deteksi SSH)
 S_FILE="/usr/local/etc/xray/ssh.txt"
 if [[ -f "$S_FILE" ]]; then
     while IFS="|" read -r user pass exp limit status; do
@@ -543,17 +543,15 @@ if [[ -f "$S_FILE" ]]; then
         
         [[ -z "$limit" || "$limit" == "0" ]] && continue
         
-        uid=$(id -u "$user" 2>/dev/null)
-        if [[ -n "$uid" ]]; then
-            active_logins=$(/usr/bin/ps -U "$uid" -o comm= 2>/dev/null | grep -cE '(sshd|dropbear)')
-            if [[ "$active_logins" -gt "$limit" ]]; then
-                usermod -L "$user" 2>/dev/null
-                killall -u "$user" 2>/dev/null
-                sed -i "s/^$user|.*/$user|$pass|$exp|$limit|LOCKED_IP_${NOW}/g" "$S_FILE"
-                if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                    MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit Session: $limit"$'\n'"🚨 Login Session: $active_logins"$'\n'"⛔ Status: Terkunci 10 Menit"
-                    /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
-                fi
+        # Mengecek aktivitas User dari PS PID yang terhubung ke SSH/Dropbear
+        active_logins=$(ps -u "$user" 2>/dev/null | grep -cE '(sshd|dropbear)')
+        if [[ "$active_logins" -gt "$limit" ]]; then
+            usermod -L "$user" 2>/dev/null
+            killall -u "$user" 2>/dev/null
+            sed -i "s/^$user|.*/$user|$pass|$exp|$limit|LOCKED_IP_${NOW}/g" "$S_FILE"
+            if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
+                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit Session: $limit"$'\n'"🚨 Login Session: $active_logins"$'\n'"⛔ Status: Terkunci 10 Menit"
+                /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
             fi
         fi
     done < "$S_FILE"
@@ -619,7 +617,7 @@ done
 EOF
 chmod +x /usr/local/bin/xray-quota
 
-# Script Telegram Login Notif (30-Seconds IP Tail & Real-Time LIVE API Quota)
+# Script Telegram Login Notif (5-Detik Tail & Real-Time LIVE API Quota)
 cat > /usr/local/bin/bot-login-notif <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -632,9 +630,9 @@ IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
 DOM_VPS=$(cat /usr/local/etc/xray/domain 2>/dev/null)
 ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
-# Filter 30 Detik Sangat Ketat!
-STRS=$(for i in {0..30}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
-tail -n 10000 "$LOG_FILE" | grep -E "^($STRS)" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/bot_active.log
+# Filter 5 Detik Terakhir + Blokir Localhost (IP Hantu)
+STRS=$(for i in {0..5}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
+tail -n 5000 "$LOG_FILE" | grep -E "^($STRS)" | grep "accepted" | grep -v "127.0.0.1" | grep -v "::1" | awk '{ for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/bot_active.log
 
 # Fetch LIVE data Xray (Bypass jeda cronjob)
 STATS=$(/usr/local/bin/xray api statsquery -server=127.0.0.1:10085 2>/dev/null)
@@ -700,13 +698,11 @@ if [[ -f "$S_FILE" ]]; then
         user=$(echo "$user" | tr -d '[:space:]')
         [[ -z "$user" ]] && continue
         
-        uid=$(id -u "$user" 2>/dev/null)
-        if [[ -n "$uid" ]]; then
-            active_logins=$(/usr/bin/ps -U "$uid" -o comm= 2>/dev/null | grep -cE '(sshd|dropbear)')
-            if [[ "$active_logins" -gt 0 ]]; then
-                PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Session"$'\n'
-                FOUND=1
-            fi
+        # Lebih sensitif mendeteksi Logins SSH
+        active_logins=$(ps -u "$user" 2>/dev/null | grep -cE '(sshd|dropbear)')
+        if [[ "$active_logins" -gt 0 ]]; then
+            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Session"$'\n'
+            FOUND=1
         fi
     done < "$S_FILE"
     
@@ -1155,19 +1151,30 @@ function bot_menu() {
 # ---------------------------------------------
 function setup_client_bot_menu() {
     header_sub
-    echo -e "${YELLOW}Pastikan anda sudah menyiapkan API Token dari @BotFather.${NC}"
-    read -p "Masukkan Bot Token API: " bot_client_token
-    [[ -z "$bot_client_token" ]] && return
+    local c_tok=$(cat /etc/tendo_bot/client_token 2>/dev/null)
+    local c_adm=$(cat /etc/tendo_bot/client_admin 2>/dev/null)
+    echo -e "${YELLOW}--- SETUP CLIENT BOT TELEGRAM ---${NC}"
+    echo -e " Token saat ini : ${GREEN}${c_tok:-Belum disetting}${NC}"
+    echo -e " ID Admin       : ${GREEN}${c_adm:-Belum disetting}${NC}"
+    echo -e "${CYAN}————————————————————————————————————————${NC}"
     
-    read -p "Masukkan User ID Anda (Admin): " bot_client_admin
-    [[ -z "$bot_client_admin" ]] && bot_client_admin="0"
+    read -p " Ingin mengubah/memasukkan data baru? (y/n): " chg
+    if [[ "$chg" == "y" || "$chg" == "Y" || -z "$c_tok" ]]; then
+        echo -e "${YELLOW}Pastikan anda sudah menyiapkan API Token dari @BotFather.${NC}"
+        read -p " Masukkan Bot Token API: " bot_client_token
+        [[ -z "$bot_client_token" ]] && return
+        
+        read -p " Masukkan User ID Anda (Admin): " bot_client_admin
+        [[ -z "$bot_client_admin" ]] && bot_client_admin="0"
+        
+        echo "$bot_client_token" > /etc/tendo_bot/client_token
+        echo "$bot_client_admin" > /etc/tendo_bot/client_admin
+    else
+        echo -e "${GREEN}Menggunakan konfigurasi bot sebelumnya...${NC}"
+    fi
 
-    echo -e "${YELLOW}Menginstall Module Python (pyTelegramBotAPI)...${NC}"
+    echo -e "${YELLOW}Memastikan Module Python (pyTelegramBotAPI)...${NC}"
     pip3 install pyTelegramBotAPI --break-system-packages 2>/dev/null || pip3 install pyTelegramBotAPI 2>/dev/null
-    
-    # Save tokens
-    echo "$bot_client_token" > /etc/tendo_bot/client_token
-    echo "$bot_client_admin" > /etc/tendo_bot/client_admin
     
     # Create Bot Helper Bash (Untuk integrasi Python ke System Xray/SSH)
     cat > /usr/local/bin/client-bot-helper.sh << 'EOF'
@@ -1287,18 +1294,27 @@ except:
 
 bot = telebot.TeleBot(TOKEN)
 
-@bot.message_handler(commands=['start', 'menu'])
+@bot.message_handler(commands=['menu'])
 def send_welcome(message):
     markup = types.InlineKeyboardMarkup(row_width=2)
     btn_ssh = types.InlineKeyboardButton("➕ Create SSH", callback_data="proto_ssh")
     btn_xray = types.InlineKeyboardButton("➕ Create XRAY", callback_data="menu_xray")
     btn_zi = types.InlineKeyboardButton("➕ Create ZIVPN", callback_data="proto_zivpn")
     btn_info = types.InlineKeyboardButton("ℹ️ Informasi", callback_data="info_akun")
+    btn_grup = types.InlineKeyboardButton("👥 Grup", url="https://t.me/tendo32")
     btn_donasi = types.InlineKeyboardButton("💳 Donasi", callback_data="donasi")
+    btn_premium = types.InlineKeyboardButton("🛒 Order Premium", url="https://wa.me/message/MAROWFSVEZWDL1")
     btn_admin = types.InlineKeyboardButton("📞 Hubungi Admin", url="https://t.me/tendo_32")
     
-    markup.add(btn_ssh, btn_xray, btn_zi, btn_info, btn_donasi, btn_admin)
+    markup.add(btn_ssh, btn_xray)
+    markup.add(btn_zi, btn_info)
+    markup.add(btn_grup, btn_donasi)
+    markup.add(btn_premium, btn_admin)
     bot.send_message(message.chat.id, "Selamat datang! Silakan pilih menu interaktif di bawah ini untuk membuat akun VPN free.", reply_markup=markup)
+
+@bot.message_handler(func=lambda message: True)
+def handle_other_text(message):
+    bot.reply_to(message, "Silakan ketik /menu untuk memulai bot.")
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
@@ -1319,7 +1335,9 @@ def callback_query(call):
             types.InlineKeyboardButton("➕ Create XRAY", callback_data="menu_xray"),
             types.InlineKeyboardButton("➕ Create ZIVPN", callback_data="proto_zivpn"),
             types.InlineKeyboardButton("ℹ️ Informasi", callback_data="info_akun"),
+            types.InlineKeyboardButton("👥 Grup", url="https://t.me/tendo32"),
             types.InlineKeyboardButton("💳 Donasi", callback_data="donasi"),
+            types.InlineKeyboardButton("🛒 Order Premium", url="https://wa.me/message/MAROWFSVEZWDL1"),
             types.InlineKeyboardButton("📞 Hubungi Admin", url="https://t.me/tendo_32")
         )
         bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Selamat datang! Silakan pilih menu interaktif di bawah ini untuk membuat akun VPN free.", reply_markup=markup)
@@ -1346,12 +1364,12 @@ def callback_query(call):
 def process_username(message, proto):
     username = message.text.strip().replace(" ", "")
     if not username:
-        bot.send_message(message.chat.id, "❌ Username tidak valid. Silakan ulangi /start")
+        bot.send_message(message.chat.id, "❌ Username tidak valid. Silakan ulangi /menu")
         return
         
     res = subprocess.run(["/usr/local/bin/client-bot-helper.sh", "check", proto, username], capture_output=True, text=True)
     if "EXISTS" in res.stdout:
-        bot.send_message(message.chat.id, f"❌ Username <b>{username}</b> sudah digunakan! Silakan ulangi /start dan gunakan nama lain.", parse_mode="HTML")
+        bot.send_message(message.chat.id, f"❌ Username <b>{username}</b> sudah digunakan! Silakan ulangi /menu dan gunakan nama lain.", parse_mode="HTML")
         return
         
     if proto == "ssh":
@@ -1364,7 +1382,7 @@ def process_username(message, proto):
 def ask_duration_ssh(message, proto, username):
     password = message.text.strip()
     if not password:
-        bot.send_message(message.chat.id, "❌ Password tidak valid. Silakan ulangi /start")
+        bot.send_message(message.chat.id, "❌ Password tidak valid. Silakan ulangi /menu")
         return
     msg = bot.send_message(message.chat.id, f"✅ Password diterima!\n\nMasukkan durasi masa aktif yang diinginkan dalam hari (Maksimal 5 hari):", parse_mode="HTML")
     bot.register_next_step_handler(msg, execute_creation, proto, username, password)
@@ -1403,7 +1421,7 @@ EOF
     systemctl restart tendo-client-bot >/dev/null 2>&1
     
     echo -e "${GREEN}Bot Client berhasil diinstall dan dijalankan!${NC}"
-    echo -e "${YELLOW}Silakan chat bot kamu di Telegram dan ketik /start${NC}"
+    echo -e "${YELLOW}Silakan chat bot kamu di Telegram dan ketik /menu${NC}"
     sleep 3
 }
 
@@ -1652,6 +1670,12 @@ function features_menu() {
                        chmod -R 777 /etc/tendo_bot/ 2>/dev/null
                        systemctl daemon-reload
                        chmod +x /usr/local/bin/client-bot-helper.sh 2>/dev/null
+                       
+                       # Auto Install Bot Module saat di-restore
+                       if [[ -f "/etc/tendo_bot/client_token" ]]; then
+                           pip3 install pyTelegramBotAPI --break-system-packages 2>/dev/null || pip3 install pyTelegramBotAPI 2>/dev/null
+                           systemctl enable tendo-client-bot >/dev/null 2>&1
+                       fi
                        
                        (crontab -l 2>/dev/null | grep -v "xray-exp"; echo "* * * * * /usr/local/bin/xray-exp") | crontab -
                        (crontab -l 2>/dev/null | grep -v "xray-limit"; echo "* * * * * /usr/local/bin/xray-limit") | crontab -
