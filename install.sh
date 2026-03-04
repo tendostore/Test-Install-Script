@@ -3,7 +3,7 @@
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
-#   Updated: Safe-Restart Creation, 15s CGNAT, SSH Notif Fix & Bot Restore
+#   Updated: 30s CGNAT, OpenSSH WS Routing (Speed Boost) & TCP_NODELAY
 # ==================================================
 
 # --- WARNA & UI ---
@@ -225,17 +225,24 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload && systemctl enable dropbear >/dev/null 2>&1 && systemctl start dropbear >/dev/null 2>&1
 
-    # WS Python Proxy
+    # WS Python Proxy (SUPER OPTIMIZED FOR SSH SPEED)
+    # Merubah buffer ke 65536, Menambahkan TCP_NODELAY, dan Routing ke OpenSSH Port 22 (Bukan dropbear)
     cat > /usr/local/bin/ws-proxy.py << 'EOF'
 import socket, select, threading
 
 def handle_client(client_socket):
     remote_socket = None
     try:
-        remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        remote_socket.connect(('127.0.0.1', 90))
+        # Optimasi Anti-Lag pada Client
+        client_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         
-        request = client_socket.recv(8192)
+        remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # Optimasi Anti-Lag pada Server OpenSSH
+        remote_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        # Mengarahkan langsung ke OpenSSH (22) untuk speed max, bukan Dropbear
+        remote_socket.connect(('127.0.0.1', 22))
+        
+        request = client_socket.recv(65536)
         if b"HTTP/" in request:
             client_socket.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
             parts = request.split(b"\r\n\r\n", 1)
@@ -250,11 +257,11 @@ def handle_client(client_socket):
             if not r:
                 break
             if client_socket in r:
-                data = client_socket.recv(8192)
+                data = client_socket.recv(65536)
                 if not data: break
                 remote_socket.sendall(data)
             if remote_socket in r:
-                data = remote_socket.recv(8192)
+                data = remote_socket.recv(65536)
                 if not data: break
                 client_socket.sendall(data)
     except:
@@ -460,7 +467,7 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-exp
 
-# Script Limit IP (Toleransi Ekstrem 15 Detik Terakhir Saja + Blokir IP Hantu)
+# Script Limit IP (Toleransi Ekstrem 30 Detik Terakhir Saja + Blokir IP Hantu)
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -476,8 +483,8 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 [[ ! -f "$LOG_FILE" ]] && exit 0
 
-# Waktu 15 detik ke belakang saja (super ketat)
-STRS=$(for i in {0..15}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
+# Waktu 30 detik ke belakang (diperpanjang sesuai request terbaru)
+STRS=$(for i in {0..30}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
 # Hapus 127.0.0.1 dari pembacaan log agar tidak ada "IP Hantu"
 tail -n 5000 "$LOG_FILE" | grep -E "^($STRS)" | grep "accepted" | grep -v "127.0.0.1" | grep -v "::1" | awk '{ for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/xray_active.log
 
@@ -617,7 +624,7 @@ done
 EOF
 chmod +x /usr/local/bin/xray-quota
 
-# Script Telegram Login Notif (15-Detik Tail & Real-Time LIVE API Quota)
+# Script Telegram Login Notif (30-Detik Tail & Real-Time LIVE API Quota)
 cat > /usr/local/bin/bot-login-notif <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -630,8 +637,8 @@ IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
 DOM_VPS=$(cat /usr/local/etc/xray/domain 2>/dev/null)
 ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
-# Filter 15 Detik Terakhir + Blokir Localhost (Anti-IP Hantu Vless)
-STRS=$(for i in {0..15}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
+# Filter 30 Detik Terakhir + Blokir Localhost (Anti-IP Hantu Vless)
+STRS=$(for i in {0..30}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
 tail -n 5000 "$LOG_FILE" | grep -E "^($STRS)" | grep "accepted" | grep -v "127.0.0.1" | grep -v "::1" | awk '{ for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/bot_active.log
 
 # Fetch LIVE data Xray (Bypass jeda cronjob)
@@ -1712,7 +1719,7 @@ function features_menu() {
                        fi
 
                        systemctl restart xray zivpn dropbear ws-proxy stunnel4 ssh sshd
-                       echo -e "${GREEN}Restore Berhasil! Semua konfigurasi dan akun telah dipulihkan.${NC}"
+                       echo -e "${GREEN}Restore Berhasil! Semua konfigurasi dan akun telah dipulihkan (Tanpa Reboot).${NC}"
                        sleep 3
                    else
                        echo -e "${RED}Gagal mengunduh file! Pastikan link direct yang dimasukkan valid.${NC}"
