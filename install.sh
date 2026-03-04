@@ -2,7 +2,7 @@
 # ==================================================
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
-#   Update: Real-Time Socket Intersection, Dynamic Quota, Limit 2 for Bot
+#   Update: API-Based Real-Time Active Tracking & Dynamic MB/GB
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -227,7 +227,7 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload && systemctl enable dropbear >/dev/null 2>&1 && systemctl start dropbear >/dev/null 2>&1
 
-    # WS Python Proxy (SUPER ROBUST - Fixes HTTP Custom Reconnect Issue)
+    # WS Python Proxy (SUPER ROBUST)
     cat > /usr/local/bin/ws-proxy.py << 'EOF'
 import socket, select, threading
 
@@ -338,7 +338,7 @@ EOF
 ) >/dev/null 2>&1 & install_spin
 print_ok "SSH, Dropbear & UDPGW"
 
-# --- 7. XRAY CONFIG (FIXED QUOTA API ROUTING & LOGLEVEL INFO + SSH FALLBACK) ---
+# --- 7. XRAY CONFIG ---
 print_msg "Install Xray Core & Config"
 (
     export DEBIAN_FRONTEND=noninteractive
@@ -462,7 +462,171 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-exp
 
-# Script Limit IP (Real-Time Socket Connection Test)
+# Script Quota (Tracker Traffic API & Active Marker)
+cat > /usr/local/bin/xray-quota <<'EOF'
+#!/bin/bash
+CONFIG="/usr/local/etc/xray/config.json"
+TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
+CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
+
+IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
+DOM_VPS=$(cat /usr/local/etc/xray/domain 2>/dev/null)
+ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
+
+STATS=$(/usr/local/bin/xray api statsquery -server=127.0.0.1:10085 2>/dev/null)
+for proto in vmess vless trojan; do
+    FILE="/usr/local/etc/xray/${proto}.txt"
+    [[ ! -f "$FILE" ]] && continue
+    while IFS="|" read -r user id exp limit status quota; do
+        [[ -z "$user" || "$status" == "LOCKED" || "$status" == LOCKED_IP_* ]] && continue
+        
+        down=$(echo "$STATS" | jq -r ".stat[]? | select(.name == \"user>>>${user}>>>traffic>>>downlink\") | .value" 2>/dev/null)
+        up=$(echo "$STATS" | jq -r ".stat[]? | select(.name == \"user>>>${user}>>>traffic>>>uplink\") | .value" 2>/dev/null)
+        [[ -z "$down" || "$down" == "null" ]] && down=0
+        [[ -z "$up" || "$up" == "null" ]] && up=0
+        current_api=$((down + up))
+        
+        QUOTA_FILE="/usr/local/etc/xray/quota/${user}"
+        if [[ -f "$QUOTA_FILE" ]]; then
+            read total_acc last_api < "$QUOTA_FILE"
+            [[ -z "$total_acc" ]] && total_acc=0
+            [[ -z "$last_api" ]] && last_api=0
+        else
+            total_acc=0
+            last_api=0
+        fi
+        
+        diff=$((current_api - last_api))
+        if (( current_api < last_api )); then
+            total_acc=$((total_acc + current_api))
+            touch "/tmp/xray_active_${user}"
+        elif (( diff > 0 )); then
+            total_acc=$((total_acc + diff))
+            touch "/tmp/xray_active_${user}"
+        else
+            rm -f "/tmp/xray_active_${user}"
+        fi
+        
+        last_api=$current_api
+        echo "$total_acc $last_api" > "$QUOTA_FILE"
+        
+        if [[ -n "$quota" && "$quota" != "0" ]]; then
+            quota_bytes=$(awk "BEGIN {printf \"%.0f\", $quota * 1073741824}")
+            if (( total_acc >= quota_bytes )); then
+                jq --arg u "$user" "(.inbounds[] | select(.protocol == \"$proto\")).settings.clients |= map(select(.email != \$u))" $CONFIG > /tmp/x && mv /tmp/x $CONFIG
+                sed -i "/^$user|/d" "$FILE"
+                rm -f "$QUOTA_FILE" "/tmp/xray_active_${user}"
+                systemctl restart xray
+                if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
+                    MSG="<b>🚫 KUOTA HABIS (AKUN DIHAPUS - ${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"📊 Batas Kuota: ${quota} GB"$'\n'"⛔ Status: Akun Otomatis Dihapus"
+                    /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
+                fi
+            fi
+        fi
+    done < "$FILE"
+done
+EOF
+chmod +x /usr/local/bin/xray-quota
+
+# Script Telegram Login Notif (API Active Verification - ANTI LONG DOWNLOAD BUG)
+cat > /usr/local/bin/bot-login-notif <<'EOF'
+#!/bin/bash
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
+CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
+[[ -z "$TOKEN" || -z "$CHATID" ]] && exit 0
+LOG_FILE="/var/log/xray/access.log"
+
+IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
+DOM_VPS=$(cat /usr/local/etc/xray/domain 2>/dev/null)
+ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
+
+# Ambil ribuan riwayat ke belakang dan cocokkan dengan socket real-time!
+tail -n 10000 "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); sub(/:[0-9]+$/, "", ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/log_ip_user.txt
+ss -ntu | awk 'NR>1 {print $5}' | rev | cut -d: -f2- | rev | tr -d '[]' | sed 's/::ffff://g' | sort -u > /tmp/estab_ips.txt
+
+> /tmp/bot_active.log
+while read -r ip user; do
+    if grep -qw "$ip" /tmp/estab_ips.txt; then
+        echo "$ip $user" >> /tmp/bot_active.log
+    fi
+done < /tmp/log_ip_user.txt
+
+FULL_MSG=""
+for proto in vmess vless trojan; do
+    FILE="/usr/local/etc/xray/${proto}.txt"
+    [[ ! -f "$FILE" ]] && continue
+    
+    PROTO_MSG=""
+    FOUND=0
+    while IFS="|" read -r user id exp limit status quota; do
+        [[ -z "$user" ]] && continue
+        active_ips=$(awk -v u="$user" '$2 == u {print $1}' /tmp/bot_active.log | sort -u | wc -l)
+        
+        is_active=0
+        # Jika akun ini trafficnya bertambah dalam 1 menit terakhir (via xray-quota), WAJIB dikirim!
+        if [[ -f "/tmp/xray_active_${user}" ]]; then
+            is_active=1
+            [[ "$active_ips" -eq 0 ]] && active_ips=1
+        elif [[ "$active_ips" -gt 0 ]]; then
+            is_active=1
+        fi
+        
+        if [[ "$is_active" -eq 1 ]]; then
+            QUOTA_FILE="/usr/local/etc/xray/quota/${user}"
+            if [[ -f "$QUOTA_FILE" ]]; then
+                read total_acc last_api < "$QUOTA_FILE"
+                [[ -z "$total_acc" ]] && total_acc=0
+                if (( total_acc < 1048576 )); then usage_str=$(awk "BEGIN {printf \"%.2f KB\", $total_acc/1024}")
+                elif (( total_acc < 1073741824 )); then usage_str=$(awk "BEGIN {printf \"%.2f MB\", $total_acc/1048576}")
+                else usage_str=$(awk "BEGIN {printf \"%.2f GB\", $total_acc/1073741824}"); fi
+            else
+                usage_str="0.00 KB"
+            fi
+            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_ips IP | Usage: ${usage_str}"$'\n'
+            FOUND=1
+        fi
+    done < "$FILE"
+    
+    if [[ "$FOUND" -eq 1 ]]; then
+        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'
+        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}"$'\n'
+    fi
+done
+
+# Check SSH
+S_FILE="/usr/local/etc/xray/ssh.txt"
+if [[ -f "$S_FILE" ]]; then
+    PROTO_MSG=""
+    FOUND=0
+    while IFS="|" read -r user pass exp limit status; do
+        user=$(echo "$user" | tr -d '[:space:]')
+        [[ -z "$user" ]] && continue
+        uid=$(id -u "$user" 2>/dev/null)
+        if [[ -n "$uid" ]]; then
+            active_logins=$(/usr/bin/ps -U "$uid" -o comm= 2>/dev/null | grep -cE '(sshd|dropbear)')
+            if [[ "$active_logins" -gt 0 ]]; then
+                PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Session"$'\n'
+                FOUND=1
+            fi
+        fi
+    done < "$S_FILE"
+    if [[ "$FOUND" -eq 1 ]]; then
+        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'
+        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}"$'\n'
+    fi
+fi
+
+if [[ -n "$FULL_MSG" ]]; then
+    /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+        -d "chat_id=${CHATID}" \
+        --data-urlencode "text=${FULL_MSG}" \
+        -d "parse_mode=HTML" > /dev/null
+fi
+EOF
+chmod +x /usr/local/bin/bot-login-notif
+
+# Script Limit IP 
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -478,16 +642,9 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 [[ ! -f "$LOG_FILE" ]] && exit 0
 
-D1=$(date +"%Y/%m/%d %H:%M")
-D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
+tail -n 10000 "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); sub(/:[0-9]+$/, "", ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/log_ip_user.txt
+ss -ntu | awk 'NR>1 {print $5}' | rev | cut -d: -f2- | rev | tr -d '[]' | sed 's/::ffff://g' | sort -u > /tmp/estab_ips.txt
 
-# 1. Ambil IP dan User dari log 5000 baris terakhir
-tail -n 5000 "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); sub(/:[0-9]+$/, "", ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/log_ip_user.txt
-
-# 2. Ambil IP yang SAAAT INI JUGA sedang punya soket koneksi hidup di VPS (Akurat 100%)
-ss -ntu | tail -n +2 | awk '{print $5}' | rev | cut -d: -f2- | rev | tr -d '[]' | sed 's/::ffff://g' | sort -u > /tmp/estab_ips.txt
-
-# 3. Cocokkan (Intersect)
 > /tmp/xray_active.log
 while read -r ip user; do
     if grep -qw "$ip" /tmp/estab_ips.txt; then
@@ -521,7 +678,6 @@ for proto in vmess vless trojan; do
         
         [[ -z "$limit" || "$limit" == "0" ]] && continue
         
-        # Hitung jumlah IP yang real-time nyangkut di user ini
         active_ips=$(awk -v u="$user" '$2 == u {print $1}' /tmp/xray_active.log | sort -u | wc -l)
         if [[ "$active_ips" -gt "$limit" ]]; then
             jq --arg u "$user" '(.inbounds[] | select(.protocol == "'$proto'")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
@@ -575,162 +731,6 @@ if [[ -f "$S_FILE" ]]; then
 fi
 EOF
 chmod +x /usr/local/bin/xray-limit
-
-# Script Quota (Accumulative Local System + Robust JSON Parse)
-cat > /usr/local/bin/xray-quota <<'EOF'
-#!/bin/bash
-CONFIG="/usr/local/etc/xray/config.json"
-TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
-CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
-
-IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
-DOM_VPS=$(cat /usr/local/etc/xray/domain 2>/dev/null)
-ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
-
-STATS=$(/usr/local/bin/xray api statsquery -server=127.0.0.1:10085 2>/dev/null)
-for proto in vmess vless trojan; do
-    FILE="/usr/local/etc/xray/${proto}.txt"
-    [[ ! -f "$FILE" ]] && continue
-    while IFS="|" read -r user id exp limit status quota; do
-        [[ -z "$quota" || "$quota" == "0" || "$status" == "LOCKED" || "$status" == LOCKED_IP_* ]] && continue
-        
-        down=$(echo "$STATS" | jq -r ".stat[]? | select(.name == \"user>>>${user}>>>traffic>>>downlink\") | .value" 2>/dev/null)
-        up=$(echo "$STATS" | jq -r ".stat[]? | select(.name == \"user>>>${user}>>>traffic>>>uplink\") | .value" 2>/dev/null)
-        [[ -z "$down" || "$down" == "null" ]] && down=0
-        [[ -z "$up" || "$up" == "null" ]] && up=0
-        current_api=$((down + up))
-        
-        QUOTA_FILE="/usr/local/etc/xray/quota/${user}"
-        if [[ -f "$QUOTA_FILE" ]]; then
-            read total_acc last_api < "$QUOTA_FILE"
-            [[ -z "$total_acc" ]] && total_acc=0
-            [[ -z "$last_api" ]] && last_api=0
-        else
-            total_acc=0
-            last_api=0
-        fi
-        
-        if (( current_api < last_api )); then
-            total_acc=$((total_acc + current_api))
-        else
-            diff=$((current_api - last_api))
-            total_acc=$((total_acc + diff))
-        fi
-        last_api=$current_api
-        echo "$total_acc $last_api" > "$QUOTA_FILE"
-        
-        if [[ -n "$quota" && "$quota" != "0" ]]; then
-            quota_bytes=$(awk "BEGIN {printf \"%.0f\", $quota * 1073741824}")
-            if (( total_acc >= quota_bytes )); then
-                jq --arg u "$user" "(.inbounds[] | select(.protocol == \"$proto\")).settings.clients |= map(select(.email != \$u))" $CONFIG > /tmp/x && mv /tmp/x $CONFIG
-                sed -i "/^$user|/d" "$FILE"
-                rm -f "$QUOTA_FILE"
-                systemctl restart xray
-                if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                    MSG="<b>🚫 KUOTA HABIS (AKUN DIHAPUS - ${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"📊 Batas Kuota: ${quota} GB"$'\n'"⛔ Status: Akun Otomatis Dihapus"
-                    /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
-                fi
-            fi
-        fi
-    done < "$FILE"
-done
-EOF
-chmod +x /usr/local/bin/xray-quota
-
-# Script Telegram Login Notif (Real-Time Strict Accurate IPs)
-cat > /usr/local/bin/bot-login-notif <<'EOF'
-#!/bin/bash
-export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-TOKEN=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
-CHATID=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
-[[ -z "$TOKEN" || -z "$CHATID" ]] && exit 0
-LOG_FILE="/var/log/xray/access.log"
-
-IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
-DOM_VPS=$(cat /usr/local/etc/xray/domain 2>/dev/null)
-ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
-
-D1=$(date +"%Y/%m/%d %H:%M")
-D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
-
-tail -n 5000 "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); sub(/:[0-9]+$/, "", ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/log_ip_user.txt
-ss -ntu | tail -n +2 | awk '{print $5}' | rev | cut -d: -f2- | rev | tr -d '[]' | sed 's/::ffff://g' | sort -u > /tmp/estab_ips.txt
-
-> /tmp/bot_active.log
-while read -r ip user; do
-    if grep -qw "$ip" /tmp/estab_ips.txt; then
-        echo "$ip $user" >> /tmp/bot_active.log
-    fi
-done < /tmp/log_ip_user.txt
-
-FULL_MSG=""
-for proto in vmess vless trojan; do
-    FILE="/usr/local/etc/xray/${proto}.txt"
-    [[ ! -f "$FILE" ]] && continue
-    
-    PROTO_MSG=""
-    FOUND=0
-    while IFS="|" read -r user id exp limit status quota; do
-        active_ips=$(awk -v u="$user" '$2 == u {print $1}' /tmp/bot_active.log | sort -u | wc -l)
-        if [[ "$active_ips" -gt 0 ]]; then
-            QUOTA_FILE="/usr/local/etc/xray/quota/${user}"
-            if [[ -f "$QUOTA_FILE" ]]; then
-                read total_acc last_api < "$QUOTA_FILE"
-                [[ -z "$total_acc" ]] && total_acc=0
-                if (( total_acc < 1048576 )); then
-                    usage_str=$(awk "BEGIN {printf \"%.2f KB\", $total_acc/1024}")
-                elif (( total_acc < 1073741824 )); then
-                    usage_str=$(awk "BEGIN {printf \"%.2f MB\", $total_acc/1048576}")
-                else
-                    usage_str=$(awk "BEGIN {printf \"%.2f GB\", $total_acc/1073741824}")
-                fi
-            else
-                usage_str="0.00 KB"
-            fi
-            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_ips IP | Usage: ${usage_str}"$'\n'
-            FOUND=1
-        fi
-    done < "$FILE"
-    
-    if [[ "$FOUND" -eq 1 ]]; then
-        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'
-        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}"$'\n'
-    fi
-done
-
-# Check SSH Active Absolute Tracker
-S_FILE="/usr/local/etc/xray/ssh.txt"
-if [[ -f "$S_FILE" ]]; then
-    PROTO_MSG=""
-    FOUND=0
-    while IFS="|" read -r user pass exp limit status; do
-        user=$(echo "$user" | tr -d '[:space:]')
-        [[ -z "$user" ]] && continue
-        
-        uid=$(id -u "$user" 2>/dev/null)
-        if [[ -n "$uid" ]]; then
-            active_logins=$(/usr/bin/ps -U "$uid" -o comm= 2>/dev/null | grep -cE '(sshd|dropbear)')
-            if [[ "$active_logins" -gt 0 ]]; then
-                PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Session"$'\n'
-                FOUND=1
-            fi
-        fi
-    done < "$S_FILE"
-    
-    if [[ "$FOUND" -eq 1 ]]; then
-        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'
-        FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}"$'\n'
-    fi
-done
-
-if [[ -n "$FULL_MSG" ]]; then
-    /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
-        -d "chat_id=${CHATID}" \
-        --data-urlencode "text=${FULL_MSG}" \
-        -d "parse_mode=HTML" > /dev/null
-fi
-EOF
-chmod +x /usr/local/bin/bot-login-notif
 
 # Script Telegram Backup Notif
 cat > /usr/local/bin/bot-backup <<'EOF'
@@ -964,7 +964,7 @@ function show_account_zivpn() {
 
     local MSG=""
     MSG+="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  ACCOUNT ZIVPN UDP\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    MSG+="Password   : ${pass}\nCITY       : ${city}\nISP        : ${isp}\nIP ISP     : ${ip}\nDomain     : ${domain}\nExpired On : ${exp}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    MSG+="Username   : ${user}\nPassword   : ${pass}\nCITY       : ${city}\nISP        : ${isp}\nIP ISP     : ${ip}\nDomain     : ${domain}\nExpired On : ${exp}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     
     local MSG_BOT=""
     MSG_BOT+="<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n  <b>ACCOUNT ZIVPN UDP</b>\n<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
@@ -1077,7 +1077,7 @@ function header_sub() {
 }
 
 # ---------------------------------------------
-# MENU TELEGRAM BOT SETUP (SYSTEM NOTIF)
+# MENU TELEGRAM BOT SETUP
 # ---------------------------------------------
 function menu_login_notif() {
     while true; do header_sub
@@ -1158,7 +1158,7 @@ function bot_menu() {
 }
 
 # ---------------------------------------------
-# MENU SETUP BOT CLIENT (FREE ACCOUNT BOT)
+# MENU SETUP BOT CLIENT
 # ---------------------------------------------
 function setup_client_bot_menu() {
     header_sub
@@ -1172,11 +1172,9 @@ function setup_client_bot_menu() {
     echo -e "${YELLOW}Menginstall Module Python (pyTelegramBotAPI)...${NC}"
     pip3 install pyTelegramBotAPI --break-system-packages 2>/dev/null || pip3 install pyTelegramBotAPI 2>/dev/null
     
-    # Save tokens
     echo "$bot_client_token" > /etc/tendo_bot/client_token
     echo "$bot_client_admin" > /etc/tendo_bot/client_admin
     
-    # Create Bot Helper Bash (Untuk integrasi Python ke System Xray/SSH)
     cat > /usr/local/bin/client-bot-helper.sh << 'EOF'
 #!/bin/bash
 ACTION=$1; PROTO=$2; USER=$3; PASS=$4; DAYS=$5
@@ -1279,7 +1277,6 @@ fi
 EOF
     chmod +x /usr/local/bin/client-bot-helper.sh
 
-    # Create Python Bot Script
     cat > /usr/local/bin/tendo-client-bot.py << 'EOF'
 import telebot
 from telebot import types
@@ -1393,7 +1390,6 @@ def execute_creation(message, proto, username, password):
 bot.infinity_polling()
 EOF
     
-    # Create SystemD Service
     cat > /etc/systemd/system/tendo-client-bot.service << 'EOF'
 [Unit]
 Description=Tendo Telegram Client Bot
