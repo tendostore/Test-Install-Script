@@ -2,7 +2,7 @@
 # ==================================================
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
-#   Update: Limit 2 IP for Bot & /menu Command
+#   Update: Real-Time Socket Intersection, Dynamic Quota, Limit 2 for Bot
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -481,8 +481,8 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 D1=$(date +"%Y/%m/%d %H:%M")
 D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
 
-# 1. Ambil IP dan User dari log 2 menit terakhir
-grep -E "^($D1|$D2)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); sub(/:[0-9]+$/, "", ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/log_ip_user.txt
+# 1. Ambil IP dan User dari log 5000 baris terakhir
+tail -n 5000 "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); sub(/:[0-9]+$/, "", ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/log_ip_user.txt
 
 # 2. Ambil IP yang SAAAT INI JUGA sedang punya soket koneksi hidup di VPS (Akurat 100%)
 ss -ntu | tail -n +2 | awk '{print $5}' | rev | cut -d: -f2- | rev | tr -d '[]' | sed 's/::ffff://g' | sort -u > /tmp/estab_ips.txt
@@ -592,7 +592,7 @@ for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
     [[ ! -f "$FILE" ]] && continue
     while IFS="|" read -r user id exp limit status quota; do
-        [[ -z "$status" || "$status" == "LOCKED" || "$status" == LOCKED_IP_* ]] && continue
+        [[ -z "$quota" || "$quota" == "0" || "$status" == "LOCKED" || "$status" == LOCKED_IP_* ]] && continue
         
         down=$(echo "$STATS" | jq -r ".stat[]? | select(.name == \"user>>>${user}>>>traffic>>>downlink\") | .value" 2>/dev/null)
         up=$(echo "$STATS" | jq -r ".stat[]? | select(.name == \"user>>>${user}>>>traffic>>>uplink\") | .value" 2>/dev/null)
@@ -653,7 +653,7 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 D1=$(date +"%Y/%m/%d %H:%M")
 D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
 
-grep -E "^($D1|$D2)" "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); sub(/:[0-9]+$/, "", ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/log_ip_user.txt
+tail -n 5000 "$LOG_FILE" | awk '/accepted/ { for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); sub(/:[0-9]+$/, "", ip); email=$NF; if(email!="") print ip, email; break; } }' | sort -u > /tmp/log_ip_user.txt
 ss -ntu | tail -n +2 | awk '{print $5}' | rev | cut -d: -f2- | rev | tr -d '[]' | sed 's/::ffff://g' | sort -u > /tmp/estab_ips.txt
 
 > /tmp/bot_active.log
@@ -721,7 +721,7 @@ if [[ -f "$S_FILE" ]]; then
         PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'
         FULL_MSG+="${PROTO_HEADER}${PROTO_MSG}"$'\n'
     fi
-fi
+done
 
 if [[ -n "$FULL_MSG" ]]; then
     /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
@@ -1948,15 +1948,15 @@ function zivpn_menu() {
         echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
         case $opt in
-            1) read -p " Password : " p; [[ -z "$p" ]] && continue
-               u="$p"
+            1) read -p " Username : " u; [[ -z "$u" ]] && continue
                if ! check_exists "$u"; then continue; fi
+               read -p " Password : " p; [[ -z "$p" ]] && p="$u"
                if grep -q "|$p|" $D_ZIVPN 2>/dev/null || grep -q "^$p|" $D_ZIVPN 2>/dev/null; then echo -e "${RED}Password '$p' sudah digunakan!${NC}"; sleep 2; continue; fi
                read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "$ex days" +"%Y-%m-%d"); jq --arg pwd "$p" '.auth.config += [$pwd]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; ( sleep 3; systemctl restart zivpn ) >/dev/null 2>&1 & echo "$u|$p|$exp" >> $D_ZIVPN; DMN=$(cat /usr/local/etc/xray/domain); show_account_zivpn "$u" "$p" "$DMN" "$exp";;
             2) nl $D_ZIVPN; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_ZIVPN); IFS="|" read -r f1 f2 f3 <<< "$line"; if [[ -z "$f3" ]]; then p="$f1"; else p="$f2"; fi; sed -i "${n}d" $D_ZIVPN; jq --arg pwd "$p" 'del(.auth.config[] | select(. == $pwd))' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; ( sleep 3; systemctl restart zivpn ) >/dev/null 2>&1 &;;
             3) nl $D_ZIVPN; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_ZIVPN); IFS="|" read -r f1 f2 f3 <<< "$line"; if [[ -z "$f3" ]]; then u="unknown"; p="$f1"; exp_old="$f2"; else u="$f1"; p="$f2"; exp_old="$f3"; fi; read -p " Add Days: " add_days; exp_new=$(date -d "$exp_old + $add_days days" +"%Y-%m-%d"); if [[ "$u" == "unknown" ]]; then sed -i "${n}s/.*/$p|$exp_new/" $D_ZIVPN; else sed -i "${n}s/.*/$u|$p|$exp_new/" $D_ZIVPN; fi; echo -e "${GREEN}ZIVPN Account Renewed until $exp_new!${NC}"; ( sleep 3; systemctl restart zivpn ) >/dev/null 2>&1 & sleep 2;;
             4) nl $D_ZIVPN; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_ZIVPN); IFS="|" read -r f1 f2 f3 <<< "$line"; if [[ -z "$f3" ]]; then u="unknown"; p="$f1"; exp="$f2"; else u="$f1"; p="$f2"; exp="$f3"; fi; DMN=$(cat /usr/local/etc/xray/domain); show_account_zivpn "$u" "$p" "$DMN" "$exp";;
-            5) p="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Password (Trial): ${GREEN}$p${NC}"; u="$p"; read -p " Duration (e.g., 10m, 1h): " dur;
+            5) u="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Username (Trial): ${GREEN}$u${NC}"; p="$u"; read -p " Duration (e.g., 10m, 1h): " dur;
                if [[ "$dur" == *m ]]; then add_str="+${dur%m} minutes"; elif [[ "$dur" == *h ]]; then add_str="+${dur%h} hours"; else add_str="+1 hours"; fi
                exp=$(date -d "$add_str" +"%Y-%m-%d %H:%M:%S"); jq --arg pwd "$p" '.auth.config += [$pwd]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; ( sleep 3; systemctl restart zivpn ) >/dev/null 2>&1 & echo "$u|$p|$exp" >> $D_ZIVPN; DMN=$(cat /usr/local/etc/xray/domain); show_account_zivpn "$u" "$p" "$DMN" "$exp";;
             x) return;;
