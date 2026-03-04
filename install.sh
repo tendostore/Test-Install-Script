@@ -3,7 +3,7 @@
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
-#   Updated: SSH Speed Boost (Dropbear + NoDelay), Accurate SSH PID, 30s CGNAT
+#   Updated: OpenSSH Routing, Buffer Ekstrem 100 Bytes, TCP_NODELAY
 # ==================================================
 
 # --- WARNA & UI ---
@@ -225,7 +225,7 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload && systemctl enable dropbear >/dev/null 2>&1 && systemctl start dropbear >/dev/null 2>&1
 
-    # WS Python Proxy (OPTIMIZED FOR SSH SPEED: Dropbear Port 90, Buffer 8192, TCP_NODELAY)
+    # WS Python Proxy (OpenSSH Port 22, Ekstrem Buffer 100 bytes, TCP_NODELAY)
     cat > /usr/local/bin/ws-proxy.py << 'EOF'
 import socket, select, threading
 
@@ -237,11 +237,12 @@ def handle_client(client_socket):
         
         remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         remote_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        # Routing ke Dropbear (90) untuk performa lebih enteng dan cepat
-        remote_socket.connect(('127.0.0.1', 90))
         
-        # Buffer distandarkan kembali ke 8192 agar paket SSH interaktif tidak lagging
-        request = client_socket.recv(8192)
+        # Pindah routing kembali ke OpenSSH langsung (port 22)
+        remote_socket.connect(('127.0.0.1', 22))
+        
+        # Buffer awal agak besar agar header HTTP Payload tidak terpotong saat handshake
+        request = client_socket.recv(4096)
         if b"HTTP/" in request:
             client_socket.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
             parts = request.split(b"\r\n\r\n", 1)
@@ -256,11 +257,13 @@ def handle_client(client_socket):
             if not r:
                 break
             if client_socket in r:
-                data = client_socket.recv(8192)
+                # Buffer Ekstrem Dikecilkan ke 100 sesuai request untuk tunneling real-time
+                data = client_socket.recv(100)
                 if not data: break
                 remote_socket.sendall(data)
             if remote_socket in r:
-                data = remote_socket.recv(8192)
+                # Buffer Ekstrem Dikecilkan ke 100 sesuai request
+                data = remote_socket.recv(100)
                 if not data: break
                 client_socket.sendall(data)
     except:
@@ -466,7 +469,7 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-exp
 
-# Script Limit IP (Toleransi Ekstrem 30 Detik + Fix IP Hantu/Ghosting)
+# Script Limit IP (Toleransi Ekstrem 30 Detik Terakhir Saja + Blokir IP Hantu)
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -482,9 +485,9 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 [[ ! -f "$LOG_FILE" ]] && exit 0
 
-# Waktu 30 detik terakhir
+# Waktu 30 detik ke belakang (diperpanjang sesuai request)
 STRS=$(for i in {0..30}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
-# Filter Localhost (127.0.0.1) agar tidak mendeteksi fallback/bot sebagai IP Hantu!
+# Hapus 127.0.0.1 dari pembacaan log agar tidak ada "IP Hantu"
 tail -n 5000 "$LOG_FILE" | grep -E "^($STRS)" | grep "accepted" | grep -v "127.0.0.1" | grep -v "::1" | awk '{ for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/xray_active.log
 
 for proto in vmess vless trojan; do
@@ -1273,7 +1276,7 @@ fi
 EOF
     chmod +x /usr/local/bin/client-bot-helper.sh
 
-    # Create Python Bot Script (Hanya gunakan /menu dan fitur tombol premium/grup)
+    # Create Python Bot Script
     cat > /usr/local/bin/tendo-client-bot.py << 'EOF'
 import telebot
 from telebot import types
