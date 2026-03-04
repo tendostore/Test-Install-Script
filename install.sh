@@ -3,7 +3,7 @@
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
-#   Updated: 30s CGNAT, OpenSSH WS Routing (Speed Boost) & TCP_NODELAY
+#   Updated: SSH Speed Boost (Dropbear + NoDelay), Accurate SSH PID, 30s CGNAT
 # ==================================================
 
 # --- WARNA & UI ---
@@ -225,24 +225,23 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload && systemctl enable dropbear >/dev/null 2>&1 && systemctl start dropbear >/dev/null 2>&1
 
-    # WS Python Proxy (SUPER OPTIMIZED FOR SSH SPEED)
-    # Merubah buffer ke 65536, Menambahkan TCP_NODELAY, dan Routing ke OpenSSH Port 22 (Bukan dropbear)
+    # WS Python Proxy (OPTIMIZED FOR SSH SPEED: Dropbear Port 90, Buffer 8192, TCP_NODELAY)
     cat > /usr/local/bin/ws-proxy.py << 'EOF'
 import socket, select, threading
 
 def handle_client(client_socket):
     remote_socket = None
     try:
-        # Optimasi Anti-Lag pada Client
+        # Aktifkan Anti-Lag TCP
         client_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         
         remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # Optimasi Anti-Lag pada Server OpenSSH
         remote_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        # Mengarahkan langsung ke OpenSSH (22) untuk speed max, bukan Dropbear
-        remote_socket.connect(('127.0.0.1', 22))
+        # Routing ke Dropbear (90) untuk performa lebih enteng dan cepat
+        remote_socket.connect(('127.0.0.1', 90))
         
-        request = client_socket.recv(65536)
+        # Buffer distandarkan kembali ke 8192 agar paket SSH interaktif tidak lagging
+        request = client_socket.recv(8192)
         if b"HTTP/" in request:
             client_socket.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
             parts = request.split(b"\r\n\r\n", 1)
@@ -257,11 +256,11 @@ def handle_client(client_socket):
             if not r:
                 break
             if client_socket in r:
-                data = client_socket.recv(65536)
+                data = client_socket.recv(8192)
                 if not data: break
                 remote_socket.sendall(data)
             if remote_socket in r:
-                data = remote_socket.recv(65536)
+                data = remote_socket.recv(8192)
                 if not data: break
                 client_socket.sendall(data)
     except:
@@ -467,7 +466,7 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-exp
 
-# Script Limit IP (Toleransi Ekstrem 30 Detik Terakhir Saja + Blokir IP Hantu)
+# Script Limit IP (Toleransi Ekstrem 30 Detik + Fix IP Hantu/Ghosting)
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -483,9 +482,9 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 [[ ! -f "$LOG_FILE" ]] && exit 0
 
-# Waktu 30 detik ke belakang (diperpanjang sesuai request terbaru)
+# Waktu 30 detik terakhir
 STRS=$(for i in {0..30}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
-# Hapus 127.0.0.1 dari pembacaan log agar tidak ada "IP Hantu"
+# Filter Localhost (127.0.0.1) agar tidak mendeteksi fallback/bot sebagai IP Hantu!
 tail -n 5000 "$LOG_FILE" | grep -E "^($STRS)" | grep "accepted" | grep -v "127.0.0.1" | grep -v "::1" | awk '{ for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/xray_active.log
 
 for proto in vmess vless trojan; do
@@ -527,7 +526,7 @@ for proto in vmess vless trojan; do
     done < "$FILE"
 done
 
-# SSH Limit IP Lock (Penyempurnaan Deteksi SSH Mutlak)
+# SSH Limit IP Lock (Perbaikan Mutlak Deteksi PID)
 S_FILE="/usr/local/etc/xray/ssh.txt"
 if [[ -f "$S_FILE" ]]; then
     while IFS="|" read -r user pass exp limit status; do
@@ -550,8 +549,8 @@ if [[ -f "$S_FILE" ]]; then
         
         [[ -z "$limit" || "$limit" == "0" ]] && continue
         
-        # Mengecek aktivitas PID mutlak milik user (SSH Session)
-        active_logins=$(ps -u "$user" --no-headers 2>/dev/null | wc -l)
+        # FIX: Hanya menghitung daemon spesifik SSH (menghindari background bash/systemd yang bikin jumlah IP ganda)
+        active_logins=$(ps -u "$user" -o comm= 2>/dev/null | grep -E "^(sshd|dropbear)$" | wc -l)
         if [[ "$active_logins" -gt "$limit" ]]; then
             usermod -L "$user" 2>/dev/null
             killall -u "$user" 2>/dev/null
@@ -566,7 +565,7 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-limit
 
-# Script Quota (Fixed Cron PATH Issue & API Accumulation)
+# Script Quota 
 cat > /usr/local/bin/xray-quota <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -624,7 +623,7 @@ done
 EOF
 chmod +x /usr/local/bin/xray-quota
 
-# Script Telegram Login Notif (30-Detik Tail & Real-Time LIVE API Quota)
+# Script Telegram Login Notif (30-Detik Presisi, Anti-Ghosting, Accurate SSH)
 cat > /usr/local/bin/bot-login-notif <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -641,7 +640,7 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 STRS=$(for i in {0..30}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
 tail -n 5000 "$LOG_FILE" | grep -E "^($STRS)" | grep "accepted" | grep -v "127.0.0.1" | grep -v "::1" | awk '{ for(i=1;i<=NF;i++) if($i=="accepted") { ip=$(i-1); email=$NF; if(email=="") break; if(ip ~ /\[.*\]/) { sub(/\[/,"",ip); sub(/\]:.*/,"",ip); split(ip,v6,":"); subnet=v6[1]":"v6[2]; } else { sub(/:.*/,"",ip); split(ip,v4,"."); subnet=v4[1]"."v4[2]; } print subnet, email; break; } }' | sort -u > /tmp/bot_active.log
 
-# Fetch LIVE data Xray (Bypass jeda cronjob)
+# Fetch LIVE data Xray
 STATS=$(/usr/local/bin/xray api statsquery -server=127.0.0.1:10085 2>/dev/null)
 
 FULL_MSG=""
@@ -654,7 +653,6 @@ for proto in vmess vless trojan; do
     while IFS="|" read -r user id exp limit status quota; do
         active_ips=$(grep -w "$user" /tmp/bot_active.log | wc -l)
         if [[ "$active_ips" -gt 0 ]]; then
-            # Kalkulasi LIVE Quota (Menambahkan traffic berjalan detik ini)
             down=$(echo "$STATS" | jq -r ".stat[]? | select(.name == \"user>>>${user}>>>traffic>>>downlink\") | .value" 2>/dev/null)
             up=$(echo "$STATS" | jq -r ".stat[]? | select(.name == \"user>>>${user}>>>traffic>>>uplink\") | .value" 2>/dev/null)
             [[ -z "$down" || "$down" == "null" ]] && down=0
@@ -666,7 +664,6 @@ for proto in vmess vless trojan; do
                 read total_acc last_api < "$QUOTA_FILE"
                 [[ -z "$total_acc" ]] && total_acc=0
                 [[ -z "$last_api" ]] && last_api=0
-                
                 if (( current_api >= last_api )); then
                     real_usage=$(( total_acc + (current_api - last_api) ))
                 else
@@ -676,7 +673,6 @@ for proto in vmess vless trojan; do
                 real_usage=$current_api
             fi
 
-            # Format MB / GB Dinamis Presisi
             if (( real_usage < 1048576 )); then
                 usage_fmt=$(LC_ALL=C awk "BEGIN {printf \"%.2f\", $real_usage/1024}")" KB"
             elif (( real_usage < 1073741824 )); then
@@ -705,8 +701,8 @@ if [[ -f "$S_FILE" ]]; then
         user=$(echo "$user" | tr -d '[:space:]')
         [[ -z "$user" ]] && continue
         
-        # Mengecek aktivitas sesi Mutlak SSH melalui PID User
-        active_logins=$(ps -u "$user" --no-headers 2>/dev/null | wc -l)
+        # FIX: Hanya menghitung Daemon spesifik (Sangat akurat, 1 HP = 1 Sesi)
+        active_logins=$(ps -u "$user" -o comm= 2>/dev/null | grep -E "^(sshd|dropbear)$" | wc -l)
         if [[ "$active_logins" -gt 0 ]]; then
             PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Session"$'\n'
             FOUND=1
@@ -776,7 +772,7 @@ D_TROJAN="/usr/local/etc/xray/trojan.txt"
 D_ZIVPN="/etc/zivpn/zivpn.txt"
 
 # ---------------------------------------------
-# FUNGSI HELPER UI - KOTAK PRESISI (DYNAMIC PADDING)
+# FUNGSI HELPER UI - KOTAK PRESISI
 # ---------------------------------------------
 print_line() {
     local text="$1"
@@ -833,9 +829,6 @@ function check_uuid() {
     return 0
 }
 
-# ---------------------------------------------
-# PENGIRIM TELEGRAM BOT (NOTIF SYSTEM)
-# ---------------------------------------------
 function send_tele() {
     local bot_tok=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
     local chat_id=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
@@ -850,9 +843,6 @@ function send_tele() {
         -d "parse_mode=HTML" > /dev/null &
 }
 
-# ---------------------------------------------
-# FUNGSI OUTPUT DETAIL AKUN XRAY, SSH & ZIVPN
-# ---------------------------------------------
 function show_account_ssh() {
     clear
     local user=$1; local pass=$2; local domain=$3; local exp=$4; local limit=$5
@@ -928,7 +918,6 @@ function show_account_xray() {
         MSG+="——————————\n——————————————————————————\n"
     fi
 
-    # Format Telegram Bot (Mono Links)
     MSG_BOT+="<b>————————————————————————————————————</b>\n               <b>${proto}</b>\n<b>————————————————————————————————————</b>\n"
     MSG_BOT+="Username       : <code>${user}</code>\nCITY           : ${city}\nISP            : ${isp}\nDomain         : <code>${domain}</code>\n"
     MSG_BOT+="Port TLS       : 443\nPort none TLS  : 80\n"
@@ -983,7 +972,6 @@ function header_main() {
     ISP=$(cat /root/tendo/isp)
     UPTIME=$(uptime -p | sed 's/up //')
     
-    # Traffic Calculation (Detailed Bandwidth)
     MONTH_NAME=$(date +%B)
     DAY_NAME=$(date +%A)
     RX_DAY=$(vnstat -d -i $IFACE --oneline | awk -F';' '{print $4}' 2>/dev/null || echo "0 B")
@@ -997,7 +985,6 @@ function header_main() {
     R2=$(cat /sys/class/net/$IFACE/statistics/rx_bytes); T2=$(cat /sys/class/net/$IFACE/statistics/tx_bytes)
     TRAFFIC=$(echo "scale=2; (($R2 - $R1) + ($T2 - $T1)) * 8 / 409.6 / 1024" | bc)
     
-    # Account Counters
     ACC_SSH=$(wc -l < "$D_SSH" 2>/dev/null || echo 0)
     ACC_VMESS=$(wc -l < "$D_VMESS" 2>/dev/null || echo 0)
     ACC_VLESS=$(wc -l < "$D_VLESS" 2>/dev/null || echo 0)
