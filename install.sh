@@ -3,7 +3,7 @@
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
-#   Updated: Ghost IP Fix, Separated Notifications & Short Banner
+#   Updated: Anti-Ghost Vless, Split Chat Telegram, SSH Multi-Thread, No Force Close
 # ==================================================
 
 # --- WARNA & UI ---
@@ -130,7 +130,6 @@ print_msg "Install Dependencies"
     curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | bash
     apt-get install -y -q speedtest
     
-    # Setup Neofetch on Startup VPS
     touch /root/.hushlogin; chmod -x /etc/update-motd.d/* 2>/dev/null
     sed -i '/neofetch/d' /root/.bashrc
     sed -i '/Welcome To Tendo/d' /root/.bashrc
@@ -141,7 +140,6 @@ print_msg "Install Dependencies"
 ) >/dev/null 2>&1 & install_spin
 print_ok "Dependencies"
 
-# Setup IP & IFACE variables for next steps
 IP_VPS=$(curl -s ifconfig.me)
 IFACE_NET=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 
@@ -180,14 +178,14 @@ print_msg "Install SSH, Dropbear 2019, WS Proxy & UDPGW"
     
     # BANNER SSH PENDEK DAN PRESISI
     cat > /etc/issue.net << 'EOF'
-<font color="#00FFFF">┌────────────────────────┐</font><br>
-<font color="#00FFFF">│</font><font color="#00FF00"><b>&nbsp;AUTO SCRIPT TENDO STORE</b></font><br>
-<font color="#00FFFF">├────────────────────────┤</font><br>
-<font color="#00FFFF">│</font>&nbsp;<font color="#FFD700">Version&nbsp;:</font>&nbsp;<font color="#FFFFFF">v01.03.26</font><br>
-<font color="#00FFFF">│</font>&nbsp;<font color="#FFD700">Owner&nbsp;&nbsp;&nbsp;:</font>&nbsp;<font color="#FFFFFF">Tendo&nbsp;Store</font><br>
-<font color="#00FFFF">│</font>&nbsp;<font color="#FFD700">Telegram:</font>&nbsp;<font color="#FFFFFF">@tendo_32</font><br>
-<font color="#00FFFF">└────────────────────────┘</font><br>
-<font color="#FF0000"><b>&nbsp;No Spam, DDOS, Hacking!</b></font><br>
+<font color="#00FFFF">──────────────────────────────</font><br>
+<font color="#00FF00"><b> AUTO SCRIPT TENDO STORE</b></font><br>
+<font color="#00FFFF">──────────────────────────────</font><br>
+<font color="#FFD700">Version :</font> <font color="#FFFFFF">v01.03.26</font><br>
+<font color="#FFD700">Owner   :</font> <font color="#FFFFFF">Tendo Store</font><br>
+<font color="#FFD700">Telegram:</font> <font color="#FFFFFF">@tendo_32</font><br>
+<font color="#00FFFF">──────────────────────────────</font><br>
+<font color="#FF0000"><b> No Spam, DDOS, Hacking!</b></font><br>
 EOF
 
     # OpenSSH Config
@@ -226,7 +224,7 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload && systemctl enable dropbear >/dev/null 2>&1 && systemctl start dropbear >/dev/null 2>&1
 
-    # WS Python Proxy (OpenSSH Port 22, Ekstrem Buffer 100 bytes, TCP_NODELAY)
+    # WS Python Proxy (OpenSSH Port 22, Buffer 100, TCP_NODELAY)
     cat > /usr/local/bin/ws-proxy.py << 'EOF'
 import socket, select, threading
 
@@ -424,6 +422,8 @@ for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
     if [[ -f "$FILE" ]]; then
         while IFS="|" read -r user id exp limit status quota; do
+            user=$(echo "$user" | tr -d '[:space:]')
+            [[ -z "$user" ]] && continue
             EXP_S=$(date -d "$exp" +%s 2>/dev/null)
             if [[ -n "$EXP_S" && "$NOW" -ge "$EXP_S" ]]; then
                 jq --arg u "$user" '(.inbounds[] | select(.protocol == "'$proto'")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
@@ -439,6 +439,8 @@ done
 S_FILE="/usr/local/etc/xray/ssh.txt"
 if [[ -f "$S_FILE" ]]; then
     while IFS="|" read -r user pass exp limit status; do
+        user=$(echo "$user" | tr -d '[:space:]')
+        [[ -z "$user" ]] && continue
         EXP_S=$(date -d "$exp" +%s 2>/dev/null)
         if [[ -n "$EXP_S" && "$NOW" -ge "$EXP_S" ]]; then
             userdel -f "$user" 2>/dev/null
@@ -464,7 +466,7 @@ fi
 EOF
 chmod +x /usr/local/bin/xray-exp
 
-# Script Limit IP (Toleransi 30 Detik + Anti-IP Hantu)
+# Script Limit IP (Toleransi 30 Detik + Anti-Ghost IP Xray + Multi-Thread SSH)
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -481,13 +483,13 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 [[ ! -f "$LOG_FILE" ]] && exit 0
 
 STRS=$(for i in {0..30}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
-# Fix Hantu: Memastikan log memiliki format "email: username" yang sah (bukan sekadar 'accepted' dari scanner)
-tail -n 5000 "$LOG_FILE" | grep -E "^($STRS)" | grep "accepted" | grep "email: " | awk '{
+# FIX Ghost IP: Menghapus 127.0.0.1 dan user kosong "email: system"
+tail -n 5000 "$LOG_FILE" | grep -E "^($STRS)" | grep "accepted" | grep "email: " | grep -v "email: system" | grep -v "127.0.0.1" | grep -v "::1" | awk '{
     for(i=1;i<=NF;i++) {
         if($i=="accepted") { ip=$(i-1); sub(/:.*/,"",ip); }
         if($i=="email:") { email=$(i+1); gsub(/[^a-zA-Z0-9_-]/, "", email); }
     }
-    if(ip!="" && email!="") {
+    if(ip!="" && email!="" && email!="system") {
         split(ip, v, ".");
         if(length(v)==4) { subnet=v[1]"."v[2]; } else { subnet=ip; }
         print subnet, email;
@@ -498,6 +500,9 @@ for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
     [[ ! -f "$FILE" ]] && continue
     while IFS="|" read -r user id exp limit status quota; do
+        user=$(echo "$user" | tr -d '[:space:]')
+        [[ -z "$user" ]] && continue
+        
         if [[ "$status" == LOCKED_IP_* ]]; then
             lock_time=${status#LOCKED_IP_}
             if [[ $((NOW - lock_time)) -ge 600 ]]; then
@@ -533,7 +538,7 @@ for proto in vmess vless trojan; do
     done < "$FILE"
 done
 
-# SSH Limit IP Lock (Perbaikan Mutlak Deteksi PID)
+# SSH Limit IP Lock (Toleransi Multi-Thread SSH HTTP Custom)
 S_FILE="/usr/local/etc/xray/ssh.txt"
 if [[ -f "$S_FILE" ]]; then
     while IFS="|" read -r user pass exp limit status; do
@@ -556,14 +561,15 @@ if [[ -f "$S_FILE" ]]; then
         
         [[ -z "$limit" || "$limit" == "0" ]] && continue
         
-        # FIX: Hanya menghitung daemon spesifik SSH (menghindari background bash/systemd yang bikin jumlah IP ganda)
+        # FIX: Multi-Thread Apps (Injector) membuka banyak koneksi. Kita kali 3 toleransinya.
+        max_sessions=$(( limit * 3 ))
         active_logins=$(ps -u "$user" -o comm= 2>/dev/null | grep -E "^(sshd|dropbear)$" | wc -l)
-        if [[ "$active_logins" -gt "$limit" ]]; then
+        if [[ "$active_logins" -gt "$max_sessions" ]]; then
             usermod -L "$user" 2>/dev/null
             killall -u "$user" 2>/dev/null
             sed -i "s/^$user|.*/$user|$pass|$exp|$limit|LOCKED_IP_${NOW}/g" "$S_FILE"
             if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit Session: $limit"$'\n'"🚨 Login Session: $active_logins"$'\n'"⛔ Status: Terkunci 10 Menit"
+                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit Session: $max_sessions"$'\n'"🚨 Login Session: $active_logins"$'\n'"⛔ Status: Terkunci 10 Menit"
                 /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
             fi
         fi
@@ -589,7 +595,8 @@ for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
     [[ ! -f "$FILE" ]] && continue
     while IFS="|" read -r user id exp limit status quota; do
-        [[ -z "$quota" || "$quota" == "0" || "$status" == "LOCKED" || "$status" == LOCKED_IP_* ]] && continue
+        user=$(echo "$user" | tr -d '[:space:]')
+        [[ -z "$user" || -z "$quota" || "$quota" == "0" || "$status" == "LOCKED" || "$status" == LOCKED_IP_* ]] && continue
         
         down=$(echo "$STATS" | jq -r ".stat[]? | select(.name == \"user>>>${user}>>>traffic>>>downlink\") | .value" 2>/dev/null)
         up=$(echo "$STATS" | jq -r ".stat[]? | select(.name == \"user>>>${user}>>>traffic>>>uplink\") | .value" 2>/dev/null)
@@ -630,7 +637,7 @@ done
 EOF
 chmod +x /usr/local/bin/xray-quota
 
-# Script Telegram Login Notif (Pemisahan Chat Notif, 30 Detik, Anti-Ghosting, Accurate SSH)
+# Script Telegram Login Notif (Split per-protocol, Anti-Ghosting)
 cat > /usr/local/bin/bot-login-notif <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -643,21 +650,19 @@ IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
 DOM_VPS=$(cat /usr/local/etc/xray/domain 2>/dev/null)
 ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
-# Filter 30 Detik Terakhir + Memastikan Log Memiliki Email Pengguna Asli (Anti-Hantu)
 STRS=$(for i in {0..30}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
-tail -n 5000 "$LOG_FILE" | grep -E "^($STRS)" | grep "accepted" | grep "email: " | awk '{
+tail -n 5000 "$LOG_FILE" | grep -E "^($STRS)" | grep "accepted" | grep "email: " | grep -v "email: system" | grep -v "127.0.0.1" | grep -v "::1" | awk '{
     for(i=1;i<=NF;i++) {
         if($i=="accepted") { ip=$(i-1); sub(/:.*/,"",ip); }
         if($i=="email:") { email=$(i+1); gsub(/[^a-zA-Z0-9_-]/, "", email); }
     }
-    if(ip!="" && email!="") {
+    if(ip!="" && email!="" && email!="system") {
         split(ip, v, ".");
         if(length(v)==4) { subnet=v[1]"."v[2]; } else { subnet=ip; }
         print subnet, email;
     }
 }' | sort -u > /tmp/bot_active.log
 
-# Fetch LIVE data Xray
 STATS=$(/usr/local/bin/xray api statsquery -server=127.0.0.1:10085 2>/dev/null)
 
 for proto in vmess vless trojan; do
@@ -667,6 +672,9 @@ for proto in vmess vless trojan; do
     PROTO_MSG=""
     FOUND=0
     while IFS="|" read -r user id exp limit status quota; do
+        user=$(echo "$user" | tr -d '[:space:]')
+        [[ -z "$user" ]] && continue
+        
         active_ips=$(grep -w "$user" /tmp/bot_active.log | wc -l)
         if [[ "$active_ips" -gt 0 ]]; then
             down=$(echo "$STATS" | jq -r ".stat[]? | select(.name == \"user>>>${user}>>>traffic>>>downlink\") | .value" 2>/dev/null)
@@ -702,18 +710,13 @@ for proto in vmess vless trojan; do
         fi
     done < "$FILE"
     
-    # Pengiriman Chat Telegram TERPISAH per Protokol
     if [[ "$FOUND" -eq 1 ]]; then
-        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'
-        FULL_MSG="${PROTO_HEADER}${PROTO_MSG}"
-        /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
-            -d "chat_id=${CHATID}" \
-            --data-urlencode "text=${FULL_MSG}" \
-            -d "parse_mode=HTML" > /dev/null
+        MSG="<b>📊 LAPORKAN PENGGUNA AKTIF (${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"${PROTO_MSG}"
+        /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
     fi
 done
 
-# Check SSH Active Absolute Tracker (Perbaikan Mutlak)
+# Check SSH Active Absolute Tracker
 S_FILE="/usr/local/etc/xray/ssh.txt"
 if [[ -f "$S_FILE" ]]; then
     PROTO_MSG=""
@@ -722,22 +725,16 @@ if [[ -f "$S_FILE" ]]; then
         user=$(echo "$user" | tr -d '[:space:]')
         [[ -z "$user" ]] && continue
         
-        # FIX: Hanya menghitung Daemon spesifik (Sangat akurat, 1 HP = 1 Sesi)
         active_logins=$(ps -u "$user" -o comm= 2>/dev/null | grep -E "^(sshd|dropbear)$" | wc -l)
         if [[ "$active_logins" -gt 0 ]]; then
-            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Session"$'\n'
+            PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_logins Sesi (Multi-thread)"$'\n'
             FOUND=1
         fi
     done < "$S_FILE"
     
-    # Pengiriman Chat Telegram TERPISAH untuk SSH
     if [[ "$FOUND" -eq 1 ]]; then
-        PROTO_HEADER="<b>📊 LAPORKAN PENGGUNA AKTIF (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'
-        FULL_MSG="${PROTO_HEADER}${PROTO_MSG}"
-        /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
-            -d "chat_id=${CHATID}" \
-            --data-urlencode "text=${FULL_MSG}" \
-            -d "parse_mode=HTML" > /dev/null
+        MSG="<b>📊 LAPORKAN PENGGUNA AKTIF (SSH)</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"${PROTO_MSG}"
+        /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
     fi
 fi
 EOF
@@ -791,7 +788,7 @@ D_TROJAN="/usr/local/etc/xray/trojan.txt"
 D_ZIVPN="/etc/zivpn/zivpn.txt"
 
 # ---------------------------------------------
-# FUNGSI HELPER UI - KOTAK PRESISI
+# FUNGSI HELPER UI
 # ---------------------------------------------
 print_line() {
     local text="$1"
@@ -820,9 +817,6 @@ print_center() {
     echo -e "${CYAN}│${NC}${str_l}${text}${str_r}${CYAN}│${NC}"
 }
 
-# ---------------------------------------------
-# FUNGSI VALIDASI DUPLIKAT AKUN
-# ---------------------------------------------
 function check_exists() {
     local user=$1
     if grep -q "^$user|" $D_SSH $D_VMESS $D_VLESS $D_TROJAN $D_ZIVPN 2>/dev/null; then
@@ -980,9 +974,6 @@ function show_account_zivpn() {
     read -n 1 -s -r -p "Tekan enter untuk kembali..."
 }
 
-# ---------------------------------------------
-# FUNGSI HEADER & DASHBOARD UTAMA
-# ---------------------------------------------
 function header_main() {
     clear; DOMAIN=$(cat /usr/local/etc/xray/domain); OS=$(cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/PRETTY_NAME="//g' | sed 's/"//g')
     RAM=$(free -m | awk '/Mem:/ {print $2}'); SWAP=$(free -m | awk '/Swap:/ {print $2}'); IP=$(cat /root/tendo/ip)
@@ -1079,7 +1070,7 @@ function header_sub() {
 }
 
 # ---------------------------------------------
-# MENU TELEGRAM BOT SETUP (SYSTEM NOTIF)
+# MENU TELEGRAM BOT SETUP
 # ---------------------------------------------
 function menu_login_notif() {
     while true; do header_sub
@@ -1159,9 +1150,6 @@ function bot_menu() {
     done
 }
 
-# ---------------------------------------------
-# MENU SETUP BOT CLIENT (FREE ACCOUNT BOT)
-# ---------------------------------------------
 function setup_client_bot_menu() {
     header_sub
     local c_tok=$(cat /etc/tendo_bot/client_token 2>/dev/null)
@@ -1189,7 +1177,6 @@ function setup_client_bot_menu() {
     echo -e "${YELLOW}Memastikan Module Python (pyTelegramBotAPI)...${NC}"
     pip3 install pyTelegramBotAPI --break-system-packages 2>/dev/null || pip3 install pyTelegramBotAPI 2>/dev/null
     
-    # Create Bot Helper Bash (Untuk integrasi Python ke System Xray/SSH)
     cat > /usr/local/bin/client-bot-helper.sh << 'EOF'
 #!/bin/bash
 ACTION=$1; PROTO=$2; USER=$3; PASS=$4; DAYS=$5
@@ -1292,7 +1279,6 @@ fi
 EOF
     chmod +x /usr/local/bin/client-bot-helper.sh
 
-    # Create Python Bot Script
     cat > /usr/local/bin/tendo-client-bot.py << 'EOF'
 import telebot
 from telebot import types
@@ -1415,7 +1401,6 @@ def execute_creation(message, proto, username, password):
 bot.infinity_polling()
 EOF
     
-    # Create SystemD Service
     cat > /etc/systemd/system/tendo-client-bot.service << 'EOF'
 [Unit]
 Description=Tendo Telegram Client Bot
@@ -1679,12 +1664,10 @@ function features_menu() {
                        cd - >/dev/null 2>&1
                        rm -f /root/restore.zip
                        
-                       # Perbaikan Restore Setup Telegram Bot & Cron Jobs
                        chmod -R 777 /etc/tendo_bot/ 2>/dev/null
                        systemctl daemon-reload
                        chmod +x /usr/local/bin/client-bot-helper.sh 2>/dev/null
                        
-                       # Auto Install Bot Module saat di-restore
                        if [[ -f "/etc/tendo_bot/client_token" ]]; then
                            pip3 install pyTelegramBotAPI --break-system-packages 2>/dev/null || pip3 install pyTelegramBotAPI 2>/dev/null
                            systemctl enable tendo-client-bot >/dev/null 2>&1
@@ -1725,7 +1708,7 @@ function features_menu() {
                        fi
 
                        systemctl restart xray zivpn dropbear ws-proxy stunnel4 ssh sshd
-                       echo -e "${GREEN}Restore Berhasil! Semua konfigurasi dan akun telah dipulihkan (Tanpa Reboot).${NC}"
+                       echo -e "${GREEN}Restore Berhasil! Semua konfigurasi dan akun telah dipulihkan.${NC}"
                        sleep 3
                    else
                        echo -e "${RED}Gagal mengunduh file! Pastikan link direct yang dimasukkan valid.${NC}"
@@ -1778,7 +1761,7 @@ function vmess_menu() {
                upg_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                upg_ntls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
                show_account_xray "VMESS" "$u" "$DMN" "$id" "$exp_date" "$limit" "$quota" "0.00" "vmess://$ws_tls" "vmess://$ws_ntls" "vmess://$grpc_tls" "vmess://$upg_tls" "vmess://$upg_ntls"
-               echo -e "${YELLOW}🔄 Menerapkan konfigurasi (Restarting Xray)...${NC}"; systemctl restart xray >/dev/null 2>&1
+               echo -e "${YELLOW}🔄 Sedang me-restart layanan... Jika terminal terputus, itu normal!${NC}"; nohup bash -c "sleep 2 && systemctl restart xray" >/dev/null 2>&1 &
                ;;
             2) nl $D_VMESS; read -p "No: " n; [[ -z "$n" ]] && continue; u=$(sed -n "${n}p" $D_VMESS | cut -d'|' -f1); sed -i "${n}d" $D_VMESS; jq --arg u "$u" '(.inbounds[] | select(.protocol == "vmess")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; rm -f "/usr/local/etc/xray/quota/$u"
                echo -e "${GREEN}Account Deleted!${NC}"; systemctl restart xray >/dev/null 2>&1; sleep 2;;
@@ -1803,7 +1786,7 @@ function vmess_menu() {
                upg_tls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
                upg_ntls=$(echo "{\"v\":\"2\",\"ps\":\"${u}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${id}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
                show_account_xray "VMESS" "$u" "$DMN" "$id" "$exp_date" "$limit" "$quota" "0.00" "vmess://$ws_tls" "vmess://$ws_ntls" "vmess://$grpc_tls" "vmess://$upg_tls" "vmess://$upg_ntls"
-               echo -e "${YELLOW}🔄 Menerapkan konfigurasi (Restarting Xray)...${NC}"; systemctl restart xray >/dev/null 2>&1
+               echo -e "${YELLOW}🔄 Sedang me-restart layanan... Jika terminal terputus, itu normal!${NC}"; nohup bash -c "sleep 2 && systemctl restart xray" >/dev/null 2>&1 &
                ;;
             6) nl $D_VMESS; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_VMESS); u=$(echo "$line" | cut -d'|' -f1); id=$(echo "$line" | cut -d'|' -f2); exp=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5); quota=$(echo "$line" | cut -d'|' -f6)
                if [[ "$stat" == "ACTIVE" ]]; then
@@ -1851,7 +1834,7 @@ function vless_menu() {
                upg_tls="vless://${id}@${DMN}:443?path=%2Fvless-upg&security=tls&encryption=none&host=${DMN}&type=httpupgrade&sni=${DMN}#${u}"
                upg_ntls="vless://${id}@${DMN}:80?path=%2Fvless-upg&security=none&encryption=none&host=${DMN}&type=httpupgrade#${u}"
                show_account_xray "VLESS" "$u" "$DMN" "$id" "$exp_date" "$limit" "$quota" "0.00" "$ws_tls" "$ws_ntls" "$grpc_tls" "$upg_tls" "$upg_ntls"
-               echo -e "${YELLOW}🔄 Menerapkan konfigurasi (Restarting Xray)...${NC}"; systemctl restart xray >/dev/null 2>&1
+               echo -e "${YELLOW}🔄 Sedang me-restart layanan... Jika terminal terputus, itu normal!${NC}"; nohup bash -c "sleep 2 && systemctl restart xray" >/dev/null 2>&1 &
                ;;
             2) nl $D_VLESS; read -p "No: " n; [[ -z "$n" ]] && continue; u=$(sed -n "${n}p" $D_VLESS | cut -d'|' -f1); sed -i "${n}d" $D_VLESS; jq --arg u "$u" '(.inbounds[] | select(.protocol == "vless")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; rm -f "/usr/local/etc/xray/quota/$u"
                echo -e "${GREEN}Account Deleted!${NC}"; systemctl restart xray >/dev/null 2>&1; sleep 2;;
@@ -1876,7 +1859,7 @@ function vless_menu() {
                upg_tls="vless://${id}@${DMN}:443?path=%2Fvless-upg&security=tls&encryption=none&host=${DMN}&type=httpupgrade&sni=${DMN}#${u}"
                upg_ntls="vless://${id}@${DMN}:80?path=%2Fvless-upg&security=none&encryption=none&host=${DMN}&type=httpupgrade#${u}"
                show_account_xray "VLESS" "$u" "$DMN" "$id" "$exp_date" "$limit" "$quota" "0.00" "$ws_tls" "$ws_ntls" "$grpc_tls" "$upg_tls" "$upg_ntls"
-               echo -e "${YELLOW}🔄 Menerapkan konfigurasi (Restarting Xray)...${NC}"; systemctl restart xray >/dev/null 2>&1
+               echo -e "${YELLOW}🔄 Sedang me-restart layanan... Jika terminal terputus, itu normal!${NC}"; nohup bash -c "sleep 2 && systemctl restart xray" >/dev/null 2>&1 &
                ;;
             6) nl $D_VLESS; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_VLESS); u=$(echo "$line" | cut -d'|' -f1); id=$(echo "$line" | cut -d'|' -f2); exp=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5); quota=$(echo "$line" | cut -d'|' -f6)
                if [[ "$stat" == "ACTIVE" ]]; then
@@ -1923,7 +1906,7 @@ function trojan_menu() {
                grpc_tls="trojan://${pass}@${DMN}:443?security=tls&host=${DMN}&type=grpc&serviceName=trojan-grpc&sni=${DMN}#${u}"
                upg_tls="trojan://${pass}@${DMN}:443?path=%2Ftrojan-upg&security=tls&host=${DMN}&type=httpupgrade&sni=${DMN}#${u}"
                show_account_xray "TROJAN" "$u" "$DMN" "$pass" "$exp_date" "$limit" "$quota" "0.00" "$ws_tls" "$ws_ntls" "$grpc_tls" "$upg_tls" ""
-               echo -e "${YELLOW}🔄 Menerapkan konfigurasi (Restarting Xray)...${NC}"; systemctl restart xray >/dev/null 2>&1
+               echo -e "${YELLOW}🔄 Sedang me-restart layanan... Jika terminal terputus, itu normal!${NC}"; nohup bash -c "sleep 2 && systemctl restart xray" >/dev/null 2>&1 &
                ;;
             2) nl $D_TROJAN; read -p "No: " n; [[ -z "$n" ]] && continue; u=$(sed -n "${n}p" $D_TROJAN | cut -d'|' -f1); sed -i "${n}d" $D_TROJAN; jq --arg u "$u" '(.inbounds[] | select(.protocol == "trojan")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG; rm -f "/usr/local/etc/xray/quota/$u"
                echo -e "${GREEN}Account Deleted!${NC}"; systemctl restart xray >/dev/null 2>&1; sleep 2;;
@@ -1946,7 +1929,7 @@ function trojan_menu() {
                grpc_tls="trojan://${pass}@${DMN}:443?security=tls&host=${DMN}&type=grpc&serviceName=trojan-grpc&sni=${DMN}#${u}"
                upg_tls="trojan://${pass}@${DMN}:443?path=%2Ftrojan-upg&security=tls&host=${DMN}&type=httpupgrade&sni=${DMN}#${u}"
                show_account_xray "TROJAN" "$u" "$DMN" "$pass" "$exp_date" "$limit" "$quota" "0.00" "$ws_tls" "$ws_ntls" "$grpc_tls" "$upg_tls" ""
-               echo -e "${YELLOW}🔄 Menerapkan konfigurasi (Restarting Xray)...${NC}"; systemctl restart xray >/dev/null 2>&1
+               echo -e "${YELLOW}🔄 Sedang me-restart layanan... Jika terminal terputus, itu normal!${NC}"; nohup bash -c "sleep 2 && systemctl restart xray" >/dev/null 2>&1 &
                ;;
             6) nl $D_TROJAN; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_TROJAN); u=$(echo "$line" | cut -d'|' -f1); pass=$(echo "$line" | cut -d'|' -f2); exp=$(echo "$line" | cut -d'|' -f3); limit=$(echo "$line" | cut -d'|' -f4); stat=$(echo "$line" | cut -d'|' -f5); quota=$(echo "$line" | cut -d'|' -f6)
                if [[ "$stat" == "ACTIVE" ]]; then
@@ -1984,7 +1967,7 @@ function zivpn_menu() {
                if ! check_exists "$u"; then continue; fi
                if grep -q "|$p|" $D_ZIVPN 2>/dev/null || grep -q "^$p|" $D_ZIVPN 2>/dev/null; then echo -e "${RED}Password '$p' sudah digunakan!${NC}"; sleep 2; continue; fi
                read -p " Expired (days): " ex; [[ -z "$ex" ]] && ex=30; exp=$(date -d "$ex days" +"%Y-%m-%d"); jq --arg pwd "$p" '.auth.config += [$pwd]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; echo "$u|$p|$exp" >> $D_ZIVPN; DMN=$(cat /usr/local/etc/xray/domain); show_account_zivpn "$u" "$p" "$DMN" "$exp"
-               echo -e "${YELLOW}🔄 Menerapkan konfigurasi (Restarting ZIVPN)...${NC}"; systemctl restart zivpn >/dev/null 2>&1
+               echo -e "${YELLOW}🔄 Sedang me-restart layanan... Jika terminal terputus, itu normal!${NC}"; nohup bash -c "sleep 2 && systemctl restart zivpn" >/dev/null 2>&1 &
                ;;
             2) nl $D_ZIVPN; read -p "No: " n; [[ -z "$n" ]] && continue; line=$(sed -n "${n}p" $D_ZIVPN); IFS="|" read -r f1 f2 f3 <<< "$line"; if [[ -z "$f3" ]]; then p="$f1"; else p="$f2"; fi; sed -i "${n}d" $D_ZIVPN; jq --arg pwd "$p" 'del(.auth.config[] | select(. == $pwd))' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json
                echo -e "${GREEN}Account Deleted!${NC}"; systemctl restart zivpn >/dev/null 2>&1; sleep 2;;
@@ -1994,7 +1977,7 @@ function zivpn_menu() {
             5) p="trial-$(tr -dc a-z0-9 </dev/urandom | head -c 5)"; echo -e " Password (Trial): ${GREEN}$p${NC}"; u="$p"; read -p " Duration (e.g., 10m, 1h): " dur;
                if [[ "$dur" == *m ]]; then add_str="+${dur%m} minutes"; elif [[ "$dur" == *h ]]; then add_str="+${dur%h} hours"; else add_str="+1 hours"; fi
                exp=$(date -d "$add_str" +"%Y-%m-%d %H:%M:%S"); jq --arg pwd "$p" '.auth.config += [$pwd]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json; echo "$u|$p|$exp" >> $D_ZIVPN; DMN=$(cat /usr/local/etc/xray/domain); show_account_zivpn "$u" "$p" "$DMN" "$exp"
-               echo -e "${YELLOW}🔄 Menerapkan konfigurasi (Restarting ZIVPN)...${NC}"; systemctl restart zivpn >/dev/null 2>&1
+               echo -e "${YELLOW}🔄 Sedang me-restart layanan... Jika terminal terputus, itu normal!${NC}"; nohup bash -c "sleep 2 && systemctl restart zivpn" >/dev/null 2>&1 &
                ;;
             x) return;;
         esac; done
