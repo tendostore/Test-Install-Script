@@ -2,7 +2,7 @@
 # ==================================================
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
-#   Update: Perfect IPv6/IPv4 Regex Parsing & Active Socket Match
+#   Update: Hybrid IP Tracker (Traffic API Marker + Xray Log Parser)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
 # ==================================================
 
@@ -189,7 +189,7 @@ print_msg "Install SSH, Dropbear 2019, WS Proxy & UDPGW"
 <font color="#FF0000"><b>&nbsp;&nbsp;Strictly No Spam, DDOS, or Hacking</b></font><br>
 EOF
 
-    # OpenSSH Config + Anti Ghost Session
+    # OpenSSH Config
     sed -i 's/#Port 22/Port 22/g' /etc/ssh/sshd_config
     sed -i '/Port 22/a Port 444' /etc/ssh/sshd_config
     echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
@@ -212,7 +212,7 @@ EOF
     dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key >/dev/null 2>&1
     dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key >/dev/null 2>&1
 
-    # Dropbear Service with Banner & KeepAlive
+    # Dropbear Service
     cat > /etc/systemd/system/dropbear.service <<EOF
 [Unit]
 Description=Dropbear SSH Daemon
@@ -227,7 +227,7 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload && systemctl enable dropbear >/dev/null 2>&1 && systemctl start dropbear >/dev/null 2>&1
 
-    # WS Python Proxy (SUPER ROBUST)
+    # WS Python Proxy
     cat > /usr/local/bin/ws-proxy.py << 'EOF'
 import socket, select, threading
 
@@ -526,7 +526,7 @@ done
 EOF
 chmod +x /usr/local/bin/xray-quota
 
-# Script Telegram Login Notif (API Active Verification + Clean IPv6/IPv4 Parse)
+# Script Telegram Login Notif (Hibrida Log 2 Menit & Cek Aktivitas Traffic)
 cat > /usr/local/bin/bot-login-notif <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -539,23 +539,21 @@ IP_VPS=$(cat /root/tendo/ip 2>/dev/null)
 DOM_VPS=$(cat /usr/local/etc/xray/domain 2>/dev/null)
 ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
-tail -n 10000 "$LOG_FILE" | awk '/accepted/ {
+D1=$(date +"%Y/%m/%d %H:%M")
+D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
+D3=$(date -d "2 minutes ago" +"%Y/%m/%d %H:%M")
+
+# Cek log 2 menit kebelakang, hapus semua karakter gak penting di IPv4 dan IPv6
+grep -E "^($D1|$D2|$D3)" "$LOG_FILE" | awk '/accepted/ {
     ip=$3; 
+    sub(/^tcp:/, "", ip); 
+    sub(/^udp:/, "", ip); 
     sub(/:[0-9]+$/, "", ip); 
     gsub(/\[|\]/, "", ip); 
     sub(/^::ffff:/, "", ip); 
     email=$NF; 
     if(email!="") print ip, email; 
-}' | sort -u > /tmp/log_ip_user.txt
-
-ss -ntu state established | awk 'NR>1 {print $5}' | sed -E 's/:[0-9]+$//; s/\[|\]//g; s/::ffff://g' | sort -u > /tmp/estab_ips.txt
-
-> /tmp/bot_active.log
-while read -r ip user; do
-    if grep -Fqw "$ip" /tmp/estab_ips.txt; then
-        echo "$ip $user" >> /tmp/bot_active.log
-    fi
-done < /tmp/log_ip_user.txt
+}' | sort -u > /tmp/recent_log_ips.txt
 
 FULL_MSG=""
 for proto in vmess vless trojan; do
@@ -566,21 +564,26 @@ for proto in vmess vless trojan; do
     FOUND=0
     while IFS="|" read -r user id exp limit status quota; do
         [[ -z "$user" ]] && continue
-        active_ips=$(awk -v u="$user" '$2 == u {print $1}' /tmp/bot_active.log | sort -u | wc -l)
         
+        # Cek apakah dia jalan kuotanya di 2 menit ini
         is_active=0
-        if [[ "$active_ips" -gt 0 ]]; then
-            is_active=1
-        elif [[ -f "/tmp/xray_active_${user}" ]]; then
+        if [[ -f "/tmp/xray_active_${user}" ]]; then
             if [[ $(find "/tmp/xray_active_${user}" -mmin -2 -print) ]]; then
                 is_active=1
-                active_ips=1
             else
                 rm -f "/tmp/xray_active_${user}"
             fi
         fi
         
         if [[ "$is_active" -eq 1 ]]; then
+            # Jika user terbukti online dari kuota, hitung IP-nya di Log Xray
+            active_ips=$(awk -v u="$user" '$2 == u {print $1}' /tmp/recent_log_ips.txt | sort -u | wc -l)
+            
+            # Jika lolos sensor traffic tapi IP di log tenggelam (misal lagi download file lama banget)
+            if [[ "$active_ips" -eq 0 ]]; then
+                active_ips=1
+            fi
+            
             QUOTA_FILE="/usr/local/etc/xray/quota/${user}"
             if [[ -f "$QUOTA_FILE" ]]; then
                 read total_acc last_api < "$QUOTA_FILE"
@@ -591,6 +594,7 @@ for proto in vmess vless trojan; do
             else
                 usage_str="0.00 KB"
             fi
+            
             PROTO_MSG+="👤 User: <code>$user</code> | Login: $active_ips IP | Usage: ${usage_str}"$'\n'
             FOUND=1
         fi
@@ -634,7 +638,7 @@ fi
 EOF
 chmod +x /usr/local/bin/bot-login-notif
 
-# Script Limit IP
+# Script Limit IP (Hibrida Log 2 Menit & Cek Aktivitas Traffic)
 cat > /usr/local/bin/xray-limit <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -650,23 +654,20 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 [[ ! -f "$LOG_FILE" ]] && exit 0
 
-tail -n 10000 "$LOG_FILE" | awk '/accepted/ {
+D1=$(date +"%Y/%m/%d %H:%M")
+D2=$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")
+D3=$(date -d "2 minutes ago" +"%Y/%m/%d %H:%M")
+
+grep -E "^($D1|$D2|$D3)" "$LOG_FILE" | awk '/accepted/ {
     ip=$3; 
+    sub(/^tcp:/, "", ip); 
+    sub(/^udp:/, "", ip); 
     sub(/:[0-9]+$/, "", ip); 
     gsub(/\[|\]/, "", ip); 
     sub(/^::ffff:/, "", ip); 
     email=$NF; 
     if(email!="") print ip, email; 
-}' | sort -u > /tmp/log_ip_user.txt
-
-ss -ntu state established | awk 'NR>1 {print $5}' | sed -E 's/:[0-9]+$//; s/\[|\]//g; s/::ffff://g' | sort -u > /tmp/estab_ips.txt
-
-> /tmp/xray_active.log
-while read -r ip user; do
-    if grep -Fqw "$ip" /tmp/estab_ips.txt; then
-        echo "$ip $user" >> /tmp/xray_active.log
-    fi
-done < /tmp/log_ip_user.txt
+}' | sort -u > /tmp/recent_log_ips.txt
 
 for proto in vmess vless trojan; do
     FILE="/usr/local/etc/xray/${proto}.txt"
@@ -694,14 +695,25 @@ for proto in vmess vless trojan; do
         
         [[ -z "$limit" || "$limit" == "0" ]] && continue
         
-        active_ips=$(awk -v u="$user" '$2 == u {print $1}' /tmp/xray_active.log | sort -u | wc -l)
-        if [[ "$active_ips" -gt "$limit" ]]; then
-            jq --arg u "$user" '(.inbounds[] | select(.protocol == "'$proto'")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
-            sed -i "s/^$user|.*/$user|$id|$exp|$limit|LOCKED_IP_${NOW}|$quota/g" "$FILE"
-            systemctl restart xray
-            if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
-                MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit IP: $limit"$'\n'"🚨 Login IP: $active_ips"$'\n'"⛔ Status: Terkunci 10 Menit"
-                /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
+        is_active=0
+        if [[ -f "/tmp/xray_active_${user}" ]]; then
+            if [[ $(find "/tmp/xray_active_${user}" -mmin -2 -print) ]]; then
+                is_active=1
+            fi
+        fi
+        
+        if [[ "$is_active" -eq 1 ]]; then
+            active_ips=$(awk -v u="$user" '$2 == u {print $1}' /tmp/recent_log_ips.txt | sort -u | wc -l)
+            [[ "$active_ips" -eq 0 ]] && active_ips=1
+            
+            if [[ "$active_ips" -gt "$limit" ]]; then
+                jq --arg u "$user" '(.inbounds[] | select(.protocol == "'$proto'")).settings.clients |= map(select(.email != $u))' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
+                sed -i "s/^$user|.*/$user|$id|$exp|$limit|LOCKED_IP_${NOW}|$quota/g" "$FILE"
+                systemctl restart xray
+                if [[ -n "$TOKEN" && -n "$CHATID" ]]; then
+                    MSG="<b>⚠️ MULTI-LOGIN TERDETEKSI (${proto^^})</b>"$'\n'"IP     : ${IP_VPS}"$'\n'"DOMAIN : ${DOM_VPS}"$'\n'"ISP    : ${ISP_VPS}"$'\n\n'"👤 User: <code>$user</code>"$'\n'"🌐 Limit IP: $limit"$'\n'"🚨 Login IP: $active_ips"$'\n'"⛔ Status: Terkunci 10 Menit"
+                    /usr/bin/curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d "chat_id=${CHATID}" --data-urlencode "text=${MSG}" -d "parse_mode=HTML" > /dev/null
+                fi
             fi
         fi
     done < "$FILE"
