@@ -1,9 +1,9 @@
 #!/bin/bash
 # ==================================================
 #   Auto Script Install X-ray & Zivpn + SSH WS
-#   EDITION: PLATINUM CLEAN V.6.0 (ULTIMATE FINAL + BOT CLIENT)
+#   EDITION: PLATINUM CLEAN V.6.0 (ADMIN NOTIF ONLY)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
-#   Updated: Anti-Ghost Vless, Split Chat Telegram, SSH Multi-Thread, No Force Close, Auto-Restart Fix
+#   Updated: Removed Client Bot, Kept Admin Notifications & Multi-login
 # ==================================================
 
 # --- WARNA & UI ---
@@ -411,6 +411,7 @@ print_ok "ZIVPN Installed"
 print_msg "Setting up Cron & Telegram Bots"
 (
 mkdir -p /usr/local/etc/xray/quota
+mkdir -p /etc/tendo_bot
 
 # Script Expiry Auto-Kill
 cat > /usr/local/bin/xray-exp <<'EOF'
@@ -756,7 +757,7 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 
 ZIP_FILE="/tmp/Backup_${DATE}.zip"
 cd /
-zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ etc/issue.net usr/local/bin/tendo-client-bot.py usr/local/bin/client-bot-helper.sh etc/systemd/system/tendo-client-bot.service >/dev/null 2>&1
+zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ etc/issue.net >/dev/null 2>&1
 cd - >/dev/null 2>&1
 [[ ! -f "$ZIP_FILE" ]] && exit 0
 
@@ -842,6 +843,7 @@ function check_uuid() {
     return 0
 }
 
+# --- FITUR PENGIRIMAN NOTIF KE TELEGRAM ADMIN ---
 function send_tele() {
     local bot_tok=$(cat /etc/tendo_bot/bot_token 2>/dev/null | tr -d '\r\n ')
     local chat_id=$(cat /etc/tendo_bot/chat_id 2>/dev/null | tr -d '\r\n ')
@@ -855,6 +857,7 @@ function send_tele() {
         --data-urlencode "text=${full_msg}" \
         -d "parse_mode=HTML" > /dev/null &
 }
+# ------------------------------------------------
 
 function show_account_ssh() {
     systemctl restart dropbear >/dev/null 2>&1 &
@@ -871,6 +874,7 @@ function show_account_ssh() {
     MSG+="Payload WS     : GET / HTTP/1.1[crlf]Host: ${domain}[crlf]Upgrade: websocket[crlf][crlf]\n"
     MSG+="Expired On     : ${exp}\n————————————————————————————————————\n"
 
+    # Pesan yang akan dikirim ke Bot Admin
     local MSG_BOT=""
     MSG_BOT+="<b>————————————————————————————————————</b>\n          <b>ACCOUNT SSH / WS</b>\n<b>————————————————————————————————————</b>\n"
     MSG_BOT+="Username       : <code>${user}</code>\nPassword       : <code>${pass}</code>\nCITY           : ${city}\nISP            : ${isp}\nDomain         : <code>${domain}</code>\n"
@@ -881,7 +885,7 @@ function show_account_ssh() {
     MSG_BOT+="Expired On     : ${exp}\n<b>————————————————————————————————————</b>\n"
 
     echo -e "$MSG"
-    send_tele "$MSG_BOT"
+    send_tele "$MSG_BOT" # Mengirim notifikasi ke admin
     echo ""
     read -n 1 -s -r -p "Tekan enter untuk kembali..."
 }
@@ -933,6 +937,7 @@ function show_account_xray() {
         MSG+="——————————\n——————————————————————————\n"
     fi
 
+    # Format Pesan Bot Telegram Admin
     MSG_BOT+="<b>————————————————————————————————————</b>\n               <b>${proto}</b>\n<b>————————————————————————————————————</b>\n"
     MSG_BOT+="Username       : <code>${user}</code>\nCITY           : ${city}\nISP            : ${isp}\nDomain         : <code>${domain}</code>\n"
     MSG_BOT+="Port TLS       : 443\nPort none TLS  : 80\n"
@@ -952,7 +957,7 @@ function show_account_xray() {
     fi
 
     echo -e "$MSG"
-    send_tele "$MSG_BOT"
+    send_tele "$MSG_BOT" # Mengirim notifikasi ke admin
     echo ""
     read -n 1 -s -r -p "Tekan enter untuk kembali..."
 }
@@ -966,13 +971,14 @@ function show_account_zivpn() {
     local MSG=""
     MSG+="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  ACCOUNT ZIVPN UDP\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     MSG+="Password   : ${pass}\nCITY       : ${city}\nISP        : ${isp}\nIP ISP     : ${ip}\nDomain     : ${domain}\nExpired On : ${exp}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    
+
+    # Pesan yang akan dikirim ke Bot Admin
     local MSG_BOT=""
     MSG_BOT+="<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n  <b>ACCOUNT ZIVPN UDP</b>\n<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
     MSG_BOT+="Password   : <code>${pass}</code>\nCITY       : ${city}\nISP        : ${isp}\nIP ISP     : <code>${ip}</code>\nDomain     : <code>${domain}</code>\nExpired On : ${exp}\n<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
 
     echo -e "$MSG"
-    send_tele "$MSG_BOT"
+    send_tele "$MSG_BOT" # Mengirim notifikasi ke admin
     echo ""
     read -n 1 -s -r -p "Tekan enter untuk kembali..."
 }
@@ -1153,330 +1159,6 @@ function bot_menu() {
     done
 }
 
-function setup_client_bot_menu() {
-    header_sub
-    local c_tok=$(cat /etc/tendo_bot/client_token 2>/dev/null)
-    local c_adm=$(cat /etc/tendo_bot/client_admin 2>/dev/null)
-    echo -e "${YELLOW}--- SETUP CLIENT BOT TELEGRAM ---${NC}"
-    echo -e " Token saat ini : ${GREEN}${c_tok:-Belum disetting}${NC}"
-    echo -e " ID Admin       : ${GREEN}${c_adm:-Belum disetting}${NC}"
-    echo -e "${CYAN}————————————————————————————————————————${NC}"
-    
-    read -p " Ingin mengubah/memasukkan data baru? (y/n): " chg
-    if [[ "$chg" == "y" || "$chg" == "Y" || -z "$c_tok" ]]; then
-        echo -e "${YELLOW}Pastikan anda sudah menyiapkan API Token dari @BotFather.${NC}"
-        read -p " Masukkan Bot Token API: " bot_client_token
-        [[ -z "$bot_client_token" ]] && return
-        
-        read -p " Masukkan User ID Anda (Admin): " bot_client_admin
-        [[ -z "$bot_client_admin" ]] && bot_client_admin="0"
-        
-        echo "$bot_client_token" > /etc/tendo_bot/client_token
-        echo "$bot_client_admin" > /etc/tendo_bot/client_admin
-    else
-        echo -e "${GREEN}Menggunakan konfigurasi bot sebelumnya...${NC}"
-    fi
-
-    echo -e "${YELLOW}Memastikan Module Python (pyTelegramBotAPI)...${NC}"
-    pip3 install pyTelegramBotAPI --break-system-packages 2>/dev/null || pip3 install pyTelegramBotAPI 2>/dev/null
-    
-    cat > /usr/local/bin/client-bot-helper.sh << 'EOF'
-#!/bin/bash
-ACTION=$1; PROTO=$2; USER=$3; PASS=$4; DAYS=$5
-CONFIG="/usr/local/etc/xray/config.json"
-D_SSH="/usr/local/etc/xray/ssh.txt"; D_VMESS="/usr/local/etc/xray/vmess.txt"; D_VLESS="/usr/local/etc/xray/vless.txt"
-D_TROJAN="/usr/local/etc/xray/trojan.txt"; D_ZIVPN="/etc/zivpn/zivpn.txt"
-DMN=$(cat /usr/local/etc/xray/domain 2>/dev/null); CITY=$(cat /root/tendo/city 2>/dev/null)
-ISP=$(cat /root/tendo/isp 2>/dev/null); IP=$(cat /root/tendo/ip 2>/dev/null)
-
-if [[ "$ACTION" == "check" ]]; then
-    if grep -q "^$USER|" $D_SSH $D_VMESS $D_VLESS $D_TROJAN $D_ZIVPN 2>/dev/null || id "$USER" &>/dev/null; then echo "EXISTS"; else echo "OK"; fi
-    exit 0
-fi
-
-if [[ "$ACTION" == "info" ]]; then
-    echo "<b>📊 INFORMASI JUMLAH USER AKTIF</b>"
-    echo "<b>--------------------------------</b>"
-    if [[ -f "$D_SSH" ]]; then c=$(wc -l < "$D_SSH" 2>/dev/null || echo 0); echo "<b>[ 🔹 SSH / WS ] : $c User</b>"; fi
-    if [[ -f "$D_VMESS" ]]; then c=$(wc -l < "$D_VMESS" 2>/dev/null || echo 0); echo "<b>[ 🔹 VMESS ] : $c User</b>"; fi
-    if [[ -f "$D_VLESS" ]]; then c=$(wc -l < "$D_VLESS" 2>/dev/null || echo 0); echo "<b>[ 🔹 VLESS ] : $c User</b>"; fi
-    if [[ -f "$D_TROJAN" ]]; then c=$(wc -l < "$D_TROJAN" 2>/dev/null || echo 0); echo "<b>[ 🔹 TROJAN ] : $c User</b>"; fi
-    if [[ -f "$D_ZIVPN" ]]; then c=$(wc -l < "$D_ZIVPN" 2>/dev/null || echo 0); echo "<b>[ 🔹 ZIVPN ] : $c User</b>"; fi
-    exit 0
-fi
-
-if [[ "$ACTION" == "create" ]]; then
-    if (( DAYS > 5 )); then DAYS=5; fi
-    exp_date=$(date -d "+$DAYS days" +"%Y-%m-%d")
-    limit=2; usage="0.00"
-    
-    if [[ "$PROTO" == "vmess" || "$PROTO" == "vless" || "$PROTO" == "trojan" ]]; then
-        quota=100
-        str_quota="100 GB"
-    else
-        quota=0
-        str_quota="Unlimited"
-    fi
-
-    MSG_BOT=""
-    
-    if [[ "$PROTO" == "ssh" ]]; then
-        grep -q "/bin/false" /etc/shells || echo "/bin/false" >> /etc/shells
-        useradd -e $(date -d "$DAYS days" +"%Y-%m-%d") -s /bin/false -M $USER; echo "$USER:$PASS" | chpasswd
-        echo "$USER|$PASS|$exp_date|$limit|ACTIVE" >> $D_SSH
-        MSG_BOT+="<b>————————————————————————————————————</b>\n          <b>ACCOUNT SSH / WS</b>\n<b>————————————————————————————————————</b>\n"
-        MSG_BOT+="Username       : <code>${USER}</code>\nPassword       : <code>${PASS}</code>\nCITY           : ${CITY}\nISP            : ${ISP}\nDomain         : <code>${DMN}</code>\n"
-        MSG_BOT+="Port TLS       : 443, 8443\nPort none TLS  : 80, 8080\nPort any       : 2082, 2083, 8880\n"
-        MSG_BOT+="Port OpenSSH   : 22, 444\nPort Dropbear  : 90\nPort UDPGW     : 7100-7600\nLimit IP       : ${limit} IP\n"
-        MSG_BOT+="Payload WS     : <code>GET / HTTP/1.1[crlf]Host: ${DMN}[crlf]Upgrade: websocket[crlf][crlf]</code>\n"
-        MSG_BOT+="Expired On     : ${exp_date}\n<b>————————————————————————————————————</b>\n"
-    elif [[ "$PROTO" == "vmess" ]]; then
-        uuid=$(uuidgen)
-        jq --arg u "$USER" --arg id "$uuid" '(.inbounds[] | select(.protocol == "vmess")).settings.clients += [{"id":$id,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
-        echo "$USER|$uuid|$exp_date|$limit|ACTIVE|$quota" >> $D_VMESS; echo "0 0" > "/usr/local/etc/xray/quota/$USER"
-        link_ws_tls=$(echo "{\"v\":\"2\",\"ps\":\"${USER}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${uuid}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
-        link_ws_ntls=$(echo "{\"v\":\"2\",\"ps\":\"${USER}\",\"add\":\"${DMN}\",\"port\":\"80\",\"id\":\"${uuid}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess\",\"tls\":\"\",\"sni\":\"\"}" | base64 -w 0)
-        link_grpc_tls=$(echo "{\"v\":\"2\",\"ps\":\"${USER}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${uuid}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"grpc\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-grpc\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
-        link_upg_tls=$(echo "{\"v\":\"2\",\"ps\":\"${USER}\",\"add\":\"${DMN}\",\"port\":\"443\",\"id\":\"${uuid}\",\"aid\":\"0\",\"scy\":\"auto\",\"net\":\"httpupgrade\",\"type\":\"none\",\"host\":\"${DMN}\",\"path\":\"/vmess-upg\",\"tls\":\"tls\",\"sni\":\"${DMN}\"}" | base64 -w 0)
-        MSG_BOT+="<b>————————————————————————————————————</b>\n               <b>VMESS</b>\n<b>————————————————————————————————————</b>\n"
-        MSG_BOT+="Username       : <code>${USER}</code>\nCITY           : ${CITY}\nISP            : ${ISP}\nDomain         : <code>${DMN}</code>\nPort TLS       : 443\nPort none TLS  : 80\n"
-        MSG_BOT+="Password / ID  : <code>${uuid}</code>\nalterId        : 0\nSecurity       : auto\n"
-        MSG_BOT+="network        : ws, grpc, upgrade\npath ws        : /vmess\nserviceName    : vmess-grpc\npath upgrade   : /vmess-upg\n"
-        MSG_BOT+="Limit IP       : ${limit} IP\nQuota Bandwidth: ${str_quota}\nUsage Bandwidth: ${usage} GB\nExpired On     : ${exp_date}\n"
-        MSG_BOT+="<b>————————————————————————————————————</b>\n           <b>VMESS WS TLS</b>\n<b>————————————————————————————————————</b>\n<code>vmess://${link_ws_tls}</code>\n<b>————————————————————————————————————</b>\n"
-        MSG_BOT+="          <b>VMESS WS NO TLS</b>\n<b>————————————————————————————————————</b>\n<code>vmess://${link_ws_ntls}</code>\n<b>————————————————————————————————————</b>\n"
-        MSG_BOT+="             <b>VMESS GRPC</b>\n<b>————————————————————————————————————</b>\n<code>vmess://${link_grpc_tls}</code>\n<b>————————————————————————————————————</b>\n"
-        MSG_BOT+="         <b>VMESS Upgrade TLS</b>\n<b>————————————————————————————————————</b>\n<code>vmess://${link_upg_tls}</code>\n<b>————————————————————————————————————</b>\n"
-    elif [[ "$PROTO" == "vless" ]]; then
-        uuid=$(uuidgen)
-        jq --arg u "$USER" --arg id "$uuid" '(.inbounds[] | select(.protocol == "vless")).settings.clients += [{"id":$id,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
-        echo "$USER|$uuid|$exp_date|$limit|ACTIVE|$quota" >> $D_VLESS; echo "0 0" > "/usr/local/etc/xray/quota/$USER"
-        link_ws_tls="vless://${uuid}@${DMN}:443?path=%2Fvless&security=tls&encryption=none&host=${DMN}&type=ws&sni=${DMN}#${USER}"
-        link_ws_ntls="vless://${uuid}@${DMN}:80?path=%2Fvless&security=none&encryption=none&host=${DMN}&type=ws#${USER}"
-        link_grpc_tls="vless://${uuid}@${DMN}:443?security=tls&encryption=none&host=${DMN}&type=grpc&serviceName=vless-grpc&sni=${DMN}#${USER}"
-        link_upg_tls="vless://${uuid}@${DMN}:443?path=%2Fvless-upg&security=tls&encryption=none&host=${DMN}&type=httpupgrade&sni=${DMN}#${USER}"
-        MSG_BOT+="<b>————————————————————————————————————</b>\n               <b>VLESS</b>\n<b>————————————————————————————————————</b>\n"
-        MSG_BOT+="Username       : <code>${USER}</code>\nCITY           : ${CITY}\nISP            : ${ISP}\nDomain         : <code>${DMN}</code>\nPort TLS       : 443\nPort none TLS  : 80\n"
-        MSG_BOT+="Password / ID  : <code>${uuid}</code>\nEncryption     : none\n"
-        MSG_BOT+="network        : ws, grpc, upgrade\npath ws        : /vless\nserviceName    : vless-grpc\npath upgrade   : /vless-upg\n"
-        MSG_BOT+="Limit IP       : ${limit} IP\nQuota Bandwidth: ${str_quota}\nUsage Bandwidth: ${usage} GB\nExpired On     : ${exp_date}\n"
-        MSG_BOT+="<b>————————————————————————————————————</b>\n           <b>VLESS WS TLS</b>\n<b>————————————————————————————————————</b>\n<code>${link_ws_tls}</code>\n<b>————————————————————————————————————</b>\n"
-        MSG_BOT+="          <b>VLESS WS NO TLS</b>\n<b>————————————————————————————————————</b>\n<code>${link_ws_ntls}</code>\n<b>————————————————————————————————————</b>\n"
-        MSG_BOT+="             <b>VLESS GRPC</b>\n<b>————————————————————————————————————</b>\n<code>${link_grpc_tls}</code>\n<b>————————————————————————————————————</b>\n"
-        MSG_BOT+="         <b>VLESS Upgrade TLS</b>\n<b>————————————————————————————————————</b>\n<code>${link_upg_tls}</code>\n<b>————————————————————————————————————</b>\n"
-    elif [[ "$PROTO" == "trojan" ]]; then
-        uuid="$USER"
-        jq --arg p "$uuid" --arg u "$USER" '(.inbounds[] | select(.protocol == "trojan")).settings.clients += [{"password":$p,"email":$u,"level":0}]' $CONFIG > /tmp/x && mv /tmp/x $CONFIG
-        echo "$USER|$uuid|$exp_date|$limit|ACTIVE|$quota" >> $D_TROJAN; echo "0 0" > "/usr/local/etc/xray/quota/$USER"
-        link_ws_tls="trojan://${uuid}@${DMN}:443?path=%2Ftrojan&security=tls&host=${DMN}&type=ws&sni=${DMN}#${USER}"
-        link_grpc_tls="trojan://${uuid}@${DMN}:443?security=tls&host=${DMN}&type=grpc&serviceName=trojan-grpc&sni=${DMN}#${USER}"
-        link_upg_tls="trojan://${uuid}@${DMN}:443?path=%2Ftrojan-upg&security=tls&host=${DMN}&type=httpupgrade&sni=${DMN}#${USER}"
-        MSG_BOT+="<b>————————————————————————————————————</b>\n               <b>TROJAN</b>\n<b>————————————————————————————————————</b>\n"
-        MSG_BOT+="Username       : <code>${USER}</code>\nCITY           : ${CITY}\nISP            : ${ISP}\nDomain         : <code>${DMN}</code>\nPort TLS       : 443\nPort none TLS  : 80\n"
-        MSG_BOT+="Password       : <code>${uuid}</code>\n"
-        MSG_BOT+="network        : ws, grpc, upgrade\npath ws        : /trojan\nserviceName    : trojan-grpc\npath upgrade   : /trojan-upg\n"
-        MSG_BOT+="Limit IP       : ${limit} IP\nQuota Bandwidth: ${str_quota}\nUsage Traffic: ${usage} GB\nExpired On     : ${exp_date}\n"
-        MSG_BOT+="<b>————————————————————————————————————</b>\n           <b>TROJAN WS TLS</b>\n<b>————————————————————————————————————</b>\n<code>${link_ws_tls}</code>\n<b>————————————————————————————————————</b>\n"
-        MSG_BOT+="             <b>TROJAN GRPC</b>\n<b>————————————————————————————————————</b>\n<code>${link_grpc_tls}</code>\n<b>————————————————————————————————————</b>\n"
-        MSG_BOT+="         <b>TROJAN Upgrade TLS</b>\n<b>————————————————————————————————————</b>\n<code>${link_upg_tls}</code>\n<b>————————————————————————————————————</b>\n"
-    elif [[ "$PROTO" == "zivpn" ]]; then
-        jq --arg pwd "$USER" '.auth.config += [$pwd]' /etc/zivpn/config.json > /tmp/z && mv /tmp/z /etc/zivpn/config.json
-        echo "$USER|$USER|$exp_date" >> $D_ZIVPN
-        MSG_BOT+="<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n  <b>ACCOUNT ZIVPN UDP</b>\n<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
-        MSG_BOT+="Password   : <code>${USER}</code>\nCITY       : ${CITY}\nISP        : ${ISP}\nIP ISP     : <code>${IP}</code>\nDomain     : <code>${DMN}</code>\nExpired On : ${exp_date}\n<b>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
-    fi
-    
-    echo -e "$MSG_BOT"
-    
-    if [[ "$PROTO" == "vmess" || "$PROTO" == "vless" || "$PROTO" == "trojan" ]]; then
-        nohup bash -c "sleep 1 && systemctl restart xray" >/dev/null 2>&1 &
-    elif [[ "$PROTO" == "zivpn" ]]; then
-        nohup bash -c "sleep 1 && systemctl restart zivpn" >/dev/null 2>&1 &
-    fi
-    
-    exit 0
-fi
-EOF
-    chmod +x /usr/local/bin/client-bot-helper.sh
-
-    cat > /usr/local/bin/tendo-client-bot.py << 'EOF'
-import telebot
-from telebot import types
-import subprocess
-import os
-
-try:
-    TOKEN = open("/etc/tendo_bot/client_token").read().strip()
-    ADMIN_ID = open("/etc/tendo_bot/client_admin").read().strip()
-except:
-    exit(1)
-
-bot = telebot.TeleBot(TOKEN)
-creation_data = {}
-
-@bot.message_handler(commands=['menu'])
-def send_welcome(message):
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    btn_ssh = types.InlineKeyboardButton("➕ Create SSH", callback_data="proto_ssh")
-    btn_xray = types.InlineKeyboardButton("➕ Create XRAY", callback_data="menu_xray")
-    btn_zi = types.InlineKeyboardButton("➕ Create ZIVPN", callback_data="proto_zivpn")
-    btn_info = types.InlineKeyboardButton("ℹ️ Informasi", callback_data="info_akun")
-    btn_grup = types.InlineKeyboardButton("👥 Grup", url="https://t.me/tendo32")
-    btn_donasi = types.InlineKeyboardButton("💳 Donasi", callback_data="donasi")
-    btn_premium = types.InlineKeyboardButton("🛒 Order Premium", url="https://wa.me/message/MAROWFSVEZWDL1")
-    btn_admin = types.InlineKeyboardButton("📞 Hubungi Admin", url="https://t.me/tendo_32")
-    
-    markup.add(btn_ssh, btn_xray)
-    markup.add(btn_zi, btn_info)
-    markup.add(btn_grup, btn_donasi)
-    markup.add(btn_premium, btn_admin)
-    bot.send_message(message.chat.id, "Selamat datang! Silakan pilih menu interaktif di bawah ini untuk membuat akun VPN free.", reply_markup=markup)
-
-@bot.message_handler(func=lambda message: True)
-def handle_other_text(message):
-    bot.reply_to(message, "Silakan ketik /menu untuk memulai bot.")
-
-@bot.callback_query_handler(func=lambda call: True)
-def callback_query(call):
-    chat_id = call.message.chat.id
-    msg_id = call.message.message_id
-
-    if call.data == "menu_xray":
-        markup = types.InlineKeyboardMarkup(row_width=2)
-        markup.add(
-            types.InlineKeyboardButton("🔹 VMESS", callback_data="proto_vmess"),
-            types.InlineKeyboardButton("🔹 VLESS", callback_data="proto_vless"),
-            types.InlineKeyboardButton("🔹 TROJAN", callback_data="proto_trojan"),
-            types.InlineKeyboardButton("🔙 Kembali", callback_data="menu_main")
-        )
-        bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text="Silakan pilih protokol X-ray:", reply_markup=markup)
-    
-    elif call.data == "menu_main":
-        markup = types.InlineKeyboardMarkup(row_width=2)
-        markup.add(
-            types.InlineKeyboardButton("➕ Create SSH", callback_data="proto_ssh"),
-            types.InlineKeyboardButton("➕ Create XRAY", callback_data="menu_xray"),
-            types.InlineKeyboardButton("➕ Create ZIVPN", callback_data="proto_zivpn"),
-            types.InlineKeyboardButton("ℹ️ Informasi", callback_data="info_akun"),
-            types.InlineKeyboardButton("👥 Grup", url="https://t.me/tendo32"),
-            types.InlineKeyboardButton("💳 Donasi", callback_data="donasi"),
-            types.InlineKeyboardButton("🛒 Order Premium", url="https://wa.me/message/MAROWFSVEZWDL1"),
-            types.InlineKeyboardButton("📞 Hubungi Admin", url="https://t.me/tendo_32")
-        )
-        bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text="Selamat datang! Silakan pilih menu interaktif di bawah ini untuk membuat akun VPN free.", reply_markup=markup)
-    
-    elif call.data == "info_akun":
-        res = subprocess.run(["/usr/local/bin/client-bot-helper.sh", "info"], capture_output=True, text=True)
-        bot.send_message(chat_id, res.stdout, parse_mode="HTML")
-
-    elif call.data == "donasi":
-        donasi_text = """•────────────────────• 
-❑ 082224460678 𝗢𝗩𝗢 
-❑ 082224460678 𝗗𝗔𝗡𝗔
-❑ 082224460678 𝗟𝗜𝗡𝗞 𝗔𝗝𝗔
-❑ 082224460678 𝗚𝗢𝗣𝗔𝗬
-❑ 082224460678 𝗦𝗛𝗢𝗣𝗘𝗘𝗣𝗔𝗬
-•────────────────────•"""
-        bot.send_photo(chat_id, "https://i.postimg.cc/9QXppGXs/Kode-QRIS-Tendo-Store-Jepara.png", caption=donasi_text)
-
-    elif call.data.startswith("proto_"):
-        proto = call.data.split("_")[1]
-        creation_data[chat_id] = {'proto': proto}
-        msg = bot.send_message(chat_id, f"💬 <b>MEMBUAT AKUN {proto.upper()}</b>\n\nSilakan ketik Username yang Anda inginkan (tanpa spasi):", parse_mode="HTML")
-        bot.register_next_step_handler(msg, process_username)
-
-    elif call.data.startswith("dur_"):
-        if chat_id not in creation_data: return
-        days = call.data.split("_")[1]
-        creation_data[chat_id]['days'] = days
-        finalize_creation(chat_id, msg_id)
-
-def process_username(message):
-    chat_id = message.chat.id
-    if chat_id not in creation_data: return
-    
-    username = message.text.strip().replace(" ", "")
-    proto = creation_data[chat_id]['proto']
-    
-    if not username:
-        bot.send_message(chat_id, "❌ Username tidak valid. Silakan ulangi /menu")
-        return
-        
-    res = subprocess.run(["/usr/local/bin/client-bot-helper.sh", "check", proto, username], capture_output=True, text=True)
-    if "EXISTS" in res.stdout:
-        bot.send_message(chat_id, f"❌ Username <b>{username}</b> sudah digunakan! Silakan ulangi /menu dan gunakan nama lain.", parse_mode="HTML")
-        return
-        
-    creation_data[chat_id]['user'] = username
-
-    if proto == "ssh":
-        msg = bot.send_message(chat_id, f"🔑 Username <b>{username}</b> tersedia!\n\nSilakan ketik <b>Password</b> untuk akun SSH ini:", parse_mode="HTML")
-        bot.register_next_step_handler(msg, process_password_ssh)
-    else:
-        creation_data[chat_id]['pass'] = username
-        ask_duration(chat_id)
-
-def process_password_ssh(message):
-    chat_id = message.chat.id
-    if chat_id not in creation_data: return
-    password = message.text.strip()
-    if not password:
-        bot.send_message(chat_id, "❌ Password tidak valid. Silakan ulangi /menu")
-        return
-    creation_data[chat_id]['pass'] = password
-    ask_duration(chat_id)
-
-def ask_duration(chat_id):
-    markup = types.InlineKeyboardMarkup(row_width=5)
-    markup.add(
-        types.InlineKeyboardButton("1 Hari", callback_data="dur_1"),
-        types.InlineKeyboardButton("2 Hari", callback_data="dur_2"),
-        types.InlineKeyboardButton("3 Hari", callback_data="dur_3"),
-        types.InlineKeyboardButton("4 Hari", callback_data="dur_4"),
-        types.InlineKeyboardButton("5 Hari", callback_data="dur_5")
-    )
-    bot.send_message(chat_id, "✅ Data diterima!\n\nPilih durasi masa aktif (Maks 5 Hari):", reply_markup=markup)
-
-def finalize_creation(chat_id, msg_id):
-    data = creation_data.pop(chat_id, None)
-    if not data: return
-
-    proto = data['proto']
-    user = data['user']
-    passwd = data['pass']
-    days = data.get('days', '1')
-
-    msg_text = f"⏳ Sedang memproses pembuatan akun {proto.upper()} untuk {user} ({days} Hari)..."
-
-    bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text=msg_text)
-    res = subprocess.run(["/usr/local/bin/client-bot-helper.sh", "create", proto, user, passwd, days], capture_output=True, text=True)
-    bot.send_message(chat_id, res.stdout.replace('\\n', '\n'), parse_mode="HTML")
-
-bot.infinity_polling()
-EOF
-    
-    cat > /etc/systemd/system/tendo-client-bot.service << 'EOF'
-[Unit]
-Description=Tendo Telegram Client Bot
-After=network.target
-
-[Service]
-ExecStart=/usr/bin/python3 /usr/local/bin/tendo-client-bot.py
-Restart=always
-User=root
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    systemctl daemon-reload
-    systemctl enable tendo-client-bot >/dev/null 2>&1
-    systemctl restart tendo-client-bot >/dev/null 2>&1
-    
-    echo -e "${GREEN}Bot Client berhasil diinstall dan dijalankan dengan versi tombol inline!${NC}"
-    echo -e "${YELLOW}Silakan chat bot kamu di Telegram dan ketik /menu${NC}"
-    sleep 3
-}
-
 # ---------------------------------------------
 # MENU SSH & X-RAY MANAGER
 # ---------------------------------------------
@@ -1642,7 +1324,6 @@ function features_menu() {
         print_line " [11] Rebuild VPS"
         print_line " [12] Check Services"
         print_line " [13] Change Banner SSH"
-        print_line " [14] Setup Client Telegram Bot"
         print_line " [x] Back"
         echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
         read -p " Select Menu : " opt
@@ -1661,7 +1342,7 @@ function features_menu() {
                systemctl restart xray stunnel4
                echo -e "${GREEN}Domain Berhasil Diperbarui menjadi: $nd${NC}"
                sleep 2;;
-            5) systemctl restart xray zivpn vnstat dropbear stunnel4 ws-proxy tendo-client-bot; echo -e "${GREEN}Services Restarted!${NC}"; sleep 2;;
+            5) systemctl restart xray zivpn vnstat dropbear stunnel4 ws-proxy; echo -e "${GREEN}Services Restarted!${NC}"; sleep 2;;
             6) sync; echo 3 > /proc/sys/vm/drop_caches; echo -e "${GREEN}Cache Cleared!${NC}"; sleep 1;;
             7) auto_reboot_menu ;;
             8) neofetch; read -p "Enter...";;
@@ -1671,7 +1352,7 @@ function features_menu() {
                DATE=$(date +"%Y-%m-%d_%H-%M")
                ZIP_FILE="/root/Backup_${DATE}.zip"
                cd /
-               zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ etc/issue.net usr/local/bin/tendo-client-bot.py usr/local/bin/client-bot-helper.sh etc/systemd/system/tendo-client-bot.service >/dev/null 2>&1
+               zip -r $ZIP_FILE usr/local/etc/xray/ etc/zivpn/ etc/tendo_bot/ etc/issue.net >/dev/null 2>&1
                cd - >/dev/null 2>&1
                
                if [[ ! -f "$ZIP_FILE" ]]; then
@@ -1720,13 +1401,6 @@ function features_menu() {
                        
                        chmod -R 777 /etc/tendo_bot/ 2>/dev/null
                        systemctl daemon-reload
-                       chmod +x /usr/local/bin/client-bot-helper.sh 2>/dev/null
-                       
-                       if [[ -f "/etc/tendo_bot/client_token" ]]; then
-                           pip3 install pyTelegramBotAPI --break-system-packages 2>/dev/null || pip3 install pyTelegramBotAPI 2>/dev/null
-                           systemctl enable tendo-client-bot >/dev/null 2>&1
-                           systemctl restart tendo-client-bot >/dev/null 2>&1
-                       fi
                        
                        (crontab -l 2>/dev/null | grep -v "xray-exp"; echo "* * * * * /usr/local/bin/xray-exp") | crontab -
                        (crontab -l 2>/dev/null | grep -v "xray-limit"; echo "* * * * * /usr/local/bin/xray-limit") | crontab -
@@ -1780,7 +1454,6 @@ function features_menu() {
                 systemctl restart ssh sshd dropbear 2>/dev/null
                 echo -e "${GREEN}Banner SSH Berhasil Diperbarui!${NC}"
                 sleep 2;;
-            14) setup_client_bot_menu ;;
             x) return;;
         esac
     done
