@@ -3,7 +3,7 @@
 #   Auto Script Install X-ray & Zivpn + SSH WS
 #   EDITION: PLATINUM CLEAN V.6.0 (NO CLIENT BOT)
 #   Script BY: Tendo Store | WhatsApp: +6282224460678
-#   Updated: Anti-Ghost Vless, Split Chat Telegram, SSH Multi-Thread, No Force Close, Auto-Restart Fix
+#   Updated: Removed Telegram Client Bot, Auto-Restart Fix
 # ==================================================
 
 # --- WARNA & UI ---
@@ -483,7 +483,6 @@ ISP_VPS=$(cat /root/tendo/isp 2>/dev/null)
 [[ ! -f "$LOG_FILE" ]] && exit 0
 
 STRS=$(for i in {0..30}; do date -d "$i seconds ago" +"%Y/%m/%d %H:%M:%S"; done | paste -sd '|' -)
-# FIX Ghost IP: Menghapus 127.0.0.1 dan user kosong "email: system"
 tail -n 5000 "$LOG_FILE" | grep -E "^($STRS)" | grep "accepted" | grep "email: " | grep -v "email: system" | grep -v "127.0.0.1" | grep -v "::1" | awk '{
     for(i=1;i<=NF;i++) {
         if($i=="accepted") { ip=$(i-1); sub(/:.*/,"",ip); }
@@ -538,7 +537,7 @@ for proto in vmess vless trojan; do
     done < "$FILE"
 done
 
-# SSH Limit IP Lock (Toleransi Multi-Thread SSH HTTP Custom)
+# SSH Limit IP Lock
 S_FILE="/usr/local/etc/xray/ssh.txt"
 if [[ -f "$S_FILE" ]]; then
     while IFS="|" read -r user pass exp limit status; do
@@ -561,7 +560,6 @@ if [[ -f "$S_FILE" ]]; then
         
         [[ -z "$limit" || "$limit" == "0" ]] && continue
         
-        # FIX: Multi-Thread Apps (Injector) membuka banyak koneksi. Kita kali 3 toleransinya.
         max_sessions=$(( limit * 3 ))
         active_logins=$(ps -u "$user" -o comm= 2>/dev/null | grep -E "^(sshd|dropbear)$" | wc -l)
         if [[ "$active_logins" -gt "$max_sessions" ]]; then
@@ -637,7 +635,7 @@ done
 EOF
 chmod +x /usr/local/bin/xray-quota
 
-# Script Telegram Login Notif (Split per-protocol, Anti-Ghosting)
+# Script Telegram Login Notif
 cat > /usr/local/bin/bot-login-notif <<'EOF'
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
