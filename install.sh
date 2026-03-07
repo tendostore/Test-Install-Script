@@ -40,7 +40,7 @@ async function startBot() {
     const sock = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
-        // PERBAIKAN: Menggunakan format array standar yang dijamin tidak error
+        // Menyamar sebagai browser standar agar tidak diblokir server WA
         browser: ['Ubuntu', 'Chrome', '20.0.04'],
         syncFullHistory: false
     });
@@ -167,6 +167,11 @@ install_dependencies() {
     sudo apt install -y curl git wget nano
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
     sudo apt-get install -y nodejs
+    
+    echo "Memperbarui versi NPM ke 11.11.0..."
+    sudo npm install -g npm@11.11.0
+    
+    echo "Menginstall PM2 Process Manager..."
     sudo npm install -g pm2
 
     echo "Membuat file konfigurasi bot..."
@@ -215,7 +220,6 @@ while true; do
             if [ ! -f "index.js" ]; then echo "❌ Anda harus menjalankan Menu 1 dulu!"; sleep 2; continue; fi
             echo "Menjalankan bot... (Tekan CTRL+C untuk mematikan)"
             node index.js
-            # PERBAIKAN: Menambahkan jeda agar pesan error bisa dibaca jika bot mati
             echo -e "\n⚠️ Proses bot terhenti."
             read -p "Tekan Enter untuk kembali ke menu utama..."
             ;;
