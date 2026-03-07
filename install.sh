@@ -20,7 +20,6 @@ const fs = require('fs');
 const pino = require('pino');
 const express = require('express');
 const bodyParser = require('body-parser');
-const readline = require('readline');
 
 const app = express();
 app.use(bodyParser.json());
@@ -31,49 +30,43 @@ const dbFile = './database.json';
 const loadJSON = (file) => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
 const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
 
-if (!fs.existsSync(configFile)) saveJSON(configFile, { botName: "Tendo Store", adminNumber: "", digiflazzUsername: "", digiflazzApiKey: "" });
+if (!fs.existsSync(configFile)) saveJSON(configFile, { botName: "Tendo Store", botNumber: "", adminNumber: "", digiflazzUsername: "", digiflazzApiKey: "" });
 if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
-
-// Fungsi untuk membaca input dari terminal
-const question = (text) => {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    return new Promise((resolve) => {
-        rl.question(text, (answer) => {
-            rl.close();
-            resolve(answer);
-        });
-    });
-};
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
+    let config = loadJSON(configFile);
     
     const sock = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
         browser: ['Ubuntu', 'Chrome', '20.0.04'],
-        printQRInTerminal: false // MATIKAN QR CODE AGAR TIDAK ERROR 405
+        printQRInTerminal: false
     });
 
-    // SISTEM LOGIN BARU: MENGGUNAKAN KODE TAUTAN (PAIRING CODE)
+    // SISTEM LOGIN BARU (Tanpa prompt berulang)
     if (!sock.authState.creds.registered) {
+        let phoneNumber = config.botNumber;
+        if (!phoneNumber) {
+            console.log('\n❌ NOMOR BOT BELUM DIATUR!');
+            console.log('Tutup bot ini (CTRL+C), lalu pilih Menu 2 untuk memasukkan nomor WA Bot Anda.');
+            process.exit(0);
+        }
+
         setTimeout(async () => {
-            console.log("\n=======================================================");
-            let phoneNumber = await question('📲 Masukkan Nomor WA Bot Anda (Awali dengan 628...): ');
-            phoneNumber = phoneNumber.replace(/[^0-9]/g, '');
-            
             try {
-                const code = await sock.requestPairingCode(phoneNumber);
-                console.log(`\n🔑 KODE TAUTAN ANDA :  ${code}  `);
-                console.log('\n[CARA LOGIN DI HP ANDA]:');
-                console.log('1. Buka aplikasi WhatsApp di HP yang nomornya dijadikan bot.');
+                let formattedNumber = phoneNumber.replace(/[^0-9]/g, '');
+                const code = await sock.requestPairingCode(formattedNumber);
+                console.log(`\n=======================================================`);
+                console.log(`🔑 KODE TAUTAN ANDA :  ${code}  `);
+                console.log(`=======================================================`);
+                console.log('1. Buka aplikasi WhatsApp di HP Anda.');
                 console.log('2. Klik titik 3 di kanan atas -> Perangkat Tertaut.');
                 console.log('3. Klik tombol "Tautkan Perangkat".');
                 console.log('4. DI BAWAH layar kamera, klik "Tautkan dengan nomor telepon saja".');
-                console.log('5. Masukkan 8 huruf KODE TAUTAN di atas.');
-                console.log("=======================================================\n");
+                console.log('5. Masukkan 8 huruf KODE TAUTAN di atas.\n');
             } catch (error) {
-                console.log('❌ Gagal mendapatkan kode. Pastikan nomor benar dan tidak memakai spasi/+.');
+                console.log('❌ Gagal mendapatkan kode. Pastikan format nomor benar (awali 628).');
             }
         }, 3000);
     }
@@ -87,9 +80,9 @@ async function startBot() {
             let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
             
             if (reason === DisconnectReason.badSession || reason === 405) {
-                console.log('❌ Sesi ditolak server (Error 405). Menghapus otomatis dan mengulang...');
+                console.log('❌ Sesi ditolak (Error 405). Menghapus dan meminta ulang kode tautan...');
                 fs.rmSync('./sesi_bot', { recursive: true, force: true });
-                setTimeout(startBot, 2000);
+                setTimeout(startBot, 5000); // Jeda 5 detik agar tidak nyepam di layar
             } else if (reason === DisconnectReason.connectionClosed) {
                 console.log('⚠️ Koneksi ditutup, mencoba menyambung ulang...');
                 setTimeout(startBot, 3000);
@@ -155,22 +148,17 @@ async function startBot() {
                 let db = loadJSON(dbFile);
                 let members = Object.keys(db);
                 
-                console.log(`\n📢 Memulai Broadcast ke ${members.length} member...`);
                 for (let jid of members) {
                     try {
                         await sock.sendMessage(jid, { text: `📢 *INFORMASI ${loadJSON(configFile).botName}*\n\n${textBroadcast.trim()}` });
                         await new Promise(res => setTimeout(res, 3000));
-                    } catch (err) {
-                        console.log(`❌ Gagal kirim ke ${jid}`);
-                    }
+                    } catch (err) {}
                 }
-                console.log('✅ Broadcast Selesai!\n');
             }
         }
     }, 5000);
     
     app.post('/webhook', async (req, res) => {
-        console.log("🔔 Webhook Digiflazz Masuk:", req.body);
         res.sendStatus(200);
     });
 }
@@ -188,31 +176,17 @@ install_dependencies() {
     echo "==============================================="
     echo "      🚀 MENGINSTALL SISTEM BOT 🚀      "
     echo "==============================================="
-    echo "Memperbarui sistem VPS..."
     sudo apt update && sudo apt upgrade -y
-
-    echo "Menginstall Node.js & Tools..."
     sudo apt install -y curl git wget nano
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
     sudo apt-get install -y nodejs
-    
-    echo "Memperbarui versi NPM ke 11.11.0..."
     sudo npm install -g npm@11.11.0
-    
-    echo "Menginstall PM2 Process Manager..."
     sudo npm install -g pm2
 
-    echo "Membuat file konfigurasi bot..."
     generate_bot_script
     
-    if [ ! -f "package.json" ]; then
-        npm init -y
-    fi
-    
-    echo "Membersihkan cache sistem untuk mencegah error..."
+    if [ ! -f "package.json" ]; then npm init -y; fi
     rm -rf node_modules package-lock.json
-    
-    echo "Menginstall library Bot WhatsApp..."
     npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser
 
     echo "==============================================="
@@ -250,7 +224,23 @@ while true; do
         1) install_dependencies ;;
         2) 
             if [ ! -f "index.js" ]; then echo "❌ Anda harus menjalankan Menu 1 dulu!"; sleep 2; continue; fi
-            echo "Menjalankan bot... (Tekan CTRL+C untuk mematikan)"
+            
+            # MEMINTA NOMOR DI BASH (TIDAK AKAN TERTUMPUK LOG BOT)
+            if [ ! -d "sesi_bot" ] || [ -z "$(ls -A sesi_bot 2>/dev/null)" ]; then
+                echo -e "\n--- PERSIAPAN LOGIN BARU ---"
+                read -p "📲 Masukkan Nomor WA Bot (Awali 628...): " nomor_bot
+                if [ ! -z "$nomor_bot" ]; then
+                    node -e "
+                        const fs = require('fs');
+                        if(!fs.existsSync('config.json')) fs.writeFileSync('config.json', '{}');
+                        let config = JSON.parse(fs.readFileSync('config.json'));
+                        config.botNumber = '$nomor_bot';
+                        fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                    "
+                fi
+            fi
+
+            echo -e "\nMenjalankan bot... (Tekan CTRL+C untuk mematikan)"
             node index.js
             echo -e "\n⚠️ Proses bot terhenti."
             read -p "Tekan Enter untuk kembali ke menu utama..."
