@@ -33,6 +33,9 @@ const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, nul
 if (!fs.existsSync(configFile)) saveJSON(configFile, { botName: "Tendo Store", botNumber: "", adminNumber: "", digiflazzUsername: "", digiflazzApiKey: "" });
 if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
 
+// Mencegah permintaan kode tautan berkali-kali (Anti-Spam)
+let isPairingRequested = false; 
+
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
     let config = loadJSON(configFile);
@@ -41,12 +44,14 @@ async function startBot() {
         auth: state,
         logger: pino({ level: 'silent' }),
         browser: ['Ubuntu', 'Chrome', '20.0.04'],
-        printQRInTerminal: false
+        printQRInTerminal: false 
     });
 
-    // SISTEM LOGIN BARU (Tanpa prompt berulang)
-    if (!sock.authState.creds.registered) {
+    // SISTEM LOGIN KODE TAUTAN (Sangat Stabil)
+    if (!sock.authState.creds.registered && !isPairingRequested) {
+        isPairingRequested = true;
         let phoneNumber = config.botNumber;
+        
         if (!phoneNumber) {
             console.log('\n❌ NOMOR BOT BELUM DIATUR!');
             console.log('Tutup bot ini (CTRL+C), lalu pilih Menu 2 untuk memasukkan nomor WA Bot Anda.');
@@ -67,6 +72,7 @@ async function startBot() {
                 console.log('5. Masukkan 8 huruf KODE TAUTAN di atas.\n');
             } catch (error) {
                 console.log('❌ Gagal mendapatkan kode. Pastikan format nomor benar (awali 628).');
+                isPairingRequested = false;
             }
         }, 3000);
     }
@@ -79,25 +85,12 @@ async function startBot() {
         if (connection === 'close') {
             let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
             
-            if (reason === DisconnectReason.badSession || reason === 405) {
-                console.log('❌ Sesi ditolak (Error 405). Menghapus dan meminta ulang kode tautan...');
-                fs.rmSync('./sesi_bot', { recursive: true, force: true });
-                setTimeout(startBot, 5000); // Jeda 5 detik agar tidak nyepam di layar
-            } else if (reason === DisconnectReason.connectionClosed) {
-                console.log('⚠️ Koneksi ditutup, mencoba menyambung ulang...');
-                setTimeout(startBot, 3000);
-            } else if (reason === DisconnectReason.connectionLost) {
-                console.log('⚠️ Kehilangan koneksi server, menyambung ulang...');
-                setTimeout(startBot, 3000);
-            } else if (reason === DisconnectReason.loggedOut) {
-                console.log('❌ WhatsApp dikeluarkan (Logged Out). Hapus sesi dan login ulang.');
-                fs.rmSync('./sesi_bot', { recursive: true, force: true });
-                setTimeout(startBot, 2000);
-            } else if (reason === DisconnectReason.restartRequired) {
-                console.log('🔄 Server meminta restart...');
-                startBot();
+            // PERBAIKAN: Tidak lagi menghapus folder secara barbar agar terhindar dari error ENOENT
+            if (reason === DisconnectReason.loggedOut) {
+                console.log('❌ WhatsApp dikeluarkan (Logged Out). Silakan pilih Menu 9 untuk Reset Sesi.');
+                process.exit(0);
             } else {
-                console.log(`⚠️ Terputus (Kode Error: ${reason}). Mencoba lagi...`);
+                console.log(`⚠️ Jaringan terputus sejenak (Kode: ${reason}). Mencoba menyambung kembali dengan aman...`);
                 setTimeout(startBot, 3000);
             }
         } else if (connection === 'open') {
@@ -225,7 +218,7 @@ while true; do
         2) 
             if [ ! -f "index.js" ]; then echo "❌ Anda harus menjalankan Menu 1 dulu!"; sleep 2; continue; fi
             
-            # MEMINTA NOMOR DI BASH (TIDAK AKAN TERTUMPUK LOG BOT)
+            # MEMINTA NOMOR DI BASH DENGAN AMAN
             if [ ! -d "sesi_bot" ] || [ -z "$(ls -A sesi_bot 2>/dev/null)" ]; then
                 echo -e "\n--- PERSIAPAN LOGIN BARU ---"
                 read -p "📲 Masukkan Nomor WA Bot (Awali 628...): " nomor_bot
