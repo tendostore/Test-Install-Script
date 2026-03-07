@@ -12,6 +12,7 @@ const fs = require('fs');
 const pino = require('pino');
 const express = require('express');
 const bodyParser = require('body-parser');
+const qrcode = require('qrcode-terminal'); // PERBAIKAN: Menambahkan pemanggil QR Code
 
 const app = express();
 app.use(bodyParser.json());
@@ -30,14 +31,21 @@ async function startBot() {
     
     const sock = makeWASocket({
         auth: state,
-        printQRInTerminal: true,
+        // printQRInTerminal: true, // PERBAIKAN: Fitur usang ini dimatikan
         logger: pino({ level: 'silent' })
     });
 
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect } = update;
+        const { connection, lastDisconnect, qr } = update;
+        
+        // PERBAIKAN: Menampilkan QR Code secara manual menggunakan qrcode-terminal
+        if (qr) {
+            console.log('\n[!] SCAN QR CODE DI BAWAH INI DENGAN WHATSAPP ANDA:');
+            qrcode.generate(qr, { small: true });
+        }
+
         if (connection === 'close') {
             const shouldReconnect = (lastDisconnect.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
             if (shouldReconnect) {
@@ -63,22 +71,17 @@ async function startBot() {
         let config = loadJSON(configFile);
         let db = loadJSON(dbFile);
 
-        // ==========================================
         // SISTEM KEAMANAN (HANYA MEMBER)
-        // ==========================================
         if (!db[sender]) {
-            // Hanya merespons jika user mencoba mengetik perintah (dimulai dengan titik)
             if (command.startsWith('.')) {
                 await sock.sendMessage(from, { 
                     text: `❌ *AKSES DITOLAK*\n\nMaaf, nomor Anda belum terdaftar sebagai member di *${config.botName}*.\nSilakan hubungi Admin untuk pendaftaran.` 
                 });
             }
-            return; // Hentikan eksekusi kode di bawahnya jika bukan member
+            return;
         }
 
-        // ==========================================
         // MENU PELANGGAN TERDAFTAR
-        // ==========================================
         if (command === '.menu') {
             await sock.sendMessage(from, { 
                 text: `👋 Selamat Datang kembali di *${config.botName}*\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
