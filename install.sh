@@ -34,6 +34,7 @@ if (!fs.existsSync(configFile)) saveJSON(configFile, { botName: "Tendo Store", b
 if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
 
 let pairingRequested = false; 
+let broadcastInterval; // Mencegah interval menumpuk
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
@@ -42,9 +43,10 @@ async function startBot() {
     const sock = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
-        // PERBAIKAN: Menggunakan standar resmi dari sistem agar tidak kena Error 405
         browser: Browsers.ubuntu('Chrome'),
-        printQRInTerminal: false 
+        printQRInTerminal: false,
+        markOnlineOnConnect: false, // PENTING: Mencegah WhatsApp menendang bot di detik pertama
+        syncFullHistory: false
     });
 
     if (!sock.authState.creds.registered && !pairingRequested) {
@@ -56,8 +58,7 @@ async function startBot() {
             process.exit(0);
         }
 
-        console.log("\n⏳ Menyiapkan koneksi aman ke server WhatsApp...");
-        // PERBAIKAN: Jeda 6 detik memastikan koneksi sudah stabil dan tidak berkedip
+        console.log("\n⏳ Menyiapkan koneksi ke server WhatsApp (Mohon tunggu 6 detik)...");
         setTimeout(async () => {
             try {
                 let formattedNumber = phoneNumber.replace(/[^0-9]/g, '');
@@ -65,13 +66,10 @@ async function startBot() {
                 console.log(`\n=======================================================`);
                 console.log(`🔑 KODE TAUTAN ANDA :  ${code}  `);
                 console.log(`=======================================================`);
-                console.log('1. Buka aplikasi WhatsApp di HP Anda.');
-                console.log('2. Klik titik 3 di kanan atas -> Perangkat Tertaut.');
-                console.log('3. Klik tombol "Tautkan Perangkat".');
-                console.log('4. DI BAWAH layar kamera, klik "Tautkan dengan nomor telepon saja".');
-                console.log('5. Masukkan 8 huruf KODE TAUTAN di atas.\n');
+                console.log('👉 Buka WA di HP -> Perangkat Tertaut -> Tautkan dengan nomor telepon saja.');
+                console.log('⚠️ JIKA MUNCUL ERROR 405 SETELAH INI, ABAIKAN SAJA! Segera masukkan kodenya ke HP Anda!\n');
             } catch (error) {
-                console.log('❌ Gagal mendapatkan kode. Pastikan format nomor benar (awali 628).');
+                console.log('\n❌ Gagal mendapatkan kode. Koneksi belum stabil. Silakan restart bot.');
                 pairingRequested = false;
             }
         }, 6000); 
@@ -88,15 +86,13 @@ async function startBot() {
             if (reason === DisconnectReason.loggedOut) {
                 console.log('❌ WhatsApp dikeluarkan (Logged Out). Silakan pilih Menu 9 untuk Reset Sesi.');
                 process.exit(0);
-            } else if (reason === 405) {
-                console.log(`⚠️ Koneksi ditolak (405). Menstabilkan ulang jaringan...`);
-                setTimeout(startBot, 3000);
             } else {
-                console.log(`⚠️ Jaringan terputus (Kode: ${reason}). Mencoba menyambung kembali...`);
+                // PERBAIKAN: JANGAN hapus folder sesi di sini! Biarkan dia menyambung ulang sendiri
+                console.log(`⚠️ Koneksi terputus sejenak (Kode: ${reason}). Menyambung ulang dengan aman...`);
                 setTimeout(startBot, 3000);
             }
         } else if (connection === 'open') {
-            console.log('\n✅ BOT WHATSAPP BERHASIL TERHUBUNG!');
+            console.log('\n✅ BOT WHATSAPP BERHASIL TERHUBUNG DENGAN AMAN!');
         }
     });
 
@@ -134,7 +130,8 @@ async function startBot() {
         }
     });
 
-    setInterval(async () => {
+    if (broadcastInterval) clearInterval(broadcastInterval);
+    broadcastInterval = setInterval(async () => {
         if (fs.existsSync('./broadcast.txt')) {
             let textBroadcast = fs.readFileSync('./broadcast.txt', 'utf-8');
             fs.unlinkSync('./broadcast.txt');
@@ -158,8 +155,11 @@ async function startBot() {
     });
 }
 
-app.listen(3000, () => console.log('🌐 Server Webhook berjalan di Port 3000'));
-startBot();
+// Hanya jalankan web server satu kali
+if (require.main === module) {
+    app.listen(3000, () => console.log('🌐 Server Webhook berjalan di Port 3000'));
+    startBot();
+}
 EOF
 }
 
