@@ -44,15 +44,13 @@ async function startBot() {
     let config = loadJSON(configFile);
     
     const { version, isLatest } = await fetchLatestBaileysVersion();
-    console.log(`\n📡 Menghubungkan ke WA Web v${version.join('.')} (Terbaru: ${isLatest})`);
-
+    
     const sock = makeWASocket({
         version,
         auth: state,
         logger: pino({ level: 'silent' }),
         browser: Browsers.ubuntu('Chrome'),
         printQRInTerminal: false,
-        markOnlineOnConnect: false,
         syncFullHistory: false
     });
 
@@ -65,7 +63,6 @@ async function startBot() {
             process.exit(0);
         }
 
-        console.log("\n⏳ Meminta kode tautan ke server WhatsApp...");
         setTimeout(async () => {
             try {
                 let formattedNumber = phoneNumber.replace(/[^0-9]/g, '');
@@ -74,26 +71,23 @@ async function startBot() {
                 console.log(`🔑 KODE TAUTAN ANDA :  ${code}  `);
                 console.log(`=======================================================`);
                 console.log('👉 Buka WA di HP -> Perangkat Tertaut -> Tautkan dengan nomor telepon saja.');
-                console.log('⚠️ JIKA MUNCUL ERROR 405 SETELAH INI, ABAIKAN SAJA! Segera masukkan kodenya ke HP Anda!\n');
+                console.log('⚠️ SEGERA MASUKKAN KODENYA KE HP ANDA!\n');
             } catch (error) {
-                console.log('\n❌ Gagal mendapatkan kode. Koneksi belum stabil. Silakan restart bot.');
-                pairingRequested = false;
+                pairingRequested = false; 
             }
-        }, 4000); 
+        }, 8000); 
     }
 
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect } = update;
-
         if (connection === 'close') {
             let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
             if (reason === DisconnectReason.loggedOut) {
-                console.log('❌ WhatsApp dikeluarkan (Logged Out). Silakan pilih Menu 9 untuk Reset Sesi.');
                 process.exit(0);
             } else {
-                console.log(`⚠️ Koneksi terputus sejenak (Kode: ${reason}). Menyambung ulang dengan aman...`);
+                pairingRequested = false;
                 setTimeout(startBot, 4000);
             }
         } else if (connection === 'open') {
@@ -106,7 +100,11 @@ async function startBot() {
         if (!msg.message || msg.key.fromMe) return;
 
         const from = msg.key.remoteJid;
-        const sender = jidNormalizedUser(msg.key.participant || msg.key.remoteJid);
+        const senderJid = jidNormalizedUser(msg.key.participant || msg.key.remoteJid);
+        
+        // PERBAIKAN: Mengambil angka murni sebagai ID Member (Anti-Error WhatsApp)
+        const sender = senderJid.split('@')[0]; 
+        
         const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
         const command = body.split(' ')[0].toLowerCase();
         
@@ -114,13 +112,12 @@ async function startBot() {
         let namaBot = config.botName || "Tendo Store";
         let db = loadJSON(dbFile);
 
-        // FITUR BARU: AUTO-REGISTER (SIAPAPUN OTOMATIS JADI MEMBER DENGAN SALDO 0)
         if (!db[sender]) {
-            db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID') };
+            // Menyimpan JID asli untuk kebutuhan broadcast
+            db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: senderJid };
             saveJSON(dbFile, db);
         }
 
-        // MENU BEBAS AKSES
         if (command === '.menu') {
             await sock.sendMessage(from, { 
                 text: `👋 Selamat Datang di *${namaBot}*\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
@@ -129,7 +126,7 @@ async function startBot() {
 
         if (command === '.saldo') {
             await sock.sendMessage(from, { 
-                text: `💰 Saldo Anda saat ini: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` 
+                text: `💰 Saldo Anda saat ini: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*\n\n📌 *ID Member Anda:* ${sender}\n_(Gunakan ID di atas saat Admin ingin menambah saldo di VPS)_` 
             });
         }
     });
@@ -145,9 +142,10 @@ async function startBot() {
                 let config = loadJSON(configFile);
                 let namaBot = config.botName || "Tendo Store";
                 let members = Object.keys(db);
-                for (let jid of members) {
+                for (let num of members) {
                     try {
-                        await sock.sendMessage(jid, { text: `📢 *INFORMASI ${namaBot}*\n\n${textBroadcast.trim()}` });
+                        let targetJid = db[num].jid || (num + '@s.whatsapp.net');
+                        await sock.sendMessage(targetJid, { text: `📢 *INFORMASI ${namaBot}*\n\n${textBroadcast.trim()}` });
                         await new Promise(res => setTimeout(res, 3000));
                     } catch (err) {}
                 }
@@ -181,13 +179,10 @@ install_dependencies() {
     sudo apt-get install -y nodejs
     sudo npm install -g npm@11.11.0
     sudo npm install -g pm2
-
     generate_bot_script
-    
     if [ ! -f "package.json" ]; then npm init -y; fi
     rm -rf node_modules package-lock.json
     npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser
-
     echo "==============================================="
     echo " ✅ INSTALASI SELESAI! "
     echo "==============================================="
@@ -213,32 +208,32 @@ menu_member() {
         case $subchoice in
             1)
                 echo "--- TAMBAH SALDO MEMBER ---"
-                read -p "Masukkan Nomor WA (contoh: 62812...): " nomor
+                read -p "Masukkan ID Member (Sesuai yg tampil di bot): " nomor
                 read -p "Masukkan Jumlah Saldo: " jumlah
                 node -e "
                     const fs = require('fs');
                     let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
-                    let target = '$nomor@s.whatsapp.net';
+                    let target = '$nomor';
                     if(!db[target]) {
-                        db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID') };
+                        db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: target + '@s.whatsapp.net' };
                     }
                     db[target].saldo += parseInt('$jumlah');
                     fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
-                    console.log('\n✅ Saldo Rp $jumlah berhasil ditambahkan ke nomor $nomor!');
+                    console.log('\n✅ Saldo Rp $jumlah berhasil ditambahkan ke ID ' + target + '!');
                     console.log('💰 Saldo saat ini: Rp ' + db[target].saldo.toLocaleString('id-ID'));
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
                 echo "--- KURANGI SALDO MEMBER ---"
-                read -p "Masukkan Nomor WA (contoh: 62812...): " nomor
+                read -p "Masukkan ID Member: " nomor
                 read -p "Masukkan Jumlah Saldo yg dikurangi: " jumlah
                 node -e "
                     const fs = require('fs');
                     let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
-                    let target = '$nomor@s.whatsapp.net';
+                    let target = '$nomor';
                     if(!db[target]) {
-                        console.log('\n❌ Nomor belum terdaftar di database.');
+                        console.log('\n❌ ID belum terdaftar di database.');
                     } else {
                         db[target].saldo -= parseInt('$jumlah');
                         if(db[target].saldo < 0) db[target].saldo = 0;
@@ -259,8 +254,7 @@ menu_member() {
                         console.log('Belum ada member yang berinteraksi dengan bot.');
                     } else {
                         members.forEach((m, index) => {
-                            let num = m.split('@')[0];
-                            console.log((index + 1) + '. ' + num + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID'));
+                            console.log((index + 1) + '. ID: ' + m + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID'));
                         });
                         console.log('\nTotal Member: ' + members.length);
                     }
@@ -302,7 +296,6 @@ while true; do
         2) 
             if [ ! -f "index.js" ]; then echo "❌ Anda harus menjalankan Menu 1 dulu!"; sleep 2; continue; fi
             if [ ! -d "sesi_bot" ] || [ -z "$(ls -A sesi_bot 2>/dev/null)" ]; then
-                echo -e "\n--- PERSIAPAN LOGIN BARU ---"
                 read -p "📲 Masukkan Nomor WA Bot (Awali 628...): " nomor_bot
                 if [ ! -z "$nomor_bot" ]; then
                     node -e "
