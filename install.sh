@@ -14,7 +14,7 @@ fi
 generate_bot_script() {
     echo "Membuat file index.js..."
     cat << 'EOF' > index.js
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const fs = require('fs');
 const pino = require('pino');
@@ -33,20 +33,24 @@ const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, nul
 if (!fs.existsSync(configFile)) saveJSON(configFile, { botName: "Tendo Store", botNumber: "", adminNumber: "", digiflazzUsername: "", digiflazzApiKey: "" });
 if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
 
-let pairingRequested = false; 
-let broadcastInterval; // Mencegah interval menumpuk
+let pairingRequested = false;
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
+    
+    // PERBAIKAN UTAMA: Mengambil versi WhatsApp Web terbaru secara dinamis
+    const { version, isLatest } = await fetchLatestBaileysVersion();
+    console.log(`\n📡 Menghubungkan ke WhatsApp Web v${version.join('.')} (Terbaru: ${isLatest})`);
+    
     let config = loadJSON(configFile);
     
     const sock = makeWASocket({
+        version, // Memaksa bot menggunakan versi WA terbaru
         auth: state,
         logger: pino({ level: 'silent' }),
         browser: Browsers.ubuntu('Chrome'),
         printQRInTerminal: false,
-        markOnlineOnConnect: false, // PENTING: Mencegah WhatsApp menendang bot di detik pertama
-        syncFullHistory: false
+        markOnlineOnConnect: false
     });
 
     if (!sock.authState.creds.registered && !pairingRequested) {
@@ -58,7 +62,7 @@ async function startBot() {
             process.exit(0);
         }
 
-        console.log("\n⏳ Menyiapkan koneksi ke server WhatsApp (Mohon tunggu 6 detik)...");
+        console.log("⏳ Meminta kode tautan ke server WhatsApp...");
         setTimeout(async () => {
             try {
                 let formattedNumber = phoneNumber.replace(/[^0-9]/g, '');
@@ -66,13 +70,15 @@ async function startBot() {
                 console.log(`\n=======================================================`);
                 console.log(`🔑 KODE TAUTAN ANDA :  ${code}  `);
                 console.log(`=======================================================`);
-                console.log('👉 Buka WA di HP -> Perangkat Tertaut -> Tautkan dengan nomor telepon saja.');
-                console.log('⚠️ JIKA MUNCUL ERROR 405 SETELAH INI, ABAIKAN SAJA! Segera masukkan kodenya ke HP Anda!\n');
+                console.log('👉 Buka aplikasi WA di HP Anda.');
+                console.log('👉 Klik titik 3 di kanan atas -> Perangkat Tertaut.');
+                console.log('👉 Klik "Tautkan Perangkat" -> "Tautkan dengan nomor telepon saja".');
+                console.log('👉 Masukkan 8 huruf KODE TAUTAN di atas.\n');
             } catch (error) {
-                console.log('\n❌ Gagal mendapatkan kode. Koneksi belum stabil. Silakan restart bot.');
+                console.log('\n❌ Gagal mendapatkan kode. Silakan restart bot (Tekan CTRL+C lalu pilih Menu 2 lagi).');
                 pairingRequested = false;
             }
-        }, 6000); 
+        }, 4000); 
     }
 
     sock.ev.on('creds.update', saveCreds);
@@ -87,9 +93,9 @@ async function startBot() {
                 console.log('❌ WhatsApp dikeluarkan (Logged Out). Silakan pilih Menu 9 untuk Reset Sesi.');
                 process.exit(0);
             } else {
-                // PERBAIKAN: JANGAN hapus folder sesi di sini! Biarkan dia menyambung ulang sendiri
-                console.log(`⚠️ Koneksi terputus sejenak (Kode: ${reason}). Menyambung ulang dengan aman...`);
-                setTimeout(startBot, 3000);
+                console.log(`⚠️ Jaringan terputus (Kode: ${reason}). Menyambung ulang dalam 5 detik...`);
+                // Memberi jeda 5 detik sebelum mencoba lagi agar terminal tidak spam/banjir error
+                setTimeout(startBot, 5000);
             }
         } else if (connection === 'open') {
             console.log('\n✅ BOT WHATSAPP BERHASIL TERHUBUNG DENGAN AMAN!');
@@ -130,8 +136,9 @@ async function startBot() {
         }
     });
 
-    if (broadcastInterval) clearInterval(broadcastInterval);
-    broadcastInterval = setInterval(async () => {
+    // Menghapus interval lama agar tidak menumpuk saat bot restart
+    if (global.broadcastInterval) clearInterval(global.broadcastInterval);
+    global.broadcastInterval = setInterval(async () => {
         if (fs.existsSync('./broadcast.txt')) {
             let textBroadcast = fs.readFileSync('./broadcast.txt', 'utf-8');
             fs.unlinkSync('./broadcast.txt');
@@ -155,7 +162,7 @@ async function startBot() {
     });
 }
 
-// Hanya jalankan web server satu kali
+// Hanya jalankan web server jika dipanggil langsung
 if (require.main === module) {
     app.listen(3000, () => console.log('🌐 Server Webhook berjalan di Port 3000'));
     startBot();
