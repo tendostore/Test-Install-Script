@@ -14,7 +14,7 @@ fi
 generate_bot_script() {
     echo "Membuat file index.js..."
     cat << 'EOF' > index.js
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const fs = require('fs');
 const pino = require('pino');
@@ -30,7 +30,7 @@ const dbFile = './database.json';
 const loadJSON = (file) => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
 const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
 
-// Memastikan konfigurasi dasar selalu ada agar tidak "undefined"
+// Memastikan konfigurasi dasar selalu ada (Anti Undefined)
 let configAwal = loadJSON(configFile);
 configAwal.botName = configAwal.botName || "Tendo Store";
 configAwal.botNumber = configAwal.botNumber || "";
@@ -44,12 +44,18 @@ async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
     let config = loadJSON(configFile);
     
+    // ANTI-405: Selalu gunakan versi WA Web terbaru
+    const { version, isLatest } = await fetchLatestBaileysVersion();
+    console.log(`\n📡 Menghubungkan ke WA Web v${version.join('.')} (Terbaru: ${isLatest})`);
+
     const sock = makeWASocket({
+        version,
         auth: state,
         logger: pino({ level: 'silent' }),
         browser: Browsers.ubuntu('Chrome'),
         printQRInTerminal: false,
-        markOnlineOnConnect: false
+        markOnlineOnConnect: false,
+        syncFullHistory: false
     });
 
     if (!sock.authState.creds.registered && !pairingRequested) {
@@ -61,7 +67,7 @@ async function startBot() {
             process.exit(0);
         }
 
-        console.log("\n⏳ Menyiapkan koneksi ke server WhatsApp (Mohon tunggu 6 detik)...");
+        console.log("\n⏳ Meminta kode tautan ke server WhatsApp...");
         setTimeout(async () => {
             try {
                 let formattedNumber = phoneNumber.replace(/[^0-9]/g, '');
@@ -75,7 +81,7 @@ async function startBot() {
                 console.log('\n❌ Gagal mendapatkan kode. Koneksi belum stabil. Silakan restart bot.');
                 pairingRequested = false;
             }
-        }, 6000); 
+        }, 4000); 
     }
 
     sock.ev.on('creds.update', saveCreds);
@@ -86,11 +92,11 @@ async function startBot() {
         if (connection === 'close') {
             let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
             if (reason === DisconnectReason.loggedOut) {
-                console.log('❌ WhatsApp dikeluarkan (Logged Out). Silakan pilih Menu Reset Sesi.');
+                console.log('❌ WhatsApp dikeluarkan (Logged Out). Silakan pilih Menu 9 untuk Reset Sesi.');
                 process.exit(0);
             } else {
                 console.log(`⚠️ Koneksi terputus sejenak (Kode: ${reason}). Menyambung ulang dengan aman...`);
-                setTimeout(startBot, 3000);
+                setTimeout(startBot, 4000);
             }
         } else if (connection === 'open') {
             console.log('\n✅ BOT WHATSAPP BERHASIL TERHUBUNG DENGAN AMAN!');
@@ -102,19 +108,20 @@ async function startBot() {
         if (!msg.message || msg.key.fromMe) return;
 
         const from = msg.key.remoteJid;
-        // PERBAIKAN: Menghapus ID Perangkat (contoh: :15) agar nomor cocok dengan database
+        // ANTI UNDEFINED MEMBER: Membersihkan ID Perangkat (seperti :15) dari nomor WA
         const sender = jidNormalizedUser(msg.key.participant || msg.key.remoteJid);
         const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
         const command = body.split(' ')[0].toLowerCase();
         
         let config = loadJSON(configFile);
+        let namaBot = config.botName || "Tendo Store";
         let db = loadJSON(dbFile);
 
         // CEK AKSES MEMBER
         if (!db[sender]) {
             if (command.startsWith('.')) {
                 await sock.sendMessage(from, { 
-                    text: `❌ *AKSES DITOLAK*\n\nMaaf, nomor Anda belum terdaftar sebagai member di *${config.botName}*.\nSilakan hubungi Admin untuk pendaftaran.` 
+                    text: `❌ *AKSES DITOLAK*\n\nMaaf, nomor Anda belum terdaftar sebagai member di *${namaBot}*.\nSilakan hubungi Admin untuk pendaftaran.` 
                 });
             }
             return;
@@ -123,7 +130,7 @@ async function startBot() {
         // MENU MEMBER TERDAFTAR
         if (command === '.menu') {
             await sock.sendMessage(from, { 
-                text: `👋 Selamat Datang kembali di *${config.botName}*\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
+                text: `👋 Selamat Datang kembali di *${namaBot}*\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
             });
         }
 
@@ -142,10 +149,12 @@ async function startBot() {
 
             if (textBroadcast.trim()) {
                 let db = loadJSON(dbFile);
+                let config = loadJSON(configFile);
+                let namaBot = config.botName || "Tendo Store";
                 let members = Object.keys(db);
                 for (let jid of members) {
                     try {
-                        await sock.sendMessage(jid, { text: `📢 *INFORMASI ${loadJSON(configFile).botName}*\n\n${textBroadcast.trim()}` });
+                        await sock.sendMessage(jid, { text: `📢 *INFORMASI ${namaBot}*\n\n${textBroadcast.trim()}` });
                         await new Promise(res => setTimeout(res, 3000));
                     } catch (err) {}
                 }
@@ -229,7 +238,7 @@ menu_member() {
                 ;;
             2)
                 echo "--- HAPUS MEMBER ---"
-                read -p "Masukkan Nomor WA yg mau dihapus: " nomor
+                read -p "Masukkan Nomor WA yg mau dihapus (contoh: 62812...): " nomor
                 node -e "
                     const fs = require('fs');
                     let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
@@ -303,7 +312,7 @@ while true; do
     echo "5. Lihat Log / Error Bot"
     echo ""
     echo "--- PENGATURAN LAINNYA ---"
-    echo "6. 👥 Buka Menu Manajemen Member (Tambah/Hapus/Saldo)"
+    echo "6. 👥 Buka Menu Manajemen Member"
     echo "7. Ganti API Digiflazz"
     echo "8. Ganti Akun Bot WhatsApp (Reset Sesi)"
     echo "9. 📢 Kirim Pesan Broadcast ke Semua Member"
