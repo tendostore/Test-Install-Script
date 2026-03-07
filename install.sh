@@ -1,35 +1,156 @@
 #!/bin/bash
 
-# Fungsi untuk proses instalasi dependensi
+# ==========================================
+# FUNGSI UNTUK MEMBUAT FILE INDEX.JS OTOMATIS
+# ==========================================
+generate_bot_script() {
+    echo "Membuat file index.js..."
+    cat << 'EOF' > index.js
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const { Boom } = require('@hapi/boom');
+const fs = require('fs');
+const pino = require('pino');
+const express = require('express');
+const bodyParser = require('body-parser');
+
+const app = express();
+app.use(bodyParser.json());
+
+const configFile = './config.json';
+const dbFile = './database.json';
+
+const loadJSON = (file) => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
+
+if (!fs.existsSync(configFile)) saveJSON(configFile, { botName: "Tendo Store", adminNumber: "", digiflazzUsername: "", digiflazzApiKey: "" });
+if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
+
+async function startBot() {
+    const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
+    
+    const sock = makeWASocket({
+        auth: state,
+        printQRInTerminal: true,
+        logger: pino({ level: 'silent' })
+    });
+
+    sock.ev.on('creds.update', saveCreds);
+
+    sock.ev.on('connection.update', (update) => {
+        const { connection, lastDisconnect } = update;
+        if (connection === 'close') {
+            const shouldReconnect = (lastDisconnect.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+            if (shouldReconnect) {
+                console.log('Koneksi terputus, mencoba menghubungkan kembali...');
+                startBot();
+            } else {
+                console.log('Sesi WhatsApp telah dihapus. Silakan scan QR ulang.');
+            }
+        } else if (connection === 'open') {
+            console.log('\n✅ BOT WHATSAPP BERHASIL TERHUBUNG!');
+        }
+    });
+
+    sock.ev.on('messages.upsert', async m => {
+        const msg = m.messages[0];
+        if (!msg.message || msg.key.fromMe) return;
+
+        const from = msg.key.remoteJid;
+        const sender = msg.key.participant || msg.key.remoteJid;
+        const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+        const command = body.split(' ')[0].toLowerCase();
+        
+        let config = loadJSON(configFile);
+        let db = loadJSON(dbFile);
+
+        // ==========================================
+        // SISTEM KEAMANAN (HANYA MEMBER)
+        // ==========================================
+        if (!db[sender]) {
+            // Hanya merespons jika user mencoba mengetik perintah (dimulai dengan titik)
+            if (command.startsWith('.')) {
+                await sock.sendMessage(from, { 
+                    text: `❌ *AKSES DITOLAK*\n\nMaaf, nomor Anda belum terdaftar sebagai member di *${config.botName}*.\nSilakan hubungi Admin untuk pendaftaran.` 
+                });
+            }
+            return; // Hentikan eksekusi kode di bawahnya jika bukan member
+        }
+
+        // ==========================================
+        // MENU PELANGGAN TERDAFTAR
+        // ==========================================
+        if (command === '.menu') {
+            await sock.sendMessage(from, { 
+                text: `👋 Selamat Datang kembali di *${config.botName}*\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
+            });
+        }
+
+        if (command === '.saldo') {
+            await sock.sendMessage(from, { 
+                text: `💰 Saldo Anda saat ini: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` 
+            });
+        }
+    });
+
+    setInterval(async () => {
+        if (fs.existsSync('./broadcast.txt')) {
+            let textBroadcast = fs.readFileSync('./broadcast.txt', 'utf-8');
+            fs.unlinkSync('./broadcast.txt');
+
+            if (textBroadcast.trim()) {
+                let db = loadJSON(dbFile);
+                let members = Object.keys(db);
+                
+                console.log(`\n📢 Memulai Broadcast ke ${members.length} member...`);
+                for (let jid of members) {
+                    try {
+                        await sock.sendMessage(jid, { text: `📢 *INFORMASI ${loadJSON(configFile).botName}*\n\n${textBroadcast.trim()}` });
+                        await new Promise(res => setTimeout(res, 3000));
+                    } catch (err) {
+                        console.log(`❌ Gagal kirim ke ${jid}`);
+                    }
+                }
+                console.log('✅ Broadcast Selesai!\n');
+            }
+        }
+    }, 5000);
+    
+    app.post('/webhook', async (req, res) => {
+        console.log("🔔 Webhook Digiflazz Masuk:", req.body);
+        res.sendStatus(200);
+    });
+}
+
+app.listen(3000, () => console.log('🌐 Server Webhook berjalan di Port 3000'));
+startBot();
+EOF
+}
+
+# ==========================================
+# FUNGSI INSTALASI DEPENDENSI
+# ==========================================
 install_dependencies() {
     clear
     echo "==============================================="
-    echo "      🚀 MENGINSTALL DEPENDENSI SISTEM 🚀      "
+    echo "      🚀 MENGINSTALL SISTEM BOT 🚀      "
     echo "==============================================="
     echo "Memperbarui sistem VPS..."
     sudo apt update && sudo apt upgrade -y
 
-    echo "Menginstall curl, wget, nano, dan Node.js..."
+    echo "Menginstall Node.js & Tools..."
     sudo apt install -y curl git wget nano
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
     sudo apt-get install -y nodejs
-
-    echo "Menginstall PM2 Process Manager..."
     sudo npm install -g pm2
 
-    echo "Menginstall library Bot WhatsApp..."
+    echo "Membuat file konfigurasi bot..."
+    generate_bot_script
+    
     if [ ! -f "package.json" ]; then
         npm init -y
     fi
+    echo "Menginstall library Bot WhatsApp..."
     npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser
-
-    # Membuat file dasar jika belum ada
-    if [ ! -f "config.json" ]; then
-        echo '{"botName": "Tendo Store", "adminNumber": "", "digiflazzUsername": "", "digiflazzApiKey": ""}' > config.json
-    fi
-    if [ ! -f "database.json" ]; then
-        echo '{}' > database.json
-    fi
 
     echo "==============================================="
     echo " ✅ INSTALASI SELESAI! "
@@ -37,109 +158,119 @@ install_dependencies() {
     read -p "Tekan Enter untuk kembali ke Menu Utama..."
 }
 
-# Looping Menu Utama
+# ==========================================
+# MENU UTAMA (PANEL KONTROL)
+# ==========================================
 while true; do
     clear
     echo "==============================================="
     echo "      🤖 PANEL PENGELOLA TENDO STORE 🤖      "
     echo "==============================================="
     echo "--- MANAJEMEN BOT ---"
-    echo "1. Install / Update Dependensi Bot"
+    echo "1. Install & Buat File Bot Otomatis"
     echo "2. Mulai Bot (Terminal / Scan QR Code)"
     echo "3. Jalankan Bot di Latar Belakang (PM2)"
     echo "4. Hentikan Bot (PM2)"
     echo "5. Lihat Log / Error Bot"
     echo ""
-    echo "--- PENGATURAN & DATABASE ---"
-    echo "6. Tambah Saldo Member"
-    echo "7. Ganti API Digiflazz"
-    echo "8. Ganti Akun Bot WhatsApp (Reset Sesi)"
+    echo "--- MANAJEMEN MEMBER & DATABASE ---"
+    echo "6. Tambah Member Baru (Akses Bot)"
+    echo "7. Tambah Saldo Member"
+    echo "8. Ganti API Digiflazz"
+    echo "9. Ganti Akun Bot WhatsApp (Reset Sesi)"
+    echo "10. 📢 Kirim Pesan Broadcast ke Semua Member"
     echo "0. Keluar"
     echo "==============================================="
-    read -p "Pilih menu [0-8]: " choice
+    read -p "Pilih menu [0-10]: " choice
 
     case $choice in
-        1)
-            install_dependencies
-            ;;
-        2)
-            echo "Menjalankan bot di terminal... (Tekan CTRL+C untuk mematikan)"
-            node index.js
-            ;;
-        3)
-            echo "Menjalankan bot dengan PM2..."
+        1) install_dependencies ;;
+        2) 
+            if [ ! -f "index.js" ]; then echo "❌ Anda harus menjalankan Menu 1 dulu!"; sleep 2; continue; fi
+            echo "Menjalankan bot... (Tekan CTRL+C untuk mematikan)"
+            node index.js ;;
+        3) 
             pm2 start index.js --name "tendo-bot"
             pm2 save
-            echo "Bot berhasil berjalan di latar belakang!"
-            sleep 2
-            ;;
-        4)
-            echo "Menghentikan bot..."
-            pm2 stop tendo-bot
-            sleep 2
-            ;;
-        5)
-            echo "Membuka log PM2... (Tekan CTRL+C untuk keluar dari log)"
-            pm2 logs tendo-bot
-            ;;
+            pm2 startup
+            echo "✅ Bot berhasil berjalan di latar belakang!"
+            sleep 2 ;;
+        4) pm2 stop tendo-bot; sleep 2 ;;
+        5) pm2 logs tendo-bot ;;
         6)
-            echo "--- TAMBAH SALDO MEMBER ---"
+            echo "--- TAMBAH MEMBER BARU ---"
             read -p "Masukkan Nomor WA (contoh: 62812...): " nomor
-            read -p "Masukkan Jumlah Saldo yang ditambahkan: " jumlah
-            
-            # Eksekusi Node.js satu baris untuk mengupdate database.json
             node -e "
                 const fs = require('fs');
+                if(!fs.existsSync('database.json')) fs.writeFileSync('database.json', '{}');
                 let db = JSON.parse(fs.readFileSync('database.json'));
                 let target = '$nomor@s.whatsapp.net';
-                if(!db[target]) db[target] = { saldo: 0 };
-                db[target].saldo += parseInt('$jumlah');
-                fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
-                console.log('✅ Saldo berhasil ditambahkan! Saldo akhir: Rp ' + db[target].saldo);
+                if(db[target]) {
+                    console.log('⚠️ Nomor tersebut sudah terdaftar sebagai member!');
+                } else {
+                    db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID') };
+                    fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
+                    console.log('\n✅ Nomor $nomor berhasil didaftarkan sebagai member!');
+                }
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
         7)
-            echo "--- PENGATURAN API DIGIFLAZZ ---"
-            read -p "Masukkan Username Digiflazz Baru: " user_api
-            read -p "Masukkan API Key Digiflazz Baru: " key_api
-            
-            # Eksekusi Node.js untuk mengupdate config.json
+            echo "--- TAMBAH SALDO MEMBER ---"
+            read -p "Masukkan Nomor WA (contoh: 62812...): " nomor
+            read -p "Masukkan Jumlah Saldo yang ditambahkan: " jumlah
             node -e "
                 const fs = require('fs');
-                let config = JSON.parse(fs.readFileSync('config.json'));
-                config.digiflazzUsername = '$user_api';
-                config.digiflazzApiKey = '$key_api';
-                fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
-                console.log('✅ Konfigurasi API Digiflazz berhasil disimpan!');
+                if(!fs.existsSync('database.json')) fs.writeFileSync('database.json', '{}');
+                let db = JSON.parse(fs.readFileSync('database.json'));
+                let target = '$nomor@s.whatsapp.net';
+                if(!db[target]) {
+                    console.log('❌ Gagal: Nomor belum terdaftar! Silakan daftarkan lewat Menu 6 dulu.');
+                } else {
+                    db[target].saldo += parseInt('$jumlah');
+                    fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
+                    console.log('\n✅ Saldo Rp $jumlah berhasil ditambahkan ke nomor $nomor!');
+                    console.log('💰 Saldo akhir: Rp ' + db[target].saldo);
+                }
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
         8)
-            echo "--- GANTI AKUN WHATSAPP ---"
-            echo "⚠️  PERINGATAN: Ini akan menghapus sesi login WhatsApp saat ini."
-            echo "Bot akan meminta Anda untuk Scan QR Code baru setelah ini."
-            read -p "Apakah Anda yakin ingin melanjutkan? (y/n): " konfirmasi
-            
+            echo "--- PENGATURAN API DIGIFLAZZ ---"
+            read -p "Username Digiflazz Baru: " user_api
+            read -p "API Key Digiflazz Baru: " key_api
+            node -e "
+                const fs = require('fs');
+                if(!fs.existsSync('config.json')) fs.writeFileSync('config.json', '{}');
+                let config = JSON.parse(fs.readFileSync('config.json'));
+                config.digiflazzUsername = '$user_api';
+                config.digiflazzApiKey = '$key_api';
+                fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                console.log('\n✅ Konfigurasi API Digiflazz berhasil disimpan!');
+            "
+            read -p "Tekan Enter untuk kembali..."
+            ;;
+        9)
+            echo "⚠️  Ini akan menghapus sesi login WhatsApp saat ini."
+            read -p "Lanjutkan? (y/n): " konfirmasi
             if [ "$konfirmasi" == "y" ] || [ "$konfirmasi" == "Y" ]; then
-                # Hentikan PM2 dulu jika menyala agar tidak error
                 pm2 stop tendo-bot 2>/dev/null
-                # Hapus folder sesi (sesuaikan nama folder 'sesi_bot' dengan yang ada di script JS Anda)
                 rm -rf sesi_bot
-                echo "✅ Sesi lama berhasil dihapus!"
-                echo "Silakan pilih menu nomor 2 untuk Scan QR Code dengan nomor baru."
-            else
-                echo "Dibatalkan."
+                echo "✅ Sesi dihapus! Silakan pilih menu 2 untuk Scan QR Code baru."
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
-        0)
-            echo "Keluar dari panel pengelola. Sampai jumpa!"
-            exit 0
+        10)
+            echo "--- 📢 BROADCAST PESAN ---"
+            echo "Gunakan \n untuk baris baru."
+            read -p "Ketik Pesan Broadcast: " pesan_bc
+            if [ ! -z "$pesan_bc" ]; then
+                echo -e "$pesan_bc" > broadcast.txt
+                echo -e "\n✅ Pesan berhasil masuk antrean broadcast!"
+            fi
+            read -p "Tekan Enter untuk kembali..."
             ;;
-        *)
-            echo "❌ Pilihan tidak valid! Silakan masukkan angka 0-8."
-            sleep 2
-            ;;
+        0) echo "Keluar dari panel. Sampai jumpa!"; exit 0 ;;
+        *) echo "❌ Pilihan tidak valid!"; sleep 2 ;;
     esac
 done
