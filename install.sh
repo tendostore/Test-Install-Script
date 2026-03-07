@@ -14,13 +14,13 @@ fi
 generate_bot_script() {
     echo "Membuat file index.js..."
     cat << 'EOF' > index.js
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const fs = require('fs');
 const pino = require('pino');
 const express = require('express');
 const bodyParser = require('body-parser');
-const qrcode = require('qrcode-terminal');
+const readline = require('readline');
 
 const app = express();
 app.use(bodyParser.json());
@@ -34,32 +34,60 @@ const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, nul
 if (!fs.existsSync(configFile)) saveJSON(configFile, { botName: "Tendo Store", adminNumber: "", digiflazzUsername: "", digiflazzApiKey: "" });
 if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
 
+// Fungsi untuk membaca input dari terminal
+const question = (text) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    return new Promise((resolve) => {
+        rl.question(text, (answer) => {
+            rl.close();
+            resolve(answer);
+        });
+    });
+};
+
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
     
     const sock = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
-        // SOLUSI ERROR 405: Menggunakan profil browser resmi dari library
-        browser: Browsers.macOS('Desktop'),
-        syncFullHistory: false
+        browser: ['Ubuntu', 'Chrome', '20.0.04'],
+        printQRInTerminal: false // MATIKAN QR CODE AGAR TIDAK ERROR 405
     });
+
+    // SISTEM LOGIN BARU: MENGGUNAKAN KODE TAUTAN (PAIRING CODE)
+    if (!sock.authState.creds.registered) {
+        setTimeout(async () => {
+            console.log("\n=======================================================");
+            let phoneNumber = await question('📲 Masukkan Nomor WA Bot Anda (Awali dengan 628...): ');
+            phoneNumber = phoneNumber.replace(/[^0-9]/g, '');
+            
+            try {
+                const code = await sock.requestPairingCode(phoneNumber);
+                console.log(`\n🔑 KODE TAUTAN ANDA :  ${code}  `);
+                console.log('\n[CARA LOGIN DI HP ANDA]:');
+                console.log('1. Buka aplikasi WhatsApp di HP yang nomornya dijadikan bot.');
+                console.log('2. Klik titik 3 di kanan atas -> Perangkat Tertaut.');
+                console.log('3. Klik tombol "Tautkan Perangkat".');
+                console.log('4. DI BAWAH layar kamera, klik "Tautkan dengan nomor telepon saja".');
+                console.log('5. Masukkan 8 huruf KODE TAUTAN di atas.');
+                console.log("=======================================================\n");
+            } catch (error) {
+                console.log('❌ Gagal mendapatkan kode. Pastikan nomor benar dan tidak memakai spasi/+.');
+            }
+        }, 3000);
+    }
 
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect, qr } = update;
-        
-        if (qr) {
-            console.log('\n[!] SCAN QR CODE DI BAWAH INI DENGAN WHATSAPP ANDA:');
-            qrcode.generate(qr, { small: true });
-        }
+        const { connection, lastDisconnect } = update;
 
         if (connection === 'close') {
             let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
             
             if (reason === DisconnectReason.badSession || reason === 405) {
-                console.log('❌ Sesi ditolak server (Error 405/Bad Session). Menghapus otomatis dan mengulang...');
+                console.log('❌ Sesi ditolak server (Error 405). Menghapus otomatis dan mengulang...');
                 fs.rmSync('./sesi_bot', { recursive: true, force: true });
                 setTimeout(startBot, 2000);
             } else if (reason === DisconnectReason.connectionClosed) {
@@ -69,11 +97,11 @@ async function startBot() {
                 console.log('⚠️ Kehilangan koneksi server, menyambung ulang...');
                 setTimeout(startBot, 3000);
             } else if (reason === DisconnectReason.loggedOut) {
-                console.log('❌ WhatsApp dikeluarkan (Logged Out). Hapus sesi dan scan ulang.');
+                console.log('❌ WhatsApp dikeluarkan (Logged Out). Hapus sesi dan login ulang.');
                 fs.rmSync('./sesi_bot', { recursive: true, force: true });
                 setTimeout(startBot, 2000);
             } else if (reason === DisconnectReason.restartRequired) {
-                console.log('🔄 Server meminta restart, menyambung ulang...');
+                console.log('🔄 Server meminta restart...');
                 startBot();
             } else {
                 console.log(`⚠️ Terputus (Kode Error: ${reason}). Mencoba lagi...`);
@@ -185,7 +213,6 @@ install_dependencies() {
     rm -rf node_modules package-lock.json
     
     echo "Menginstall library Bot WhatsApp..."
-    # Memastikan terunduh dari server NPM dengan baik
     npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser
 
     echo "==============================================="
@@ -204,7 +231,7 @@ while true; do
     echo "==============================================="
     echo "--- MANAJEMEN BOT ---"
     echo "1. Install & Buat File Bot Otomatis"
-    echo "2. Mulai Bot (Terminal / Scan QR Code)"
+    echo "2. Mulai Bot (Login Pakai Kode Tautan)"
     echo "3. Jalankan Bot di Latar Belakang (PM2)"
     echo "4. Hentikan Bot (PM2)"
     echo "5. Lihat Log / Error Bot"
@@ -294,7 +321,7 @@ while true; do
             if [ "$konfirmasi" == "y" ] || [ "$konfirmasi" == "Y" ]; then
                 pm2 stop tendo-bot 2>/dev/null
                 rm -rf sesi_bot
-                echo "✅ Sesi dihapus! Silakan pilih menu 2 untuk Scan QR Code."
+                echo "✅ Sesi dihapus! Silakan pilih menu 2 untuk Login Ulang."
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
