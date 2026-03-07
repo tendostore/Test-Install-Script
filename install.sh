@@ -30,7 +30,6 @@ const dbFile = './database.json';
 const loadJSON = (file) => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
 const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
 
-// Memastikan konfigurasi dasar selalu ada (Anti Undefined)
 let configAwal = loadJSON(configFile);
 configAwal.botName = configAwal.botName || "Tendo Store";
 configAwal.botNumber = configAwal.botNumber || "";
@@ -44,7 +43,6 @@ async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
     let config = loadJSON(configFile);
     
-    // ANTI-405: Selalu gunakan versi WA Web terbaru
     const { version, isLatest } = await fetchLatestBaileysVersion();
     console.log(`\n📡 Menghubungkan ke WA Web v${version.join('.')} (Terbaru: ${isLatest})`);
 
@@ -108,7 +106,6 @@ async function startBot() {
         if (!msg.message || msg.key.fromMe) return;
 
         const from = msg.key.remoteJid;
-        // ANTI UNDEFINED MEMBER: Membersihkan ID Perangkat (seperti :15) dari nomor WA
         const sender = jidNormalizedUser(msg.key.participant || msg.key.remoteJid);
         const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
         const command = body.split(' ')[0].toLowerCase();
@@ -117,20 +114,16 @@ async function startBot() {
         let namaBot = config.botName || "Tendo Store";
         let db = loadJSON(dbFile);
 
-        // CEK AKSES MEMBER
+        // FITUR BARU: AUTO-REGISTER (SIAPAPUN OTOMATIS JADI MEMBER DENGAN SALDO 0)
         if (!db[sender]) {
-            if (command.startsWith('.')) {
-                await sock.sendMessage(from, { 
-                    text: `❌ *AKSES DITOLAK*\n\nMaaf, nomor Anda belum terdaftar sebagai member di *${namaBot}*.\nSilakan hubungi Admin untuk pendaftaran.` 
-                });
-            }
-            return;
+            db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID') };
+            saveJSON(dbFile, db);
         }
 
-        // MENU MEMBER TERDAFTAR
+        // MENU BEBAS AKSES
         if (command === '.menu') {
             await sock.sendMessage(from, { 
-                text: `👋 Selamat Datang kembali di *${namaBot}*\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
+                text: `👋 Selamat Datang di *${namaBot}*\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
             });
         }
 
@@ -210,50 +203,15 @@ menu_member() {
         echo "==============================================="
         echo "          👥 MANAJEMEN MEMBER BOT 👥           "
         echo "==============================================="
-        echo "1. Tambah Member Baru"
-        echo "2. Hapus Member"
-        echo "3. Tambah Saldo Member"
-        echo "4. Lihat Daftar Semua Member"
+        echo "1. Tambah Saldo Member"
+        echo "2. Kurangi Saldo Member"
+        echo "3. Lihat Daftar Semua Member"
         echo "0. Kembali ke Menu Utama"
         echo "==============================================="
-        read -p "Pilih menu [0-4]: " subchoice
+        read -p "Pilih menu [0-3]: " subchoice
 
         case $subchoice in
             1)
-                echo "--- TAMBAH MEMBER BARU ---"
-                read -p "Masukkan Nomor WA (contoh: 62812...): " nomor
-                node -e "
-                    const fs = require('fs');
-                    let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
-                    let target = '$nomor@s.whatsapp.net';
-                    if(db[target]) {
-                        console.log('⚠️ Nomor tersebut sudah terdaftar!');
-                    } else {
-                        db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID') };
-                        fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
-                        console.log('\n✅ Nomor $nomor berhasil didaftarkan!');
-                    }
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            2)
-                echo "--- HAPUS MEMBER ---"
-                read -p "Masukkan Nomor WA yg mau dihapus (contoh: 62812...): " nomor
-                node -e "
-                    const fs = require('fs');
-                    let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
-                    let target = '$nomor@s.whatsapp.net';
-                    if(db[target]) {
-                        delete db[target];
-                        fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
-                        console.log('\n✅ Member $nomor berhasil dihapus secara permanen!');
-                    } else {
-                        console.log('❌ Nomor tidak ditemukan di dalam database.');
-                    }
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            3)
                 echo "--- TAMBAH SALDO MEMBER ---"
                 read -p "Masukkan Nomor WA (contoh: 62812...): " nomor
                 read -p "Masukkan Jumlah Saldo: " jumlah
@@ -262,24 +220,43 @@ menu_member() {
                     let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
                     let target = '$nomor@s.whatsapp.net';
                     if(!db[target]) {
-                        console.log('❌ Gagal: Nomor belum terdaftar sebagai member!');
+                        db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID') };
+                    }
+                    db[target].saldo += parseInt('$jumlah');
+                    fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
+                    console.log('\n✅ Saldo Rp $jumlah berhasil ditambahkan ke nomor $nomor!');
+                    console.log('💰 Saldo saat ini: Rp ' + db[target].saldo.toLocaleString('id-ID'));
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo "--- KURANGI SALDO MEMBER ---"
+                read -p "Masukkan Nomor WA (contoh: 62812...): " nomor
+                read -p "Masukkan Jumlah Saldo yg dikurangi: " jumlah
+                node -e "
+                    const fs = require('fs');
+                    let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
+                    let target = '$nomor@s.whatsapp.net';
+                    if(!db[target]) {
+                        console.log('\n❌ Nomor belum terdaftar di database.');
                     } else {
-                        db[target].saldo += parseInt('$jumlah');
+                        db[target].saldo -= parseInt('$jumlah');
+                        if(db[target].saldo < 0) db[target].saldo = 0;
                         fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
-                        console.log('\n✅ Saldo Rp $jumlah berhasil ditambahkan ke nomor $nomor!');
+                        console.log('\n✅ Saldo berhasil dikurangi!');
                         console.log('💰 Saldo saat ini: Rp ' + db[target].saldo.toLocaleString('id-ID'));
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
-            4)
+            3)
                 echo "--- DAFTAR MEMBER TERDAFTAR ---"
                 node -e "
                     const fs = require('fs');
                     let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
                     let members = Object.keys(db);
                     if(members.length === 0) {
-                        console.log('Belum ada member yang didaftarkan.');
+                        console.log('Belum ada member yang berinteraksi dengan bot.');
                     } else {
                         members.forEach((m, index) => {
                             let num = m.split('@')[0];
