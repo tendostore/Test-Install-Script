@@ -102,7 +102,7 @@ async function startBot() {
         const from = msg.key.remoteJid;
         const senderJid = jidNormalizedUser(msg.key.participant || msg.key.remoteJid);
         
-        // PERBAIKAN: Mengambil angka murni sebagai ID Member (Anti-Error WhatsApp)
+        // Mengambil angka murni sebagai ID Member
         const sender = senderJid.split('@')[0]; 
         
         const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
@@ -113,20 +113,20 @@ async function startBot() {
         let db = loadJSON(dbFile);
 
         if (!db[sender]) {
-            // Menyimpan JID asli untuk kebutuhan broadcast
             db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: senderJid };
             saveJSON(dbFile, db);
         }
 
+        // PERUBAHAN: Menu menampilkan ID, Saldo hanya menampilkan saldo
         if (command === '.menu') {
             await sock.sendMessage(from, { 
-                text: `👋 Selamat Datang di *${namaBot}*\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
+                text: `👋 Selamat Datang di *${namaBot}*\n📌 *ID Member:* ${sender}\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
             });
         }
 
         if (command === '.saldo') {
             await sock.sendMessage(from, { 
-                text: `💰 Saldo Anda saat ini: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*\n\n📌 *ID Member Anda:* ${sender}\n_(Gunakan ID di atas saat Admin ingin menambah saldo di VPS)_` 
+                text: `💰 Saldo Anda saat ini: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` 
             });
         }
     });
@@ -307,9 +307,7 @@ while true; do
                     "
                 fi
             fi
-            echo -e "\nMenjalankan bot... (Tekan CTRL+C untuk mematikan)"
             node index.js
-            echo -e "\n⚠️ Proses bot terhenti."
             read -p "Tekan Enter untuk kembali ke menu utama..."
             ;;
         3) 
@@ -322,7 +320,6 @@ while true; do
         5) pm2 logs tendo-bot ;;
         6) menu_member ;;
         7)
-            echo "--- PENGATURAN API DIGIFLAZZ ---"
             read -p "Username Digiflazz Baru: " user_api
             read -p "API Key Digiflazz Baru: " key_api
             node -e "
@@ -346,7 +343,6 @@ while true; do
             read -p "Tekan Enter untuk kembali..."
             ;;
         9)
-            echo "--- 📢 BROADCAST PESAN ---"
             echo "Gunakan \n untuk baris baru."
             read -p "Ketik Pesan Broadcast: " pesan_bc
             if [ ! -z "$pesan_bc" ]; then
