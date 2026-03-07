@@ -14,7 +14,7 @@ fi
 generate_bot_script() {
     echo "Membuat file index.js..."
     cat << 'EOF' > index.js
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const fs = require('fs');
 const pino = require('pino');
@@ -40,8 +40,8 @@ async function startBot() {
     const sock = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
-        // Browser penyamaran agar tidak ditolak server WA
-        browser: ['Ubuntu', 'Chrome', '20.0.04'],
+        // SOLUSI ERROR 405: Menggunakan profil browser resmi dari library
+        browser: Browsers.macOS('Desktop'),
         syncFullHistory: false
     });
 
@@ -181,8 +181,11 @@ install_dependencies() {
         npm init -y
     fi
     
-    echo "Menginstall library Bot WhatsApp (Versi Paling Stabil)..."
-    # PERBAIKAN: Menggunakan server NPM resmi agar tidak terjadi Error Cannot find module
+    echo "Membersihkan cache sistem untuk mencegah error..."
+    rm -rf node_modules package-lock.json
+    
+    echo "Menginstall library Bot WhatsApp..."
+    # Memastikan terunduh dari server NPM dengan baik
     npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser
 
     echo "==============================================="
