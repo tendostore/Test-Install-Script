@@ -14,7 +14,7 @@ fi
 generate_bot_script() {
     echo "Membuat file index.js..."
     cat << 'EOF' > index.js
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const fs = require('fs');
 const pino = require('pino');
@@ -33,8 +33,7 @@ const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, nul
 if (!fs.existsSync(configFile)) saveJSON(configFile, { botName: "Tendo Store", botNumber: "", adminNumber: "", digiflazzUsername: "", digiflazzApiKey: "" });
 if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
 
-// Mencegah permintaan kode tautan berkali-kali (Anti-Spam)
-let isPairingRequested = false; 
+let pairingRequested = false; 
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
@@ -43,21 +42,22 @@ async function startBot() {
     const sock = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
-        browser: ['Ubuntu', 'Chrome', '20.0.04'],
+        // PERBAIKAN: Menggunakan standar resmi dari sistem agar tidak kena Error 405
+        browser: Browsers.ubuntu('Chrome'),
         printQRInTerminal: false 
     });
 
-    // SISTEM LOGIN KODE TAUTAN (Sangat Stabil)
-    if (!sock.authState.creds.registered && !isPairingRequested) {
-        isPairingRequested = true;
+    if (!sock.authState.creds.registered && !pairingRequested) {
+        pairingRequested = true;
         let phoneNumber = config.botNumber;
         
         if (!phoneNumber) {
-            console.log('\n❌ NOMOR BOT BELUM DIATUR!');
-            console.log('Tutup bot ini (CTRL+C), lalu pilih Menu 2 untuk memasukkan nomor WA Bot Anda.');
+            console.log('\n❌ NOMOR BOT BELUM DIATUR! Keluar...');
             process.exit(0);
         }
 
+        console.log("\n⏳ Menyiapkan koneksi aman ke server WhatsApp...");
+        // PERBAIKAN: Jeda 6 detik memastikan koneksi sudah stabil dan tidak berkedip
         setTimeout(async () => {
             try {
                 let formattedNumber = phoneNumber.replace(/[^0-9]/g, '');
@@ -72,9 +72,9 @@ async function startBot() {
                 console.log('5. Masukkan 8 huruf KODE TAUTAN di atas.\n');
             } catch (error) {
                 console.log('❌ Gagal mendapatkan kode. Pastikan format nomor benar (awali 628).');
-                isPairingRequested = false;
+                pairingRequested = false;
             }
-        }, 3000);
+        }, 6000); 
     }
 
     sock.ev.on('creds.update', saveCreds);
@@ -85,12 +85,14 @@ async function startBot() {
         if (connection === 'close') {
             let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
             
-            // PERBAIKAN: Tidak lagi menghapus folder secara barbar agar terhindar dari error ENOENT
             if (reason === DisconnectReason.loggedOut) {
                 console.log('❌ WhatsApp dikeluarkan (Logged Out). Silakan pilih Menu 9 untuk Reset Sesi.');
                 process.exit(0);
+            } else if (reason === 405) {
+                console.log(`⚠️ Koneksi ditolak (405). Menstabilkan ulang jaringan...`);
+                setTimeout(startBot, 3000);
             } else {
-                console.log(`⚠️ Jaringan terputus sejenak (Kode: ${reason}). Mencoba menyambung kembali dengan aman...`);
+                console.log(`⚠️ Jaringan terputus (Kode: ${reason}). Mencoba menyambung kembali...`);
                 setTimeout(startBot, 3000);
             }
         } else if (connection === 'open') {
@@ -218,7 +220,6 @@ while true; do
         2) 
             if [ ! -f "index.js" ]; then echo "❌ Anda harus menjalankan Menu 1 dulu!"; sleep 2; continue; fi
             
-            # MEMINTA NOMOR DI BASH DENGAN AMAN
             if [ ! -d "sesi_bot" ] || [ -z "$(ls -A sesi_bot 2>/dev/null)" ]; then
                 echo -e "\n--- PERSIAPAN LOGIN BARU ---"
                 read -p "📲 Masukkan Nomor WA Bot (Awali 628...): " nomor_bot
