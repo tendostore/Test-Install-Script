@@ -40,7 +40,7 @@ async function startBot() {
     const sock = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
-        // Menyamar sebagai browser standar agar tidak diblokir server WA
+        // Browser penyamaran agar tidak ditolak server WA
         browser: ['Ubuntu', 'Chrome', '20.0.04'],
         syncFullHistory: false
     });
@@ -180,8 +180,10 @@ install_dependencies() {
     if [ ! -f "package.json" ]; then
         npm init -y
     fi
-    echo "Menginstall library Bot WhatsApp (Versi Terbaru)..."
-    npm install github:WhiskeySockets/Baileys pino qrcode-terminal axios express body-parser
+    
+    echo "Menginstall library Bot WhatsApp (Versi Paling Stabil)..."
+    # PERBAIKAN: Menggunakan server NPM resmi agar tidak terjadi Error Cannot find module
+    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser
 
     echo "==============================================="
     echo " ✅ INSTALASI SELESAI! "
