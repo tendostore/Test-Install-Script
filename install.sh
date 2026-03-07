@@ -14,7 +14,7 @@ fi
 generate_bot_script() {
     echo "Membuat file index.js..."
     cat << 'EOF' > index.js
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const fs = require('fs');
 const pino = require('pino');
@@ -40,8 +40,8 @@ async function startBot() {
     const sock = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
-        // PERBAIKAN ERROR 405: Menggunakan profil perangkat resmi Mac OS
-        browser: Browsers.macOS('Desktop'),
+        // PERBAIKAN: Menggunakan format array standar yang dijamin tidak error
+        browser: ['Ubuntu', 'Chrome', '20.0.04'],
         syncFullHistory: false
     });
 
@@ -58,7 +58,6 @@ async function startBot() {
         if (connection === 'close') {
             let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
             
-            // PERBAIKAN ERROR 405: Jika ditolak WA, langsung hapus sesi dan ulangi
             if (reason === DisconnectReason.badSession || reason === 405) {
                 console.log('❌ Sesi ditolak server (Error 405/Bad Session). Menghapus otomatis dan mengulang...');
                 fs.rmSync('./sesi_bot', { recursive: true, force: true });
@@ -215,7 +214,11 @@ while true; do
         2) 
             if [ ! -f "index.js" ]; then echo "❌ Anda harus menjalankan Menu 1 dulu!"; sleep 2; continue; fi
             echo "Menjalankan bot... (Tekan CTRL+C untuk mematikan)"
-            node index.js ;;
+            node index.js
+            # PERBAIKAN: Menambahkan jeda agar pesan error bisa dibaca jika bot mati
+            echo -e "\n⚠️ Proses bot terhenti."
+            read -p "Tekan Enter untuk kembali ke menu utama..."
+            ;;
         3) 
             pm2 start index.js --name "tendo-bot"
             pm2 save
