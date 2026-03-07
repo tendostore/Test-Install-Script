@@ -12,7 +12,7 @@ const fs = require('fs');
 const pino = require('pino');
 const express = require('express');
 const bodyParser = require('body-parser');
-const qrcode = require('qrcode-terminal'); // PERBAIKAN: Menambahkan pemanggil QR Code
+const qrcode = require('qrcode-terminal');
 
 const app = express();
 app.use(bodyParser.json());
@@ -31,8 +31,9 @@ async function startBot() {
     
     const sock = makeWASocket({
         auth: state,
-        // printQRInTerminal: true, // PERBAIKAN: Fitur usang ini dimatikan
-        logger: pino({ level: 'silent' })
+        logger: pino({ level: 'silent' }),
+        // PERBAIKAN: Menyamar sebagai Google Chrome agar tidak ditendang WhatsApp
+        browser: ['Tendo Store', 'Chrome', '1.0.0'] 
     });
 
     sock.ev.on('creds.update', saveCreds);
@@ -40,19 +41,35 @@ async function startBot() {
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect, qr } = update;
         
-        // PERBAIKAN: Menampilkan QR Code secara manual menggunakan qrcode-terminal
         if (qr) {
             console.log('\n[!] SCAN QR CODE DI BAWAH INI DENGAN WHATSAPP ANDA:');
             qrcode.generate(qr, { small: true });
         }
 
         if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-            if (shouldReconnect) {
-                console.log('Koneksi terputus, mencoba menghubungkan kembali...');
+            // PERBAIKAN: Sistem Pengecekan Error yang Lebih Akurat
+            let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
+            
+            if (reason === DisconnectReason.badSession) {
+                console.log('❌ Sesi rusak. Menghapus otomatis dan mengulang...');
+                fs.rmSync('./sesi_bot', { recursive: true, force: true });
+                setTimeout(startBot, 2000);
+            } else if (reason === DisconnectReason.connectionClosed) {
+                console.log('⚠️ Koneksi ditutup, mencoba menyambung ulang...');
+                setTimeout(startBot, 3000); // Diberi jeda 3 detik agar tidak spam
+            } else if (reason === DisconnectReason.connectionLost) {
+                console.log('⚠️ Kehilangan koneksi server, menyambung ulang...');
+                setTimeout(startBot, 3000);
+            } else if (reason === DisconnectReason.loggedOut) {
+                console.log('❌ WhatsApp dikeluarkan (Logged Out). Hapus sesi dan scan ulang.');
+                fs.rmSync('./sesi_bot', { recursive: true, force: true });
+                setTimeout(startBot, 2000);
+            } else if (reason === DisconnectReason.restartRequired) {
+                console.log('🔄 Server meminta restart, menyambung ulang...');
                 startBot();
             } else {
-                console.log('Sesi WhatsApp telah dihapus. Silakan scan QR ulang.');
+                console.log(`⚠️ Terputus (Kode Error: ${reason}). Mencoba lagi...`);
+                setTimeout(startBot, 3000);
             }
         } else if (connection === 'open') {
             console.log('\n✅ BOT WHATSAPP BERHASIL TERHUBUNG!');
@@ -71,7 +88,6 @@ async function startBot() {
         let config = loadJSON(configFile);
         let db = loadJSON(dbFile);
 
-        // SISTEM KEAMANAN (HANYA MEMBER)
         if (!db[sender]) {
             if (command.startsWith('.')) {
                 await sock.sendMessage(from, { 
@@ -81,7 +97,6 @@ async function startBot() {
             return;
         }
 
-        // MENU PELANGGAN TERDAFTAR
         if (command === '.menu') {
             await sock.sendMessage(from, { 
                 text: `👋 Selamat Datang kembali di *${config.botName}*\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
