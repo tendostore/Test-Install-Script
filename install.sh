@@ -21,13 +21,17 @@ const pino = require('pino');
 const express = require('express');
 const bodyParser = require('body-parser');
 const { exec } = require('child_process');
+const crypto = require('crypto');
+const axios = require('axios');
 
 const app = express();
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 const configFile = './config.json';
 const dbFile = './database.json';
 const produkFile = './produk.json';
+const topupFile = './topup.json'; 
 
 const loadJSON = (file) => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
 const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
@@ -38,20 +42,26 @@ configAwal.botNumber = configAwal.botNumber || "";
 configAwal.teleToken = configAwal.teleToken || "";
 configAwal.teleChatId = configAwal.teleChatId || "";
 configAwal.autoBackup = configAwal.autoBackup || false;
+configAwal.pdKey = configAwal.pdKey || ""; 
 saveJSON(configFile, configAwal);
 
 if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
 if (!fs.existsSync(produkFile)) saveJSON(produkFile, {});
+if (!fs.existsSync(topupFile)) saveJSON(topupFile, {});
 
 let pairingRequested = false; 
+let globalSock; 
 
-// DATABASE SESI UNTUK ORDER PINTAR (Daya Ingat Bot)
+// DATABASE SESI UNTUK ORDER PINTAR
 const userSessions = {};
 
+// FUNGSI AUTO BACKUP KE TELEGRAM (Tanpa node_modules & sesi_bot)
 function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
-    exec(`rm -f backup.zip && zip backup.zip *.js *.json *.sh`, (err) => {
+    
+    console.log("⏳ Memulai proses Auto-Backup ke Telegram...");
+    exec(`rm -f backup.zip && zip -r backup.zip . -x "node_modules/*" -x "backup.zip" -x "sesi_bot/*"`, (err) => {
         if (!err) {
             let caption = `📦 *Auto-Backup Tendo Store*\n⏰ Waktu: ${new Date().toLocaleString('id-ID')}`;
             exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="${caption}" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
@@ -59,11 +69,15 @@ function doBackupAndSend() {
     });
 }
 
-if (configAwal.autoBackup) setInterval(doBackupAndSend, 12 * 60 * 60 * 1000); 
+if (configAwal.autoBackup) {
+    setInterval(doBackupAndSend, 12 * 60 * 60 * 1000); 
+}
 
 async function startBot() {
+    console.log("\n⏳ Sedang menyiapkan mesin bot...");
     const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
-    const { version } = await fetchLatestBaileysVersion();
+    const { version, isLatest } = await fetchLatestBaileysVersion();
+    console.log(`📡 Menghubungkan ke WA Web v${version.join('.')} (Stabil: ${isLatest})`);
     
     const sock = makeWASocket({
         version,
@@ -73,18 +87,25 @@ async function startBot() {
         printQRInTerminal: false,
         syncFullHistory: false
     });
+    
+    globalSock = sock; 
 
     if (!sock.authState.creds.registered && !pairingRequested) {
         pairingRequested = true;
-        let phoneNumber = loadJSON(configFile).botNumber;
-        if (phoneNumber) {
-            setTimeout(async () => {
-                try {
-                    const code = await sock.requestPairingCode(phoneNumber.replace(/[^0-9]/g, ''));
-                    console.log(`\n🔑 KODE TAUTAN ANDA :  ${code}  \n`);
-                } catch (error) { pairingRequested = false; }
-            }, 8000); 
+        let config = loadJSON(configFile);
+        if (!config.botNumber) {
+            console.log('\n❌ NOMOR BOT BELUM DIATUR! Keluar...');
+            process.exit(0);
         }
+        setTimeout(async () => {
+            try {
+                const code = await sock.requestPairingCode(config.botNumber.replace(/[^0-9]/g, ''));
+                console.log(`\n=======================================================`);
+                console.log(`🔑 KODE TAUTAN ANDA :  ${code}  `);
+                console.log(`=======================================================`);
+                console.log('👉 Buka WA di HP -> Perangkat Tertaut -> Tautkan dengan nomor telepon saja.');
+            } catch (error) { pairingRequested = false; }
+        }, 8000); 
     }
 
     sock.ev.on('creds.update', saveCreds);
@@ -93,12 +114,10 @@ async function startBot() {
         const { connection, lastDisconnect } = update;
         if (connection === 'close') {
             let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
-            if (reason !== DisconnectReason.loggedOut) {
-                pairingRequested = false;
-                setTimeout(startBot, 4000);
-            }
+            if (reason === DisconnectReason.loggedOut) process.exit(0);
+            else { pairingRequested = false; setTimeout(startBot, 4000); }
         } else if (connection === 'open') {
-            console.log('\n✅ BOT WHATSAPP BERHASIL TERHUBUNG!');
+            console.log('\n✅ BOT WHATSAPP BERHASIL TERHUBUNG DENGAN AMAN!');
         }
     });
 
@@ -109,9 +128,9 @@ async function startBot() {
         const from = msg.key.remoteJid;
         const senderJid = jidNormalizedUser(msg.key.participant || msg.key.remoteJid);
         const sender = senderJid.split('@')[0]; 
-        
         const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
-        const command = body.split(' ')[0].toLowerCase();
+        const args = body.split(' ');
+        const command = args[0].toLowerCase();
         
         let config = loadJSON(configFile);
         let namaBot = config.botName || "Tendo Store";
@@ -124,7 +143,9 @@ async function startBot() {
             saveJSON(dbFile, db);
         }
 
+        // ==========================================
         // 1. FITUR BATALKAN TRANSAKSI
+        // ==========================================
         if (command === '.batal' || command === 'batal') {
             if (userSessions[sender]) {
                 delete userSessions[sender];
@@ -132,9 +153,10 @@ async function startBot() {
             }
         }
 
-        // 2. CEK SESI (Jika Bot sedang menunggu Nomor Tujuan dari pelanggan ini)
+        // ==========================================
+        // 2. FITUR LANJUTAN ORDER (Memasukkan Nomor Tujuan)
+        // ==========================================
         if (userSessions[sender] && userSessions[sender].step === 'awaiting_target') {
-            // Jika pelanggan malah mengetik perintah lain (dimulai dengan titik), batalkan sesi otomatis
             if (command.startsWith('.')) {
                 delete userSessions[sender];
             } else {
@@ -149,35 +171,29 @@ async function startBot() {
 
                 let prodPrice = prodInfo.harga;
 
-                // Cek Saldo
                 if (db[sender].saldo < prodPrice) {
                     delete userSessions[sender];
-                    return await sock.sendMessage(from, { text: `❌ Saldo Anda tidak cukup!\n\n💳 Harga: Rp ${prodPrice.toLocaleString('id-ID')}\n💰 Saldo Anda: Rp ${db[sender].saldo.toLocaleString('id-ID')}\n\nSilakan isi saldo terlebih dahulu.` });
+                    return await sock.sendMessage(from, { text: `❌ Saldo Anda tidak cukup!\n\n💳 Harga: Rp ${prodPrice.toLocaleString('id-ID')}\n💰 Saldo Anda: Rp ${db[sender].saldo.toLocaleString('id-ID')}\n\nSilakan isi saldo terlebih dahulu dengan ketik *.topup*` });
                 }
 
-                // Potong Saldo (Simulasi Order Berhasil)
                 db[sender].saldo -= prodPrice;
                 saveJSON(dbFile, db);
-                
-                delete userSessions[sender]; // Hapus daya ingat setelah selesai
+                delete userSessions[sender]; 
 
-                // Nanti integrasi Digiflazz dipasang di antara dua pesan ini
                 await sock.sendMessage(from, { text: `⏳ Pesanan sedang diproses...\n\n📦 Produk: ${prodInfo.nama}\n📱 Tujuan: ${targetNumber}` });
-                
                 return await sock.sendMessage(from, { text: `✅ *Pesanan Berhasil!* (Simulasi)\n\nSisa saldo Anda: Rp ${db[sender].saldo.toLocaleString('id-ID')}` });
             }
         }
 
-        // 3. FITUR ORDER PINTAR (Jika pelanggan hanya mengetik angka murni)
+        // ==========================================
+        // 3. FITUR ORDER PINTAR (Ketik Angka Saja)
+        // ==========================================
         if (/^\d+$/.test(body.trim())) {
             let index = parseInt(body.trim()) - 1;
-            
-            // Cek apakah angka yang diketik sesuai dengan nomor urut produk
             if (index >= 0 && index < keys.length) {
                 let prodKey = keys[index];
                 let prodInfo = produkDB[prodKey];
                 
-                // Simpan Sesi
                 userSessions[sender] = {
                     step: 'awaiting_target',
                     productKey: prodKey
@@ -187,10 +203,12 @@ async function startBot() {
             }
         }
 
-        // MENU STANDAR
+        // ==========================================
+        // 4. FITUR MENU & SALDO
+        // ==========================================
         if (command === '.menu') {
             await sock.sendMessage(from, { 
-                text: `👋 Selamat Datang di *${namaBot}*\n📌 *ID Member:* ${sender}\n\n1. *.saldo* (Cek saldo)\n2. *.harga* (Lihat & Beli Produk)\n\n_Ketik perintah di atas untuk menggunakan bot._`
+                text: `👋 Selamat Datang di *${namaBot}*\n📌 *ID Member:* ${sender}\n\n1. *.saldo* (Cek saldo)\n2. *.topup* [nominal] (Isi saldo)\n3. *.harga* (Beli Produk)\n\n_Ketik perintah di atas untuk menggunakan bot._`
             });
         }
 
@@ -200,18 +218,65 @@ async function startBot() {
             });
         }
 
-        // FORMAT DAFTAR HARGA BARU YANG LEBIH CLEAN
         if (command === '.harga') {
             if (keys.length === 0) return await sock.sendMessage(from, { text: `🛒 Maaf, belum ada produk yang tersedia saat ini.`});
-
             let textHarga = `🛒 *DAFTAR PRODUK ${namaBot}*\n\n`;
             keys.forEach((k, i) => {
-                textHarga += `*${i+1}. ${produkDB[k].nama}*\n`;
-                textHarga += `   Harga: *Rp ${produkDB[k].harga.toLocaleString('id-ID')}*\n\n`;
+                textHarga += `*${i+1}. ${produkDB[k].nama}*\n   Harga: *Rp ${produkDB[k].harga.toLocaleString('id-ID')}*\n\n`;
             });
             textHarga += `💡 *Cara Beli:* Ketik angka produknya saja.\n_(Contoh: ketik *1* untuk membeli ${produkDB[keys[0]].nama})_`;
-            
             await sock.sendMessage(from, { text: textHarga.trim() });
+        }
+
+        // ==========================================
+        // 5. FITUR TOPUP OTOMATIS PAYDISINI
+        // ==========================================
+        if (command === '.topup') {
+            if (!config.pdKey) return await sock.sendMessage(from, { text: "❌ Fitur Topup Otomatis belum diaktifkan oleh Admin." });
+            let nominal = parseInt(args[1]);
+            if (!nominal || nominal < 1000) return await sock.sendMessage(from, { text: "⚠️ Format salah atau nominal terlalu kecil.\n\nContoh: *.topup 15000*" });
+
+            await sock.sendMessage(from, { text: "⏳ Sedang membuat QRIS Topup, mohon tunggu..." });
+
+            let uniqueCode = 'TD' + Date.now();
+            let signature = crypto.createHash('md5').update(config.pdKey + uniqueCode + 'NewTransaction').digest('hex');
+
+            try {
+                const response = await axios.post('https://paydisini.co.id/api/', new URLSearchParams({
+                    key: config.pdKey,
+                    request: 'new',
+                    unique_code: uniqueCode,
+                    service: '11', 
+                    amount: nominal,
+                    note: `Topup Tendo Store - ${sender}`,
+                    valid_time: 1800, 
+                    type_fee: 1, 
+                    signature: signature
+                }));
+
+                let resData = response.data;
+                if (resData.success) {
+                    let topupDB = loadJSON(topupFile);
+                    topupDB[uniqueCode] = { jid: senderJid, amount: nominal, status: 'Pending', date: new Date().toLocaleString('id-ID') };
+                    saveJSON(topupFile, topupDB);
+
+                    let adminFee = resData.data.amount - nominal;
+                    let caption = `⚡ *TOPUP OTOMATIS QRIS*\n\n` +
+                                  `Nominal: Rp ${nominal.toLocaleString('id-ID')}\n` +
+                                  `Biaya Admin: Rp ${adminFee.toLocaleString('id-ID')}\n` +
+                                  `*Total Transfer: Rp ${resData.data.amount.toLocaleString('id-ID')}*\n\n` +
+                                  `1. Scan QR Code di atas menggunakan dompet digital Anda.\n` +
+                                  `2. Pastikan nominal transfer *sesuai hingga angka terakhir*.\n` +
+                                  `3. Saldo akan otomatis bertambah saat transfer sukses.\n\n` +
+                                  `_Berlaku hingga 30 Menit._`;
+                    
+                    await sock.sendMessage(from, { image: { url: resData.data.qrcode_url }, caption: caption });
+                } else {
+                    await sock.sendMessage(from, { text: `❌ Gagal membuat transaksi: ${resData.msg}` });
+                }
+            } catch (err) {
+                await sock.sendMessage(from, { text: "❌ Terjadi gangguan saat menghubungi server pembayaran." });
+            }
         }
     });
 
@@ -220,11 +285,16 @@ async function startBot() {
         if (fs.existsSync('./broadcast.txt')) {
             let textBroadcast = fs.readFileSync('./broadcast.txt', 'utf-8');
             fs.unlinkSync('./broadcast.txt');
+
             if (textBroadcast.trim()) {
                 let db = loadJSON(dbFile);
-                for (let num of Object.keys(db)) {
+                let config = loadJSON(configFile);
+                let namaBot = config.botName || "Tendo Store";
+                let members = Object.keys(db);
+                for (let num of members) {
                     try {
-                        await sock.sendMessage(db[num].jid, { text: `📢 *INFORMASI ${loadJSON(configFile).botName}*\n\n${textBroadcast.trim()}` });
+                        let targetJid = db[num].jid || (num + '@s.whatsapp.net');
+                        await sock.sendMessage(targetJid, { text: `📢 *INFORMASI ${namaBot}*\n\n${textBroadcast.trim()}` });
                         await new Promise(res => setTimeout(res, 3000));
                     } catch (err) {}
                 }
@@ -233,7 +303,49 @@ async function startBot() {
     }, 5000);
 }
 
-if (require.main === module) startBot().catch(err => console.error(err));
+// ==========================================
+// WEBHOOK LISTENER UNTUK CALLBACK PAYDISINI
+// ==========================================
+app.post('/paydisini', async (req, res) => {
+    try {
+        const data = req.body;
+        let config = loadJSON(configFile);
+        
+        if (!config.pdKey || !data.unique_code || !data.status) return res.sendStatus(200);
+
+        const expectedSig = crypto.createHash('md5').update(config.pdKey + data.unique_code + 'CallbackStatus').digest('hex');
+        
+        if (data.signature === expectedSig && data.status === 'Success') {
+            let topupDB = loadJSON(topupFile);
+            
+            if (topupDB[data.unique_code] && topupDB[data.unique_code].status === 'Pending') {
+                let db = loadJSON(dbFile);
+                let targetJid = topupDB[data.unique_code].jid;
+                let numSender = targetJid.split('@')[0];
+
+                if (db[numSender]) {
+                    db[numSender].saldo += topupDB[data.unique_code].amount;
+                    saveJSON(dbFile, db);
+                    topupDB[data.unique_code].status = 'Success';
+                    saveJSON(topupFile, topupDB);
+
+                    if (globalSock) {
+                        let msgSukses = `✅ *TOPUP BERHASIL!*\n\nSaldo sebesar *Rp ${topupDB[data.unique_code].amount.toLocaleString('id-ID')}* telah masuk.\nSisa saldo: *Rp ${db[numSender].saldo.toLocaleString('id-ID')}*.`;
+                        await globalSock.sendMessage(targetJid, { text: msgSukses });
+                    }
+                }
+            }
+        }
+    } catch (e) {}
+    res.sendStatus(200); 
+});
+
+if (require.main === module) {
+    app.listen(3000, () => {
+        console.log('🌐 Server Webhook siap.');
+    }).on('error', (err) => {});
+    startBot().catch(err => console.error(err));
+}
 EOF
 }
 
@@ -242,6 +354,9 @@ EOF
 # ==========================================
 install_dependencies() {
     clear
+    echo "==============================================="
+    echo "      🚀 MENGINSTALL SISTEM BOT 🚀      "
+    echo "==============================================="
     sudo apt update && sudo apt upgrade -y
     sudo apt install -y curl git wget nano zip unzip
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -252,12 +367,14 @@ install_dependencies() {
     if [ ! -f "package.json" ]; then npm init -y; fi
     rm -rf node_modules package-lock.json
     npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser
-    echo "✅ INSTALASI SELESAI!"
-    read -p "Tekan Enter..."
+    echo "==============================================="
+    echo " ✅ INSTALASI SELESAI! "
+    echo "==============================================="
+    read -p "Tekan Enter untuk kembali ke Menu Utama..."
 }
 
 # ==========================================
-# (FUNGSI SUB-MENU LAINNYA TETAP SAMA)
+# FUNGSI-FUNGSI SUB-MENU
 # ==========================================
 menu_member() {
     while true; do
@@ -267,7 +384,7 @@ menu_member() {
         read -p "Pilih [0-3]: " sub
         case $sub in
             1) read -p "ID Member: " nom; read -p "Jumlah: " jum; node -e "const fs=require('fs'); let d=JSON.parse(fs.readFileSync('database.json')); let t='$nom'; if(!d[t]) d[t]={saldo:0, jid:t+'@s.whatsapp.net'}; d[t].saldo+=parseInt('$jum'); fs.writeFileSync('database.json', JSON.stringify(d,null,2)); console.log('✅ Sukses!');"; read -p "Enter..." ;;
-            2) read -p "ID Member: " nom; read -p "Jumlah Kurangi: " jum; node -e "const fs=require('fs'); let d=JSON.parse(fs.readFileSync('database.json')); let t='$nom'; if(d[t]){ d[t].saldo-=parseInt('$jum'); if(d[t].saldo<0)d[t].saldo=0; fs.writeFileSync('database.json', JSON.stringify(d,null,2)); console.log('✅ Sukses!');}"; read -p "Enter..." ;;
+            2) read -p "ID Member: " nom; read -p "Jumlah Kurang: " jum; node -e "const fs=require('fs'); let d=JSON.parse(fs.readFileSync('database.json')); let t='$nom'; if(d[t]){ d[t].saldo-=parseInt('$jum'); if(d[t].saldo<0)d[t].saldo=0; fs.writeFileSync('database.json', JSON.stringify(d,null,2)); console.log('✅ Sukses!'); }"; read -p "Enter..." ;;
             3) node -e "const fs=require('fs'); let d=JSON.parse(fs.readFileSync('database.json')); Object.keys(d).forEach((m,i)=>console.log((i+1)+'. ID: '+m+' | Rp '+d[m].saldo.toLocaleString('id-ID')));"; read -p "Enter..." ;;
             0) break ;;
         esac
@@ -278,7 +395,7 @@ menu_produk() {
     while true; do
         clear
         echo "--- 🛒 MANAJEMEN PRODUK ---"
-        echo "1. Tambah/Edit Produk | 2. Hapus Produk | 3. List Produk | 0. Kembali"
+        echo "1. Tambah/Edit | 2. Hapus | 3. List | 0. Kembali"
         read -p "Pilih [0-3]: " ps
         case $ps in
             1) read -p "Kode: " k; read -p "Nama: " n; read -p "Harga Jual: " h; node -e "const fs=require('fs'); let p=JSON.parse(fs.readFileSync('produk.json')); p['$k'.toUpperCase().replace(/\s+/g,'')]={nama:'$n', harga:parseInt('$h')}; fs.writeFileSync('produk.json', JSON.stringify(p,null,2)); console.log('✅ Sukses!');"; read -p "Enter..." ;;
@@ -287,6 +404,16 @@ menu_produk() {
             0) break ;;
         esac
     done
+}
+
+menu_paydisini() {
+    clear
+    echo "--- 💳 SETUP AUTO-TOPUP PAYDISINI ---"
+    read -p "Masukkan API KEY PayDisini: " pdkey
+    IP_VPS=$(curl -s ifconfig.me)
+    node -e "const fs=require('fs'); let c=JSON.parse(fs.readFileSync('config.json')); c.pdKey='$pdkey'; fs.writeFileSync('config.json', JSON.stringify(c,null,2));"
+    echo -e "\n✅ API Key tersimpan!\n👉 Copy link ini ke Callback URL PayDisini Anda: http://$IP_VPS:3000/paydisini\n"
+    read -p "Enter..."
 }
 
 menu_telegram() {
@@ -302,38 +429,42 @@ menu_backup() {
     clear
     echo "--- 💾 BACKUP & RESTORE ---"
     echo "1. Backup ke Telegram | 2. Restore dari Link"
-    read -p "Pilih: " bs
+    read -p "Pilih [1-2]: " bs
     if [ "$bs" == "1" ]; then
-        rm -f backup.zip && zip backup.zip *.js *.json *.sh > /dev/null
-        node -e "const fs=require('fs'); const {exec}=require('child_process'); let c=JSON.parse(fs.readFileSync('config.json')); if(c.teleToken){ exec(\`curl -s -F chat_id=\"\${c.teleChatId}\" -F document=@\"backup.zip\" https://api.telegram.org/bot\${c.teleToken}/sendDocument\`); console.log('✅ Backup super ringan dikirim ke Telegram!'); }"
+        # PERBAIKAN KOMPRESI (SANGAT RINGAN)
+        rm -f backup.zip && zip -r backup.zip . -x "node_modules/*" -x "backup.zip" -x "sesi_bot/*" > /dev/null
+        node -e "const fs=require('fs'); const {exec}=require('child_process'); let c=JSON.parse(fs.readFileSync('config.json')); if(c.teleToken){ exec(\`curl -s -F chat_id=\"\${c.teleChatId}\" -F document=@\"backup.zip\" -F caption=\"📦 Manual Backup Tendo Store\" https://api.telegram.org/bot\${c.teleToken}/sendDocument\`); console.log('✅ Backup berhasil dikirim ke Telegram!'); }"
         read -p "Enter..."
     elif [ "$bs" == "2" ]; then
-        read -p "Link ZIP: " l; wget -O r.zip "$l" && unzip -o r.zip && npm install && echo "✅ Restore Selesai!"; read -p "Enter..."
+        read -p "Link ZIP: " l; wget -O r.zip "$l" && unzip -o r.zip && rm r.zip && npm install && echo "✅ Restore Selesai!"; read -p "Enter..."
     fi
 }
 
 # ==========================================
-# 8. MENU UTAMA (PANEL KONTROL)
+# 8. MENU UTAMA
 # ==========================================
 while true; do
     clear
     echo "==============================================="
     echo "      🤖 PANEL PENGELOLA TENDO STORE 🤖      "
     echo "==============================================="
-    echo "1. Install & Buat File Bot Otomatis"
+    echo "1. Install & Buat File Bot"
     echo "2. Mulai Bot (Terminal)"
-    echo "3. Jalankan Bot di Latar Belakang (PM2)"
+    echo "3. Jalankan Bot (Latar Belakang / PM2)"
     echo "4. Hentikan Bot (PM2)"
-    echo "5. Lihat Log / Error Bot"
+    echo "5. Lihat Log Bot"
     echo "-----------------------------------------------"
-    echo "6. 👥 Manajemen Member & Saldo"
-    echo "7. 🛒 Manajemen Produk & Harga"
-    echo "8. ⚙️ Setup Telegram & Backup"
-    echo "9. 🔌 Ganti API Digiflazz"
-    echo "10. 🔄 Reset Sesi WA"
+    echo "6. 👥 Manajemen Member"
+    echo "7. 🛒 Manajemen Produk"
+    echo "8. 💳 Setup PayDisini (Auto-Topup)"
+    echo "9. 🔌 Setup API Digiflazz"
+    echo "10. ⚙️ Setup Telegram"
+    echo "11. 💾 Backup & Restore"
+    echo "12. 🔄 Reset Sesi WA"
+    echo "13. 📢 Broadcast"
     echo "0. Keluar"
     echo "==============================================="
-    read -p "Pilih menu [0-10]: " choice
+    read -p "Pilih menu [0-13]: " choice
 
     case $choice in
         1) install_dependencies ;;
@@ -343,9 +474,12 @@ while true; do
         5) pm2 logs tendo-bot ;;
         6) menu_member ;;
         7) menu_produk ;;
-        8) menu_telegram; menu_backup ;;
-        9) read -p "User Digiflazz: " u; read -p "API Key Digiflazz: " k; node -e "const fs=require('fs'); let c=JSON.parse(fs.readFileSync('config.json')); c.digiflazzUsername='$u'; c.digiflazzApiKey='$k'; fs.writeFileSync('config.json', JSON.stringify(c,null,2)); console.log('✅ Tersimpan!');"; read -p "Enter..." ;;
-        10) pm2 stop tendo-bot 2>/dev/null; rm -rf sesi_bot; echo "✅ Sesi dihapus!"; read -p "Enter..." ;;
+        8) menu_paydisini ;;
+        9) read -p "User Digiflazz: " u; read -p "API Key: " k; node -e "const fs=require('fs'); let c=JSON.parse(fs.readFileSync('config.json')); c.digiflazzUsername='$u'; c.digiflazzApiKey='$k'; fs.writeFileSync('config.json', JSON.stringify(c,null,2)); console.log('✅ Tersimpan!');"; read -p "Enter..." ;;
+        10) menu_telegram ;;
+        11) menu_backup ;;
+        12) pm2 stop tendo-bot 2>/dev/null; rm -rf sesi_bot; echo "✅ Sesi dihapus!"; read -p "Enter..." ;;
+        13) read -p "Pesan Broadcast: " bc; if [ ! -z "$bc" ]; then echo -e "$bc" > broadcast.txt; echo "✅ Pesan masuk antrean!"; fi; read -p "Enter..." ;;
         0) exit 0 ;;
     esac
 done
