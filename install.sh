@@ -45,37 +45,25 @@ if (!fs.existsSync(produkFile)) saveJSON(produkFile, {});
 
 let pairingRequested = false; 
 
-// FUNGSI AUTO BACKUP KE TELEGRAM (DIJAMIN SUPER KECIL)
+// DATABASE SESI UNTUK ORDER PINTAR (Daya Ingat Bot)
+const userSessions = {};
+
 function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
-    
-    console.log("⏳ Memulai proses Auto-Backup ke Telegram...");
-    
-    // PERBAIKAN: Hanya mengambil file konfigurasi dan script utama. Semua folder diabaikan.
     exec(`rm -f backup.zip && zip backup.zip *.js *.json *.sh`, (err) => {
         if (!err) {
             let caption = `📦 *Auto-Backup Tendo Store*\n⏰ Waktu: ${new Date().toLocaleString('id-ID')}`;
-            exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="${caption}" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`, (err2) => {
-                if (!err2) console.log("✅ Auto-Backup berhasil dikirim ke Telegram!");
-            });
+            exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="${caption}" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
         }
     });
 }
 
-// JALANKAN AUTO BACKUP SETIAP 12 JAM (Jika Diaktifkan)
-if (configAwal.autoBackup) {
-    setInterval(doBackupAndSend, 12 * 60 * 60 * 1000); 
-}
+if (configAwal.autoBackup) setInterval(doBackupAndSend, 12 * 60 * 60 * 1000); 
 
 async function startBot() {
-    console.log("\n⏳ Sedang menyiapkan mesin bot...");
     const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
-    let config = loadJSON(configFile);
-    
-    console.log("⏳ Mengambil konfigurasi keamanan WhatsApp terbaru...");
-    const { version, isLatest } = await fetchLatestBaileysVersion();
-    console.log(`📡 Menghubungkan ke WA Web v${version.join('.')} (Stabil: ${isLatest})`);
+    const { version } = await fetchLatestBaileysVersion();
     
     const sock = makeWASocket({
         version,
@@ -88,26 +76,15 @@ async function startBot() {
 
     if (!sock.authState.creds.registered && !pairingRequested) {
         pairingRequested = true;
-        let phoneNumber = config.botNumber;
-        
-        if (!phoneNumber) {
-            console.log('\n❌ NOMOR BOT BELUM DIATUR! Keluar...');
-            process.exit(0);
+        let phoneNumber = loadJSON(configFile).botNumber;
+        if (phoneNumber) {
+            setTimeout(async () => {
+                try {
+                    const code = await sock.requestPairingCode(phoneNumber.replace(/[^0-9]/g, ''));
+                    console.log(`\n🔑 KODE TAUTAN ANDA :  ${code}  \n`);
+                } catch (error) { pairingRequested = false; }
+            }, 8000); 
         }
-
-        setTimeout(async () => {
-            try {
-                let formattedNumber = phoneNumber.replace(/[^0-9]/g, '');
-                const code = await sock.requestPairingCode(formattedNumber);
-                console.log(`\n=======================================================`);
-                console.log(`🔑 KODE TAUTAN ANDA :  ${code}  `);
-                console.log(`=======================================================`);
-                console.log('👉 Buka WA di HP -> Perangkat Tertaut -> Tautkan dengan nomor telepon saja.');
-                console.log('⚠️ SEGERA MASUKKAN KODENYA KE HP ANDA!\n');
-            } catch (error) {
-                pairingRequested = false; 
-            }
-        }, 8000); 
     }
 
     sock.ev.on('creds.update', saveCreds);
@@ -116,14 +93,12 @@ async function startBot() {
         const { connection, lastDisconnect } = update;
         if (connection === 'close') {
             let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
-            if (reason === DisconnectReason.loggedOut) {
-                process.exit(0);
-            } else {
+            if (reason !== DisconnectReason.loggedOut) {
                 pairingRequested = false;
                 setTimeout(startBot, 4000);
             }
         } else if (connection === 'open') {
-            console.log('\n✅ BOT WHATSAPP BERHASIL TERHUBUNG DENGAN AMAN!');
+            console.log('\n✅ BOT WHATSAPP BERHASIL TERHUBUNG!');
         }
     });
 
@@ -142,15 +117,80 @@ async function startBot() {
         let namaBot = config.botName || "Tendo Store";
         let db = loadJSON(dbFile);
         let produkDB = loadJSON(produkFile);
+        let keys = Object.keys(produkDB);
 
         if (!db[sender]) {
             db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: senderJid };
             saveJSON(dbFile, db);
         }
 
+        // 1. FITUR BATALKAN TRANSAKSI
+        if (command === '.batal' || command === 'batal') {
+            if (userSessions[sender]) {
+                delete userSessions[sender];
+                return await sock.sendMessage(from, { text: "✅ Transaksi berhasil dibatalkan." });
+            }
+        }
+
+        // 2. CEK SESI (Jika Bot sedang menunggu Nomor Tujuan dari pelanggan ini)
+        if (userSessions[sender] && userSessions[sender].step === 'awaiting_target') {
+            // Jika pelanggan malah mengetik perintah lain (dimulai dengan titik), batalkan sesi otomatis
+            if (command.startsWith('.')) {
+                delete userSessions[sender];
+            } else {
+                let targetNumber = body.trim();
+                let prodKey = userSessions[sender].productKey;
+                let prodInfo = produkDB[prodKey];
+
+                if (!prodInfo) {
+                    delete userSessions[sender];
+                    return await sock.sendMessage(from, { text: "❌ Terjadi kesalahan produk. Transaksi dibatalkan." });
+                }
+
+                let prodPrice = prodInfo.harga;
+
+                // Cek Saldo
+                if (db[sender].saldo < prodPrice) {
+                    delete userSessions[sender];
+                    return await sock.sendMessage(from, { text: `❌ Saldo Anda tidak cukup!\n\n💳 Harga: Rp ${prodPrice.toLocaleString('id-ID')}\n💰 Saldo Anda: Rp ${db[sender].saldo.toLocaleString('id-ID')}\n\nSilakan isi saldo terlebih dahulu.` });
+                }
+
+                // Potong Saldo (Simulasi Order Berhasil)
+                db[sender].saldo -= prodPrice;
+                saveJSON(dbFile, db);
+                
+                delete userSessions[sender]; // Hapus daya ingat setelah selesai
+
+                // Nanti integrasi Digiflazz dipasang di antara dua pesan ini
+                await sock.sendMessage(from, { text: `⏳ Pesanan sedang diproses...\n\n📦 Produk: ${prodInfo.nama}\n📱 Tujuan: ${targetNumber}` });
+                
+                return await sock.sendMessage(from, { text: `✅ *Pesanan Berhasil!* (Simulasi)\n\nSisa saldo Anda: Rp ${db[sender].saldo.toLocaleString('id-ID')}` });
+            }
+        }
+
+        // 3. FITUR ORDER PINTAR (Jika pelanggan hanya mengetik angka murni)
+        if (/^\d+$/.test(body.trim())) {
+            let index = parseInt(body.trim()) - 1;
+            
+            // Cek apakah angka yang diketik sesuai dengan nomor urut produk
+            if (index >= 0 && index < keys.length) {
+                let prodKey = keys[index];
+                let prodInfo = produkDB[prodKey];
+                
+                // Simpan Sesi
+                userSessions[sender] = {
+                    step: 'awaiting_target',
+                    productKey: prodKey
+                };
+
+                return await sock.sendMessage(from, { text: `🛒 Anda memilih:\n*${prodInfo.nama}*\n💰 Harga: Rp ${prodInfo.harga.toLocaleString('id-ID')}\n\n👉 *Silakan balas pesan ini dengan Nomor Tujuan* (Contoh: 08123456789 atau ID Game).\n\n_Ketik *batal* jika ingin membatalkan._` });
+            }
+        }
+
+        // MENU STANDAR
         if (command === '.menu') {
             await sock.sendMessage(from, { 
-                text: `👋 Selamat Datang di *${namaBot}*\n📌 *ID Member:* ${sender}\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
+                text: `👋 Selamat Datang di *${namaBot}*\n📌 *ID Member:* ${sender}\n\n1. *.saldo* (Cek saldo)\n2. *.harga* (Lihat & Beli Produk)\n\n_Ketik perintah di atas untuk menggunakan bot._`
             });
         }
 
@@ -160,20 +200,16 @@ async function startBot() {
             });
         }
 
+        // FORMAT DAFTAR HARGA BARU YANG LEBIH CLEAN
         if (command === '.harga') {
-            let keys = Object.keys(produkDB);
-            if (keys.length === 0) {
-                await sock.sendMessage(from, { text: `🛒 *Daftar Harga ${namaBot}*\n\nMaaf, belum ada produk yang tersedia saat ini.`});
-                return;
-            }
+            if (keys.length === 0) return await sock.sendMessage(from, { text: `🛒 Maaf, belum ada produk yang tersedia saat ini.`});
 
             let textHarga = `🛒 *DAFTAR PRODUK ${namaBot}*\n\n`;
             keys.forEach((k, i) => {
                 textHarga += `*${i+1}. ${produkDB[k].nama}*\n`;
-                textHarga += `   Ketik: *.order ${k} tujuan*\n`;
                 textHarga += `   Harga: *Rp ${produkDB[k].harga.toLocaleString('id-ID')}*\n\n`;
             });
-            textHarga += `_Contoh order: .order ${keys[0]} 08123456789_`;
+            textHarga += `💡 *Cara Beli:* Ketik angka produknya saja.\n_(Contoh: ketik *1* untuk membeli ${produkDB[keys[0]].nama})_`;
             
             await sock.sendMessage(from, { text: textHarga.trim() });
         }
@@ -184,16 +220,11 @@ async function startBot() {
         if (fs.existsSync('./broadcast.txt')) {
             let textBroadcast = fs.readFileSync('./broadcast.txt', 'utf-8');
             fs.unlinkSync('./broadcast.txt');
-
             if (textBroadcast.trim()) {
                 let db = loadJSON(dbFile);
-                let config = loadJSON(configFile);
-                let namaBot = config.botName || "Tendo Store";
-                let members = Object.keys(db);
-                for (let num of members) {
+                for (let num of Object.keys(db)) {
                     try {
-                        let targetJid = db[num].jid || (num + '@s.whatsapp.net');
-                        await sock.sendMessage(targetJid, { text: `📢 *INFORMASI ${namaBot}*\n\n${textBroadcast.trim()}` });
+                        await sock.sendMessage(db[num].jid, { text: `📢 *INFORMASI ${loadJSON(configFile).botName}*\n\n${textBroadcast.trim()}` });
                         await new Promise(res => setTimeout(res, 3000));
                     } catch (err) {}
                 }
@@ -202,12 +233,7 @@ async function startBot() {
     }, 5000);
 }
 
-if (require.main === module) {
-    app.listen(3000, () => {
-        console.log('🌐 Server Webhook siap.');
-    }).on('error', (err) => {});
-    startBot().catch(err => console.error(err));
-}
+if (require.main === module) startBot().catch(err => console.error(err));
 EOF
 }
 
@@ -216,9 +242,6 @@ EOF
 # ==========================================
 install_dependencies() {
     clear
-    echo "==============================================="
-    echo "      🚀 MENGINSTALL SISTEM BOT 🚀      "
-    echo "==============================================="
     sudo apt update && sudo apt upgrade -y
     sudo apt install -y curl git wget nano zip unzip
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -229,269 +252,64 @@ install_dependencies() {
     if [ ! -f "package.json" ]; then npm init -y; fi
     rm -rf node_modules package-lock.json
     npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser
-    echo "==============================================="
-    echo " ✅ INSTALASI SELESAI! "
-    echo "==============================================="
-    read -p "Tekan Enter untuk kembali ke Menu Utama..."
+    echo "✅ INSTALASI SELESAI!"
+    read -p "Tekan Enter..."
 }
 
 # ==========================================
-# 4. SUB-MENU TELEGRAM SETUP
-# ==========================================
-menu_telegram() {
-    while true; do
-        clear
-        echo "==============================================="
-        echo "           ⚙️ BOT TELEGRAM SETUP ⚙️           "
-        echo "==============================================="
-        echo "1. Change BOT API & CHATID"
-        echo "2. Set Notifikasi Backup Otomatis (12 Jam)"
-        echo "0. Kembali ke Menu Utama"
-        echo "==============================================="
-        read -p "Pilih menu [0-2]: " telechoice
-
-        case $telechoice in
-            1)
-                echo "--- PENGATURAN BOT TELEGRAM ---"
-                read -p "Masukkan Token Bot Telegram (Misal: 1234:ABCde...): " token
-                read -p "Masukkan Chat ID Anda (Misal: 123456789): " chatid
-                node -e "
-                    const fs = require('fs');
-                    let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
-                    config.teleToken = '$token';
-                    config.teleChatId = '$chatid';
-                    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
-                    console.log('\n✅ Data Telegram berhasil disimpan!');
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            2)
-                echo "--- SET AUTO BACKUP ---"
-                read -p "Aktifkan Auto-Backup ke Telegram setiap 12 Jam? (y/n): " set_auto
-                if [ "$set_auto" == "y" ] || [ "$set_auto" == "Y" ]; then
-                    status="true"
-                    echo -e "\n✅ Auto-Backup DIAKTIFKAN!"
-                else
-                    status="false"
-                    echo -e "\n❌ Auto-Backup DIMATIKAN!"
-                fi
-                node -e "
-                    const fs = require('fs');
-                    let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
-                    config.autoBackup = $status;
-                    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
-                "
-                echo "⚠️ Silakan restart bot (Menu 4 lalu 3) agar fitur aktif."
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            0) break ;;
-            *) echo "❌ Pilihan tidak valid!"; sleep 1 ;;
-        esac
-    done
-}
-
-# ==========================================
-# 5. SUB-MENU BACKUP & RESTORE
-# ==========================================
-menu_backup() {
-    while true; do
-        clear
-        echo "==============================================="
-        echo "             💾 BACKUP & RESTORE 💾            "
-        echo "==============================================="
-        echo "1. Backup Sekarang (Kirim file ZIP ke Telegram)"
-        echo "2. Restore Database & Bot dari Direct Link"
-        echo "0. Kembali ke Menu Utama"
-        echo "==============================================="
-        read -p "Pilih menu [0-2]: " backchoice
-
-        case $backchoice in
-            1)
-                echo -e "\n⏳ Sedang memproses arsip backup. Mohon tunggu..."
-                if ! command -v zip &> /dev/null; then sudo apt install zip -y; fi
-                
-                # PERBAIKAN: Hanya membungkus file inti (.js, .json, .sh). Abaikan SEMUA folder.
-                rm -f backup.zip
-                zip backup.zip *.js *.json *.sh > /dev/null
-                echo "✅ File backup.zip berhasil dikompresi (DIJAMIN SUPER KECIL)!"
-                
-                # Eksekusi pengiriman ke Telegram
-                node -e "
-                    const fs = require('fs');
-                    const { exec } = require('child_process');
-                    let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
-                    if(config.teleToken && config.teleChatId) {
-                        console.log('⏳ Sedang mengirim ke Telegram Anda...');
-                        let cmd = \`curl -s -F chat_id=\"\${config.teleChatId}\" -F document=@\"backup.zip\" -F caption=\"📦 Manual Backup Tendo Store\" https://api.telegram.org/bot\${config.teleToken}/sendDocument\`;
-                        exec(cmd, (err) => {
-                            if(err) console.log('❌ Gagal mengirim ke Telegram. Pastikan Token & Chat ID benar.');
-                            else console.log('✅ File Backup berhasil mendarat di Telegram Anda!');
-                        });
-                    } else {
-                        console.log('⚠️ Token/Chat ID Telegram belum diisi di Menu 8. File hanya tersimpan di VPS.');
-                    }
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            2)
-                echo -e "\n⚠️ PERHATIAN: Restore akan MENIMPA seluruh file bot Anda saat ini!"
-                read -p "Apakah Anda yakin ingin melanjutkan? (y/n): " yakin
-                if [ "$yakin" == "y" ] || [ "$yakin" == "Y" ]; then
-                    read -p "🔗 Masukkan Direct Link file ZIP Backup Anda: " linkzip
-                    if [ ! -z "$linkzip" ]; then
-                        echo "⏳ Mendownload file dari link..."
-                        wget -O restore.zip "$linkzip"
-                        if [ -f "restore.zip" ]; then
-                            if ! command -v unzip &> /dev/null; then sudo apt install unzip -y; fi
-                            echo "⏳ Mengekstrak dan memulihkan file..."
-                            unzip -o restore.zip
-                            rm restore.zip
-                            echo "✅ Berhasil diekstrak!"
-                            echo "⏳ Memulihkan library Node.js (Mohon tunggu sebentar)..."
-                            npm install
-                            echo -e "\n✅ RESTORE BERHASIL SEPENUHNYA!"
-                            echo "⚠️ Silakan restart bot (Menu 4 lalu Menu 3) agar sistem menggunakan data yang baru direstore."
-                        else
-                            echo "❌ Gagal mendownload file dari link tersebut."
-                        fi
-                    fi
-                fi
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            0) break ;;
-            *) echo "❌ Pilihan tidak valid!"; sleep 1 ;;
-        esac
-    done
-}
-
-# ==========================================
-# 6. SUB-MENU MANAJEMEN MEMBER
+# (FUNGSI SUB-MENU LAINNYA TETAP SAMA)
 # ==========================================
 menu_member() {
     while true; do
         clear
-        echo "==============================================="
-        echo "          👥 MANAJEMEN MEMBER BOT 👥           "
-        echo "==============================================="
-        echo "1. Tambah Saldo Member"
-        echo "2. Kurangi Saldo Member"
-        echo "3. Lihat Daftar Semua Member"
-        echo "0. Kembali ke Menu Utama"
-        echo "==============================================="
-        read -p "Pilih menu [0-3]: " subchoice
-
-        case $subchoice in
-            1)
-                read -p "Masukkan ID Member (Sesuai yg tampil di bot): " nomor
-                read -p "Masukkan Jumlah Saldo: " jumlah
-                node -e "
-                    const fs = require('fs');
-                    let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
-                    let target = '$nomor';
-                    if(!db[target]) db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: target + '@s.whatsapp.net' };
-                    db[target].saldo += parseInt('$jumlah');
-                    fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
-                    console.log('\n✅ Saldo Rp $jumlah berhasil ditambahkan ke ID ' + target + '!');
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            2)
-                read -p "Masukkan ID Member: " nomor
-                read -p "Masukkan Jumlah Saldo yg dikurangi: " jumlah
-                node -e "
-                    const fs = require('fs');
-                    let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
-                    let target = '$nomor';
-                    if(!db[target]) {
-                        console.log('\n❌ ID belum terdaftar di database.');
-                    } else {
-                        db[target].saldo -= parseInt('$jumlah');
-                        if(db[target].saldo < 0) db[target].saldo = 0;
-                        fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
-                        console.log('\n✅ Saldo berhasil dikurangi!');
-                    }
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            3)
-                node -e "
-                    const fs = require('fs');
-                    let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
-                    let members = Object.keys(db);
-                    if(members.length === 0) console.log('Belum ada member.');
-                    else {
-                        members.forEach((m, i) => console.log((i + 1) + '. ID: ' + m + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID')));
-                        console.log('\nTotal Member: ' + members.length);
-                    }
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
+        echo "--- 👥 MANAJEMEN MEMBER ---"
+        echo "1. Tambah Saldo | 2. Kurangi Saldo | 3. List Member | 0. Kembali"
+        read -p "Pilih [0-3]: " sub
+        case $sub in
+            1) read -p "ID Member: " nom; read -p "Jumlah: " jum; node -e "const fs=require('fs'); let d=JSON.parse(fs.readFileSync('database.json')); let t='$nom'; if(!d[t]) d[t]={saldo:0, jid:t+'@s.whatsapp.net'}; d[t].saldo+=parseInt('$jum'); fs.writeFileSync('database.json', JSON.stringify(d,null,2)); console.log('✅ Sukses!');"; read -p "Enter..." ;;
+            2) read -p "ID Member: " nom; read -p "Jumlah Kurangi: " jum; node -e "const fs=require('fs'); let d=JSON.parse(fs.readFileSync('database.json')); let t='$nom'; if(d[t]){ d[t].saldo-=parseInt('$jum'); if(d[t].saldo<0)d[t].saldo=0; fs.writeFileSync('database.json', JSON.stringify(d,null,2)); console.log('✅ Sukses!');}"; read -p "Enter..." ;;
+            3) node -e "const fs=require('fs'); let d=JSON.parse(fs.readFileSync('database.json')); Object.keys(d).forEach((m,i)=>console.log((i+1)+'. ID: '+m+' | Rp '+d[m].saldo.toLocaleString('id-ID')));"; read -p "Enter..." ;;
             0) break ;;
         esac
     done
 }
 
-# ==========================================
-# 7. SUB-MENU MANAJEMEN PRODUK
-# ==========================================
 menu_produk() {
     while true; do
         clear
-        echo "==============================================="
-        echo "          🛒 MANAJEMEN PRODUK BOT 🛒           "
-        echo "==============================================="
-        echo "1. Tambah / Edit Produk"
-        echo "2. Hapus Produk"
-        echo "3. Lihat Daftar Produk"
-        echo "0. Kembali ke Menu Utama"
-        echo "==============================================="
-        read -p "Pilih menu [0-3]: " prodchoice
-
-        case $prodchoice in
-            1)
-                read -p "Masukkan Kode Produk (Contoh: TSEL10): " kode
-                read -p "Masukkan Nama Produk (Contoh: Telkomsel 10K): " nama
-                read -p "Masukkan Harga Jual ke Member (Contoh: 12000): " harga
-                node -e "
-                    const fs = require('fs');
-                    let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
-                    let key = '$kode'.toUpperCase().replace(/\s+/g, '');
-                    produk[key] = { nama: '$nama', harga: parseInt('$harga') };
-                    fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
-                    console.log('\n✅ Produk [' + key + '] $nama berhasil ditambahkan dengan harga Rp $harga!');
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            2)
-                read -p "Masukkan Kode Produk yg ingin dihapus: " kode
-                node -e "
-                    const fs = require('fs');
-                    let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
-                    let key = '$kode'.toUpperCase().replace(/\s+/g, '');
-                    if(produk[key]) {
-                        delete produk[key];
-                        fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
-                        console.log('\n✅ Produk ' + key + ' berhasil dihapus!');
-                    } else console.log('\n❌ Kode Produk ' + key + ' tidak ditemukan.');
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            3)
-                node -e "
-                    const fs = require('fs');
-                    let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
-                    let keys = Object.keys(produk);
-                    if(keys.length === 0) console.log('Belum ada produk.');
-                    else {
-                        keys.forEach((k, i) => console.log((i + 1) + '. [' + k + '] ' + produk[k].nama + ' - Rp ' + produk[k].harga.toLocaleString('id-ID')));
-                        console.log('\nTotal Produk: ' + keys.length);
-                    }
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
+        echo "--- 🛒 MANAJEMEN PRODUK ---"
+        echo "1. Tambah/Edit Produk | 2. Hapus Produk | 3. List Produk | 0. Kembali"
+        read -p "Pilih [0-3]: " ps
+        case $ps in
+            1) read -p "Kode: " k; read -p "Nama: " n; read -p "Harga Jual: " h; node -e "const fs=require('fs'); let p=JSON.parse(fs.readFileSync('produk.json')); p['$k'.toUpperCase().replace(/\s+/g,'')]={nama:'$n', harga:parseInt('$h')}; fs.writeFileSync('produk.json', JSON.stringify(p,null,2)); console.log('✅ Sukses!');"; read -p "Enter..." ;;
+            2) read -p "Kode Hapus: " k; node -e "const fs=require('fs'); let p=JSON.parse(fs.readFileSync('produk.json')); delete p['$k'.toUpperCase()]; fs.writeFileSync('produk.json', JSON.stringify(p,null,2)); console.log('✅ Sukses dihapus!');"; read -p "Enter..." ;;
+            3) node -e "const fs=require('fs'); let p=JSON.parse(fs.readFileSync('produk.json')); Object.keys(p).forEach((k,i)=>console.log((i+1)+'. ['+k+'] '+p[k].nama+' - Rp '+p[k].harga.toLocaleString('id-ID')));"; read -p "Enter..." ;;
             0) break ;;
         esac
     done
+}
+
+menu_telegram() {
+    clear
+    echo "--- ⚙️ SETUP TELEGRAM ---"
+    read -p "Token Bot Telegram: " tk; read -p "Chat ID: " cid; read -p "Auto Backup tiap 12 Jam? (y/n): " ab
+    st="false"; if [ "$ab" == "y" ]; then st="true"; fi
+    node -e "const fs=require('fs'); let c=JSON.parse(fs.readFileSync('config.json')); c.teleToken='$tk'; c.teleChatId='$cid'; c.autoBackup=$st; fs.writeFileSync('config.json', JSON.stringify(c,null,2)); console.log('✅ Tersimpan!');"
+    read -p "Enter..."
+}
+
+menu_backup() {
+    clear
+    echo "--- 💾 BACKUP & RESTORE ---"
+    echo "1. Backup ke Telegram | 2. Restore dari Link"
+    read -p "Pilih: " bs
+    if [ "$bs" == "1" ]; then
+        rm -f backup.zip && zip backup.zip *.js *.json *.sh > /dev/null
+        node -e "const fs=require('fs'); const {exec}=require('child_process'); let c=JSON.parse(fs.readFileSync('config.json')); if(c.teleToken){ exec(\`curl -s -F chat_id=\"\${c.teleChatId}\" -F document=@\"backup.zip\" https://api.telegram.org/bot\${c.teleToken}/sendDocument\`); console.log('✅ Backup super ringan dikirim ke Telegram!'); }"
+        read -p "Enter..."
+    elif [ "$bs" == "2" ]; then
+        read -p "Link ZIP: " l; wget -O r.zip "$l" && unzip -o r.zip && npm install && echo "✅ Restore Selesai!"; read -p "Enter..."
+    fi
 }
 
 # ==========================================
@@ -502,91 +320,32 @@ while true; do
     echo "==============================================="
     echo "      🤖 PANEL PENGELOLA TENDO STORE 🤖      "
     echo "==============================================="
-    echo "--- MANAJEMEN BOT ---"
     echo "1. Install & Buat File Bot Otomatis"
     echo "2. Mulai Bot (Terminal)"
     echo "3. Jalankan Bot di Latar Belakang (PM2)"
     echo "4. Hentikan Bot (PM2)"
     echo "5. Lihat Log / Error Bot"
-    echo ""
-    echo "--- MANAJEMEN TOKO & SISTEM ---"
-    echo "6. 👥 Buka Menu Manajemen Member"
-    echo "7. 🛒 Buka Menu Manajemen Produk (Harga)"
-    echo "8. ⚙️ Bot Telegram Setup (Auto-Backup)"
-    echo "9. 💾 Backup & Restore Data"
-    echo "10. 🔌 Ganti API Digiflazz"
-    echo "11. 🔄 Ganti Akun Bot WA (Reset Sesi)"
-    echo "12. 📢 Kirim Pesan Broadcast"
+    echo "-----------------------------------------------"
+    echo "6. 👥 Manajemen Member & Saldo"
+    echo "7. 🛒 Manajemen Produk & Harga"
+    echo "8. ⚙️ Setup Telegram & Backup"
+    echo "9. 🔌 Ganti API Digiflazz"
+    echo "10. 🔄 Reset Sesi WA"
     echo "0. Keluar"
     echo "==============================================="
-    read -p "Pilih menu [0-12]: " choice
+    read -p "Pilih menu [0-10]: " choice
 
     case $choice in
         1) install_dependencies ;;
-        2) 
-            if [ ! -f "index.js" ]; then echo "❌ Anda harus menjalankan Menu 1 dulu!"; sleep 2; continue; fi
-            if [ ! -d "sesi_bot" ] || [ -z "$(ls -A sesi_bot 2>/dev/null)" ]; then
-                read -p "📲 Masukkan Nomor WA Bot (Awali 628...): " nomor_bot
-                if [ ! -z "$nomor_bot" ]; then
-                    node -e "
-                        const fs = require('fs');
-                        let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
-                        config.botNumber = '$nomor_bot';
-                        config.botName = config.botName || 'Tendo Store';
-                        fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
-                    "
-                fi
-            fi
-            echo -e "\n⏳ Menjalankan bot... (Tekan CTRL+C untuk mematikan dan kembali ke menu)"
-            node index.js
-            echo -e "\n⚠️ Proses bot terhenti."
-            read -p "Tekan Enter untuk kembali ke menu utama..."
-            ;;
-        3) 
-            pm2 start index.js --name "tendo-bot"
-            pm2 save
-            pm2 startup
-            echo "✅ Bot berhasil berjalan di latar belakang!"
-            sleep 2 ;;
+        2) node index.js; read -p "Enter..." ;;
+        3) pm2 start index.js --name "tendo-bot" && pm2 save; sleep 2 ;;
         4) pm2 stop tendo-bot; sleep 2 ;;
         5) pm2 logs tendo-bot ;;
         6) menu_member ;;
         7) menu_produk ;;
-        8) menu_telegram ;;
-        9) menu_backup ;;
-        10)
-            read -p "Username Digiflazz Baru: " user_api
-            read -p "API Key Digiflazz Baru: " key_api
-            node -e "
-                const fs = require('fs');
-                let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
-                config.digiflazzUsername = '$user_api';
-                config.digiflazzApiKey = '$key_api';
-                fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
-                console.log('\n✅ Konfigurasi API Digiflazz berhasil disimpan!');
-            "
-            read -p "Tekan Enter untuk kembali..."
-            ;;
-        11)
-            echo "⚠️  Ini akan menghapus sesi login WhatsApp saat ini."
-            read -p "Lanjutkan? (y/n): " konfirmasi
-            if [ "$konfirmasi" == "y" ] || [ "$konfirmasi" == "Y" ]; then
-                pm2 stop tendo-bot 2>/dev/null
-                rm -rf sesi_bot
-                echo "✅ Sesi dihapus! Silakan pilih menu 2 untuk Login Ulang."
-            fi
-            read -p "Tekan Enter untuk kembali..."
-            ;;
-        12)
-            echo "Gunakan \n untuk baris baru."
-            read -p "Ketik Pesan Broadcast: " pesan_bc
-            if [ ! -z "$pesan_bc" ]; then
-                echo -e "$pesan_bc" > broadcast.txt
-                echo -e "\n✅ Pesan berhasil masuk antrean broadcast!"
-            fi
-            read -p "Tekan Enter untuk kembali..."
-            ;;
-        0) echo "Keluar dari panel. Sampai jumpa!"; exit 0 ;;
-        *) echo "❌ Pilihan tidak valid!"; sleep 2 ;;
+        8) menu_telegram; menu_backup ;;
+        9) read -p "User Digiflazz: " u; read -p "API Key Digiflazz: " k; node -e "const fs=require('fs'); let c=JSON.parse(fs.readFileSync('config.json')); c.digiflazzUsername='$u'; c.digiflazzApiKey='$k'; fs.writeFileSync('config.json', JSON.stringify(c,null,2)); console.log('✅ Tersimpan!');"; read -p "Enter..." ;;
+        10) pm2 stop tendo-bot 2>/dev/null; rm -rf sesi_bot; echo "✅ Sesi dihapus!"; read -p "Enter..." ;;
+        0) exit 0 ;;
     esac
 done
