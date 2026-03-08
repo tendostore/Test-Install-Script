@@ -26,6 +26,7 @@ app.use(bodyParser.json());
 
 const configFile = './config.json';
 const dbFile = './database.json';
+const produkFile = './produk.json'; // FILE DATABASE PRODUK BARU
 
 const loadJSON = (file) => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
 const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
@@ -36,6 +37,7 @@ configAwal.botNumber = configAwal.botNumber || "";
 saveJSON(configFile, configAwal);
 
 if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
+if (!fs.existsSync(produkFile)) saveJSON(produkFile, {});
 
 let pairingRequested = false; 
 
@@ -101,8 +103,6 @@ async function startBot() {
 
         const from = msg.key.remoteJid;
         const senderJid = jidNormalizedUser(msg.key.participant || msg.key.remoteJid);
-        
-        // Mengambil angka murni sebagai ID Member
         const sender = senderJid.split('@')[0]; 
         
         const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
@@ -111,13 +111,13 @@ async function startBot() {
         let config = loadJSON(configFile);
         let namaBot = config.botName || "Tendo Store";
         let db = loadJSON(dbFile);
+        let produkDB = loadJSON(produkFile);
 
         if (!db[sender]) {
             db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: senderJid };
             saveJSON(dbFile, db);
         }
 
-        // PERUBAHAN: Menu menampilkan ID, Saldo hanya menampilkan saldo
         if (command === '.menu') {
             await sock.sendMessage(from, { 
                 text: `👋 Selamat Datang di *${namaBot}*\n📌 *ID Member:* ${sender}\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
@@ -128,6 +128,25 @@ async function startBot() {
             await sock.sendMessage(from, { 
                 text: `💰 Saldo Anda saat ini: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` 
             });
+        }
+
+        // FITUR BARU: CEK HARGA PRODUK
+        if (command === '.harga') {
+            let keys = Object.keys(produkDB);
+            if (keys.length === 0) {
+                await sock.sendMessage(from, { text: `🛒 *Daftar Harga ${namaBot}*\n\nMaaf, belum ada produk yang tersedia saat ini.`});
+                return;
+            }
+
+            let textHarga = `🛒 *DAFTAR PRODUK ${namaBot}*\n\n`;
+            keys.forEach((k, i) => {
+                textHarga += `*${i+1}. ${produkDB[k].nama}*\n`;
+                textHarga += `   Ketik: *.order ${k} tujuan*\n`;
+                textHarga += `   Harga: *Rp ${produkDB[k].harga.toLocaleString('id-ID')}*\n\n`;
+            });
+            textHarga += `_Contoh order: .order ${keys[0]} 08123456789_`;
+            
+            await sock.sendMessage(from, { text: textHarga.trim() });
         }
     });
 
@@ -268,7 +287,79 @@ menu_member() {
 }
 
 # ==========================================
-# 5. MENU UTAMA (PANEL KONTROL)
+# 5. SUB-MENU MANAJEMEN PRODUK (BARU)
+# ==========================================
+menu_produk() {
+    while true; do
+        clear
+        echo "==============================================="
+        echo "          🛒 MANAJEMEN PRODUK BOT 🛒           "
+        echo "==============================================="
+        echo "1. Tambah / Edit Produk"
+        echo "2. Hapus Produk"
+        echo "3. Lihat Daftar Produk"
+        echo "0. Kembali ke Menu Utama"
+        echo "==============================================="
+        read -p "Pilih menu [0-3]: " prodchoice
+
+        case $prodchoice in
+            1)
+                echo "--- TAMBAH / EDIT PRODUK ---"
+                read -p "Masukkan Kode Produk (Contoh: TSEL10): " kode
+                read -p "Masukkan Nama Produk (Contoh: Telkomsel 10K): " nama
+                read -p "Masukkan Harga Jual ke Member (Contoh: 12000): " harga
+                node -e "
+                    const fs = require('fs');
+                    let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
+                    let key = '$kode'.toUpperCase().replace(/\s+/g, '');
+                    produk[key] = { nama: '$nama', harga: parseInt('$harga') };
+                    fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
+                    console.log('\n✅ Produk [' + key + '] $nama berhasil ditambahkan dengan harga Rp $harga!');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo "--- HAPUS PRODUK ---"
+                read -p "Masukkan Kode Produk yg ingin dihapus: " kode
+                node -e "
+                    const fs = require('fs');
+                    let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
+                    let key = '$kode'.toUpperCase().replace(/\s+/g, '');
+                    if(produk[key]) {
+                        delete produk[key];
+                        fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
+                        console.log('\n✅ Produk ' + key + ' berhasil dihapus dari daftar harga!');
+                    } else {
+                        console.log('\n❌ Kode Produk ' + key + ' tidak ditemukan.');
+                    }
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            3)
+                echo "--- DAFTAR PRODUK SAAT INI ---"
+                node -e "
+                    const fs = require('fs');
+                    let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
+                    let keys = Object.keys(produk);
+                    if(keys.length === 0) {
+                        console.log('Belum ada produk. Silakan tambahkan di menu nomor 1.');
+                    } else {
+                        keys.forEach((k, index) => {
+                            console.log((index + 1) + '. [' + k + '] ' + produk[k].nama + ' - Rp ' + produk[k].harga.toLocaleString('id-ID'));
+                        });
+                        console.log('\nTotal Produk: ' + keys.length);
+                    }
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo "❌ Pilihan tidak valid!"; sleep 1 ;;
+        esac
+    done
+}
+
+# ==========================================
+# 6. MENU UTAMA (PANEL KONTROL)
 # ==========================================
 while true; do
     clear
@@ -282,14 +373,15 @@ while true; do
     echo "4. Hentikan Bot (PM2)"
     echo "5. Lihat Log / Error Bot"
     echo ""
-    echo "--- PENGATURAN LAINNYA ---"
+    echo "--- MANAJEMEN TOKO ---"
     echo "6. 👥 Buka Menu Manajemen Member"
-    echo "7. Ganti API Digiflazz"
-    echo "8. Ganti Akun Bot WhatsApp (Reset Sesi)"
-    echo "9. 📢 Kirim Pesan Broadcast ke Semua Member"
+    echo "7. 🛒 Buka Menu Manajemen Produk (Harga)"
+    echo "8. Ganti API Digiflazz"
+    echo "9. Ganti Akun Bot WhatsApp (Reset Sesi)"
+    echo "10. 📢 Kirim Pesan Broadcast ke Semua Member"
     echo "0. Keluar"
     echo "==============================================="
-    read -p "Pilih menu [0-9]: " choice
+    read -p "Pilih menu [0-10]: " choice
 
     case $choice in
         1) install_dependencies ;;
@@ -319,7 +411,8 @@ while true; do
         4) pm2 stop tendo-bot; sleep 2 ;;
         5) pm2 logs tendo-bot ;;
         6) menu_member ;;
-        7)
+        7) menu_produk ;;
+        8)
             read -p "Username Digiflazz Baru: " user_api
             read -p "API Key Digiflazz Baru: " key_api
             node -e "
@@ -332,7 +425,7 @@ while true; do
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
-        8)
+        9)
             echo "⚠️  Ini akan menghapus sesi login WhatsApp saat ini."
             read -p "Lanjutkan? (y/n): " konfirmasi
             if [ "$konfirmasi" == "y" ] || [ "$konfirmasi" == "Y" ]; then
@@ -342,7 +435,7 @@ while true; do
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
-        9)
+        10)
             echo "Gunakan \n untuk baris baru."
             read -p "Ketik Pesan Broadcast: " pesan_bc
             if [ ! -z "$pesan_bc" ]; then
@@ -355,3 +448,4 @@ while true; do
         *) echo "❌ Pilihan tidak valid!"; sleep 2 ;;
     esac
 done
+
