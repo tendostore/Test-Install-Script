@@ -45,13 +45,15 @@ if (!fs.existsSync(produkFile)) saveJSON(produkFile, {});
 
 let pairingRequested = false; 
 
-// FUNGSI AUTO BACKUP KE TELEGRAM (Tanpa sesi_bot)
+// FUNGSI AUTO BACKUP KE TELEGRAM (DIJAMIN SUPER KECIL)
 function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
     
     console.log("⏳ Memulai proses Auto-Backup ke Telegram...");
-    exec(`zip -r backup.zip . -x "node_modules/*" -x "backup.zip" -x "sesi_bot/*"`, (err) => {
+    
+    // PERBAIKAN: Hanya mengambil file konfigurasi dan script utama. Semua folder diabaikan.
+    exec(`rm -f backup.zip && zip backup.zip *.js *.json *.sh`, (err) => {
         if (!err) {
             let caption = `📦 *Auto-Backup Tendo Store*\n⏰ Waktu: ${new Date().toLocaleString('id-ID')}`;
             exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="${caption}" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`, (err2) => {
@@ -308,9 +310,10 @@ menu_backup() {
                 echo -e "\n⏳ Sedang memproses arsip backup. Mohon tunggu..."
                 if ! command -v zip &> /dev/null; then sudo apt install zip -y; fi
                 
-                # Membackup SEMUA isi folder kecuali node_modules, backup.zip, dan sesi_bot
-                zip -r backup.zip . -x "node_modules/*" -x "backup.zip" -x "sesi_bot/*" > /dev/null
-                echo "✅ File backup.zip berhasil dikompresi (tanpa folder WhatsApp)!"
+                # PERBAIKAN: Hanya membungkus file inti (.js, .json, .sh). Abaikan SEMUA folder.
+                rm -f backup.zip
+                zip backup.zip *.js *.json *.sh > /dev/null
+                echo "✅ File backup.zip berhasil dikompresi (DIJAMIN SUPER KECIL)!"
                 
                 # Eksekusi pengiriman ke Telegram
                 node -e "
