@@ -233,6 +233,9 @@ async function startBot() {
                 }
             }
 
+            // ==========================================
+            // INTERACTIVE ORDER FLOW - TAHAP 1 (DENGAN DESKRIPSI)
+            // ==========================================
             if (db[sender].step === 'order_product') {
                 let keys = Object.keys(produkDB);
                 let inputKode = body.trim();
@@ -243,7 +246,11 @@ async function startBot() {
                     saveJSON(dbFile, db);
                     
                     let p = produkDB[db[sender].temp_sku];
-                    await sock.sendMessage(from, { text: `📦 Produk dipilih: *${p.nama}*\n💰 Harga: Rp ${p.harga.toLocaleString('id-ID')}\n\n📱 *Silakan balas dengan NOMOR TUJUAN pengisian!*\n_(Misal: 081234567890)_\n\n_Ketik *batal* untuk membatalkan pesanan._` });
+                    
+                    // Memasukkan Deskripsi Produk jika ada
+                    let infoDeskripsi = p.deskripsi ? `\n📝 *Info:* ${p.deskripsi}` : '';
+                    
+                    await sock.sendMessage(from, { text: `📦 Produk dipilih: *${p.nama}*${infoDeskripsi}\n💰 Harga: Rp ${p.harga.toLocaleString('id-ID')}\n\n📱 *Silakan balas dengan NOMOR TUJUAN pengisian!*\n_(Misal: 081234567890)_\n\n_Ketik *batal* untuk membatalkan pesanan._` });
                     return;
                 } else {
                     await sock.sendMessage(from, { text: `❌ Pilihan tidak valid!\nSilakan balas dengan *angka urutan* produk saja (contoh: 1).\n\n_Ketik *batal* jika ingin membatalkan pesanan._` });
@@ -334,7 +341,6 @@ async function startBot() {
                 return;
             }
 
-
             let rawCommand = body.split(' ')[0].toLowerCase();
             let command = rawCommand;
             
@@ -349,7 +355,7 @@ async function startBot() {
             }
 
             if (command === 'bot') {
-                let menuText = `👋 Selamat Datang di *${namaBot}* (v16)\n`;
+                let menuText = `👋 Selamat Datang di *${namaBot}* (v17)\n`;
                 menuText += `📌 *ID Member:* ${sender}\n\n`;
                 menuText += `1. *Saldo*\n`;
                 menuText += `2. *Order*\n`;
@@ -475,7 +481,6 @@ install_dependencies() {
     export NEEDRESTART_MODE=a
     export NEEDRESTART_SUSPEND=1
 
-    # Fungsi Animasi Berputar (Spinner)
     spin() {
         local pid=$1
         local delay=0.1
@@ -739,7 +744,7 @@ menu_member() {
 }
 
 # ==========================================
-# 7. SUB-MENU MANAJEMEN PRODUK
+# 7. SUB-MENU MANAJEMEN PRODUK (DENGAN DESKRIPSI)
 # ==========================================
 menu_produk() {
     while true; do
@@ -762,13 +767,25 @@ menu_produk() {
                 read -p "Kode Produk (Contoh: TSEL10): " kode
                 read -p "Nama Produk (Contoh: Telkomsel 10K): " nama
                 read -p "Harga Jual (Contoh: 12000): " harga
+                read -p "Deskripsi / Info Produk (Opsional): " deskripsi
+                
+                # Menggunakan environment variable agar aman dari error tanda kutip
+                export TMP_KODE="$kode"
+                export TMP_NAMA="$nama"
+                export TMP_HARGA="$harga"
+                export TMP_DESC="$deskripsi"
+                
                 node -e "
                     const fs = require('fs');
                     let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
-                    let key = '$kode'.toUpperCase().replace(/\s+/g, '');
-                    produk[key] = { nama: '$nama', harga: parseInt('$harga') };
+                    let key = process.env.TMP_KODE.toUpperCase().replace(/\s+/g, '');
+                    produk[key] = { 
+                        nama: process.env.TMP_NAMA, 
+                        harga: parseInt(process.env.TMP_HARGA),
+                        deskripsi: process.env.TMP_DESC 
+                    };
                     fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
-                    console.log('\x1b[32m\n✅ Produk [' + key + '] $nama berhasil ditambahkan dengan harga Rp $harga!\x1b[0m');
+                    console.log('\x1b[32m\n✅ Produk [' + key + '] ' + process.env.TMP_NAMA + ' berhasil ditambahkan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
@@ -795,7 +812,10 @@ menu_produk() {
                     let keys = Object.keys(produk);
                     if(keys.length === 0) console.log('\x1b[33mBelum ada produk.\x1b[0m');
                     else {
-                        keys.forEach((k, i) => console.log((i + 1) + '. [' + k + '] ' + produk[k].nama + ' - Rp ' + produk[k].harga.toLocaleString('id-ID')));
+                        keys.forEach((k, i) => {
+                            let desc = produk[k].deskripsi ? ' | Info: ' + produk[k].deskripsi : '';
+                            console.log((i + 1) + '. [' + k + '] ' + produk[k].nama + ' - Rp ' + produk[k].harga.toLocaleString('id-ID') + desc);
+                        });
                         console.log('\n\x1b[36mTotal Produk: ' + keys.length + '\x1b[0m');
                     }
                 "
