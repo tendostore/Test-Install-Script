@@ -234,7 +234,7 @@ async function startBot() {
             }
 
             // ==========================================
-            // INTERACTIVE ORDER FLOW - TAHAP 1 (DENGAN DESKRIPSI)
+            // INTERACTIVE ORDER FLOW - TAHAP 1 (PENYESUAIAN FORMAT DESKRIPSI)
             // ==========================================
             if (db[sender].step === 'order_product') {
                 let keys = Object.keys(produkDB);
@@ -247,10 +247,20 @@ async function startBot() {
                     
                     let p = produkDB[db[sender].temp_sku];
                     
-                    // Memasukkan Deskripsi Produk jika ada
-                    let infoDeskripsi = p.deskripsi ? `\n📝 *Info:* ${p.deskripsi}` : '';
+                    // Merakit pesan balasan sesuai permintaan
+                    let msgBalasan = `📦 Produk dipilih: *${p.nama}*\n`;
+                    msgBalasan += `💰 Harga: Rp ${p.harga.toLocaleString('id-ID')}\n\n`;
                     
-                    await sock.sendMessage(from, { text: `📦 Produk dipilih: *${p.nama}*${infoDeskripsi}\n💰 Harga: Rp ${p.harga.toLocaleString('id-ID')}\n\n📱 *Silakan balas dengan NOMOR TUJUAN pengisian!*\n_(Misal: 081234567890)_\n\n_Ketik *batal* untuk membatalkan pesanan._` });
+                    // Sisipkan deskripsi di sini jika ada
+                    if (p.deskripsi) {
+                        msgBalasan += `📝 *Info Detail:*\n${p.deskripsi}\n\n`;
+                    }
+                    
+                    msgBalasan += `📱 *Silakan balas dengan NOMOR TUJUAN pengisian!*\n`;
+                    msgBalasan += `_(Misal: 081234567890)_\n\n`;
+                    msgBalasan += `_Ketik *batal* untuk membatalkan pesanan._`;
+                    
+                    await sock.sendMessage(from, { text: msgBalasan });
                     return;
                 } else {
                     await sock.sendMessage(from, { text: `❌ Pilihan tidak valid!\nSilakan balas dengan *angka urutan* produk saja (contoh: 1).\n\n_Ketik *batal* jika ingin membatalkan pesanan._` });
@@ -355,7 +365,7 @@ async function startBot() {
             }
 
             if (command === 'bot') {
-                let menuText = `👋 Selamat Datang di *${namaBot}* (v17)\n`;
+                let menuText = `👋 Selamat Datang di *${namaBot}* (v18)\n`;
                 menuText += `📌 *ID Member:* ${sender}\n\n`;
                 menuText += `1. *Saldo*\n`;
                 menuText += `2. *Order*\n`;
@@ -769,7 +779,6 @@ menu_produk() {
                 read -p "Harga Jual (Contoh: 12000): " harga
                 read -p "Deskripsi / Info Produk (Opsional): " deskripsi
                 
-                # Menggunakan environment variable agar aman dari error tanda kutip
                 export TMP_KODE="$kode"
                 export TMP_NAMA="$nama"
                 export TMP_HARGA="$harga"
