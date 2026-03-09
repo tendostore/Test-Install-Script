@@ -21,6 +21,8 @@ const pino = require('pino');
 const express = require('express');
 const bodyParser = require('body-parser');
 const { exec } = require('child_process');
+const axios = require('axios'); // Ditambahkan untuk koneksi API
+const crypto = require('crypto'); // Ditambahkan untuk enkripsi Sign Digiflazz
 
 const app = express();
 app.use(bodyParser.json());
@@ -175,6 +177,87 @@ async function startBot() {
             
             await sock.sendMessage(from, { text: textHarga.trim() });
         }
+
+        // ==========================================
+        // FITUR BARU: LOGIKA TRANSAKSI .ORDER
+        // ==========================================
+        if (command === '.order') {
+            const args = body.split(' ').slice(1);
+            
+            // Cek kelengkapan format
+            if (args.length < 2) {
+                let contohKode = Object.keys(produkDB)[0] || 'C15GB';
+                return await sock.sendMessage(from, { text: `❌ *Format salah!*\n\nKetik: *.order [kode] [nomor_tujuan]*\nContoh: .order ${contohKode} 08123456789` });
+            }
+
+            const kodeProduk = args[0].toUpperCase();
+            const tujuan = args[1];
+
+            // Cek apakah produk ada di database
+            if (!produkDB[kodeProduk]) {
+                return await sock.sendMessage(from, { text: `❌ Kode produk *${kodeProduk}* tidak ditemukan.\nKetik *.harga* untuk melihat daftar kode produk yang tersedia.` });
+            }
+
+            const hargaProduk = produkDB[kodeProduk].harga;
+
+            // Cek saldo member
+            if (db[sender].saldo < hargaProduk) {
+                return await sock.sendMessage(from, { text: `❌ *Saldo tidak mencukupi!*\n\n💰 Saldo Anda: Rp ${db[sender].saldo.toLocaleString('id-ID')}\n🏷️ Harga Produk: Rp ${hargaProduk.toLocaleString('id-ID')}\n\nSilakan isi saldo terlebih dahulu.` });
+            }
+
+            let username = config.digiflazzUsername;
+            let apiKey = config.digiflazzApiKey;
+
+            // Cek apakah API Digiflazz sudah diatur
+            if (!username || !apiKey) {
+                return await sock.sendMessage(from, { text: `❌ Sistem bermasalah: API Digiflazz belum dikonfigurasi oleh Admin.` });
+            }
+
+            // Generate Ref ID & MD5 Signature
+            let refId = 'TENDO-' + Date.now();
+            let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
+
+            await sock.sendMessage(from, { text: `⏳ *Sedang memproses pesanan...*\n\n📦 Produk: ${produkDB[kodeProduk].nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}` });
+
+            try {
+                // Hit API Digiflazz
+                const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
+                    username: username,
+                    buyer_sku_code: kodeProduk,
+                    customer_no: tujuan,
+                    ref_id: refId,
+                    sign: sign
+                });
+
+                const resData = response.data.data;
+                const statusOrder = resData.status; // Pending, Sukses, Gagal
+                const sn = resData.sn || '-';
+                const message = resData.message || '';
+
+                if (statusOrder === 'Gagal') {
+                    await sock.sendMessage(from, { text: `❌ *Transaksi Gagal!*\nAlasan: ${message}\n\n_Saldo Anda tidak dipotong._` });
+                } else {
+                    // Berhasil / Pending -> Potong saldo
+                    db[sender].saldo -= hargaProduk;
+                    saveJSON(dbFile, db);
+
+                    let pesanSukses = `✅ *PESANAN BERHASIL DIPROSES*\n\n`;
+                    pesanSukses += `📦 Produk: ${produkDB[kodeProduk].nama}\n`;
+                    pesanSukses += `📱 Tujuan: ${tujuan}\n`;
+                    pesanSukses += `🔖 Ref ID: ${refId}\n`;
+                    pesanSukses += `⚙️ Status: *${statusOrder}*\n`;
+                    pesanSukses += `🔑 SN/Catatan: ${sn}\n\n`;
+                    pesanSukses += `💰 Sisa Saldo: Rp ${db[sender].saldo.toLocaleString('id-ID')}`;
+
+                    await sock.sendMessage(from, { text: pesanSukses });
+                }
+
+            } catch (error) {
+                console.error('Digiflazz Error:', error.response ? error.response.data : error.message);
+                let errMessage = error.response?.data?.data?.message || 'Terjadi kesalahan saat menghubungi server Digiflazz/API Down.';
+                await sock.sendMessage(from, { text: `❌ *Transaksi Gagal!*\nAlasan: ${errMessage}\n\n_Saldo Anda tidak dipotong._` });
+            }
+        }
     });
 
     if (global.broadcastInterval) clearInterval(global.broadcastInterval);
@@ -218,7 +301,6 @@ install_dependencies() {
     echo "      🚀 MENGINSTALL SISTEM BOT 🚀      "
     echo "==============================================="
     sudo apt update && sudo apt upgrade -y
-    # DITAMBAHKAN: zip dan unzip untuk fitur backup/restore
     sudo apt install -y curl git wget nano zip unzip
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
     sudo apt-get install -y nodejs
