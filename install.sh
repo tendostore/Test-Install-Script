@@ -53,13 +53,13 @@ function doBackupAndSend() {
     if (!cfg.teleToken || !cfg.teleChatId) return;
     
     console.log("⏳ Memulai proses Auto-Backup ke Telegram...");
-    // Hanya membackup file yang berhubungan dengan bot
-    exec(`zip -r backup.zip config.json database.json produk.json index.js install.sh package.json sesi_bot broadcast.txt 2>/dev/null`, (err) => {
+    // Hapus zip lama terlebih dahulu, lalu buat zip baru yang 100% bersih
+    exec(`rm -f backup.zip && zip -r backup.zip config.json database.json produk.json index.js install.sh package.json package-lock.json sesi_bot broadcast.txt 2>/dev/null`, (err) => {
         if (!err) {
             let caption = `📦 *Auto-Backup Tendo Store*\n⏰ Waktu: ${new Date().toLocaleString('id-ID')}`;
             exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="${caption}" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`, (err2) => {
                 if (!err2) console.log("✅ Auto-Backup berhasil dikirim ke Telegram!");
-                exec(`rm backup.zip`); // Hapus zip setelah dikirim
+                exec(`rm -f backup.zip`); 
             });
         }
     });
@@ -152,10 +152,10 @@ async function startBot() {
                 saveJSON(dbFile, db);
             }
 
-            // Tanda v2 agar kita tahu bot sudah update
+            // Indikator v3 agar kita tahu bot sudah menggunakan versi terbaru
             if (command === '.menu') {
                 await sock.sendMessage(from, { 
-                    text: `👋 Selamat Datang di *${namaBot}* (v2)\n📌 *ID Member:* ${sender}\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
+                    text: `👋 Selamat Datang di *${namaBot}* (v3)\n📌 *ID Member:* ${sender}\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
                 });
                 return;
             }
@@ -186,9 +186,6 @@ async function startBot() {
                 return;
             }
 
-            // ==========================================
-            // LOGIKA TRANSAKSI .ORDER
-            // ==========================================
             if (command === '.order') {
                 const args = body.split(' ').slice(1);
                 
@@ -210,8 +207,9 @@ async function startBot() {
                     return await sock.sendMessage(from, { text: `❌ *Saldo tidak mencukupi!*\n\n💰 Saldo Anda: Rp ${db[sender].saldo.toLocaleString('id-ID')}\n🏷️ Harga Produk: Rp ${hargaProduk.toLocaleString('id-ID')}\n\nSilakan isi saldo terlebih dahulu.` });
                 }
 
-                let username = config.digiflazzUsername;
-                let apiKey = config.digiflazzApiKey;
+                // Hapus spasi jika ada ketidaksengajaan ketik dari admin
+                let username = (config.digiflazzUsername || '').trim();
+                let apiKey = (config.digiflazzApiKey || '').trim();
 
                 if (!username || !apiKey) {
                     return await sock.sendMessage(from, { text: `❌ Sistem bermasalah: API Digiflazz belum dikonfigurasi oleh Admin.` });
@@ -254,7 +252,6 @@ async function startBot() {
                     }
 
                 } catch (error) {
-                    console.error('Digiflazz Error:', error.message);
                     let errMessage = error.response?.data?.data?.message || 'Terjadi kesalahan saat menghubungi server Digiflazz/API Down.';
                     await sock.sendMessage(from, { text: `❌ *Transaksi Gagal!*\nAlasan: ${errMessage}\n\n_Saldo Anda tidak dipotong._` });
                 }
@@ -396,9 +393,10 @@ menu_backup() {
                 echo -e "\n⏳ Sedang memproses arsip backup. Mohon tunggu..."
                 if ! command -v zip &> /dev/null; then sudo apt install zip -y; fi
                 
-                # DIPERBARUI: Hanya mengambil file bot
-                zip -r backup.zip config.json database.json produk.json index.js install.sh package.json sesi_bot broadcast.txt 2>/dev/null
-                echo "✅ File backup.zip berhasil dikompresi!"
+                # DIPERBARUI: Menghapus backup lama agar zip yang baru benar-benar murni
+                rm -f backup.zip
+                zip -r backup.zip config.json database.json produk.json index.js install.sh package.json package-lock.json sesi_bot broadcast.txt 2>/dev/null
+                echo "✅ File backup.zip berhasil dikompresi dengan bersih!"
                 
                 # Eksekusi pengiriman ke Telegram
                 node -e "
@@ -650,8 +648,8 @@ while true; do
             node -e "
                 const fs = require('fs');
                 let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
-                config.digiflazzUsername = '$user_api';
-                config.digiflazzApiKey = '$key_api';
+                config.digiflazzUsername = '$user_api'.trim();
+                config.digiflazzApiKey = '$key_api'.trim();
                 fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
                 console.log('\n✅ Konfigurasi API Digiflazz berhasil disimpan!');
             "
