@@ -196,6 +196,15 @@ async function startBot() {
         }
     }, 15000); 
 
+    const brandStructure = {
+        'Pulsa': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri'],
+        'Paket Data': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri'],
+        'Topup Game': ['Mobile Legends', 'Free Fire'],
+        'Topup E-Wallet': ['Gopay', 'Dana', 'Shopee Pay'],
+        'Token Listrik': ['Token Listrik'],
+        'Masa Aktif': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri']
+    };
+
     sock.ev.on('messages.upsert', async m => {
         try {
             const msg = m.messages[0];
@@ -214,38 +223,76 @@ async function startBot() {
             let namaBot = config.botName || "Tendo Store";
 
             if (!db[sender]) {
-                db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: senderJid, step: 'idle', temp_sku: '', temp_category: '' };
+                db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: senderJid, step: 'idle', temp_sku: '', temp_category: '', temp_brand: '' };
                 saveJSON(dbFile, db);
             } else {
                 if (!db[sender].step) db[sender].step = 'idle';
                 if (!db[sender].temp_sku) db[sender].temp_sku = '';
                 if (!db[sender].temp_category) db[sender].temp_category = '';
+                if (!db[sender].temp_brand) db[sender].temp_brand = '';
             }
 
             let bodyLower = body.trim().toLowerCase();
             let rawCommand = bodyLower.split(' ')[0];
 
-            // Batal atau memanggil menu utama akan mereset state transaksi
+            // BATAL DAN MENU UTAMA
             if (['batal', 'cancel', 'bot', 'menu', '.menu', 'p', 'ping'].includes(rawCommand)) {
                 if (db[sender].step !== 'idle') {
                     db[sender].step = 'idle';
                     db[sender].temp_sku = '';
                     db[sender].temp_category = '';
+                    db[sender].temp_brand = '';
                     saveJSON(dbFile, db);
                     if (['batal', 'cancel'].includes(rawCommand)) {
-                        await sock.sendMessage(from, { text: `✅ Proses pemesanan berhasil dibatalkan.\n\n_Ketik *bot* untuk kembali ke menu utama._` });
+                        await sock.sendMessage(from, { text: `✅ Proses pesanan dibatalkan.\n\n_Ketik *bot* untuk kembali ke menu utama._` });
                         return;
                     }
                 }
             }
 
             // ==========================================
-            // LOGIKA PEMILIHAN KATEGORI & PRODUK
+            // LOGIKA PEMILIHAN KATEGORI, BRAND & PRODUK
             // ==========================================
+            if (db[sender].step === 'select_brand') {
+                let cat = db[sender].temp_category;
+                let brands = brandStructure[cat];
+                let inputNum = parseInt(body.trim());
+                
+                if (!isNaN(inputNum) && inputNum > 0 && inputNum <= brands.length) {
+                    db[sender].temp_brand = brands[inputNum - 1];
+                    db[sender].step = 'order_product';
+                    saveJSON(dbFile, db);
+                    
+                    let filteredKeys = Object.keys(produkDB).filter(k => 
+                        (produkDB[k].kategori || 'Lainnya') === cat && (produkDB[k].brand || 'Lainnya') === db[sender].temp_brand
+                    );
+                    
+                    if (filteredKeys.length === 0) {
+                        db[sender].step = 'idle'; saveJSON(dbFile, db);
+                        return await sock.sendMessage(from, { text: `🛒 Maaf, produk untuk *${cat} - ${db[sender].temp_brand}* sedang kosong.\n_Ketik *bot* untuk kembali._`});
+                    }
+                    
+                    let textCat = `🛒 *PILIH PRODUK: ${cat.toUpperCase()} - ${db[sender].temp_brand.toUpperCase()}*\n\n`;
+                    filteredKeys.forEach((k, i) => {
+                        textCat += `*${i+1}.* ${produkDB[k].nama} - Rp ${produkDB[k].harga.toLocaleString('id-ID')}\n`;
+                        if (produkDB[k].deskripsi) textCat += `   └ _${produkDB[k].deskripsi}_\n`;
+                    });
+                    textCat += `\n👉 *Balas pesan ini dengan NOMOR URUT produknya saja (Contoh: ketik 1)*\n\n_Ketik *batal* untuk membatalkan pesanan._`;
+                    
+                    await sock.sendMessage(from, { text: textCat.trim() });
+                    return;
+                } else {
+                    return await sock.sendMessage(from, { text: `❌ Pilihan tidak valid!\nSilakan balas dengan *angka urutan* yang ada.\n\n_Ketik *batal* jika ingin membatalkan pesanan._` });
+                }
+            }
+
             if (db[sender].step === 'order_product') {
                 let cat = db[sender].temp_category;
-                // Filter hanya produk di kategori tersebut
-                let filteredKeys = Object.keys(produkDB).filter(k => (produkDB[k].kategori || 'Lainnya') === cat);
+                let brand = db[sender].temp_brand;
+                let filteredKeys = Object.keys(produkDB).filter(k => 
+                    (produkDB[k].kategori || 'Lainnya') === cat && (produkDB[k].brand || 'Lainnya') === brand
+                );
+                
                 let inputKode = body.trim();
                 
                 if (!isNaN(inputKode) && Number(inputKode) > 0 && Number(inputKode) <= filteredKeys.length) {
@@ -257,8 +304,8 @@ async function startBot() {
                     let msgBalasan = `📦 Produk dipilih: *${p.nama}*\n`;
                     msgBalasan += `💰 Harga: Rp ${p.harga.toLocaleString('id-ID')}\n\n`;
                     if (p.deskripsi) msgBalasan += `📝 *Info Detail:*\n${p.deskripsi}\n\n`;
-                    msgBalasan += `📱 *Silakan balas dengan NOMOR TUJUAN pengisian!*\n`;
-                    msgBalasan += `_(Misal: 081234567890)_\n\n`;
+                    msgBalasan += `📱 *Silakan balas dengan NOMOR/ID TUJUAN pengisian!*\n`;
+                    msgBalasan += `_(Pastikan nomor tujuan benar)_\n\n`;
                     msgBalasan += `_Ketik *batal* untuk membatalkan pesanan._`;
                     
                     await sock.sendMessage(from, { text: msgBalasan });
@@ -270,16 +317,17 @@ async function startBot() {
             }
 
             if (db[sender].step === 'order_target') {
-                let tujuan = body.trim().replace(/[^0-9]/g, ''); 
+                let tujuan = body.trim(); 
                 let kodeProduk = db[sender].temp_sku;
                 
                 db[sender].step = 'idle';
                 db[sender].temp_sku = '';
                 db[sender].temp_category = '';
+                db[sender].temp_brand = '';
                 saveJSON(dbFile, db);
 
-                if(!tujuan || tujuan.length < 8) {
-                    return await sock.sendMessage(from, { text: `❌ Format nomor tujuan salah. Pesanan dibatalkan. Silakan ulangi dari awal.` });
+                if(!tujuan || tujuan.length < 4) {
+                    return await sock.sendMessage(from, { text: `❌ Format nomor/ID tujuan salah. Pesanan dibatalkan. Silakan ulangi dari awal.` });
                 }
 
                 const hargaProduk = produkDB[kodeProduk].harga;
@@ -354,14 +402,14 @@ async function startBot() {
             }
 
             // ==========================================
-            // KECERDASAN ROUTER MENU BARU
+            // KECERDASAN ROUTER MENU (V24)
             // ==========================================
             let command = '';
             const catMap = {
                 '3': 'Pulsa', 'pulsa': 'Pulsa',
                 '4': 'Paket Data', 'paket': 'Paket Data', 'data': 'Paket Data',
                 '5': 'Topup Game', 'game': 'Topup Game',
-                '6': 'Topup E-Wallet', 'ewallet': 'Topup E-Wallet', 'dana': 'Topup E-Wallet', 'gopay': 'Topup E-Wallet', 'ovo': 'Topup E-Wallet',
+                '6': 'Topup E-Wallet', 'ewallet': 'Topup E-Wallet', 'dana': 'Topup E-Wallet', 'gopay': 'Topup E-Wallet',
                 '7': 'Token Listrik', 'token': 'Token Listrik', 'pln': 'Token Listrik', 'listrik': 'Token Listrik',
                 '8': 'Masa Aktif', 'masa': 'Masa Aktif', 'aktif': 'Masa Aktif'
             };
@@ -372,13 +420,10 @@ async function startBot() {
             else if (catMap[rawCommand]) {
                 command = '.show_cat';
                 db[sender].temp_category = catMap[rawCommand];
-            } else if (rawCommand === 'order' || rawCommand === '.order') {
-                // Bypass rahasia jika diketik langsung formatnya: order [kode] [tujuan]
-                command = '.order_bypass';
             }
 
             if (command === 'bot') {
-                let menuText = `👋 Selamat Datang di *${namaBot}* (v23)\n`;
+                let menuText = `👋 Selamat Datang di *${namaBot}* (v24)\n`;
                 menuText += `📌 *ID Member:* ${sender}\n\n`;
                 menuText += `1. *Cek Saldo*\n`;
                 menuText += `2. *Cek Semua Harga*\n`;
@@ -388,7 +433,7 @@ async function startBot() {
                 menuText += `6. *Topup E-Wallet*\n`;
                 menuText += `7. *Token Listrik*\n`;
                 menuText += `8. *Masa Aktif*\n\n`;
-                menuText += `_👉 Cukup balas dengan angka pilihan di atas untuk order/cek._`;
+                menuText += `_👉 Cukup balas dengan angka pilihan di atas untuk order/cek (Contoh: ketik *3* untuk membeli Pulsa)._`;
                 await sock.sendMessage(from, { text: menuText });
                 return;
             }
@@ -408,63 +453,68 @@ async function startBot() {
                 let cats = ["Pulsa", "Paket Data", "Topup Game", "Topup E-Wallet", "Token Listrik", "Masa Aktif", "Lainnya"];
                 
                 cats.forEach(c => {
-                    let items = keys.filter(k => (produkDB[k].kategori || 'Lainnya') === c);
-                    if(items.length > 0) {
+                    let catKeys = keys.filter(k => (produkDB[k].kategori || 'Lainnya') === c);
+                    if(catKeys.length > 0) {
                         textHarga += `➖ *${c.toUpperCase()}* ➖\n`;
-                        items.forEach(k => {
-                            textHarga += `🔸 ${produkDB[k].nama} - Rp ${produkDB[k].harga.toLocaleString('id-ID')}\n`;
-                            if(produkDB[k].deskripsi) textHarga += `   └ _${produkDB[k].deskripsi}_\n`;
+                        let brands = [...new Set(catKeys.map(k => produkDB[k].brand || 'Lainnya'))];
+                        brands.forEach(b => {
+                            textHarga += `🔸 *${b.toUpperCase()}*\n`;
+                            let brandKeys = catKeys.filter(k => (produkDB[k].brand || 'Lainnya') === b);
+                            brandKeys.forEach(k => {
+                                textHarga += `   ${produkDB[k].nama} - Rp ${produkDB[k].harga.toLocaleString('id-ID')}\n`;
+                                if(produkDB[k].deskripsi) textHarga += `   └ _${produkDB[k].deskripsi}_\n`;
+                            });
                         });
                         textHarga += `\n`;
                     }
                 });
                 
-                textHarga += `_💡 Ketik angka kategori (misal: 3 untuk Pulsa) untuk mulai membeli._`;
+                textHarga += `_💡 Ketik angka kategori di menu utama (misal: ketik 3 untuk Pulsa) untuk mulai membeli._`;
                 await sock.sendMessage(from, { text: textHarga.trim() });
                 return;
             }
 
-            // MENAMPILKAN DAFTAR PRODUK BERDASARKAN KATEGORI YANG DIPILIH
             if (command === '.show_cat') {
                 let cat = db[sender].temp_category;
-                let filteredKeys = Object.keys(produkDB).filter(k => (produkDB[k].kategori || 'Lainnya') === cat);
+                let brands = brandStructure[cat] || [];
                 
-                if (filteredKeys.length === 0) {
-                    return await sock.sendMessage(from, { text: `🛒 Maaf, belum ada produk untuk kategori *${cat}* saat ini.`});
-                }
-
-                let textCat = `🛒 *PILIH PRODUK: ${cat.toUpperCase()}*\n\n`;
-                filteredKeys.forEach((k, i) => {
-                    textCat += `*${i+1}.* ${produkDB[k].nama} - Rp ${produkDB[k].harga.toLocaleString('id-ID')}\n`;
-                    if (produkDB[k].deskripsi) {
-                        textCat += `   └ _${produkDB[k].deskripsi}_\n`;
-                    }
-                });
-                textCat += `\n👉 *Silakan balas pesan ini dengan NOMOR URUT produknya saja (Contoh: ketik 1)*\n\n_Ketik *batal* untuk membatalkan._`;
-                
-                db[sender].step = 'order_product';
-                saveJSON(dbFile, db);
-                
-                await sock.sendMessage(from, { text: textCat.trim() });
-                return;
-            }
-            
-            // JIKA USER MENGGUNAKAN BYPASS LAMA "order [KODE] [TUJUAN]"
-            if (command === '.order_bypass') {
-                const args = body.split(' ').slice(1);
-                if (args.length >= 2) {
-                    let kodeProduk = args[0].toUpperCase();
-                    const tujuan = args[1].replace(/[^0-9]/g, '');
-                    if (!produkDB[kodeProduk]) return await sock.sendMessage(from, { text: `❌ Kode tidak ditemukan.` });
-                    
-                    db[sender].step = 'order_target'; 
-                    db[sender].temp_sku = kodeProduk;
+                // Jika hanya ada 1 brand (contoh: Token Listrik), langsung tampilkan produknya
+                if (brands.length === 1) {
+                    db[sender].temp_brand = brands[0];
+                    db[sender].step = 'order_product';
                     saveJSON(dbFile, db);
                     
-                    m.messages[0].message.conversation = tujuan;
-                    sock.ev.emit('messages.upsert', m);
+                    let filteredKeys = Object.keys(produkDB).filter(k => 
+                        (produkDB[k].kategori || 'Lainnya') === cat && (produkDB[k].brand || 'Lainnya') === db[sender].temp_brand
+                    );
+                    
+                    if (filteredKeys.length === 0) {
+                        db[sender].step = 'idle'; saveJSON(dbFile, db);
+                        return await sock.sendMessage(from, { text: `🛒 Maaf, produk untuk kategori *${cat}* sedang kosong.\n_Ketik *bot* untuk kembali._`});
+                    }
+                    
+                    let textCat = `🛒 *PILIH PRODUK: ${cat.toUpperCase()}*\n\n`;
+                    filteredKeys.forEach((k, i) => {
+                        textCat += `*${i+1}.* ${produkDB[k].nama} - Rp ${produkDB[k].harga.toLocaleString('id-ID')}\n`;
+                        if (produkDB[k].deskripsi) textCat += `   └ _${produkDB[k].deskripsi}_\n`;
+                    });
+                    textCat += `\n👉 *Silakan balas pesan ini dengan NOMOR URUT produknya saja (Contoh: ketik 1)*\n\n_Ketik *batal* untuk membatalkan._`;
+                    
+                    await sock.sendMessage(from, { text: textCat.trim() });
+                    return;
                 } else {
-                    await sock.sendMessage(from, { text: `Ketik *bot* untuk melihat menu, atau pilih angka kategori langsung.` });
+                    // Jika ada lebih dari 1 brand, suruh pilih provider/brand dulu
+                    db[sender].step = 'select_brand';
+                    saveJSON(dbFile, db);
+                    
+                    let textBrand = `🛒 *PILIH PROVIDER / GAME / E-WALLET*\n\n`;
+                    textBrand += `Kategori: *${cat.toUpperCase()}*\n\n`;
+                    brands.forEach((b, i) => {
+                        textBrand += `*${i+1}.* ${b}\n`;
+                    });
+                    textBrand += `\n👉 *Balas pesan ini dengan ANGKA pilihannya (Contoh: ketik 1)*\n\n_Ketik *batal* untuk membatalkan._`;
+                    await sock.sendMessage(from, { text: textBrand });
+                    return;
                 }
             }
 
@@ -537,7 +587,7 @@ install_dependencies() {
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    echo -ne "${C_MAG}>> Menginstall dependensi (curl, git, wget, zip)...${C_RST}"
+    echo -ne "${C_MAG}>> Menginstall dependensi...${C_RST}"
     sudo -E apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl git wget nano zip unzip > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
@@ -552,7 +602,7 @@ install_dependencies() {
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    echo -ne "${C_MAG}>> Meracik sistem utama bot (v23)...${C_RST}"
+    echo -ne "${C_MAG}>> Meracik sistem utama bot (v24)...${C_RST}"
     generate_bot_script
     if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
     rm -rf node_modules package-lock.json
@@ -570,7 +620,7 @@ install_dependencies() {
 }
 
 # ==========================================
-# 4. SUB-MENU TELEGRAM SETUP
+# LAIN-LAIN: SUB-MENU TELEGRAM & BACKUP 
 # ==========================================
 menu_telegram() {
     while true; do
@@ -579,7 +629,7 @@ menu_telegram() {
         echo -e "${C_YELLOW}${C_BOLD}             ⚙️ BOT TELEGRAM SETUP ⚙️              ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "  ${C_GREEN}[1]${C_RST} Change BOT API & CHAT ID"
-        echo -e "  ${C_GREEN}[2]${C_RST} Set Notifikasi Backup Otomatis (Custom Waktu)"
+        echo -e "  ${C_GREEN}[2]${C_RST} Set Notifikasi Backup Otomatis"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
         echo -e "${C_CYAN}======================================================${C_RST}"
@@ -606,10 +656,9 @@ menu_telegram() {
                 read -p "Aktifkan Auto-Backup ke Telegram? (y/n): " set_auto
                 if [ "$set_auto" == "y" ] || [ "$set_auto" == "Y" ]; then
                     status="true"
-                    read -p "Berapa MENIT sekali bot harus backup? (Contoh: 60 untuk 1 jam): " menit
+                    read -p "Berapa MENIT sekali bot harus backup? (Contoh: 60): " menit
                     if ! [[ "$menit" =~ ^[0-9]+$ ]]; then
                         menit=720
-                        echo -e "${C_YELLOW}Input tidak valid, mengatur ke default 720 menit (12 Jam).${C_RST}"
                     fi
                     echo -e "\n${C_GREEN}✅ Auto-Backup DIAKTIFKAN setiap $menit menit!${C_RST}"
                 else
@@ -624,7 +673,6 @@ menu_telegram() {
                     config.backupInterval = parseInt('$menit');
                     fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
                 "
-                echo -e "${C_YELLOW}⚠️ Silakan restart bot (Menu 4 lalu 3) agar perubahan jadwal aktif.${C_RST}"
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             0) break ;;
@@ -633,17 +681,14 @@ menu_telegram() {
     done
 }
 
-# ==========================================
-# 5. SUB-MENU BACKUP & RESTORE
-# ==========================================
 menu_backup() {
     while true; do
         clear
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "${C_YELLOW}${C_BOLD}               💾 BACKUP & RESTORE 💾               ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Backup Sekarang (Kirim file ZIP ke Telegram)"
-        echo -e "  ${C_GREEN}[2]${C_RST} Restore Database & Bot dari Direct Link"
+        echo -e "  ${C_GREEN}[1]${C_RST} Backup Sekarang (Kirim ke Telegram)"
+        echo -e "  ${C_GREEN}[2]${C_RST} Restore Database & Bot dari Link"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
         echo -e "${C_CYAN}======================================================${C_RST}"
@@ -652,26 +697,24 @@ menu_backup() {
 
         case $backchoice in
             1)
-                echo -e "\n${C_MAG}⏳ Sedang memproses arsip backup. Mohon tunggu...${C_RST}"
+                echo -e "\n${C_MAG}⏳ Sedang memproses arsip backup...${C_RST}"
                 if ! command -v zip &> /dev/null; then sudo apt install zip -y > /dev/null 2>&1; fi
-                
                 rm -f backup.zip
                 zip backup.zip config.json database.json trx.json index.js package-lock.json package.json produk.json 2>/dev/null
-                echo -e "${C_GREEN}✅ File backup.zip berhasil dikompresi (tanpa install.sh)!${C_RST}"
-                
+                echo -e "${C_GREEN}✅ File backup.zip berhasil dikompresi!${C_RST}"
                 node -e "
                     const fs = require('fs');
                     const { exec } = require('child_process');
                     let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
                     if(config.teleToken && config.teleChatId) {
-                        console.log('\x1b[36m⏳ Sedang mengirim ke Telegram Anda...\x1b[0m');
-                        let cmd = \`curl -s -F chat_id=\"\${config.teleChatId}\" -F document=@\"backup.zip\" -F caption=\"📦 Manual Backup Tendo Store\" https://api.telegram.org/bot\${config.teleToken}/sendDocument\`;
+                        console.log('\x1b[36m⏳ Sedang mengirim ke Telegram...\x1b[0m');
+                        let cmd = \`curl -s -F chat_id=\"\${config.teleChatId}\" -F document=@\"backup.zip\" -F caption=\"📦 Manual Backup\" https://api.telegram.org/bot\${config.teleToken}/sendDocument\`;
                         exec(cmd, (err) => {
-                            if(err) console.log('\x1b[31m❌ Gagal mengirim ke Telegram. Pastikan Token & Chat ID benar.\x1b[0m');
-                            else console.log('\x1b[32m✅ File Backup berhasil mendarat di Telegram Anda!\x1b[0m');
+                            if(err) console.log('\x1b[31m❌ Gagal mengirim ke Telegram.\x1b[0m');
+                            else console.log('\x1b[32m✅ File Backup berhasil mendarat di Telegram!\x1b[0m');
                         });
                     } else {
-                        console.log('\x1b[33m⚠️ Token/Chat ID Telegram belum diisi di Menu 8. File hanya tersimpan di VPS.\x1b[0m');
+                        console.log('\x1b[33m⚠️ Token Telegram belum diisi.\x1b[0m');
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -682,20 +725,15 @@ menu_backup() {
                 if [ "$yakin" == "y" ] || [ "$yakin" == "Y" ]; then
                     read -p "🔗 Masukkan Direct Link file ZIP Backup Anda: " linkzip
                     if [ ! -z "$linkzip" ]; then
-                        echo -e "${C_MAG}⏳ Mendownload file dari link...${C_RST}"
                         wget -qO restore.zip "$linkzip"
                         if [ -f "restore.zip" ]; then
                             if ! command -v unzip &> /dev/null; then sudo apt install unzip -y > /dev/null 2>&1; fi
-                            echo -e "${C_MAG}⏳ Mengekstrak dan memulihkan file...${C_RST}"
                             unzip -o restore.zip > /dev/null 2>&1
                             rm restore.zip
-                            echo -e "${C_GREEN}✅ Berhasil diekstrak!${C_RST}"
-                            echo -e "${C_MAG}⏳ Memulihkan library Node.js (Mohon tunggu)...${C_RST}"
                             npm install > /dev/null 2>&1
                             echo -e "\n${C_GREEN}${C_BOLD}✅ RESTORE BERHASIL SEPENUHNYA!${C_RST}"
-                            echo -e "${C_YELLOW}⚠️ Silakan restart bot (Menu 4 lalu 3) agar sistem update.${C_RST}"
                         else
-                            echo -e "${C_RED}❌ Gagal mendownload file dari link tersebut.${C_RST}"
+                            echo -e "${C_RED}❌ Gagal mendownload file.${C_RST}"
                         fi
                     fi
                 fi
@@ -707,9 +745,6 @@ menu_backup() {
     done
 }
 
-# ==========================================
-# 6. SUB-MENU MANAJEMEN MEMBER
-# ==========================================
 menu_member() {
     while true; do
         clear
@@ -727,7 +762,6 @@ menu_member() {
 
         case $subchoice in
             1)
-                echo -e "\n${C_MAG}--- TAMBAH SALDO ---${C_RST}"
                 read -p "Masukkan ID Member: " nomor
                 read -p "Masukkan Jumlah Saldo: " jumlah
                 node -e "
@@ -737,21 +771,18 @@ menu_member() {
                     if(!db[target]) db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: target + '@s.whatsapp.net' };
                     db[target].saldo += parseInt('$jumlah');
                     fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
-                    console.log('\x1b[32m\n✅ Saldo Rp $jumlah berhasil ditambahkan ke ID ' + target + '!\x1b[0m');
+                    console.log('\x1b[32m\n✅ Saldo Rp $jumlah berhasil ditambahkan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
-                echo -e "\n${C_MAG}--- KURANGI SALDO ---${C_RST}"
                 read -p "Masukkan ID Member: " nomor
                 read -p "Masukkan Jumlah Saldo yg dikurangi: " jumlah
                 node -e "
                     const fs = require('fs');
                     let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
                     let target = '$nomor';
-                    if(!db[target]) {
-                        console.log('\x1b[31m\n❌ ID belum terdaftar di database.\x1b[0m');
-                    } else {
+                    if(!db[target]) { console.log('\x1b[31m\n❌ ID belum terdaftar.\x1b[0m'); } else {
                         db[target].saldo -= parseInt('$jumlah');
                         if(db[target].saldo < 0) db[target].saldo = 0;
                         fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
@@ -761,7 +792,6 @@ menu_member() {
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             3)
-                echo -e "\n${C_CYAN}--- DAFTAR MEMBER ---${C_RST}"
                 node -e "
                     const fs = require('fs');
                     let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
@@ -769,7 +799,6 @@ menu_member() {
                     if(members.length === 0) console.log('\x1b[33mBelum ada member.\x1b[0m');
                     else {
                         members.forEach((m, i) => console.log((i + 1) + '. ID: ' + m + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID')));
-                        console.log('\n\x1b[36mTotal Member: ' + members.length + '\x1b[0m');
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -781,7 +810,7 @@ menu_member() {
 }
 
 # ==========================================
-# 7. SUB-MENU MANAJEMEN PRODUK (DENGAN KATEGORI)
+# 7. MANAJEMEN PRODUK (DENGAN KATEGORI & BRAND)
 # ==========================================
 menu_produk() {
     while true; do
@@ -792,7 +821,7 @@ menu_produk() {
         echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Baru"
         echo -e "  ${C_GREEN}[2]${C_RST} Edit Produk"
         echo -e "  ${C_GREEN}[3]${C_RST} Hapus Produk"
-        echo -e "  ${C_GREEN}[4]${C_RST} Lihat Daftar Produk (Urut per Kategori)"
+        echo -e "  ${C_GREEN}[4]${C_RST} Lihat Daftar Produk"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
         echo -e "${C_CYAN}======================================================${C_RST}"
@@ -802,18 +831,35 @@ menu_produk() {
         case $prodchoice in
             1)
                 echo -e "\n${C_MAG}--- TAMBAH PRODUK BARU ---${C_RST}"
-                echo -e "${C_CYAN}Pilih Kategori Produk:${C_RST}"
+                echo -e "${C_CYAN}Pilih Kategori Utama:${C_RST}"
                 echo "1. Pulsa         4. Topup E-Wallet"
                 echo "2. Paket Data    5. Token Listrik"
                 echo "3. Topup Game    6. Masa Aktif"
-                read -p "Masukkan Nomor Kategori [1-6]: " cat_idx
+                read -p "👉 Masukkan Nomor Kategori [1-6]: " cat_idx
                 
+                brand_idx="1"
+                if [ "$cat_idx" == "1" ] || [ "$cat_idx" == "2" ] || [ "$cat_idx" == "6" ]; then
+                    echo -e "\n${C_CYAN}Pilih Provider:${C_RST}"
+                    echo "1. Telkomsel | 2. XL | 3. Axis | 4. Indosat | 5. Tri"
+                    read -p "👉 Masukkan Nomor Provider [1-5]: " brand_idx
+                elif [ "$cat_idx" == "3" ]; then
+                    echo -e "\n${C_CYAN}Pilih Game:${C_RST}"
+                    echo "1. Mobile Legends | 2. Free Fire"
+                    read -p "👉 Masukkan Nomor Game [1-2]: " brand_idx
+                elif [ "$cat_idx" == "4" ]; then
+                    echo -e "\n${C_CYAN}Pilih E-Wallet:${C_RST}"
+                    echo "1. Gopay | 2. Dana | 3. Shopee Pay"
+                    read -p "👉 Masukkan Nomor E-Wallet [1-3]: " brand_idx
+                fi
+                
+                echo ""
                 read -p "Kode Produk (Contoh: TSEL10): " kode
                 read -p "Nama Produk (Contoh: Telkomsel 10K): " nama
                 read -p "Harga Jual (Contoh: 12000): " harga
-                read -p "Deskripsi / Info Produk (Opsional): " deskripsi
+                read -p "Deskripsi Produk (Opsional): " deskripsi
                 
-                export TMP_CAT="$cat_idx"
+                export TMP_CAT_IDX="$cat_idx"
+                export TMP_BRAND_IDX="$brand_idx"
                 export TMP_KODE="$kode"
                 export TMP_NAMA="$nama"
                 export TMP_HARGA="$harga"
@@ -822,7 +868,17 @@ menu_produk() {
                 node -e "
                     const fs = require('fs');
                     const catMap = {'1':'Pulsa', '2':'Paket Data', '3':'Topup Game', '4':'Topup E-Wallet', '5':'Token Listrik', '6':'Masa Aktif'};
-                    let catName = catMap[process.env.TMP_CAT] || 'Lainnya';
+                    const brandMap = {
+                        'Pulsa': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri'},
+                        'Paket Data': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri'},
+                        'Topup Game': {'1':'Mobile Legends', '2':'Free Fire'},
+                        'Topup E-Wallet': {'1':'Gopay', '2':'Dana', '3':'Shopee Pay'},
+                        'Token Listrik': {'1':'Token Listrik'},
+                        'Masa Aktif': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri'}
+                    };
+                    
+                    let catName = catMap[process.env.TMP_CAT_IDX] || 'Lainnya';
+                    let brandName = (brandMap[catName] && brandMap[catName][process.env.TMP_BRAND_IDX]) ? brandMap[catName][process.env.TMP_BRAND_IDX] : (catName === 'Token Listrik' ? 'Token Listrik' : 'Lainnya');
                     
                     let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
                     let key = process.env.TMP_KODE.toUpperCase().replace(/\s+/g, '');
@@ -830,10 +886,11 @@ menu_produk() {
                         nama: process.env.TMP_NAMA, 
                         harga: parseInt(process.env.TMP_HARGA),
                         deskripsi: process.env.TMP_DESC,
-                        kategori: catName
+                        kategori: catName,
+                        brand: brandName
                     };
                     fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
-                    console.log('\x1b[32m\n✅ Produk [' + key + '] berhasil ditambahkan ke Kategori ' + catName + '!\x1b[0m');
+                    console.log('\x1b[32m\n✅ Produk [' + key + '] berhasil ditambahkan ke ' + catName + ' - ' + brandName + '!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
@@ -845,8 +902,8 @@ menu_produk() {
                     let keys = Object.keys(produk);
                     if(keys.length === 0) { console.log('\x1b[33mBelum ada produk.\x1b[0m'); process.exit(1); }
                     keys.forEach((k, i) => {
-                        let cat = produk[k].kategori ? produk[k].kategori.toUpperCase() : 'LAINNYA';
-                        console.log((i + 1) + '. [' + cat + '] [' + k + '] ' + produk[k].nama);
+                        let brand = produk[k].brand || 'Lainnya';
+                        console.log((i + 1) + '. [' + brand + '] [' + k + '] ' + produk[k].nama);
                     });
                 "
                 if [ $? -eq 1 ]; then read -p "Tekan Enter untuk kembali..."; continue; fi
@@ -866,11 +923,13 @@ menu_produk() {
                         let k = keys[idx];
                         let p = produk[k];
                         let kat = p.kategori || 'Belum Diatur';
+                        let br = p.brand || 'Belum Diatur';
                         console.log('export VALID=true');
                         console.log('export OLD_KODE=\"' + k + '\"');
                         console.log('export OLD_NAMA=\"' + p.nama.replace(/[\"$\\\\]/g, '\\\\$&') + '\"');
                         console.log('export OLD_HARGA=\"' + p.harga + '\"');
                         console.log('export OLD_KAT=\"' + kat + '\"');
+                        console.log('export OLD_BRAND=\"' + br + '\"');
                     }
                 ")
 
@@ -882,16 +941,34 @@ menu_produk() {
 
                 echo -e "\n${C_MAG}--- EDIT PRODUK : $OLD_NAMA ---${C_RST}"
                 echo -e "${C_YELLOW}💡 Biarkan kosong (tekan Enter) jika Anda TIDAK INGIN mengubah datanya.${C_RST}"
-                echo -e "${C_CYAN}Kategori saat ini: $OLD_KAT${C_RST}"
-                echo "1. Pulsa | 2. Paket Data | 3. Topup Game | 4. Topup E-Wallet | 5. Token Listrik | 6. Masa Aktif"
+                echo -e "${C_CYAN}Kategori saat ini: $OLD_KAT | Provider: $OLD_BRAND${C_RST}"
+                echo "Pilihan Kategori: 1. Pulsa | 2. Paket Data | 3. Topup Game | 4. Topup E-Wallet | 5. Token Listrik | 6. Masa Aktif"
                 
-                read -p "Ubah Kategori (Ketik angka 1-6): " new_cat
+                read -p "Ubah Kategori? (Ketik angka 1-6) [Enter jika tidak]: " new_cat_idx
+                
+                new_brand_idx=""
+                if [ ! -z "$new_cat_idx" ]; then
+                    if [ "$new_cat_idx" == "1" ] || [ "$new_cat_idx" == "2" ] || [ "$new_cat_idx" == "6" ]; then
+                        echo "1. Telkomsel | 2. XL | 3. Axis | 4. Indosat | 5. Tri"
+                        read -p "Pilih Provider Baru: " new_brand_idx
+                    elif [ "$new_cat_idx" == "3" ]; then
+                        echo "1. Mobile Legends | 2. Free Fire"
+                        read -p "Pilih Game Baru: " new_brand_idx
+                    elif [ "$new_cat_idx" == "4" ]; then
+                        echo "1. Gopay | 2. Dana | 3. Shopee Pay"
+                        read -p "Pilih E-Wallet Baru: " new_brand_idx
+                    elif [ "$new_cat_idx" == "5" ]; then
+                        new_brand_idx="1"
+                    fi
+                fi
+
                 read -p "Kode Baru [$OLD_KODE]: " new_kode
                 read -p "Nama Baru [$OLD_NAMA]: " new_nama
                 read -p "Harga Baru [$OLD_HARGA]: " new_harga
                 read -p "Deskripsi Baru (Ketik - untuk menghapus): " new_desc
                 
-                export NEW_CAT="$new_cat"
+                export NEW_CAT_IDX="$new_cat_idx"
+                export NEW_BRAND_IDX="$new_brand_idx"
                 export NEW_KODE="${new_kode:-$OLD_KODE}"
                 export NEW_NAMA="$new_nama"
                 export NEW_HARGA="$new_harga"
@@ -899,6 +976,16 @@ menu_produk() {
                 
                 node -e "
                     const fs = require('fs');
+                    const catMap = {'1':'Pulsa', '2':'Paket Data', '3':'Topup Game', '4':'Topup E-Wallet', '5':'Token Listrik', '6':'Masa Aktif'};
+                    const brandMap = {
+                        'Pulsa': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri'},
+                        'Paket Data': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri'},
+                        'Topup Game': {'1':'Mobile Legends', '2':'Free Fire'},
+                        'Topup E-Wallet': {'1':'Gopay', '2':'Dana', '3':'Shopee Pay'},
+                        'Token Listrik': {'1':'Token Listrik'},
+                        'Masa Aktif': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri'}
+                    };
+
                     let produk = JSON.parse(fs.readFileSync('produk.json'));
                     let oldKey = process.env.OLD_KODE;
                     let newKey = process.env.NEW_KODE.toUpperCase().replace(/\s+/g, '');
@@ -911,10 +998,17 @@ menu_produk() {
                         if (process.env.NEW_DESC.trim() === '-') delete item.deskripsi;
                         else item.deskripsi = process.env.NEW_DESC;
                     }
-                    if (process.env.NEW_CAT && process.env.NEW_CAT.trim() !== '') {
-                        const catMap = {'1':'Pulsa', '2':'Paket Data', '3':'Topup Game', '4':'Topup E-Wallet', '5':'Token Listrik', '6':'Masa Aktif'};
-                        item.kategori = catMap[process.env.NEW_CAT] || item.kategori;
+                    
+                    if (process.env.NEW_CAT_IDX && process.env.NEW_CAT_IDX.trim() !== '') {
+                        let cName = catMap[process.env.NEW_CAT_IDX];
+                        if(cName) {
+                            item.kategori = cName;
+                            item.brand = (brandMap[cName] && brandMap[cName][process.env.NEW_BRAND_IDX]) ? brandMap[cName][process.env.NEW_BRAND_IDX] : (cName === 'Token Listrik' ? 'Token Listrik' : 'Lainnya');
+                        }
                     }
+                    
+                    // Supaya produk lama yang belum di set brand-nya otomatis menjadi 'Lainnya' jika diedit tanpa mengubah kategori
+                    if(!item.brand) item.brand = 'Lainnya';
                     
                     if (oldKey !== newKey) {
                         produk[newKey] = item;
@@ -936,8 +1030,8 @@ menu_produk() {
                     let keys = Object.keys(produk);
                     if(keys.length === 0) { console.log('\x1b[33mBelum ada produk.\x1b[0m'); process.exit(1); }
                     keys.forEach((k, i) => {
-                        let cat = produk[k].kategori ? produk[k].kategori.toUpperCase() : 'LAINNYA';
-                        console.log((i + 1) + '. [' + cat + '] [' + k + '] ' + produk[k].nama);
+                        let brand = produk[k].brand || 'Lainnya';
+                        console.log((i + 1) + '. [' + brand + '] [' + k + '] ' + produk[k].nama);
                     });
                 "
                 if [ $? -eq 1 ]; then read -p "Tekan Enter untuk kembali..."; continue; fi
@@ -965,7 +1059,7 @@ menu_produk() {
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             4)
-                echo -e "\n${C_CYAN}--- DAFTAR PRODUK TOKO (BERDASARKAN KATEGORI) ---${C_RST}"
+                echo -e "\n${C_CYAN}--- DAFTAR PRODUK TOKO ---${C_RST}"
                 node -e "
                     const fs = require('fs');
                     let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
@@ -976,13 +1070,18 @@ menu_produk() {
                         let cats = ['Pulsa', 'Paket Data', 'Topup Game', 'Topup E-Wallet', 'Token Listrik', 'Masa Aktif', 'Lainnya'];
                         let count = 0;
                         cats.forEach(c => {
-                            let items = keys.filter(k => (produk[k].kategori || 'Lainnya') === c);
-                            if(items.length > 0) {
-                                console.log('\n\x1b[33m--- KATEGORI: ' + c.toUpperCase() + ' ---\x1b[0m');
-                                items.forEach(k => {
-                                    count++;
-                                    console.log(count + '. [' + k + '] ' + produk[k].nama + ' - Rp ' + produk[k].harga.toLocaleString('id-ID'));
-                                    if (produk[k].deskripsi) console.log('   \x1b[36m↳ Info: ' + produk[k].deskripsi + '\x1b[0m');
+                            let catKeys = keys.filter(k => (produk[k].kategori || 'Lainnya') === c);
+                            if(catKeys.length > 0) {
+                                console.log('\n\x1b[33m=== KATEGORI: ' + c.toUpperCase() + ' ===\x1b[0m');
+                                let brands = [...new Set(catKeys.map(k => produk[k].brand || 'Lainnya'))];
+                                brands.forEach(b => {
+                                    console.log('\x1b[35m>> Provider/Brand: ' + b.toUpperCase() + '\x1b[0m');
+                                    let brandKeys = catKeys.filter(k => (produk[k].brand || 'Lainnya') === b);
+                                    brandKeys.forEach(k => {
+                                        count++;
+                                        console.log(count + '. [' + k + '] ' + produk[k].nama + ' - Rp ' + produk[k].harga.toLocaleString('id-ID'));
+                                        if (produk[k].deskripsi) console.log('   \x1b[36m↳ Info: ' + produk[k].deskripsi + '\x1b[0m');
+                                    });
                                 });
                             }
                         });
