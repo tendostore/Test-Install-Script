@@ -1,6 +1,18 @@
 #!/bin/bash
 
 # ==========================================
+# WARNA UNTUK UI TERMINAL
+# ==========================================
+C_RED="\e[31m"
+C_GREEN="\e[32m"
+C_YELLOW="\e[33m"
+C_BLUE="\e[34m"
+C_CYAN="\e[36m"
+C_MAG="\e[35m"
+C_RST="\e[0m"
+C_BOLD="\e[1m"
+
+# ==========================================
 # 1. BIKIN SHORTCUT 'BOT' OTOMATIS DI VPS
 # ==========================================
 if [ ! -f "/usr/bin/bot" ]; then
@@ -13,7 +25,7 @@ fi
 # 2. FUNGSI UNTUK MEMBUAT FILE INDEX.JS
 # ==========================================
 generate_bot_script() {
-    echo "Membuat file index.js..."
+    echo -e "${C_CYAN}⏳ Meracik sistem utama bot...${C_RST}"
     cat << 'EOF' > index.js
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
@@ -55,12 +67,12 @@ function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
     
-    console.log("⏳ Memulai proses Auto-Backup ke Telegram...");
+    console.log("\x1b[36m⏳ Memulai proses Auto-Backup ke Telegram...\x1b[0m");
     exec(`rm -f backup.zip && zip backup.zip config.json database.json trx.json index.js install.sh package-lock.json package.json produk.json 2>/dev/null`, (err) => {
         if (!err) {
             let caption = `📦 *Auto-Backup Tendo Store*\n⏰ Waktu: ${new Date().toLocaleString('id-ID')}`;
             exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="${caption}" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`, (err2) => {
-                if (!err2) console.log("✅ Auto-Backup berhasil dikirim ke Telegram!");
+                if (!err2) console.log("\x1b[32m✅ Auto-Backup berhasil dikirim ke Telegram!\x1b[0m");
                 exec(`rm -f backup.zip`); 
             });
         }
@@ -72,13 +84,13 @@ if (configAwal.autoBackup) {
 }
 
 async function startBot() {
-    console.log("\n⏳ Sedang menyiapkan mesin bot...");
+    console.log("\x1b[36m\n⏳ Sedang menyiapkan mesin bot...\x1b[0m");
     const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
     let config = loadJSON(configFile);
     
-    console.log("⏳ Mengambil konfigurasi keamanan WhatsApp terbaru...");
+    console.log("\x1b[36m⏳ Mengambil konfigurasi keamanan WhatsApp terbaru...\x1b[0m");
     const { version, isLatest } = await fetchLatestBaileysVersion();
-    console.log(`📡 Menghubungkan ke WA Web v${version.join('.')} (Stabil: ${isLatest})`);
+    console.log(`\x1b[34m📡 Menghubungkan ke WA Web v${version.join('.')} (Stabil: ${isLatest})\x1b[0m`);
     
     const sock = makeWASocket({
         version,
@@ -94,7 +106,7 @@ async function startBot() {
         let phoneNumber = config.botNumber;
         
         if (!phoneNumber) {
-            console.log('\n❌ NOMOR BOT BELUM DIATUR! Keluar...');
+            console.log('\x1b[31m\n❌ NOMOR BOT BELUM DIATUR! Keluar...\x1b[0m');
             process.exit(0);
         }
 
@@ -102,11 +114,11 @@ async function startBot() {
             try {
                 let formattedNumber = phoneNumber.replace(/[^0-9]/g, '');
                 const code = await sock.requestPairingCode(formattedNumber);
-                console.log(`\n=======================================================`);
-                console.log(`🔑 KODE TAUTAN ANDA :  ${code}  `);
-                console.log(`=======================================================`);
+                console.log(`\x1b[32m\n=======================================================\x1b[0m`);
+                console.log(`\x1b[1m\x1b[33m🔑 KODE TAUTAN ANDA :  ${code}  \x1b[0m`);
+                console.log(`\x1b[32m=======================================================\x1b[0m`);
                 console.log('👉 Buka WA di HP -> Perangkat Tertaut -> Tautkan dengan nomor telepon saja.');
-                console.log('⚠️ SEGERA MASUKKAN KODENYA KE HP ANDA!\n');
+                console.log('\x1b[31m⚠️ SEGERA MASUKKAN KODENYA KE HP ANDA!\x1b[0m\n');
             } catch (error) {
                 pairingRequested = false; 
             }
@@ -126,7 +138,7 @@ async function startBot() {
                 setTimeout(startBot, 4000);
             }
         } else if (connection === 'open') {
-            console.log('\n✅ BOT WHATSAPP BERHASIL TERHUBUNG DENGAN AMAN!');
+            console.log('\x1b[32m\n✅ BOT WHATSAPP BERHASIL TERHUBUNG DENGAN AMAN!\x1b[0m');
         }
     });
 
@@ -196,96 +208,63 @@ async function startBot() {
             
             const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
             if (!body) return;
-            
-            let rawCommand = body.split(' ')[0].toLowerCase();
-            let command = rawCommand;
-            
-            if (['bot', 'menu', '.menu', 'help', 'halo', 'hai', 'p', 'ping', 'info'].includes(rawCommand)) {
-                command = 'bot';
-            } else if (['1', '1.', '1.saldo', 'saldo', '.saldo'].includes(rawCommand)) {
-                command = '.saldo';
-            } else if (['3', '3.', '3.harga', 'harga', '.harga', 'list'].includes(rawCommand)) {
-                command = '.harga';
-            } else if (['2', '2.', '2.order', 'order', '.order', 'beli'].includes(rawCommand)) {
-                if (['2', '2.', 'order', '.order', 'beli'].includes(body.trim().toLowerCase())) {
-                    await sock.sendMessage(from, { text: `❌ Format kurang lengkap!\n\nKetik pesanan dengan format:\n*order [nomor urut produk] [nomor tujuan]*\n\nContoh:\n*order 1 08123456789*` });
-                    return;
-                }
-                command = '.order';
-            }
 
-            let config = loadJSON(configFile);
-            let namaBot = config.botName || "Tendo Store";
             let db = loadJSON(dbFile);
+            let config = loadJSON(configFile);
             let produkDB = loadJSON(produkFile);
+            let namaBot = config.botName || "Tendo Store";
 
             if (!db[sender]) {
-                db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: senderJid };
+                db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: senderJid, step: 'idle', temp_sku: '' };
                 saveJSON(dbFile, db);
+            } else {
+                if (!db[sender].step) db[sender].step = 'idle';
+                if (!db[sender].temp_sku) db[sender].temp_sku = '';
             }
 
-            // ==========================================
-            // PERUBAHAN TAMPILAN MENU UTAMA BERSERTA CONTOH (v12)
-            // ==========================================
-            if (command === 'bot') {
-                let menuText = `👋 Selamat Datang di *${namaBot}* (v12)\n`;
-                menuText += `📌 *ID Member:* ${sender}\n\n`;
-                menuText += `1. *Saldo*\n`;
-                menuText += `2. *Order*\n`;
-                menuText += `3. *Harga*\n\n`;
-                menuText += `_💡 CONTOH PENGGUNAAN:_\n`;
-                menuText += `👉 Ketik *1* untuk cek sisa Saldo Kakak.\n`;
-                menuText += `👉 Ketik *3* untuk melihat Daftar Harga.\n`;
-                menuText += `👉 Ketik *order 1 081234567* untuk membeli produk urutan Nomor 1.`;
-                
-                await sock.sendMessage(from, { text: menuText });
-                return;
-            }
+            let bodyLower = body.trim().toLowerCase();
 
-            if (command === '.saldo') {
-                await sock.sendMessage(from, { 
-                    text: `💰 Saldo Anda saat ini: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` 
-                });
-                return;
-            }
-
-            if (command === '.harga') {
-                let keys = Object.keys(produkDB);
-                if (keys.length === 0) {
-                    await sock.sendMessage(from, { text: `🛒 *Daftar Harga ${namaBot}*\n\nMaaf, belum ada produk yang tersedia saat ini.`});
+            // KONTROL PEMBATALAN PESANAN
+            if (bodyLower === 'batal' || bodyLower === 'cancel') {
+                if (db[sender].step !== 'idle') {
+                    db[sender].step = 'idle';
+                    db[sender].temp_sku = '';
+                    saveJSON(dbFile, db);
+                    await sock.sendMessage(from, { text: `✅ Proses pemesanan berhasil dibatalkan.\n\n_Ketik *bot* untuk kembali ke menu utama._` });
                     return;
                 }
-
-                let textHarga = `🛒 *DAFTAR PRODUK ${namaBot}*\n\n`;
-                keys.forEach((k, i) => {
-                    textHarga += `*${i+1}. ${produkDB[k].nama}*\n`;
-                    textHarga += `   Harga: *Rp ${produkDB[k].harga.toLocaleString('id-ID')}*\n\n`;
-                });
-                textHarga += `_👉 Ketik: *order [nomor] [tujuan]*_\n_Contoh: order 1 08123456789_`;
-                
-                await sock.sendMessage(from, { text: textHarga.trim() });
-                return;
             }
 
-            if (command === '.order') {
-                const args = body.split(' ').slice(1);
-                
-                if (args.length < 2) {
-                    return await sock.sendMessage(from, { text: `❌ *Format salah!*\n\nKetik: *order [nomor urut] [nomor tujuan]*\nContoh: *order 1 08123456789*` });
-                }
-
-                let inputKode = args[0].toUpperCase();
-                const tujuan = args[1];
-                let kodeProduk = inputKode;
-                
+            // TAHAP 1: Tunggu Balasan Nomor Urut Produk
+            if (db[sender].step === 'order_product') {
                 let keys = Object.keys(produkDB);
-
+                let inputKode = body.trim();
+                
                 if (!isNaN(inputKode) && Number(inputKode) > 0 && Number(inputKode) <= keys.length) {
-                    kodeProduk = keys[Number(inputKode) - 1];
+                    db[sender].temp_sku = keys[Number(inputKode) - 1];
+                    db[sender].step = 'order_target';
+                    saveJSON(dbFile, db);
+                    
+                    let p = produkDB[db[sender].temp_sku];
+                    await sock.sendMessage(from, { text: `📦 Produk dipilih: *${p.nama}*\n💰 Harga: Rp ${p.harga.toLocaleString('id-ID')}\n\n📱 *Silakan balas dengan NOMOR TUJUAN pengisian!*\n_(Misal: 081234567890)_\n\n_Ketik *batal* untuk membatalkan pesanan._` });
+                    return;
+                } else {
+                    await sock.sendMessage(from, { text: `❌ Pilihan tidak valid!\nSilakan balas dengan *angka urutan* produk saja (contoh: 1).\n\n_Ketik *batal* jika ingin membatalkan pesanan._` });
+                    return;
                 }
+            }
 
-                if (!produkDB[kodeProduk]) {
-                    return await sock.sendMessage(from, { text: `❌ Nomor produk atau Kode tidak ditemukan.\nKetik *3* untuk melihat daftar produk yang tersedia.` });
+            // TAHAP 2: Tunggu Balasan Nomor HP dan Eksekusi
+            if (db[sender].step === 'order_target') {
+                let tujuan = body.trim().replace(/[^0-9]/g, ''); 
+                let kodeProduk = db[sender].temp_sku;
+                
+                db[sender].step = 'idle';
+                db[sender].temp_sku = '';
+                saveJSON(dbFile, db);
+
+                if(!tujuan || tujuan.length < 8) {
+                    return await sock.sendMessage(from, { text: `❌ Format nomor tujuan salah. Pesanan dibatalkan. Silakan ulangi dari awal.` });
                 }
 
                 const hargaProduk = produkDB[kodeProduk].harga;
@@ -335,7 +314,7 @@ async function startBot() {
                         pesanPending += `📱 Tujuan: ${tujuan}\n`;
                         pesanPending += `🔖 Ref ID: ${refId}\n`;
                         pesanPending += `⚙️ Status: *Pending (Menunggu)*\n\n`;
-                        pesanPending += `_Sistem akan menginformasikan kembali jika transaksi sukses atau gagal. Saldo sementara dipotong Rp ${hargaProduk.toLocaleString('id-ID')}._`;
+                        pesanPending += `_Sistem akan otomatis menginformasikan jika transaksi sukses atau gagal._`;
 
                         await sock.sendMessage(from, { text: pesanPending });
                     } else {
@@ -352,12 +331,104 @@ async function startBot() {
 
                         await sock.sendMessage(from, { text: pesanSukses });
                     }
-
                 } catch (error) {
                     let errMessage = error.response?.data?.data?.message || 'Terjadi kesalahan saat menghubungi server Digiflazz/API Down.';
                     await sock.sendMessage(from, { text: `❌ *Transaksi Gagal!*\nAlasan: ${errMessage}\n\n_Saldo Anda tidak dipotong._` });
                 }
                 return;
+            }
+
+
+            // KECERDASAN MEMBACA PERINTAH NORMAL
+            let rawCommand = body.split(' ')[0].toLowerCase();
+            let command = rawCommand;
+            
+            if (['bot', 'menu', '.menu', 'help', 'halo', 'hai', 'p', 'ping', 'info'].includes(rawCommand)) {
+                command = 'bot';
+            } else if (['1', '1.', '1.saldo', 'saldo', '.saldo'].includes(rawCommand)) {
+                command = '.saldo';
+            } else if (['3', '3.', '3.harga', 'harga', '.harga', 'list'].includes(rawCommand)) {
+                command = '.harga';
+            } else if (['2', '2.', '2.order', 'order', '.order', 'beli'].includes(rawCommand)) {
+                command = '.order';
+            }
+
+            if (command === 'bot') {
+                let menuText = `👋 Selamat Datang di *${namaBot}* (v14)\n`;
+                menuText += `📌 *ID Member:* ${sender}\n\n`;
+                menuText += `1. *Saldo*\n`;
+                menuText += `2. *Order*\n`;
+                menuText += `3. *Harga*\n\n`;
+                menuText += `_👉 Cukup balas dengan angka pilihan di atas (Contoh: ketik *2* untuk mulai membeli)._`;
+                await sock.sendMessage(from, { text: menuText });
+                return;
+            }
+
+            if (command === '.saldo') {
+                await sock.sendMessage(from, { 
+                    text: `💰 Saldo Anda saat ini: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` 
+                });
+                return;
+            }
+
+            if (command === '.harga') {
+                let keys = Object.keys(produkDB);
+                if (keys.length === 0) {
+                    await sock.sendMessage(from, { text: `🛒 *Daftar Harga ${namaBot}*\n\nMaaf, belum ada produk yang tersedia saat ini.`});
+                    return;
+                }
+                let textHarga = `🛒 *DAFTAR PRODUK ${namaBot}*\n\n`;
+                keys.forEach((k, i) => {
+                    textHarga += `*${i+1}.* ${produkDB[k].nama} - Rp ${produkDB[k].harga.toLocaleString('id-ID')}\n`;
+                });
+                textHarga += `\n_💡 Ketik *2* jika Anda ingin mulai melakukan pembelian._`;
+                await sock.sendMessage(from, { text: textHarga.trim() });
+                return;
+            }
+
+            if (command === '.order') {
+                const args = body.split(' ').slice(1);
+                
+                if (args.length >= 2) {
+                    let inputKode = args[0].toUpperCase();
+                    const tujuan = args[1].replace(/[^0-9]/g, '');
+                    let kodeProduk = inputKode;
+                    let keys = Object.keys(produkDB);
+
+                    if (!isNaN(inputKode) && Number(inputKode) > 0 && Number(inputKode) <= keys.length) {
+                        kodeProduk = keys[Number(inputKode) - 1];
+                    }
+
+                    if (!produkDB[kodeProduk]) {
+                        return await sock.sendMessage(from, { text: `❌ Nomor produk atau Kode tidak ditemukan.` });
+                    }
+                    
+                    db[sender].step = 'order_target'; 
+                    db[sender].temp_sku = kodeProduk;
+                    saveJSON(dbFile, db);
+                    
+                    m.messages[0].message.conversation = tujuan;
+                    sock.ev.emit('messages.upsert', m);
+                    return;
+                } 
+                else {
+                    let keys = Object.keys(produkDB);
+                    if (keys.length === 0) {
+                        return await sock.sendMessage(from, { text: `🛒 Maaf, belum ada produk yang tersedia saat ini.`});
+                    }
+
+                    let textHarga = `🛒 *PILIH PRODUK UNTUK DIORDER*\n\n`;
+                    keys.forEach((k, i) => {
+                        textHarga += `*${i+1}.* ${produkDB[k].nama} - Rp ${produkDB[k].harga.toLocaleString('id-ID')}\n`;
+                    });
+                    textHarga += `\n👉 *Silakan balas pesan ini dengan NOMOR URUT produknya saja (Contoh: ketik 1)*\n\n_Ketik *batal* untuk membatalkan pesanan._`;
+                    
+                    db[sender].step = 'order_product';
+                    saveJSON(dbFile, db);
+                    
+                    await sock.sendMessage(from, { text: textHarga.trim() });
+                    return;
+                }
             }
         } catch (err) {
             console.error("Kesalahan sistem WhatsApp: ", err);
@@ -389,7 +460,7 @@ async function startBot() {
 
 if (require.main === module) {
     app.listen(3000, () => {
-        console.log('🌐 Server Webhook siap.');
+        console.log('\x1b[32m🌐 Server Webhook siap.\x1b[0m');
     }).on('error', (err) => {});
     startBot().catch(err => console.error(err));
 }
@@ -397,37 +468,43 @@ EOF
 }
 
 # ==========================================
-# 3. FUNGSI INSTALASI DEPENDENSI (MODE SENYAP)
+# 3. FUNGSI INSTALASI DEPENDENSI
 # ==========================================
 install_dependencies() {
     clear
-    echo "==============================================="
-    echo "      🚀 MENGINSTALL SISTEM BOT 🚀      "
-    echo "==============================================="
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}             🚀 MENGINSTALL SISTEM BOT 🚀             ${C_RST}"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     
     export DEBIAN_FRONTEND=noninteractive
     export NEEDRESTART_MODE=a
     export NEEDRESTART_SUSPEND=1
 
-    sudo -E apt-get update
-    sudo -E apt-get upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
-    sudo -E apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl git wget nano zip unzip
+    echo -e "${C_MAG}>> Mengupdate repositori sistem...${C_RST}"
+    sudo -E apt-get update > /dev/null 2>&1
+    sudo -E apt-get upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
     
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-    sudo -E apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" nodejs
+    echo -e "${C_MAG}>> Menginstall dependensi (curl, git, wget, zip)...${C_RST}"
+    sudo -E apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl git wget nano zip unzip > /dev/null 2>&1
     
-    sudo npm install -g npm@11.11.0
-    sudo npm install -g pm2
+    echo -e "${C_MAG}>> Menginstall Node.js...${C_RST}"
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - > /dev/null 2>&1
+    sudo -E apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" nodejs > /dev/null 2>&1
+    
+    sudo npm install -g npm@11.11.0 > /dev/null 2>&1
+    sudo npm install -g pm2 > /dev/null 2>&1
     
     generate_bot_script
-    if [ ! -f "package.json" ]; then npm init -y; fi
+    if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
     rm -rf node_modules package-lock.json
-    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser
     
-    echo "==============================================="
-    echo " ✅ INSTALASI SELESAI! "
-    echo "==============================================="
-    read -p "Tekan Enter untuk kembali ke Menu Utama..."
+    echo -e "${C_MAG}>> Mengunduh modul WhatsApp Baileys...${C_RST}"
+    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser > /dev/null 2>&1
+    
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_GREEN}${C_BOLD}                 ✅ INSTALASI SELESAI!                ${C_RST}"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    read -p "Tekan Enter untuk kembali ke Panel Utama..."
 }
 
 # ==========================================
@@ -436,39 +513,41 @@ install_dependencies() {
 menu_telegram() {
     while true; do
         clear
-        echo "==============================================="
-        echo "           ⚙️ BOT TELEGRAM SETUP ⚙️           "
-        echo "==============================================="
-        echo "1. Change BOT API & CHATID"
-        echo "2. Set Notifikasi Backup Otomatis (12 Jam)"
-        echo "0. Kembali ke Menu Utama"
-        echo "==============================================="
-        read -p "Pilih menu [0-2]: " telechoice
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             ⚙️ BOT TELEGRAM SETUP ⚙️              ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Change BOT API & CHAT ID"
+        echo -e "  ${C_GREEN}[2]${C_RST} Set Notifikasi Backup Otomatis (12 Jam)"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-2]: ${C_RST}"
+        read telechoice
 
         case $telechoice in
             1)
-                echo "--- PENGATURAN BOT TELEGRAM ---"
-                read -p "Masukkan Token Bot Telegram (Misal: 1234:ABCde...): " token
-                read -p "Masukkan Chat ID Anda (Misal: 123456789): " chatid
+                echo -e "\n${C_MAG}--- PENGATURAN BOT TELEGRAM ---${C_RST}"
+                read -p "Masukkan Token Bot Telegram: " token
+                read -p "Masukkan Chat ID Anda: " chatid
                 node -e "
                     const fs = require('fs');
                     let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
                     config.teleToken = '$token';
                     config.teleChatId = '$chatid';
                     fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
-                    console.log('\n✅ Data Telegram berhasil disimpan!');
+                    console.log('\x1b[32m\n✅ Data Telegram berhasil disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
-                echo "--- SET AUTO BACKUP ---"
+                echo -e "\n${C_MAG}--- SET AUTO BACKUP ---${C_RST}"
                 read -p "Aktifkan Auto-Backup ke Telegram setiap 12 Jam? (y/n): " set_auto
                 if [ "$set_auto" == "y" ] || [ "$set_auto" == "Y" ]; then
                     status="true"
-                    echo -e "\n✅ Auto-Backup DIAKTIFKAN!"
+                    echo -e "\n${C_GREEN}✅ Auto-Backup DIAKTIFKAN!${C_RST}"
                 else
                     status="false"
-                    echo -e "\n❌ Auto-Backup DIMATIKAN!"
+                    echo -e "\n${C_RED}❌ Auto-Backup DIMATIKAN!${C_RST}"
                 fi
                 node -e "
                     const fs = require('fs');
@@ -476,11 +555,11 @@ menu_telegram() {
                     config.autoBackup = $status;
                     fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
                 "
-                echo "⚠️ Silakan restart bot (Menu 4 lalu 3) agar fitur aktif."
+                echo -e "${C_YELLOW}⚠️ Silakan restart bot (Menu 4 lalu 3) agar fitur aktif.${C_RST}"
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             0) break ;;
-            *) echo "❌ Pilihan tidak valid!"; sleep 1 ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
         esac
     done
 }
@@ -491,69 +570,70 @@ menu_telegram() {
 menu_backup() {
     while true; do
         clear
-        echo "==============================================="
-        echo "             💾 BACKUP & RESTORE 💾            "
-        echo "==============================================="
-        echo "1. Backup Sekarang (Kirim file ZIP ke Telegram)"
-        echo "2. Restore Database & Bot dari Direct Link"
-        echo "0. Kembali ke Menu Utama"
-        echo "==============================================="
-        read -p "Pilih menu [0-2]: " backchoice
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}               💾 BACKUP & RESTORE 💾               ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Backup Sekarang (Kirim file ZIP ke Telegram)"
+        echo -e "  ${C_GREEN}[2]${C_RST} Restore Database & Bot dari Direct Link"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-2]: ${C_RST}"
+        read backchoice
 
         case $backchoice in
             1)
-                echo -e "\n⏳ Sedang memproses arsip backup. Mohon tunggu..."
-                if ! command -v zip &> /dev/null; then sudo apt install zip -y; fi
+                echo -e "\n${C_MAG}⏳ Sedang memproses arsip backup. Mohon tunggu...${C_RST}"
+                if ! command -v zip &> /dev/null; then sudo apt install zip -y > /dev/null 2>&1; fi
                 
                 rm -f backup.zip
                 zip backup.zip config.json database.json trx.json index.js install.sh package-lock.json package.json produk.json 2>/dev/null
-                echo "✅ File backup.zip berhasil dikompresi dengan sangat bersih!"
+                echo -e "${C_GREEN}✅ File backup.zip berhasil dikompresi!${C_RST}"
                 
-                # Eksekusi pengiriman ke Telegram
                 node -e "
                     const fs = require('fs');
                     const { exec } = require('child_process');
                     let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
                     if(config.teleToken && config.teleChatId) {
-                        console.log('⏳ Sedang mengirim ke Telegram Anda...');
+                        console.log('\x1b[36m⏳ Sedang mengirim ke Telegram Anda...\x1b[0m');
                         let cmd = \`curl -s -F chat_id=\"\${config.teleChatId}\" -F document=@\"backup.zip\" -F caption=\"📦 Manual Backup Tendo Store\" https://api.telegram.org/bot\${config.teleToken}/sendDocument\`;
                         exec(cmd, (err) => {
-                            if(err) console.log('❌ Gagal mengirim ke Telegram. Pastikan Token & Chat ID benar.');
-                            else console.log('✅ File Backup berhasil mendarat di Telegram Anda!');
+                            if(err) console.log('\x1b[31m❌ Gagal mengirim ke Telegram. Pastikan Token & Chat ID benar.\x1b[0m');
+                            else console.log('\x1b[32m✅ File Backup berhasil mendarat di Telegram Anda!\x1b[0m');
                         });
                     } else {
-                        console.log('⚠️ Token/Chat ID Telegram belum diisi di Menu 8. File hanya tersimpan di VPS.');
+                        console.log('\x1b[33m⚠️ Token/Chat ID Telegram belum diisi di Menu 8. File hanya tersimpan di VPS.\x1b[0m');
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
-                echo -e "\n⚠️ PERHATIAN: Restore akan MENIMPA seluruh file bot Anda saat ini!"
+                echo -e "\n${C_RED}${C_BOLD}⚠️ PERHATIAN: Restore akan MENIMPA seluruh file bot Anda!${C_RST}"
                 read -p "Apakah Anda yakin ingin melanjutkan? (y/n): " yakin
                 if [ "$yakin" == "y" ] || [ "$yakin" == "Y" ]; then
                     read -p "🔗 Masukkan Direct Link file ZIP Backup Anda: " linkzip
                     if [ ! -z "$linkzip" ]; then
-                        echo "⏳ Mendownload file dari link..."
-                        wget -O restore.zip "$linkzip"
+                        echo -e "${C_MAG}⏳ Mendownload file dari link...${C_RST}"
+                        wget -qO restore.zip "$linkzip"
                         if [ -f "restore.zip" ]; then
-                            if ! command -v unzip &> /dev/null; then sudo apt install unzip -y; fi
-                            echo "⏳ Mengekstrak dan memulihkan file..."
-                            unzip -o restore.zip
+                            if ! command -v unzip &> /dev/null; then sudo apt install unzip -y > /dev/null 2>&1; fi
+                            echo -e "${C_MAG}⏳ Mengekstrak dan memulihkan file...${C_RST}"
+                            unzip -o restore.zip > /dev/null 2>&1
                             rm restore.zip
-                            echo "✅ Berhasil diekstrak!"
-                            echo "⏳ Memulihkan library Node.js (Mohon tunggu sebentar)..."
-                            npm install
-                            echo -e "\n✅ RESTORE BERHASIL SEPENUHNYA!"
-                            echo "⚠️ Silakan restart bot (Menu 4 lalu Menu 3) agar sistem menggunakan data yang baru direstore."
+                            echo -e "${C_GREEN}✅ Berhasil diekstrak!${C_RST}"
+                            echo -e "${C_MAG}⏳ Memulihkan library Node.js (Mohon tunggu)...${C_RST}"
+                            npm install > /dev/null 2>&1
+                            echo -e "\n${C_GREEN}${C_BOLD}✅ RESTORE BERHASIL SEPENUHNYA!${C_RST}"
+                            echo -e "${C_YELLOW}⚠️ Silakan restart bot (Menu 4 lalu 3) agar sistem update.${C_RST}"
                         else
-                            echo "❌ Gagal mendownload file dari link tersebut."
+                            echo -e "${C_RED}❌ Gagal mendownload file dari link tersebut.${C_RST}"
                         fi
                     fi
                 fi
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             0) break ;;
-            *) echo "❌ Pilihan tidak valid!"; sleep 1 ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
         esac
     done
 }
@@ -564,19 +644,22 @@ menu_backup() {
 menu_member() {
     while true; do
         clear
-        echo "==============================================="
-        echo "          👥 MANAJEMEN MEMBER BOT 👥           "
-        echo "==============================================="
-        echo "1. Tambah Saldo Member"
-        echo "2. Kurangi Saldo Member"
-        echo "3. Lihat Daftar Semua Member"
-        echo "0. Kembali ke Menu Utama"
-        echo "==============================================="
-        read -p "Pilih menu [0-3]: " subchoice
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             👥 MANAJEMEN MEMBER BOT 👥             ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Saldo Member"
+        echo -e "  ${C_GREEN}[2]${C_RST} Kurangi Saldo Member"
+        echo -e "  ${C_GREEN}[3]${C_RST} Lihat Daftar Semua Member"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-3]: ${C_RST}"
+        read subchoice
 
         case $subchoice in
             1)
-                read -p "Masukkan ID Member (Sesuai yg tampil di bot): " nomor
+                echo -e "\n${C_MAG}--- TAMBAH SALDO ---${C_RST}"
+                read -p "Masukkan ID Member: " nomor
                 read -p "Masukkan Jumlah Saldo: " jumlah
                 node -e "
                     const fs = require('fs');
@@ -585,11 +668,12 @@ menu_member() {
                     if(!db[target]) db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: target + '@s.whatsapp.net' };
                     db[target].saldo += parseInt('$jumlah');
                     fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
-                    console.log('\n✅ Saldo Rp $jumlah berhasil ditambahkan ke ID ' + target + '!');
+                    console.log('\x1b[32m\n✅ Saldo Rp $jumlah berhasil ditambahkan ke ID ' + target + '!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
+                echo -e "\n${C_MAG}--- KURANGI SALDO ---${C_RST}"
                 read -p "Masukkan ID Member: " nomor
                 read -p "Masukkan Jumlah Saldo yg dikurangi: " jumlah
                 node -e "
@@ -597,30 +681,32 @@ menu_member() {
                     let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
                     let target = '$nomor';
                     if(!db[target]) {
-                        console.log('\n❌ ID belum terdaftar di database.');
+                        console.log('\x1b[31m\n❌ ID belum terdaftar di database.\x1b[0m');
                     } else {
                         db[target].saldo -= parseInt('$jumlah');
                         if(db[target].saldo < 0) db[target].saldo = 0;
                         fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
-                        console.log('\n✅ Saldo berhasil dikurangi!');
+                        console.log('\x1b[32m\n✅ Saldo berhasil dikurangi!\x1b[0m');
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             3)
+                echo -e "\n${C_CYAN}--- DAFTAR MEMBER ---${C_RST}"
                 node -e "
                     const fs = require('fs');
                     let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
                     let members = Object.keys(db);
-                    if(members.length === 0) console.log('Belum ada member.');
+                    if(members.length === 0) console.log('\x1b[33mBelum ada member.\x1b[0m');
                     else {
                         members.forEach((m, i) => console.log((i + 1) + '. ID: ' + m + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID')));
-                        console.log('\nTotal Member: ' + members.length);
+                        console.log('\n\x1b[36mTotal Member: ' + members.length + '\x1b[0m');
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
         esac
     done
 }
@@ -631,32 +717,36 @@ menu_member() {
 menu_produk() {
     while true; do
         clear
-        echo "==============================================="
-        echo "          🛒 MANAJEMEN PRODUK BOT 🛒           "
-        echo "==============================================="
-        echo "1. Tambah / Edit Produk"
-        echo "2. Hapus Produk"
-        echo "3. Lihat Daftar Produk"
-        echo "0. Kembali ke Menu Utama"
-        echo "==============================================="
-        read -p "Pilih menu [0-3]: " prodchoice
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             🛒 MANAJEMEN PRODUK BOT 🛒             ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah / Edit Produk"
+        echo -e "  ${C_GREEN}[2]${C_RST} Hapus Produk"
+        echo -e "  ${C_GREEN}[3]${C_RST} Lihat Daftar Produk"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-3]: ${C_RST}"
+        read prodchoice
 
         case $prodchoice in
             1)
-                read -p "Masukkan Kode Produk (Contoh: TSEL10): " kode
-                read -p "Masukkan Nama Produk (Contoh: Telkomsel 10K): " nama
-                read -p "Masukkan Harga Jual ke Member (Contoh: 12000): " harga
+                echo -e "\n${C_MAG}--- TAMBAH PRODUK BARU ---${C_RST}"
+                read -p "Kode Produk (Contoh: TSEL10): " kode
+                read -p "Nama Produk (Contoh: Telkomsel 10K): " nama
+                read -p "Harga Jual (Contoh: 12000): " harga
                 node -e "
                     const fs = require('fs');
                     let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
                     let key = '$kode'.toUpperCase().replace(/\s+/g, '');
                     produk[key] = { nama: '$nama', harga: parseInt('$harga') };
                     fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
-                    console.log('\n✅ Produk [' + key + '] $nama berhasil ditambahkan dengan harga Rp $harga!');
+                    console.log('\x1b[32m\n✅ Produk [' + key + '] $nama berhasil ditambahkan dengan harga Rp $harga!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
+                echo -e "\n${C_MAG}--- HAPUS PRODUK ---${C_RST}"
                 read -p "Masukkan Kode Produk yg ingin dihapus: " kode
                 node -e "
                     const fs = require('fs');
@@ -665,25 +755,27 @@ menu_produk() {
                     if(produk[key]) {
                         delete produk[key];
                         fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
-                        console.log('\n✅ Produk ' + key + ' berhasil dihapus!');
-                    } else console.log('\n❌ Kode Produk ' + key + ' tidak ditemukan.');
+                        console.log('\x1b[32m\n✅ Produk ' + key + ' berhasil dihapus!\x1b[0m');
+                    } else console.log('\x1b[31m\n❌ Kode Produk ' + key + ' tidak ditemukan.\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             3)
+                echo -e "\n${C_CYAN}--- DAFTAR PRODUK TOKO ---${C_RST}"
                 node -e "
                     const fs = require('fs');
                     let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
                     let keys = Object.keys(produk);
-                    if(keys.length === 0) console.log('Belum ada produk.');
+                    if(keys.length === 0) console.log('\x1b[33mBelum ada produk.\x1b[0m');
                     else {
                         keys.forEach((k, i) => console.log((i + 1) + '. [' + k + '] ' + produk[k].nama + ' - Rp ' + produk[k].harga.toLocaleString('id-ID')));
-                        console.log('\nTotal Produk: ' + keys.length);
+                        console.log('\n\x1b[36mTotal Produk: ' + keys.length + '\x1b[0m');
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
         esac
     done
 }
@@ -693,32 +785,34 @@ menu_produk() {
 # ==========================================
 while true; do
     clear
-    echo "==============================================="
-    echo "      🤖 PANEL PENGELOLA TENDO STORE 🤖      "
-    echo "==============================================="
-    echo "--- MANAJEMEN BOT ---"
-    echo "1. Install & Buat File Bot Otomatis"
-    echo "2. Mulai Bot (Terminal)"
-    echo "3. Jalankan Bot di Latar Belakang (PM2)"
-    echo "4. Hentikan Bot (PM2)"
-    echo "5. Lihat Log / Error Bot"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}             🤖 PANEL ADMIN TENDO STORE 🤖            ${C_RST}"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_MAG}▶ MANAJEMEN BOT${C_RST}"
+    echo -e "  ${C_GREEN}[1]${C_RST} Install & Perbarui Sistem"
+    echo -e "  ${C_GREEN}[2]${C_RST} Mulai Bot (Terminal / Scan QR)"
+    echo -e "  ${C_GREEN}[3]${C_RST} Jalankan Bot di Latar Belakang (PM2)"
+    echo -e "  ${C_GREEN}[4]${C_RST} Hentikan Bot (PM2)"
+    echo -e "  ${C_GREEN}[5]${C_RST} Lihat Log / Error Bot"
     echo ""
-    echo "--- MANAJEMEN TOKO & SISTEM ---"
-    echo "6. 👥 Manajemen Member (Saldo)"
-    echo "7. 🛒 Manajemen Produk (Harga)"
-    echo "8. ⚙️ Bot Telegram Setup (Auto-Backup)"
-    echo "9. 💾 Backup & Restore Data"
-    echo "10. 🔌 Ganti API Digiflazz"
-    echo "11. 🔄 Ganti Akun Bot WA (Reset Sesi)"
-    echo "12. 📢 Kirim Pesan Broadcast"
-    echo "0. Keluar"
-    echo "==============================================="
-    read -p "Pilih menu [0-12]: " choice
+    echo -e "${C_MAG}▶ MANAJEMEN TOKO & SISTEM${C_RST}"
+    echo -e "  ${C_GREEN}[6]${C_RST} 👥 Manajemen Saldo Member"
+    echo -e "  ${C_GREEN}[7]${C_RST} 🛒 Manajemen Daftar Produk & Harga"
+    echo -e "  ${C_GREEN}[8]${C_RST} ⚙️  Pengaturan Bot Telegram (Auto-Backup)"
+    echo -e "  ${C_GREEN}[9]${C_RST} 💾 Backup & Restore Data Database"
+    echo -e "  ${C_GREEN}[10]${C_RST}🔌 Ganti API Digiflazz"
+    echo -e "  ${C_GREEN}[11]${C_RST}🔄 Ganti Akun Bot WA (Reset Sesi)"
+    echo -e "  ${C_GREEN}[12]${C_RST}📢 Kirim Pesan Broadcast"
+    echo -e "${C_CYAN}======================================================${C_RST}"
+    echo -e "  ${C_RED}[0]${C_RST} Keluar dari Panel"
+    echo -e "${C_CYAN}======================================================${C_RST}"
+    echo -ne "${C_YELLOW}Pilih menu [0-12]: ${C_RST}"
+    read choice
 
     case $choice in
         1) install_dependencies ;;
         2) 
-            if [ ! -f "index.js" ]; then echo "❌ Anda harus menjalankan Menu 1 dulu!"; sleep 2; continue; fi
+            if [ ! -f "index.js" ]; then echo -e "${C_RED}❌ Jalankan Menu 1 (Install) dulu!${C_RST}"; sleep 2; continue; fi
             if [ ! -d "sesi_bot" ] || [ -z "$(ls -A sesi_bot 2>/dev/null)" ]; then
                 read -p "📲 Masukkan Nomor WA Bot (Awali 628...): " nomor_bot
                 if [ ! -z "$nomor_bot" ]; then
@@ -731,22 +825,22 @@ while true; do
                     "
                 fi
             fi
-            echo -e "\n⏳ Menjalankan bot... (Tekan CTRL+C untuk mematikan dan kembali ke menu)"
+            echo -e "\n${C_MAG}⏳ Menjalankan bot... (Tekan CTRL+C untuk mematikan dan kembali ke menu)${C_RST}"
             node index.js
-            echo -e "\n⚠️ Proses bot terhenti."
-            read -p "Tekan Enter untuk kembali ke menu utama..."
+            echo -e "\n${C_YELLOW}⚠️ Proses bot terhenti.${C_RST}"
+            read -p "Tekan Enter untuk kembali ke panel utama..."
             ;;
         3) 
-            pm2 delete tendo-bot 2>/dev/null
-            pm2 start index.js --name "tendo-bot"
-            pm2 save
-            pm2 startup
-            echo "✅ Bot berhasil berjalan di latar belakang!"
+            pm2 delete tendo-bot >/dev/null 2>&1
+            pm2 start index.js --name "tendo-bot" >/dev/null 2>&1
+            pm2 save >/dev/null 2>&1
+            pm2 startup >/dev/null 2>&1
+            echo -e "\n${C_GREEN}✅ Bot berhasil berjalan di latar belakang!${C_RST}"
             sleep 2 ;;
         4) 
-            pm2 stop tendo-bot 2>/dev/null
-            pm2 delete tendo-bot 2>/dev/null
-            echo "✅ Bot dihentikan dan dibersihkan dari latar belakang."
+            pm2 stop tendo-bot >/dev/null 2>&1
+            pm2 delete tendo-bot >/dev/null 2>&1
+            echo -e "\n${C_GREEN}✅ Bot dihentikan dan dibersihkan dari latar belakang.${C_RST}"
             sleep 2 ;;
         5) pm2 logs tendo-bot ;;
         6) menu_member ;;
@@ -754,6 +848,7 @@ while true; do
         8) menu_telegram ;;
         9) menu_backup ;;
         10)
+            echo -e "\n${C_MAG}--- GANTI API DIGIFLAZZ ---${C_RST}"
             read -p "Username Digiflazz Baru: " user_api
             read -p "API Key Digiflazz Baru: " key_api
             node -e "
@@ -762,30 +857,31 @@ while true; do
                 config.digiflazzUsername = '$user_api'.trim();
                 config.digiflazzApiKey = '$key_api'.trim();
                 fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
-                console.log('\n✅ Konfigurasi API Digiflazz berhasil disimpan!');
+                console.log('\x1b[32m\n✅ Konfigurasi API Digiflazz berhasil disimpan!\x1b[0m');
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
         11)
-            echo "⚠️  Ini akan menghapus sesi login WhatsApp saat ini."
+            echo -e "\n${C_RED}${C_BOLD}⚠️ Ini akan menghapus sesi login WhatsApp saat ini.${C_RST}"
             read -p "Lanjutkan? (y/n): " konfirmasi
             if [ "$konfirmasi" == "y" ] || [ "$konfirmasi" == "Y" ]; then
-                pm2 stop tendo-bot 2>/dev/null
+                pm2 stop tendo-bot >/dev/null 2>&1
                 rm -rf sesi_bot
-                echo "✅ Sesi dihapus! Silakan pilih menu 2 untuk Login Ulang."
+                echo -e "${C_GREEN}✅ Sesi dihapus! Silakan pilih menu 2 untuk Login Ulang.${C_RST}"
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
         12)
-            echo "Gunakan \n untuk baris baru."
+            echo -e "\n${C_MAG}--- BROADCAST PESAN ---${C_RST}"
+            echo -e "Gunakan \n untuk baris baru."
             read -p "Ketik Pesan Broadcast: " pesan_bc
             if [ ! -z "$pesan_bc" ]; then
                 echo -e "$pesan_bc" > broadcast.txt
-                echo -e "\n✅ Pesan berhasil masuk antrean broadcast!"
+                echo -e "\n${C_GREEN}✅ Pesan berhasil masuk antrean broadcast!${C_RST}"
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
-        0) echo "Keluar dari panel. Sampai jumpa!"; exit 0 ;;
-        *) echo "❌ Pilihan tidak valid!"; sleep 2 ;;
+        0) echo -e "${C_GREEN}Keluar dari panel. Sampai jumpa! 👋${C_RST}"; exit 0 ;;
+        *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 2 ;;
     esac
 done
