@@ -25,7 +25,6 @@ fi
 # 2. FUNGSI UNTUK MEMBUAT FILE INDEX.JS
 # ==========================================
 generate_bot_script() {
-    echo -e "${C_CYAN}⏳ Meracik sistem utama bot...${C_RST}"
     cat << 'EOF' > index.js
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
@@ -54,6 +53,7 @@ configAwal.botNumber = configAwal.botNumber || "";
 configAwal.teleToken = configAwal.teleToken || "";
 configAwal.teleChatId = configAwal.teleChatId || "";
 configAwal.autoBackup = configAwal.autoBackup || false;
+configAwal.backupInterval = configAwal.backupInterval || 720; 
 saveJSON(configFile, configAwal);
 
 if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
@@ -62,13 +62,12 @@ if (!fs.existsSync(trxFile)) saveJSON(trxFile, {});
 
 let pairingRequested = false; 
 
-// FUNGSI AUTO BACKUP KE TELEGRAM 
 function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
     
     console.log("\x1b[36m⏳ Memulai proses Auto-Backup ke Telegram...\x1b[0m");
-    exec(`rm -f backup.zip && zip backup.zip config.json database.json trx.json index.js install.sh package-lock.json package.json produk.json 2>/dev/null`, (err) => {
+    exec(`rm -f backup.zip && zip backup.zip config.json database.json trx.json index.js package-lock.json package.json produk.json 2>/dev/null`, (err) => {
         if (!err) {
             let caption = `📦 *Auto-Backup Tendo Store*\n⏰ Waktu: ${new Date().toLocaleString('id-ID')}`;
             exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="${caption}" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`, (err2) => {
@@ -80,7 +79,8 @@ function doBackupAndSend() {
 }
 
 if (configAwal.autoBackup) {
-    setInterval(doBackupAndSend, 12 * 60 * 60 * 1000); 
+    let intervalMs = (configAwal.backupInterval || 720) * 60 * 1000;
+    setInterval(doBackupAndSend, intervalMs); 
 }
 
 async function startBot() {
@@ -142,7 +142,6 @@ async function startBot() {
         }
     });
 
-    // AUTO-POLLING CEK STATUS PENDING DIGIFLAZZ
     setInterval(async () => {
         let trxs = loadJSON(trxFile);
         let keys = Object.keys(trxs);
@@ -224,7 +223,6 @@ async function startBot() {
 
             let bodyLower = body.trim().toLowerCase();
 
-            // KONTROL PEMBATALAN PESANAN
             if (bodyLower === 'batal' || bodyLower === 'cancel') {
                 if (db[sender].step !== 'idle') {
                     db[sender].step = 'idle';
@@ -235,7 +233,6 @@ async function startBot() {
                 }
             }
 
-            // TAHAP 1: Tunggu Balasan Nomor Urut Produk
             if (db[sender].step === 'order_product') {
                 let keys = Object.keys(produkDB);
                 let inputKode = body.trim();
@@ -254,7 +251,6 @@ async function startBot() {
                 }
             }
 
-            // TAHAP 2: Tunggu Balasan Nomor HP dan Eksekusi
             if (db[sender].step === 'order_target') {
                 let tujuan = body.trim().replace(/[^0-9]/g, ''); 
                 let kodeProduk = db[sender].temp_sku;
@@ -339,7 +335,6 @@ async function startBot() {
             }
 
 
-            // KECERDASAN MEMBACA PERINTAH NORMAL
             let rawCommand = body.split(' ')[0].toLowerCase();
             let command = rawCommand;
             
@@ -354,7 +349,7 @@ async function startBot() {
             }
 
             if (command === 'bot') {
-                let menuText = `👋 Selamat Datang di *${namaBot}* (v14)\n`;
+                let menuText = `👋 Selamat Datang di *${namaBot}* (v16)\n`;
                 menuText += `📌 *ID Member:* ${sender}\n\n`;
                 menuText += `1. *Saldo*\n`;
                 menuText += `2. *Order*\n`;
@@ -468,7 +463,7 @@ EOF
 }
 
 # ==========================================
-# 3. FUNGSI INSTALASI DEPENDENSI
+# 3. FUNGSI INSTALASI DEPENDENSI (Dengan Spinner)
 # ==========================================
 install_dependencies() {
     clear
@@ -480,26 +475,51 @@ install_dependencies() {
     export NEEDRESTART_MODE=a
     export NEEDRESTART_SUSPEND=1
 
-    echo -e "${C_MAG}>> Mengupdate repositori sistem...${C_RST}"
-    sudo -E apt-get update > /dev/null 2>&1
-    sudo -E apt-get upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
+    # Fungsi Animasi Berputar (Spinner)
+    spin() {
+        local pid=$1
+        local delay=0.1
+        local spinstr='|/-\'
+        while kill -0 $pid 2>/dev/null; do
+            local temp=${spinstr#?}
+            printf " [%c] " "$spinstr"
+            local spinstr=$temp${spinstr%"$temp"}
+            sleep $delay
+            printf "\b\b\b\b\b"
+        done
+        printf "      \b\b\b\b\b\b"
+    }
+
+    echo -ne "${C_MAG}>> Mengupdate repositori sistem...${C_RST}"
+    (sudo -E apt-get update > /dev/null 2>&1 && sudo -E apt-get upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1) &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    echo -e "${C_MAG}>> Menginstall dependensi (curl, git, wget, zip)...${C_RST}"
-    sudo -E apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl git wget nano zip unzip > /dev/null 2>&1
+    echo -ne "${C_MAG}>> Menginstall dependensi (curl, git, wget, zip)...${C_RST}"
+    sudo -E apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl git wget nano zip unzip > /dev/null 2>&1 &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    echo -e "${C_MAG}>> Menginstall Node.js...${C_RST}"
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - > /dev/null 2>&1
-    sudo -E apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" nodejs > /dev/null 2>&1
+    echo -ne "${C_MAG}>> Menginstall Node.js...${C_RST}"
+    (curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - > /dev/null 2>&1 && sudo -E apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" nodejs > /dev/null 2>&1) &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    sudo npm install -g npm@11.11.0 > /dev/null 2>&1
-    sudo npm install -g pm2 > /dev/null 2>&1
+    echo -ne "${C_MAG}>> Memperbarui NPM & Install PM2...${C_RST}"
+    (sudo npm install -g npm@11.11.0 > /dev/null 2>&1 && sudo npm install -g pm2 > /dev/null 2>&1) &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
     
+    echo -ne "${C_MAG}>> Meracik sistem utama bot...${C_RST}"
     generate_bot_script
     if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
     rm -rf node_modules package-lock.json
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    echo -e "${C_MAG}>> Mengunduh modul WhatsApp Baileys...${C_RST}"
-    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser > /dev/null 2>&1
+    echo -ne "${C_MAG}>> Mengunduh modul WhatsApp Baileys...${C_RST}"
+    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser > /dev/null 2>&1 &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
     
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     echo -e "${C_GREEN}${C_BOLD}                 ✅ INSTALASI SELESAI!                ${C_RST}"
@@ -517,7 +537,7 @@ menu_telegram() {
         echo -e "${C_YELLOW}${C_BOLD}             ⚙️ BOT TELEGRAM SETUP ⚙️              ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "  ${C_GREEN}[1]${C_RST} Change BOT API & CHAT ID"
-        echo -e "  ${C_GREEN}[2]${C_RST} Set Notifikasi Backup Otomatis (12 Jam)"
+        echo -e "  ${C_GREEN}[2]${C_RST} Set Notifikasi Backup Otomatis (Custom Waktu)"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
         echo -e "${C_CYAN}======================================================${C_RST}"
@@ -541,21 +561,28 @@ menu_telegram() {
                 ;;
             2)
                 echo -e "\n${C_MAG}--- SET AUTO BACKUP ---${C_RST}"
-                read -p "Aktifkan Auto-Backup ke Telegram setiap 12 Jam? (y/n): " set_auto
+                read -p "Aktifkan Auto-Backup ke Telegram? (y/n): " set_auto
                 if [ "$set_auto" == "y" ] || [ "$set_auto" == "Y" ]; then
                     status="true"
-                    echo -e "\n${C_GREEN}✅ Auto-Backup DIAKTIFKAN!${C_RST}"
+                    read -p "Berapa MENIT sekali bot harus backup? (Contoh: 60 untuk 1 jam): " menit
+                    if ! [[ "$menit" =~ ^[0-9]+$ ]]; then
+                        menit=720
+                        echo -e "${C_YELLOW}Input tidak valid, mengatur ke default 720 menit (12 Jam).${C_RST}"
+                    fi
+                    echo -e "\n${C_GREEN}✅ Auto-Backup DIAKTIFKAN setiap $menit menit!${C_RST}"
                 else
                     status="false"
+                    menit=720
                     echo -e "\n${C_RED}❌ Auto-Backup DIMATIKAN!${C_RST}"
                 fi
                 node -e "
                     const fs = require('fs');
                     let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
                     config.autoBackup = $status;
+                    config.backupInterval = parseInt('$menit');
                     fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
                 "
-                echo -e "${C_YELLOW}⚠️ Silakan restart bot (Menu 4 lalu 3) agar fitur aktif.${C_RST}"
+                echo -e "${C_YELLOW}⚠️ Silakan restart bot (Menu 4 lalu 3) agar perubahan jadwal aktif.${C_RST}"
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             0) break ;;
@@ -587,8 +614,8 @@ menu_backup() {
                 if ! command -v zip &> /dev/null; then sudo apt install zip -y > /dev/null 2>&1; fi
                 
                 rm -f backup.zip
-                zip backup.zip config.json database.json trx.json index.js install.sh package-lock.json package.json produk.json 2>/dev/null
-                echo -e "${C_GREEN}✅ File backup.zip berhasil dikompresi!${C_RST}"
+                zip backup.zip config.json database.json trx.json index.js package-lock.json package.json produk.json 2>/dev/null
+                echo -e "${C_GREEN}✅ File backup.zip berhasil dikompresi (tanpa install.sh)!${C_RST}"
                 
                 node -e "
                     const fs = require('fs');
