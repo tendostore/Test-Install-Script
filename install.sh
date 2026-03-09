@@ -130,9 +130,7 @@ async function startBot() {
         }
     });
 
-    // ==========================================
     // AUTO-POLLING CEK STATUS PENDING DIGIFLAZZ
-    // ==========================================
     setInterval(async () => {
         let trxs = loadJSON(trxFile);
         let keys = Object.keys(trxs);
@@ -199,8 +197,23 @@ async function startBot() {
             const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
             if (!body) return;
             
-            const command = body.split(' ')[0].toLowerCase();
+            let rawCommand = body.split(' ')[0].toLowerCase();
+            let command = rawCommand;
             
+            if (['bot', 'menu', '.menu', 'help', 'halo', 'hai', 'p', 'ping', 'info'].includes(rawCommand)) {
+                command = 'bot';
+            } else if (['1', '1.', '1.saldo', 'saldo', '.saldo'].includes(rawCommand)) {
+                command = '.saldo';
+            } else if (['3', '3.', '3.harga', 'harga', '.harga', 'list'].includes(rawCommand)) {
+                command = '.harga';
+            } else if (['2', '2.', '2.order', 'order', '.order', 'beli'].includes(rawCommand)) {
+                if (['2', '2.', 'order', '.order', 'beli'].includes(body.trim().toLowerCase())) {
+                    await sock.sendMessage(from, { text: `❌ Format kurang lengkap!\n\nKetik pesanan dengan format:\n*order [nomor urut produk] [nomor tujuan]*\n\nContoh:\n*order 1 08123456789*` });
+                    return;
+                }
+                command = '.order';
+            }
+
             let config = loadJSON(configFile);
             let namaBot = config.botName || "Tendo Store";
             let db = loadJSON(dbFile);
@@ -211,10 +224,21 @@ async function startBot() {
                 saveJSON(dbFile, db);
             }
 
-            if (command === '.menu') {
-                await sock.sendMessage(from, { 
-                    text: `👋 Selamat Datang di *${namaBot}* (v8)\n📌 *ID Member:* ${sender}\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
-                });
+            // ==========================================
+            // PERUBAHAN TAMPILAN MENU UTAMA BERSERTA CONTOH (v12)
+            // ==========================================
+            if (command === 'bot') {
+                let menuText = `👋 Selamat Datang di *${namaBot}* (v12)\n`;
+                menuText += `📌 *ID Member:* ${sender}\n\n`;
+                menuText += `1. *Saldo*\n`;
+                menuText += `2. *Order*\n`;
+                menuText += `3. *Harga*\n\n`;
+                menuText += `_💡 CONTOH PENGGUNAAN:_\n`;
+                menuText += `👉 Ketik *1* untuk cek sisa Saldo Kakak.\n`;
+                menuText += `👉 Ketik *3* untuk melihat Daftar Harga.\n`;
+                menuText += `👉 Ketik *order 1 081234567* untuk membeli produk urutan Nomor 1.`;
+                
+                await sock.sendMessage(from, { text: menuText });
                 return;
             }
 
@@ -235,10 +259,9 @@ async function startBot() {
                 let textHarga = `🛒 *DAFTAR PRODUK ${namaBot}*\n\n`;
                 keys.forEach((k, i) => {
                     textHarga += `*${i+1}. ${produkDB[k].nama}*\n`;
-                    textHarga += `   Ketik: *.order ${k} tujuan*\n`;
                     textHarga += `   Harga: *Rp ${produkDB[k].harga.toLocaleString('id-ID')}*\n\n`;
                 });
-                textHarga += `_Contoh order: .order ${keys[0]} 08123456789_`;
+                textHarga += `_👉 Ketik: *order [nomor] [tujuan]*_\n_Contoh: order 1 08123456789_`;
                 
                 await sock.sendMessage(from, { text: textHarga.trim() });
                 return;
@@ -248,15 +271,21 @@ async function startBot() {
                 const args = body.split(' ').slice(1);
                 
                 if (args.length < 2) {
-                    let contohKode = Object.keys(produkDB)[0] || 'E15GB';
-                    return await sock.sendMessage(from, { text: `❌ *Format salah!*\n\nKetik: *.order [kode] [nomor_tujuan]*\nContoh: .order ${contohKode} 08123456789` });
+                    return await sock.sendMessage(from, { text: `❌ *Format salah!*\n\nKetik: *order [nomor urut] [nomor tujuan]*\nContoh: *order 1 08123456789*` });
                 }
 
-                const kodeProduk = args[0].toUpperCase();
+                let inputKode = args[0].toUpperCase();
                 const tujuan = args[1];
+                let kodeProduk = inputKode;
+                
+                let keys = Object.keys(produkDB);
+
+                if (!isNaN(inputKode) && Number(inputKode) > 0 && Number(inputKode) <= keys.length) {
+                    kodeProduk = keys[Number(inputKode) - 1];
+                }
 
                 if (!produkDB[kodeProduk]) {
-                    return await sock.sendMessage(from, { text: `❌ Kode produk *${kodeProduk}* tidak ditemukan.\nKetik *.harga* untuk melihat daftar kode produk yang tersedia.` });
+                    return await sock.sendMessage(from, { text: `❌ Nomor produk atau Kode tidak ditemukan.\nKetik *3* untuk melihat daftar produk yang tersedia.` });
                 }
 
                 const hargaProduk = produkDB[kodeProduk].harga;
@@ -376,7 +405,6 @@ install_dependencies() {
     echo "      🚀 MENGINSTALL SISTEM BOT 🚀      "
     echo "==============================================="
     
-    # MENONAKTIFKAN POP-UP INTERAKTIF SAAT INSTALL
     export DEBIAN_FRONTEND=noninteractive
     export NEEDRESTART_MODE=a
     export NEEDRESTART_SUSPEND=1
