@@ -21,8 +21,8 @@ const pino = require('pino');
 const express = require('express');
 const bodyParser = require('body-parser');
 const { exec } = require('child_process');
-const axios = require('axios'); // Ditambahkan untuk koneksi API
-const crypto = require('crypto'); // Ditambahkan untuk enkripsi Sign Digiflazz
+const axios = require('axios'); 
+const crypto = require('crypto'); 
 
 const app = express();
 app.use(bodyParser.json());
@@ -47,23 +47,24 @@ if (!fs.existsSync(produkFile)) saveJSON(produkFile, {});
 
 let pairingRequested = false; 
 
-// FUNGSI AUTO BACKUP KE TELEGRAM
+// FUNGSI AUTO BACKUP KE TELEGRAM (DIPERBARUI)
 function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
     
     console.log("⏳ Memulai proses Auto-Backup ke Telegram...");
-    exec(`zip -r backup.zip . -x "node_modules/*" -x "backup.zip" -x ".npm/*" -x ".cache/*" -x ".pm2/*"`, (err) => {
+    // Hanya membackup file yang berhubungan dengan bot
+    exec(`zip -r backup.zip config.json database.json produk.json index.js install.sh package.json sesi_bot broadcast.txt 2>/dev/null`, (err) => {
         if (!err) {
             let caption = `📦 *Auto-Backup Tendo Store*\n⏰ Waktu: ${new Date().toLocaleString('id-ID')}`;
             exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="${caption}" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`, (err2) => {
                 if (!err2) console.log("✅ Auto-Backup berhasil dikirim ke Telegram!");
+                exec(`rm backup.zip`); // Hapus zip setelah dikirim
             });
         }
     });
 }
 
-// JALANKAN AUTO BACKUP SETIAP 12 JAM (Jika Diaktifkan)
 if (configAwal.autoBackup) {
     setInterval(doBackupAndSend, 12 * 60 * 60 * 1000); 
 }
@@ -128,135 +129,139 @@ async function startBot() {
     });
 
     sock.ev.on('messages.upsert', async m => {
-        const msg = m.messages[0];
-        if (!msg.message || msg.key.fromMe) return;
+        try {
+            const msg = m.messages[0];
+            if (!msg.message || msg.key.fromMe) return;
 
-        const from = msg.key.remoteJid;
-        const senderJid = jidNormalizedUser(msg.key.participant || msg.key.remoteJid);
-        const sender = senderJid.split('@')[0]; 
-        
-        const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
-        const command = body.split(' ')[0].toLowerCase();
-        
-        let config = loadJSON(configFile);
-        let namaBot = config.botName || "Tendo Store";
-        let db = loadJSON(dbFile);
-        let produkDB = loadJSON(produkFile);
+            const from = msg.key.remoteJid;
+            const senderJid = jidNormalizedUser(msg.key.participant || msg.key.remoteJid);
+            const sender = senderJid.split('@')[0]; 
+            
+            const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+            if (!body) return;
+            
+            const command = body.split(' ')[0].toLowerCase();
+            
+            let config = loadJSON(configFile);
+            let namaBot = config.botName || "Tendo Store";
+            let db = loadJSON(dbFile);
+            let produkDB = loadJSON(produkFile);
 
-        if (!db[sender]) {
-            db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: senderJid };
-            saveJSON(dbFile, db);
-        }
+            if (!db[sender]) {
+                db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: senderJid };
+                saveJSON(dbFile, db);
+            }
 
-        if (command === '.menu') {
-            await sock.sendMessage(from, { 
-                text: `👋 Selamat Datang di *${namaBot}*\n📌 *ID Member:* ${sender}\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
-            });
-        }
-
-        if (command === '.saldo') {
-            await sock.sendMessage(from, { 
-                text: `💰 Saldo Anda saat ini: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` 
-            });
-        }
-
-        if (command === '.harga') {
-            let keys = Object.keys(produkDB);
-            if (keys.length === 0) {
-                await sock.sendMessage(from, { text: `🛒 *Daftar Harga ${namaBot}*\n\nMaaf, belum ada produk yang tersedia saat ini.`});
+            // Tanda v2 agar kita tahu bot sudah update
+            if (command === '.menu') {
+                await sock.sendMessage(from, { 
+                    text: `👋 Selamat Datang di *${namaBot}* (v2)\n📌 *ID Member:* ${sender}\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
+                });
                 return;
             }
 
-            let textHarga = `🛒 *DAFTAR PRODUK ${namaBot}*\n\n`;
-            keys.forEach((k, i) => {
-                textHarga += `*${i+1}. ${produkDB[k].nama}*\n`;
-                textHarga += `   Ketik: *.order ${k} tujuan*\n`;
-                textHarga += `   Harga: *Rp ${produkDB[k].harga.toLocaleString('id-ID')}*\n\n`;
-            });
-            textHarga += `_Contoh order: .order ${keys[0]} 08123456789_`;
-            
-            await sock.sendMessage(from, { text: textHarga.trim() });
-        }
-
-        // ==========================================
-        // FITUR BARU: LOGIKA TRANSAKSI .ORDER
-        // ==========================================
-        if (command === '.order') {
-            const args = body.split(' ').slice(1);
-            
-            // Cek kelengkapan format
-            if (args.length < 2) {
-                let contohKode = Object.keys(produkDB)[0] || 'C15GB';
-                return await sock.sendMessage(from, { text: `❌ *Format salah!*\n\nKetik: *.order [kode] [nomor_tujuan]*\nContoh: .order ${contohKode} 08123456789` });
-            }
-
-            const kodeProduk = args[0].toUpperCase();
-            const tujuan = args[1];
-
-            // Cek apakah produk ada di database
-            if (!produkDB[kodeProduk]) {
-                return await sock.sendMessage(from, { text: `❌ Kode produk *${kodeProduk}* tidak ditemukan.\nKetik *.harga* untuk melihat daftar kode produk yang tersedia.` });
-            }
-
-            const hargaProduk = produkDB[kodeProduk].harga;
-
-            // Cek saldo member
-            if (db[sender].saldo < hargaProduk) {
-                return await sock.sendMessage(from, { text: `❌ *Saldo tidak mencukupi!*\n\n💰 Saldo Anda: Rp ${db[sender].saldo.toLocaleString('id-ID')}\n🏷️ Harga Produk: Rp ${hargaProduk.toLocaleString('id-ID')}\n\nSilakan isi saldo terlebih dahulu.` });
-            }
-
-            let username = config.digiflazzUsername;
-            let apiKey = config.digiflazzApiKey;
-
-            // Cek apakah API Digiflazz sudah diatur
-            if (!username || !apiKey) {
-                return await sock.sendMessage(from, { text: `❌ Sistem bermasalah: API Digiflazz belum dikonfigurasi oleh Admin.` });
-            }
-
-            // Generate Ref ID & MD5 Signature
-            let refId = 'TENDO-' + Date.now();
-            let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
-
-            await sock.sendMessage(from, { text: `⏳ *Sedang memproses pesanan...*\n\n📦 Produk: ${produkDB[kodeProduk].nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}` });
-
-            try {
-                // Hit API Digiflazz
-                const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
-                    username: username,
-                    buyer_sku_code: kodeProduk,
-                    customer_no: tujuan,
-                    ref_id: refId,
-                    sign: sign
+            if (command === '.saldo') {
+                await sock.sendMessage(from, { 
+                    text: `💰 Saldo Anda saat ini: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` 
                 });
+                return;
+            }
 
-                const resData = response.data.data;
-                const statusOrder = resData.status; // Pending, Sukses, Gagal
-                const sn = resData.sn || '-';
-                const message = resData.message || '';
-
-                if (statusOrder === 'Gagal') {
-                    await sock.sendMessage(from, { text: `❌ *Transaksi Gagal!*\nAlasan: ${message}\n\n_Saldo Anda tidak dipotong._` });
-                } else {
-                    // Berhasil / Pending -> Potong saldo
-                    db[sender].saldo -= hargaProduk;
-                    saveJSON(dbFile, db);
-
-                    let pesanSukses = `✅ *PESANAN BERHASIL DIPROSES*\n\n`;
-                    pesanSukses += `📦 Produk: ${produkDB[kodeProduk].nama}\n`;
-                    pesanSukses += `📱 Tujuan: ${tujuan}\n`;
-                    pesanSukses += `🔖 Ref ID: ${refId}\n`;
-                    pesanSukses += `⚙️ Status: *${statusOrder}*\n`;
-                    pesanSukses += `🔑 SN/Catatan: ${sn}\n\n`;
-                    pesanSukses += `💰 Sisa Saldo: Rp ${db[sender].saldo.toLocaleString('id-ID')}`;
-
-                    await sock.sendMessage(from, { text: pesanSukses });
+            if (command === '.harga') {
+                let keys = Object.keys(produkDB);
+                if (keys.length === 0) {
+                    await sock.sendMessage(from, { text: `🛒 *Daftar Harga ${namaBot}*\n\nMaaf, belum ada produk yang tersedia saat ini.`});
+                    return;
                 }
 
-            } catch (error) {
-                console.error('Digiflazz Error:', error.response ? error.response.data : error.message);
-                let errMessage = error.response?.data?.data?.message || 'Terjadi kesalahan saat menghubungi server Digiflazz/API Down.';
-                await sock.sendMessage(from, { text: `❌ *Transaksi Gagal!*\nAlasan: ${errMessage}\n\n_Saldo Anda tidak dipotong._` });
+                let textHarga = `🛒 *DAFTAR PRODUK ${namaBot}*\n\n`;
+                keys.forEach((k, i) => {
+                    textHarga += `*${i+1}. ${produkDB[k].nama}*\n`;
+                    textHarga += `   Ketik: *.order ${k} tujuan*\n`;
+                    textHarga += `   Harga: *Rp ${produkDB[k].harga.toLocaleString('id-ID')}*\n\n`;
+                });
+                textHarga += `_Contoh order: .order ${keys[0]} 08123456789_`;
+                
+                await sock.sendMessage(from, { text: textHarga.trim() });
+                return;
             }
+
+            // ==========================================
+            // LOGIKA TRANSAKSI .ORDER
+            // ==========================================
+            if (command === '.order') {
+                const args = body.split(' ').slice(1);
+                
+                if (args.length < 2) {
+                    let contohKode = Object.keys(produkDB)[0] || 'E15GB';
+                    return await sock.sendMessage(from, { text: `❌ *Format salah!*\n\nKetik: *.order [kode] [nomor_tujuan]*\nContoh: .order ${contohKode} 08123456789` });
+                }
+
+                const kodeProduk = args[0].toUpperCase();
+                const tujuan = args[1];
+
+                if (!produkDB[kodeProduk]) {
+                    return await sock.sendMessage(from, { text: `❌ Kode produk *${kodeProduk}* tidak ditemukan.\nKetik *.harga* untuk melihat daftar kode produk yang tersedia.` });
+                }
+
+                const hargaProduk = produkDB[kodeProduk].harga;
+
+                if (db[sender].saldo < hargaProduk) {
+                    return await sock.sendMessage(from, { text: `❌ *Saldo tidak mencukupi!*\n\n💰 Saldo Anda: Rp ${db[sender].saldo.toLocaleString('id-ID')}\n🏷️ Harga Produk: Rp ${hargaProduk.toLocaleString('id-ID')}\n\nSilakan isi saldo terlebih dahulu.` });
+                }
+
+                let username = config.digiflazzUsername;
+                let apiKey = config.digiflazzApiKey;
+
+                if (!username || !apiKey) {
+                    return await sock.sendMessage(from, { text: `❌ Sistem bermasalah: API Digiflazz belum dikonfigurasi oleh Admin.` });
+                }
+
+                let refId = 'TENDO-' + Date.now();
+                let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
+
+                await sock.sendMessage(from, { text: `⏳ *Sedang memproses pesanan...*\n\n📦 Produk: ${produkDB[kodeProduk].nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}` });
+
+                try {
+                    const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
+                        username: username,
+                        buyer_sku_code: kodeProduk,
+                        customer_no: tujuan,
+                        ref_id: refId,
+                        sign: sign
+                    });
+
+                    const resData = response.data.data;
+                    const statusOrder = resData.status; 
+                    const sn = resData.sn || '-';
+                    const message = resData.message || '';
+
+                    if (statusOrder === 'Gagal') {
+                        await sock.sendMessage(from, { text: `❌ *Transaksi Gagal!*\nAlasan: ${message}\n\n_Saldo Anda tidak dipotong._` });
+                    } else {
+                        db[sender].saldo -= hargaProduk;
+                        saveJSON(dbFile, db);
+
+                        let pesanSukses = `✅ *PESANAN BERHASIL DIPROSES*\n\n`;
+                        pesanSukses += `📦 Produk: ${produkDB[kodeProduk].nama}\n`;
+                        pesanSukses += `📱 Tujuan: ${tujuan}\n`;
+                        pesanSukses += `🔖 Ref ID: ${refId}\n`;
+                        pesanSukses += `⚙️ Status: *${statusOrder}*\n`;
+                        pesanSukses += `🔑 SN/Catatan: ${sn}\n\n`;
+                        pesanSukses += `💰 Sisa Saldo: Rp ${db[sender].saldo.toLocaleString('id-ID')}`;
+
+                        await sock.sendMessage(from, { text: pesanSukses });
+                    }
+
+                } catch (error) {
+                    console.error('Digiflazz Error:', error.message);
+                    let errMessage = error.response?.data?.data?.message || 'Terjadi kesalahan saat menghubungi server Digiflazz/API Down.';
+                    await sock.sendMessage(from, { text: `❌ *Transaksi Gagal!*\nAlasan: ${errMessage}\n\n_Saldo Anda tidak dipotong._` });
+                }
+                return;
+            }
+        } catch (err) {
+            console.error("Kesalahan sistem WhatsApp: ", err);
         }
     });
 
@@ -391,8 +396,8 @@ menu_backup() {
                 echo -e "\n⏳ Sedang memproses arsip backup. Mohon tunggu..."
                 if ! command -v zip &> /dev/null; then sudo apt install zip -y; fi
                 
-                # Membackup SEMUA isi folder kecuali node_modules, backup.zip, dan folder sistem/cache
-                zip -r backup.zip . -x "node_modules/*" -x "backup.zip" -x ".npm/*" -x ".cache/*" -x ".pm2/*" > /dev/null
+                # DIPERBARUI: Hanya mengambil file bot
+                zip -r backup.zip config.json database.json produk.json index.js install.sh package.json sesi_bot broadcast.txt 2>/dev/null
                 echo "✅ File backup.zip berhasil dikompresi!"
                 
                 # Eksekusi pengiriman ke Telegram
@@ -623,12 +628,17 @@ while true; do
             read -p "Tekan Enter untuk kembali ke menu utama..."
             ;;
         3) 
+            pm2 delete tendo-bot 2>/dev/null
             pm2 start index.js --name "tendo-bot"
             pm2 save
             pm2 startup
             echo "✅ Bot berhasil berjalan di latar belakang!"
             sleep 2 ;;
-        4) pm2 stop tendo-bot; sleep 2 ;;
+        4) 
+            pm2 stop tendo-bot 2>/dev/null
+            pm2 delete tendo-bot 2>/dev/null
+            echo "✅ Bot dihentikan dan dibersihkan dari latar belakang."
+            sleep 2 ;;
         5) pm2 logs tendo-bot ;;
         6) menu_member ;;
         7) menu_produk ;;
