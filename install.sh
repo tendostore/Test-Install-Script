@@ -4,9 +4,7 @@
 # 1. BIKIN SHORTCUT 'BOT' OTOMATIS DI VPS
 # ==========================================
 if [ ! -f "/usr/bin/bot" ]; then
-    # Menghapus shortcut 'menu' yang lama jika ada
     if [ -f "/usr/bin/menu" ]; then sudo rm -f /usr/bin/menu; fi
-    
     echo -e '#!/bin/bash\ncd "'$(pwd)'"\n./install.sh' | sudo tee /usr/bin/bot > /dev/null
     sudo chmod +x /usr/bin/bot
 fi
@@ -168,7 +166,6 @@ async function startBot() {
                     delete trxs[ref];
                     saveJSON(trxFile, trxs);
                 } else if (statusUpdate === 'Gagal') {
-                    // Refund Saldo
                     let db = loadJSON(dbFile);
                     let senderNum = trx.jid.split('@')[0];
                     if (db[senderNum]) {
@@ -180,7 +177,6 @@ async function startBot() {
                     delete trxs[ref];
                     saveJSON(trxFile, trxs);
                 } else {
-                    // Jika sudah lebih dari 24 jam pending, hapus dari pengecekan
                     if (Date.now() - trx.tanggal > 24 * 60 * 60 * 1000) {
                         delete trxs[ref];
                         saveJSON(trxFile, trxs);
@@ -215,10 +211,9 @@ async function startBot() {
                 saveJSON(dbFile, db);
             }
 
-            // PERUBAHAN DIKEMBALIKAN KE .MENU
             if (command === '.menu') {
                 await sock.sendMessage(from, { 
-                    text: `👋 Selamat Datang di *${namaBot}* (v7)\n📌 *ID Member:* ${sender}\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
+                    text: `👋 Selamat Datang di *${namaBot}* (v8)\n📌 *ID Member:* ${sender}\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
                 });
                 return;
             }
@@ -299,11 +294,9 @@ async function startBot() {
                     if (statusOrder === 'Gagal') {
                         await sock.sendMessage(from, { text: `❌ *Transaksi Gagal!*\nAlasan: ${message}\n\n_Saldo Anda tidak dipotong._` });
                     } else if (statusOrder === 'Pending') {
-                        // Potong Saldo
                         db[sender].saldo -= hargaProduk;
                         saveJSON(dbFile, db);
 
-                        // Simpan ke file tracking
                         let trxs = loadJSON(trxFile);
                         trxs[refId] = { jid: from, sku: kodeProduk, tujuan: tujuan, harga: hargaProduk, nama: produkDB[kodeProduk].nama, tanggal: Date.now() };
                         saveJSON(trxFile, trxs);
@@ -317,7 +310,6 @@ async function startBot() {
 
                         await sock.sendMessage(from, { text: pesanPending });
                     } else {
-                        // Sukses instan
                         db[sender].saldo -= hargaProduk;
                         saveJSON(dbFile, db);
 
@@ -376,23 +368,34 @@ EOF
 }
 
 # ==========================================
-# 3. FUNGSI INSTALASI DEPENDENSI
+# 3. FUNGSI INSTALASI DEPENDENSI (MODE SENYAP)
 # ==========================================
 install_dependencies() {
     clear
     echo "==============================================="
     echo "      🚀 MENGINSTALL SISTEM BOT 🚀      "
     echo "==============================================="
-    sudo apt update && sudo apt upgrade -y
-    sudo apt install -y curl git wget nano zip unzip
+    
+    # MENONAKTIFKAN POP-UP INTERAKTIF SAAT INSTALL
+    export DEBIAN_FRONTEND=noninteractive
+    export NEEDRESTART_MODE=a
+    export NEEDRESTART_SUSPEND=1
+
+    sudo -E apt-get update
+    sudo -E apt-get upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
+    sudo -E apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl git wget nano zip unzip
+    
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-    sudo apt-get install -y nodejs
+    sudo -E apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" nodejs
+    
     sudo npm install -g npm@11.11.0
     sudo npm install -g pm2
+    
     generate_bot_script
     if [ ! -f "package.json" ]; then npm init -y; fi
     rm -rf node_modules package-lock.json
     npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser
+    
     echo "==============================================="
     echo " ✅ INSTALASI SELESAI! "
     echo "==============================================="
