@@ -1,11 +1,14 @@
 #!/bin/bash
 
 # ==========================================
-# 1. BIKIN SHORTCUT 'MENU' OTOMATIS
+# 1. BIKIN SHORTCUT 'BOT' OTOMATIS DI VPS
 # ==========================================
-if [ ! -f "/usr/bin/menu" ]; then
-    echo -e '#!/bin/bash\ncd "'$(pwd)'"\n./install.sh' | sudo tee /usr/bin/menu > /dev/null
-    sudo chmod +x /usr/bin/menu
+if [ ! -f "/usr/bin/bot" ]; then
+    # Menghapus shortcut 'menu' yang lama jika ada
+    if [ -f "/usr/bin/menu" ]; then sudo rm -f /usr/bin/menu; fi
+    
+    echo -e '#!/bin/bash\ncd "'$(pwd)'"\n./install.sh' | sudo tee /usr/bin/bot > /dev/null
+    sudo chmod +x /usr/bin/bot
 fi
 
 # ==========================================
@@ -30,6 +33,7 @@ app.use(bodyParser.json());
 const configFile = './config.json';
 const dbFile = './database.json';
 const produkFile = './produk.json';
+const trxFile = './trx.json';
 
 const loadJSON = (file) => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
 const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
@@ -44,17 +48,17 @@ saveJSON(configFile, configAwal);
 
 if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
 if (!fs.existsSync(produkFile)) saveJSON(produkFile, {});
+if (!fs.existsSync(trxFile)) saveJSON(trxFile, {});
 
 let pairingRequested = false; 
 
-// FUNGSI AUTO BACKUP KE TELEGRAM (DIPERBARUI)
+// FUNGSI AUTO BACKUP KE TELEGRAM 
 function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
     
     console.log("⏳ Memulai proses Auto-Backup ke Telegram...");
-    // Hapus zip lama terlebih dahulu, lalu buat zip baru yang 100% bersih
-    exec(`rm -f backup.zip && zip -r backup.zip config.json database.json produk.json index.js install.sh package.json package-lock.json sesi_bot broadcast.txt 2>/dev/null`, (err) => {
+    exec(`rm -f backup.zip && zip backup.zip config.json database.json trx.json index.js install.sh package-lock.json package.json produk.json 2>/dev/null`, (err) => {
         if (!err) {
             let caption = `📦 *Auto-Backup Tendo Store*\n⏰ Waktu: ${new Date().toLocaleString('id-ID')}`;
             exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="${caption}" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`, (err2) => {
@@ -128,6 +132,65 @@ async function startBot() {
         }
     });
 
+    // ==========================================
+    // AUTO-POLLING CEK STATUS PENDING DIGIFLAZZ
+    // ==========================================
+    setInterval(async () => {
+        let trxs = loadJSON(trxFile);
+        let keys = Object.keys(trxs);
+        if (keys.length === 0) return;
+
+        let cfg = loadJSON(configFile);
+        let userAPI = (cfg.digiflazzUsername || '').trim();
+        let keyAPI = (cfg.digiflazzApiKey || '').trim();
+        if (!userAPI || !keyAPI) return;
+
+        for (let ref of keys) {
+            let trx = trxs[ref];
+            let signCheck = crypto.createHash('md5').update(userAPI + keyAPI + ref).digest('hex');
+
+            try {
+                const cekRes = await axios.post('https://api.digiflazz.com/v1/transaction', {
+                    username: userAPI,
+                    buyer_sku_code: trx.sku,
+                    customer_no: trx.tujuan,
+                    ref_id: ref,
+                    sign: signCheck
+                });
+
+                const resData = cekRes.data.data;
+                const statusUpdate = resData.status;
+                const sn = resData.sn || '-';
+
+                if (statusUpdate === 'Sukses') {
+                    let msg = `✅ *UPDATE STATUS: SUKSES*\n\n📦 Produk: ${trx.nama}\n📱 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n🔑 SN/Catatan: ${sn}`;
+                    await sock.sendMessage(trx.jid, { text: msg });
+                    delete trxs[ref];
+                    saveJSON(trxFile, trxs);
+                } else if (statusUpdate === 'Gagal') {
+                    // Refund Saldo
+                    let db = loadJSON(dbFile);
+                    let senderNum = trx.jid.split('@')[0];
+                    if (db[senderNum]) {
+                        db[senderNum].saldo += trx.harga;
+                        saveJSON(dbFile, db);
+                    }
+                    let msg = `❌ *UPDATE STATUS: GAGAL*\n\n📦 Produk: ${trx.nama}\n📱 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\nAlasan: ${resData.message}\n\n_💰 Saldo Rp ${trx.harga.toLocaleString('id-ID')} telah dikembalikan._`;
+                    await sock.sendMessage(trx.jid, { text: msg });
+                    delete trxs[ref];
+                    saveJSON(trxFile, trxs);
+                } else {
+                    // Jika sudah lebih dari 24 jam pending, hapus dari pengecekan
+                    if (Date.now() - trx.tanggal > 24 * 60 * 60 * 1000) {
+                        delete trxs[ref];
+                        saveJSON(trxFile, trxs);
+                    }
+                }
+            } catch (err) {}
+            await new Promise(r => setTimeout(r, 2000)); 
+        }
+    }, 15000); 
+
     sock.ev.on('messages.upsert', async m => {
         try {
             const msg = m.messages[0];
@@ -152,10 +215,10 @@ async function startBot() {
                 saveJSON(dbFile, db);
             }
 
-            // Indikator v3 agar kita tahu bot sudah menggunakan versi terbaru
+            // PERUBAHAN DIKEMBALIKAN KE .MENU
             if (command === '.menu') {
                 await sock.sendMessage(from, { 
-                    text: `👋 Selamat Datang di *${namaBot}* (v3)\n📌 *ID Member:* ${sender}\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
+                    text: `👋 Selamat Datang di *${namaBot}* (v7)\n📌 *ID Member:* ${sender}\n\n1. *.saldo* (Cek saldo)\n2. *.order* [kode] [tujuan]\n3. *.harga* (Cek harga)\n\n_Ketik perintah di atas untuk menggunakan bot._`
                 });
                 return;
             }
@@ -207,7 +270,6 @@ async function startBot() {
                     return await sock.sendMessage(from, { text: `❌ *Saldo tidak mencukupi!*\n\n💰 Saldo Anda: Rp ${db[sender].saldo.toLocaleString('id-ID')}\n🏷️ Harga Produk: Rp ${hargaProduk.toLocaleString('id-ID')}\n\nSilakan isi saldo terlebih dahulu.` });
                 }
 
-                // Hapus spasi jika ada ketidaksengajaan ketik dari admin
                 let username = (config.digiflazzUsername || '').trim();
                 let apiKey = (config.digiflazzApiKey || '').trim();
 
@@ -236,7 +298,26 @@ async function startBot() {
 
                     if (statusOrder === 'Gagal') {
                         await sock.sendMessage(from, { text: `❌ *Transaksi Gagal!*\nAlasan: ${message}\n\n_Saldo Anda tidak dipotong._` });
+                    } else if (statusOrder === 'Pending') {
+                        // Potong Saldo
+                        db[sender].saldo -= hargaProduk;
+                        saveJSON(dbFile, db);
+
+                        // Simpan ke file tracking
+                        let trxs = loadJSON(trxFile);
+                        trxs[refId] = { jid: from, sku: kodeProduk, tujuan: tujuan, harga: hargaProduk, nama: produkDB[kodeProduk].nama, tanggal: Date.now() };
+                        saveJSON(trxFile, trxs);
+
+                        let pesanPending = `⏳ *PESANAN SEDANG DIPROSES*\n\n`;
+                        pesanPending += `📦 Produk: ${produkDB[kodeProduk].nama}\n`;
+                        pesanPending += `📱 Tujuan: ${tujuan}\n`;
+                        pesanPending += `🔖 Ref ID: ${refId}\n`;
+                        pesanPending += `⚙️ Status: *Pending (Menunggu)*\n\n`;
+                        pesanPending += `_Sistem akan menginformasikan kembali jika transaksi sukses atau gagal. Saldo sementara dipotong Rp ${hargaProduk.toLocaleString('id-ID')}._`;
+
+                        await sock.sendMessage(from, { text: pesanPending });
                     } else {
+                        // Sukses instan
                         db[sender].saldo -= hargaProduk;
                         saveJSON(dbFile, db);
 
@@ -393,10 +474,9 @@ menu_backup() {
                 echo -e "\n⏳ Sedang memproses arsip backup. Mohon tunggu..."
                 if ! command -v zip &> /dev/null; then sudo apt install zip -y; fi
                 
-                # DIPERBARUI: Menghapus backup lama agar zip yang baru benar-benar murni
                 rm -f backup.zip
-                zip -r backup.zip config.json database.json produk.json index.js install.sh package.json package-lock.json sesi_bot broadcast.txt 2>/dev/null
-                echo "✅ File backup.zip berhasil dikompresi dengan bersih!"
+                zip backup.zip config.json database.json trx.json index.js install.sh package-lock.json package.json produk.json 2>/dev/null
+                echo "✅ File backup.zip berhasil dikompresi dengan sangat bersih!"
                 
                 # Eksekusi pengiriman ke Telegram
                 node -e "
