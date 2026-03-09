@@ -233,9 +233,6 @@ async function startBot() {
                 }
             }
 
-            // ==========================================
-            // INTERACTIVE ORDER FLOW - TAHAP 1 (PENYESUAIAN FORMAT DESKRIPSI)
-            // ==========================================
             if (db[sender].step === 'order_product') {
                 let keys = Object.keys(produkDB);
                 let inputKode = body.trim();
@@ -247,11 +244,9 @@ async function startBot() {
                     
                     let p = produkDB[db[sender].temp_sku];
                     
-                    // Merakit pesan balasan sesuai permintaan
                     let msgBalasan = `📦 Produk dipilih: *${p.nama}*\n`;
                     msgBalasan += `💰 Harga: Rp ${p.harga.toLocaleString('id-ID')}\n\n`;
                     
-                    // Sisipkan deskripsi di sini jika ada
                     if (p.deskripsi) {
                         msgBalasan += `📝 *Info Detail:*\n${p.deskripsi}\n\n`;
                     }
@@ -365,7 +360,7 @@ async function startBot() {
             }
 
             if (command === 'bot') {
-                let menuText = `👋 Selamat Datang di *${namaBot}* (v18)\n`;
+                let menuText = `👋 Selamat Datang di *${namaBot}* (v21)\n`;
                 menuText += `📌 *ID Member:* ${sender}\n\n`;
                 menuText += `1. *Saldo*\n`;
                 menuText += `2. *Order*\n`;
@@ -479,7 +474,7 @@ EOF
 }
 
 # ==========================================
-# 3. FUNGSI INSTALASI DEPENDENSI (Dengan Spinner)
+# 3. FUNGSI INSTALASI DEPENDENSI
 # ==========================================
 install_dependencies() {
     clear
@@ -754,7 +749,7 @@ menu_member() {
 }
 
 # ==========================================
-# 7. SUB-MENU MANAJEMEN PRODUK (DENGAN DESKRIPSI)
+# 7. SUB-MENU MANAJEMEN PRODUK (SISTEM EDIT VIA NOMOR)
 # ==========================================
 menu_produk() {
     while true; do
@@ -762,13 +757,14 @@ menu_produk() {
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "${C_YELLOW}${C_BOLD}             🛒 MANAJEMEN PRODUK BOT 🛒             ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Tambah / Edit Produk"
-        echo -e "  ${C_GREEN}[2]${C_RST} Hapus Produk"
-        echo -e "  ${C_GREEN}[3]${C_RST} Lihat Daftar Produk"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Baru"
+        echo -e "  ${C_GREEN}[2]${C_RST} Edit Produk"
+        echo -e "  ${C_GREEN}[3]${C_RST} Hapus Produk"
+        echo -e "  ${C_GREEN}[4]${C_RST} Lihat Daftar Produk"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
         echo -e "${C_CYAN}======================================================${C_RST}"
-        echo -ne "${C_YELLOW}Pilih menu [0-3]: ${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-4]: ${C_RST}"
         read prodchoice
 
         case $prodchoice in
@@ -799,21 +795,117 @@ menu_produk() {
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
-                echo -e "\n${C_MAG}--- HAPUS PRODUK ---${C_RST}"
-                read -p "Masukkan Kode Produk yg ingin dihapus: " kode
+                echo -e "\n${C_CYAN}--- DAFTAR PRODUK UNTUK DIEDIT ---${C_RST}"
                 node -e "
                     const fs = require('fs');
                     let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
-                    let key = '$kode'.toUpperCase().replace(/\s+/g, '');
-                    if(produk[key]) {
-                        delete produk[key];
-                        fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
-                        console.log('\x1b[32m\n✅ Produk ' + key + ' berhasil dihapus!\x1b[0m');
-                    } else console.log('\x1b[31m\n❌ Kode Produk ' + key + ' tidak ditemukan.\x1b[0m');
+                    let keys = Object.keys(produk);
+                    if(keys.length === 0) { console.log('\x1b[33mBelum ada produk untuk diedit.\x1b[0m'); process.exit(1); }
+                    keys.forEach((k, i) => console.log((i + 1) + '. [' + k + '] ' + produk[k].nama));
+                "
+                if [ $? -eq 1 ]; then read -p "Tekan Enter untuk kembali..."; continue; fi
+                
+                echo ""
+                read -p "👉 Masukkan NOMOR URUT produk yg ingin diedit: " no_edit
+                export NO_EDIT="$no_edit"
+                
+                eval $(node -e "
+                    const fs = require('fs');
+                    let produk = JSON.parse(fs.readFileSync('produk.json'));
+                    let keys = Object.keys(produk);
+                    let idx = parseInt(process.env.NO_EDIT) - 1;
+                    if(isNaN(idx) || idx < 0 || idx >= keys.length) {
+                        console.log('export VALID=false');
+                    } else {
+                        let k = keys[idx];
+                        let p = produk[k];
+                        console.log('export VALID=true');
+                        console.log('export OLD_KODE=\"' + k + '\"');
+                        console.log('export OLD_NAMA=\"' + p.nama.replace(/[\"$\\\\]/g, '\\\\$&') + '\"');
+                        console.log('export OLD_HARGA=\"' + p.harga + '\"');
+                    }
+                ")
+
+                if [ "$VALID" != "true" ]; then
+                    echo -e "${C_RED}\n❌ Nomor produk tidak valid!${C_RST}"
+                    read -p "Tekan Enter untuk kembali..."
+                    continue
+                fi
+
+                echo -e "\n${C_MAG}--- EDIT PRODUK : $OLD_NAMA ---${C_RST}"
+                echo -e "${C_YELLOW}💡 TIPS: Biarkan kosong (langsung tekan Enter) jika Anda TIDAK INGIN mengubah datanya.${C_RST}"
+                echo -e "${C_YELLOW}💡 TIPS: Khusus deskripsi, ketik tanda strip (-) jika Anda ingin menghapus info/deskripsi.${C_RST}"
+                
+                read -p "Kode Baru [$OLD_KODE]: " new_kode
+                read -p "Nama Baru [$OLD_NAMA]: " new_nama
+                read -p "Harga Baru [$OLD_HARGA]: " new_harga
+                read -p "Deskripsi Baru: " new_desc
+                
+                export NEW_KODE="${new_kode:-$OLD_KODE}"
+                export NEW_NAMA="$new_nama"
+                export NEW_HARGA="$new_harga"
+                export NEW_DESC="$new_desc"
+                
+                node -e "
+                    const fs = require('fs');
+                    let produk = JSON.parse(fs.readFileSync('produk.json'));
+                    let oldKey = process.env.OLD_KODE;
+                    let newKey = process.env.NEW_KODE.toUpperCase().replace(/\s+/g, '');
+                    
+                    let item = produk[oldKey];
+                    if (process.env.NEW_NAMA && process.env.NEW_NAMA.trim() !== '') item.nama = process.env.NEW_NAMA;
+                    if (process.env.NEW_HARGA && process.env.NEW_HARGA.trim() !== '') item.harga = parseInt(process.env.NEW_HARGA);
+                    if (process.env.NEW_DESC && process.env.NEW_DESC.trim() !== '') {
+                        if (process.env.NEW_DESC.trim() === '-') delete item.deskripsi;
+                        else item.deskripsi = process.env.NEW_DESC;
+                    }
+                    
+                    if (oldKey !== newKey) {
+                        produk[newKey] = item;
+                        delete produk[oldKey]; 
+                    } else {
+                        produk[oldKey] = item;
+                    }
+                    
+                    fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
+                    console.log('\x1b[32m\n✅ Perubahan pada produk berhasil disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             3)
+                echo -e "\n${C_CYAN}--- DAFTAR PRODUK UNTUK DIHAPUS ---${C_RST}"
+                node -e "
+                    const fs = require('fs');
+                    let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
+                    let keys = Object.keys(produk);
+                    if(keys.length === 0) { console.log('\x1b[33mBelum ada produk.\x1b[0m'); process.exit(1); }
+                    keys.forEach((k, i) => console.log((i + 1) + '. [' + k + '] ' + produk[k].nama));
+                "
+                if [ $? -eq 1 ]; then read -p "Tekan Enter untuk kembali..."; continue; fi
+                
+                echo -e "\n${C_RED}⚠️ Hati-hati, produk yang dihapus tidak bisa dikembalikan!${C_RST}"
+                read -p "👉 Masukkan NOMOR URUT produk yg ingin dihapus: " no_del
+                export NO_DEL="$no_del"
+
+                node -e "
+                    const fs = require('fs');
+                    let produk = JSON.parse(fs.readFileSync('produk.json'));
+                    let keys = Object.keys(produk);
+                    let idx = parseInt(process.env.NO_DEL) - 1;
+                    
+                    if(isNaN(idx) || idx < 0 || idx >= keys.length) {
+                        console.log('\x1b[31m\n❌ Nomor urut produk tidak valid!\x1b[0m');
+                    } else {
+                        let key = keys[idx];
+                        let nama = produk[key].nama;
+                        delete produk[key];
+                        fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
+                        console.log('\x1b[32m\n✅ Produk [' + key + '] ' + nama + ' berhasil dihapus dari database!\x1b[0m');
+                    }
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            4)
                 echo -e "\n${C_CYAN}--- DAFTAR PRODUK TOKO ---${C_RST}"
                 node -e "
                     const fs = require('fs');
@@ -822,10 +914,12 @@ menu_produk() {
                     if(keys.length === 0) console.log('\x1b[33mBelum ada produk.\x1b[0m');
                     else {
                         keys.forEach((k, i) => {
-                            let desc = produk[k].deskripsi ? ' | Info: ' + produk[k].deskripsi : '';
-                            console.log((i + 1) + '. [' + k + '] ' + produk[k].nama + ' - Rp ' + produk[k].harga.toLocaleString('id-ID') + desc);
+                            console.log((i + 1) + '. [' + k + '] ' + produk[k].nama + ' - Rp ' + produk[k].harga.toLocaleString('id-ID'));
+                            if (produk[k].deskripsi) {
+                                console.log('   \x1b[36m↳ Info: ' + produk[k].deskripsi + '\x1b[0m');
+                            }
                         });
-                        console.log('\n\x1b[36mTotal Produk: ' + keys.length + '\x1b[0m');
+                        console.log('\n\x1b[32mTotal Produk: ' + keys.length + '\x1b[0m');
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
