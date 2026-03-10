@@ -29,7 +29,6 @@ fi
 # 2. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI
 # ==========================================
 generate_web_app() {
-    echo -e "${C_CYAN}⏳ Meracik Tampilan Web App (Fitur Login & OTP)...${C_RST}"
     mkdir -p public
 
     cat << 'EOF' > public/manifest.json
@@ -439,12 +438,10 @@ app.post('/api/verify-otp', (req, res) => {
     if(tempOtpDB[phone] && tempOtpDB[phone].otp === otp) {
         let db = loadJSON(dbFile);
         
-        // Jika user sdh pernah daftar via WA, kita tambahkan email/pass ke akun lamanya
         if(db[phone]) {
             db[phone].email = tempOtpDB[phone].email;
             db[phone].password = tempOtpDB[phone].password;
         } else {
-            // Member benar-benar baru
             db[phone] = {
                 saldo: 0,
                 tanggal_daftar: new Date().toLocaleDateString('id-ID'),
@@ -640,22 +637,67 @@ EOF
 }
 
 # ==========================================
-# 4. FUNGSI INSTALASI DEPENDENSI
+# 4. FUNGSI INSTALASI DEPENDENSI (FULL LOADING)
 # ==========================================
 install_dependencies() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     echo -e "${C_YELLOW}${C_BOLD}             🚀 MENGINSTALL SISTEM BOT 🚀             ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    
     export DEBIAN_FRONTEND=noninteractive
     export NEEDRESTART_MODE=a
+    export NEEDRESTART_SUSPEND=1
 
-    echo -ne "${C_MAG}>> Meracik sistem utama bot (v28 FULL)...${C_RST}"
+    spin() {
+        local pid=$1
+        local delay=0.1
+        local spinstr='|/-\'
+        while kill -0 $pid 2>/dev/null; do
+            local temp=${spinstr#?}
+            printf " [%c] " "$spinstr"
+            local spinstr=$temp${spinstr%"$temp"}
+            sleep $delay
+            printf "\b\b\b\b\b"
+        done
+        printf "      \b\b\b\b\b\b"
+    }
+
+    echo -ne "${C_MAG}>> Mengupdate repositori sistem...${C_RST}"
+    (sudo -E apt-get update > /dev/null 2>&1 && sudo -E apt-get upgrade -y > /dev/null 2>&1) &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+    
+    echo -ne "${C_MAG}>> Menginstall dependensi (curl, zip, dll)...${C_RST}"
+    sudo -E apt-get install -y curl git wget nano zip unzip > /dev/null 2>&1 &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+    
+    echo -ne "${C_MAG}>> Menginstall Node.js...${C_RST}"
+    (curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - > /dev/null 2>&1 && sudo -E apt-get install -y nodejs > /dev/null 2>&1) &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+    
+    echo -ne "${C_MAG}>> Memperbarui PM2...${C_RST}"
+    (sudo npm install -g pm2 > /dev/null 2>&1) &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+    
+    echo -ne "${C_MAG}>> Meracik sistem utama & Web App (v28)...${C_RST}"
     generate_bot_script
     generate_web_app
     if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
-    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser > /dev/null 2>&1
+    rm -rf node_modules package-lock.json
     echo -e "${C_GREEN}[Selesai]${C_RST}"
+    
+    echo -ne "${C_MAG}>> Mengunduh modul WhatsApp & Web API...${C_RST}"
+    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser > /dev/null 2>&1 &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+    
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_GREEN}${C_BOLD}                 ✅ INSTALASI SELESAI!                ${C_RST}"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     read -p "Tekan Enter untuk kembali ke Panel Utama..."
 }
 
@@ -1154,7 +1196,7 @@ while true; do
     echo -e "  ${C_GREEN}[2]${C_RST}  Mulai Bot (Terminal / Scan QR)"
     echo -e "  ${C_GREEN}[3]${C_RST}  Jalankan Bot & Web di Latar Belakang (PM2)"
     echo -e "  ${C_GREEN}[4]${C_RST}  Hentikan Bot & Web (PM2)"
-    echo -e "  ${C_GREEN}[5]${C_RST}  Lihat Log / Error"
+    echo -e "  ${C_GREEN}[5]${C_RST}  Lihat Log / Error Bot"
     echo ""
     echo -e "${C_MAG}▶ MANAJEMEN TOKO & SISTEM${C_RST}"
     echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo Member"
