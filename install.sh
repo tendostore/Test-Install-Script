@@ -12,9 +12,13 @@ C_MAG="\e[35m"
 C_RST="\e[0m"
 C_BOLD="\e[1m"
 
+# Buka Port 3000
 sudo ufw allow 3000/tcp > /dev/null 2>&1 || true
 sudo iptables -A INPUT -p tcp --dport 3000 -j ACCEPT > /dev/null 2>&1 || true
 
+# ==========================================
+# 1. BIKIN SHORTCUT 'BOT' OTOMATIS DI VPS
+# ==========================================
 if [ ! -f "/usr/bin/bot" ]; then
     if [ -f "/usr/bin/menu" ]; then sudo rm -f /usr/bin/menu; fi
     echo -e '#!/bin/bash\ncd "'$(pwd)'"\n./install.sh' | sudo tee /usr/bin/bot > /dev/null
@@ -22,7 +26,7 @@ if [ ! -f "/usr/bin/bot" ]; then
 fi
 
 # ==========================================
-# FUNGSI MEMBUAT TAMPILAN WEB APLIKASI (UI PRO)
+# 2. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI (UI PRO)
 # ==========================================
 generate_web_app() {
     mkdir -p public
@@ -58,11 +62,13 @@ EOF
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #eef2f5; margin: 0; display: flex; justify-content: center; }
         #app { width: 100%; max-width: 480px; background: #f8f9fa; min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 70px;}
         
+        /* TOP BAR */
         .top-bar { background: #000; color: white; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100;}
         .menu-btn { font-size: 24px; cursor: pointer; background: none; border: none; color: white; padding: 0; margin-right: 15px;}
         .brand-title { font-size: 18px; font-weight: bold; flex: 1;}
         .trx-badge { font-size: 13px; color: #ccc;}
 
+        /* SIDEBAR / DRAWER */
         .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.6); z-index: 999; display: none; opacity: 0; transition: opacity 0.3s;}
         .sidebar { position: fixed; top:0; left:-300px; width: 280px; height: 100%; background: white; z-index: 1000; transition: left 0.3s ease; overflow-y: auto;}
         .sidebar.open { left: 0; }
@@ -75,16 +81,19 @@ EOF
         .sidebar-item:active { background: #f0f0f0; }
         .sb-icon { width: 30px; font-size: 18px; color: #555;}
 
+        /* BOTTOM NAVIGATION */
         .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 480px; background: white; display: flex; justify-content: space-around; padding: 10px 0; border-top: 1px solid #ddd; z-index: 90;}
         .nav-item { text-align: center; color: #666; font-size: 11px; flex: 1; cursor: pointer;}
         .nav-item.active { color: #000; font-weight: bold;}
         .nav-icon { font-size: 20px; margin-bottom: 3px; display: block;}
 
+        /* DASHBOARD CONTENT */
         .banner { background: linear-gradient(135deg, #11998e, #38ef7d); margin: 15px; border-radius: 15px; padding: 25px 20px; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); position: relative;}
         .saldo-title { font-size: 13px; opacity: 0.9;}
         .saldo-amount { font-size: 30px; font-weight: bold; margin: 5px 0;}
-        .btn-topup { background: white; color: #11998e; border: none; padding: 6px 15px; border-radius: 20px; font-weight: bold; font-size: 12px; position: absolute; right: 20px; top: 50%; transform: translateY(-50%); box-shadow: 0 2px 5px rgba(0,0,0,0.1);}
+        .btn-topup { background: white; color: #11998e; border: none; padding: 6px 15px; border-radius: 20px; font-weight: bold; font-size: 12px; position: absolute; right: 20px; top: 50%; transform: translateY(-50%); box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: pointer;}
 
+        /* GRID MENU */
         .grid-title { margin: 20px 15px 10px; font-weight: bold; color: #333;}
         .grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; padding: 0 15px;}
         .grid-box { background: white; border-radius: 15px; padding: 15px 5px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); cursor: pointer;}
@@ -92,6 +101,7 @@ EOF
         .grid-icon { font-size: 28px; margin-bottom: 8px;}
         .grid-text { font-size: 11px; color: #444; line-height: 1.2;}
 
+        /* FORMS & LISTS */
         .container { padding: 20px; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); margin-bottom: 20px;}
         input { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 15px; outline: none; background: #f9f9f9;}
@@ -101,8 +111,9 @@ EOF
         .product-item { background: white; padding: 15px; border-radius: 12px; margin: 15px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;}
         .product-name { font-weight: bold; font-size: 14px; color: #333;}
         .product-price { color: #0088cc; font-weight: bold; font-size: 15px; margin-top: 5px;}
-        .btn-buy { background: #000; color: white; border: none; padding: 8px 20px; border-radius: 20px; font-size: 13px; font-weight: bold;}
+        .btn-buy { background: #000; color: white; border: none; padding: 8px 20px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer;}
 
+        /* MODAL */
         .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
         .modal-box { background: white; width: 100%; max-width: 350px; border-radius: 20px; padding: 20px; text-align: center;}
         .modal-btns { display: flex; gap: 10px; margin-top: 15px;}
@@ -125,10 +136,10 @@ EOF
                 <div class="sidebar-phone" id="sb-phone">Belum Login</div>
             </div>
             <div class="sidebar-menu">
-                <a href="#" class="sidebar-item" onclick="alert('Fitur Profil sedang dikembangkan')"><span class="sb-icon">👤</span> Akun</a>
-                <a href="#" class="sidebar-item" onclick="alert('Fitur Riwayat segera hadir')"><span class="sb-icon">🔁</span> Transaksi</a>
-                <a href="#" class="sidebar-item" onclick="alert('Tidak ada pemberitahuan')"><span class="sb-icon">🔔</span> Pemberitahuan</a>
-                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showDashboard()"><span class="sb-icon">🏷️</span> Daftar Harga</a>
+                <a href="#" class="sidebar-item" onclick="alert('Fitur Profil sedang dikembangkan')"><span class="sb-icon">👤</span> Profil Akun</a>
+                <a href="#" class="sidebar-item" onclick="alert('Fitur Riwayat Transaksi segera hadir')"><span class="sb-icon">🔁</span> Transaksi</a>
+                <a href="#" class="sidebar-item" onclick="alert('Tidak ada pemberitahuan baru')"><span class="sb-icon">🔔</span> Pemberitahuan</a>
+                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showDashboard(); loadCategory('Semua');"><span class="sb-icon">🏷️</span> Daftar Harga</a>
                 <a href="#" class="sidebar-item" onclick="showContactModal()"><span class="sb-icon">📞</span> Hubungi Kami</a>
             </div>
         </div>
@@ -208,7 +219,7 @@ EOF
 
         <div id="contact-modal" class="modal-overlay hidden">
             <div class="modal-box">
-                <h3 style="margin-top:0;">Hubungi Bantuan</h3>
+                <h3 style="margin-top:0;">Hubungi Kami</h3>
                 <p style="font-size:13px; color:#666;">Silakan pilih platform untuk menghubungi Admin:</p>
                 <button class="btn" style="background:#25D366; margin-bottom:10px;" onclick="window.open('https://wa.me/6282224460678', '_blank'); closeContactModal()">💬 WhatsApp Admin</button>
                 <button class="btn" style="background:#0088cc;" onclick="window.open('https://t.me/tendo_32', '_blank'); closeContactModal()">✈️ Telegram Admin</button>
@@ -376,7 +387,7 @@ EOF
 }
 
 # ==========================================
-# 3. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND CANGGIH v29)
+# 3. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND LENGKAP)
 # ==========================================
 generate_bot_script() {
     cat << 'EOF' > index.js
@@ -469,7 +480,6 @@ app.post('/api/verify-otp', (req, res) => {
 
 app.post('/api/order', async (req, res) => {
     let { phone, sku, tujuan } = req.body;
-    
     let db = loadJSON(dbFile);
     let produkDB = loadJSON(produkFile);
     let config = loadJSON(configFile);
@@ -504,6 +514,32 @@ app.post('/api/order', async (req, res) => {
         return res.json({success: true, saldo: db[phone].saldo});
     } catch (error) { return res.json({success: false, message: 'Server Digiflazz Down'}); }
 });
+
+function doBackupAndSend() {
+    let cfg = loadJSON(configFile);
+    if (!cfg.teleToken || !cfg.teleChatId) return;
+    console.log("\x1b[36m⏳ Auto-Backup berjalan...\x1b[0m");
+    exec(`rm -f backup.zip && zip backup.zip config.json database.json trx.json index.js package-lock.json package.json produk.json 2>/dev/null`, (err) => {
+        if (!err) {
+            let caption = `📦 *Auto-Backup Tendo Store*\n⏰ Waktu: ${new Date().toLocaleString('id-ID')}`;
+            exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="${caption}" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
+        }
+    });
+}
+
+if (configAwal.autoBackup) {
+    let intervalMs = (configAwal.backupInterval || 720) * 60 * 1000;
+    setInterval(doBackupAndSend, intervalMs); 
+}
+
+const brandStructure = {
+    'Pulsa': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri'],
+    'Paket Data': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri'],
+    'Topup Game': ['Mobile Legends', 'Free Fire'],
+    'Topup E-Wallet': ['Gopay', 'Dana', 'Shopee Pay'],
+    'Token Listrik': ['Token Listrik'],
+    'Masa Aktif': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri']
+};
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
@@ -559,14 +595,141 @@ async function startBot() {
             if (!body) return;
 
             let db = loadJSON(dbFile);
+            let produkDB = loadJSON(produkFile);
+            
             if (!db[sender]) { db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: senderJid, step: 'idle'}; saveJSON(dbFile, db); }
+            if (!db[sender].step) db[sender].step = 'idle';
 
-            let rawCommand = body.trim().toLowerCase().split(' ')[0];
-            if (['bot', 'menu', 'p'].includes(rawCommand)) {
-                await sock.sendMessage(from, { text: `👋 *Tendo Store*\n\nSilakan akses aplikasi kami untuk bertransaksi:\n🌐 http://${process.env.IP_ADDRESS || 'IP_VPS_ANDA'}:3000` });
+            let bodyLower = body.trim().toLowerCase();
+            let rawCommand = bodyLower.split(' ')[0];
+            let command = '';
+
+            if (['batal', 'cancel', 'bot', 'menu', '.menu', 'p', 'ping'].includes(rawCommand)) {
+                if (db[sender].step !== 'idle') {
+                    db[sender].step = 'idle'; db[sender].temp_sku = ''; db[sender].temp_category = ''; db[sender].temp_brand = '';
+                    saveJSON(dbFile, db);
+                    if (['batal', 'cancel'].includes(rawCommand)) {
+                        await sock.sendMessage(from, { text: `✅ Proses pesanan dibatalkan.\n\n_Ketik *bot* untuk kembali ke menu utama._` });
+                        return;
+                    }
+                }
+            }
+
+            const catMap = { '3': 'Pulsa', '4': 'Paket Data', '5': 'Topup Game', '6': 'Topup E-Wallet', '7': 'Token Listrik', '8': 'Masa Aktif' };
+            if (['bot', 'menu', '.menu', 'help', 'p', 'ping', 'halo'].includes(rawCommand)) command = 'bot';
+            else if (['1', '1.', '1.saldo', 'saldo', '.saldo'].includes(rawCommand)) command = '.saldo';
+            else if (['2', '2.', '2.harga', 'harga', '.harga', 'list'].includes(rawCommand)) command = '.harga';
+            else if (catMap[rawCommand]) { command = '.show_cat'; db[sender].temp_category = catMap[rawCommand]; }
+
+            if (command === 'bot') {
+                let menuText = `👋 *${config.botName || "Tendo Store"}*\n\n📌 *ID Member:* ${sender}\n\n1. *Cek Saldo*\n2. *Cek Semua Harga*\n3. *Pulsa*\n4. *Paket Data*\n5. *Topup Game*\n6. *Topup E-Wallet*\n7. *Token Listrik*\n8. *Masa Aktif*\n\n_👉 Balas dengan angka pilihan._\n\n🌐 *Atau belanja lebih mudah di Aplikasi Web kami:* http://${process.env.IP_ADDRESS || '146.190.80.114'}:3000`;
+                await sock.sendMessage(from, { text: menuText });
+                return;
+            }
+
+            if (command === '.saldo') return await sock.sendMessage(from, { text: `💰 Saldo Anda saat ini: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` });
+
+            if (command === '.show_cat') {
+                let cat = db[sender].temp_category;
+                let brands = brandStructure[cat] || [];
+                if (brands.length === 1) {
+                    db[sender].temp_brand = brands[0]; db[sender].step = 'order_product'; saveJSON(dbFile, db);
+                    let filteredKeys = Object.keys(produkDB).filter(k => (produkDB[k].kategori || 'Lainnya') === cat && (produkDB[k].brand || 'Lainnya') === db[sender].temp_brand);
+                    if (filteredKeys.length === 0) { db[sender].step = 'idle'; saveJSON(dbFile, db); return await sock.sendMessage(from, { text: `🛒 Maaf, produk kosong.\n_Ketik *bot* untuk kembali._`}); }
+                    let textCat = `🛒 *PILIH PRODUK: ${cat.toUpperCase()}*\n\n`;
+                    filteredKeys.forEach((k, i) => { textCat += `*${i+1}.* ${produkDB[k].nama} - Rp ${produkDB[k].harga.toLocaleString('id-ID')}\n`; });
+                    textCat += `\n👉 *Silakan balas dengan NOMOR URUT produk.*\n\n_Ketik *batal* untuk membatalkan._`;
+                    await sock.sendMessage(from, { text: textCat.trim() });
+                } else {
+                    db[sender].step = 'select_brand'; saveJSON(dbFile, db);
+                    let textBrand = `🛒 *PILIH PROVIDER / GAME / E-WALLET*\n\nKategori: *${cat.toUpperCase()}*\n\n`;
+                    brands.forEach((b, i) => { textBrand += `*${i+1}.* ${b}\n`; });
+                    textBrand += `\n👉 *Balas pesan ini dengan ANGKA pilihannya.*\n\n_Ketik *batal* untuk membatalkan._`;
+                    await sock.sendMessage(from, { text: textBrand });
+                }
+                return;
+            }
+
+            if (db[sender].step === 'select_brand') {
+                let cat = db[sender].temp_category; let brands = brandStructure[cat]; let inputNum = parseInt(body.trim());
+                if (!isNaN(inputNum) && inputNum > 0 && inputNum <= brands.length) {
+                    db[sender].temp_brand = brands[inputNum - 1]; db[sender].step = 'order_product'; saveJSON(dbFile, db);
+                    let filteredKeys = Object.keys(produkDB).filter(k => (produkDB[k].kategori || 'Lainnya') === cat && (produkDB[k].brand || 'Lainnya') === db[sender].temp_brand);
+                    if (filteredKeys.length === 0) { db[sender].step = 'idle'; saveJSON(dbFile, db); return await sock.sendMessage(from, { text: `🛒 Maaf, produk kosong.`}); }
+                    let textCat = `🛒 *PILIH PRODUK: ${cat.toUpperCase()} - ${db[sender].temp_brand.toUpperCase()}*\n\n`;
+                    filteredKeys.forEach((k, i) => { textCat += `*${i+1}.* ${produkDB[k].nama} - Rp ${produkDB[k].harga.toLocaleString('id-ID')}\n`; });
+                    textCat += `\n👉 *Balas pesan ini dengan NOMOR URUT produknya.*\n\n_Ketik *batal* untuk membatalkan._`;
+                    await sock.sendMessage(from, { text: textCat.trim() });
+                    return;
+                }
+            }
+
+            if (db[sender].step === 'order_product') {
+                let cat = db[sender].temp_category; let brand = db[sender].temp_brand;
+                let filteredKeys = Object.keys(produkDB).filter(k => (produkDB[k].kategori || 'Lainnya') === cat && (produkDB[k].brand || 'Lainnya') === brand);
+                let inputKode = body.trim();
+                if (!isNaN(inputKode) && Number(inputKode) > 0 && Number(inputKode) <= filteredKeys.length) {
+                    db[sender].temp_sku = filteredKeys[Number(inputKode) - 1]; db[sender].step = 'order_target'; saveJSON(dbFile, db);
+                    let p = produkDB[db[sender].temp_sku];
+                    let msgBalasan = `📦 Produk dipilih: *${p.nama}*\n💰 Harga: Rp ${p.harga.toLocaleString('id-ID')}\n\n📱 *Silakan balas dengan NOMOR/ID TUJUAN pengisian!*\n\n_Ketik *batal* untuk membatalkan._`;
+                    await sock.sendMessage(from, { text: msgBalasan });
+                    return;
+                }
+            }
+
+            if (db[sender].step === 'order_target') {
+                let tujuan = body.trim(); let kodeProduk = db[sender].temp_sku;
+                db[sender].step = 'idle'; db[sender].temp_sku = ''; db[sender].temp_category = ''; db[sender].temp_brand = ''; saveJSON(dbFile, db);
+                if(!tujuan || tujuan.length < 4) return await sock.sendMessage(from, { text: `❌ Format nomor salah. Pesanan dibatalkan.` });
+                
+                const hargaProduk = produkDB[kodeProduk].harga;
+                if (db[sender].saldo < hargaProduk) return await sock.sendMessage(from, { text: `❌ *Saldo tidak mencukupi!*\n\n💰 Saldo Anda: Rp ${db[sender].saldo.toLocaleString('id-ID')}\n🏷️ Harga: Rp ${hargaProduk.toLocaleString('id-ID')}` });
+                
+                let username = (config.digiflazzUsername || '').trim(); let apiKey = (config.digiflazzApiKey || '').trim();
+                let refId = 'TENDO-' + Date.now(); let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
+                await sock.sendMessage(from, { text: `⏳ *Sedang memproses pesanan...*\n\n📦 Produk: ${produkDB[kodeProduk].nama}\n📱 Tujuan: ${tujuan}` });
+
+                try {
+                    const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
+                        username: username, buyer_sku_code: kodeProduk, customer_no: tujuan, ref_id: refId, sign: sign
+                    });
+                    const resData = response.data.data;
+                    if (resData.status === 'Gagal') {
+                        await sock.sendMessage(from, { text: `❌ *Transaksi Gagal!*\nAlasan: ${resData.message}\n\n_Saldo tidak dipotong._` });
+                    } else if (resData.status === 'Pending' || resData.status === 'Sukses') {
+                        db[sender].saldo -= hargaProduk; saveJSON(dbFile, db);
+                        let trxs = loadJSON(trxFile);
+                        trxs[refId] = { jid: from, sku: kodeProduk, tujuan: tujuan, harga: hargaProduk, nama: produkDB[kodeProduk].nama, tanggal: Date.now() };
+                        saveJSON(trxFile, trxs);
+                        let pesanStatus = resData.status === 'Pending' ? `⏳ *PESANAN DIPROSES*` : `✅ *PESANAN SUKSES*`;
+                        await sock.sendMessage(from, { text: `${pesanStatus}\n\n📦 Produk: ${produkDB[kodeProduk].nama}\n📱 Tujuan: ${tujuan}\n⚙️ Status: *${resData.status}*\n💰 Sisa Saldo: Rp ${db[sender].saldo.toLocaleString('id-ID')}` });
+                    }
+                } catch (error) { await sock.sendMessage(from, { text: `❌ *Transaksi Gagal!*\nAlasan: Server Error.\n_Saldo tidak dipotong._` }); }
+                return;
             }
         } catch (err) {}
     });
+
+    if (global.broadcastInterval) clearInterval(global.broadcastInterval);
+    global.broadcastInterval = setInterval(async () => {
+        if (fs.existsSync('./broadcast.txt')) {
+            let textBroadcast = fs.readFileSync('./broadcast.txt', 'utf-8');
+            fs.unlinkSync('./broadcast.txt');
+            if (textBroadcast.trim()) {
+                let db = loadJSON(dbFile);
+                let config = loadJSON(configFile);
+                let namaBot = config.botName || "Tendo Store";
+                let members = Object.keys(db);
+                for (let num of members) {
+                    try {
+                        let targetJid = db[num].jid || (num + '@s.whatsapp.net');
+                        await sock.sendMessage(targetJid, { text: `📢 *INFORMASI ${namaBot}*\n\n${textBroadcast.trim()}` });
+                        await new Promise(res => setTimeout(res, 3000));
+                    } catch (err) {}
+                }
+            }
+        }
+    }, 5000);
 }
 
 if (require.main === module) {
@@ -577,7 +740,7 @@ EOF
 }
 
 # ==========================================
-# 4. INSTALASI DEPENDENSI (FULL LOADING)
+# 4. INSTALASI DEPENDENSI LENGKAP BERSERTA LOADING
 # ==========================================
 install_dependencies() {
     clear
@@ -607,7 +770,22 @@ install_dependencies() {
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
-    echo -ne "${C_MAG}>> Meracik sistem utama & Web App (v29 UI PRO)...${C_RST}"
+    echo -ne "${C_MAG}>> Menginstall dependensi (curl, zip, unzip)...${C_RST}"
+    sudo -E apt-get install -y curl git wget nano zip unzip > /dev/null 2>&1 &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+    
+    echo -ne "${C_MAG}>> Menginstall Node.js...${C_RST}"
+    (curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - > /dev/null 2>&1 && sudo -E apt-get install -y nodejs > /dev/null 2>&1) &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+    
+    echo -ne "${C_MAG}>> Menginstall PM2 untuk latar belakang...${C_RST}"
+    (sudo npm install -g pm2 > /dev/null 2>&1) &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+
+    echo -ne "${C_MAG}>> Meracik sistem utama & Web App (v30 FULL)...${C_RST}"
     generate_bot_script
     generate_web_app
     if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
@@ -622,7 +800,7 @@ install_dependencies() {
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     echo -e "${C_GREEN}${C_BOLD}                 ✅ INSTALASI SELESAI!                ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    read -p "Tekan Enter untuk kembali..."
+    read -p "Tekan Enter untuk kembali ke Panel Utama..."
 }
 
 # ==========================================
