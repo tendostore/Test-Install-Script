@@ -12,7 +12,7 @@ C_MAG="\e[35m"
 C_RST="\e[0m"
 C_BOLD="\e[1m"
 
-# Buka Port 3000 di VPS agar Web bisa diakses
+# Buka Port 3000
 sudo ufw allow 3000/tcp > /dev/null 2>&1 || true
 sudo iptables -A INPUT -p tcp --dport 3000 -j ACCEPT > /dev/null 2>&1 || true
 
@@ -26,52 +26,119 @@ if [ ! -f "/usr/bin/bot" ]; then
 fi
 
 # ==========================================
-# FUNGSI MEMBUAT TAMPILAN WEB APLIKASI (FRONTEND)
+# 2. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI
 # ==========================================
 generate_web_app() {
-    echo -e "${C_CYAN}⏳ Meracik Tampilan Web App...${C_RST}"
+    echo -e "${C_CYAN}⏳ Meracik Tampilan Web App (Fitur Login & OTP)...${C_RST}"
     mkdir -p public
+
+    cat << 'EOF' > public/manifest.json
+{
+  "name": "Tendo Store App",
+  "short_name": "Tendo Store",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f0f2f5",
+  "theme_color": "#0088cc",
+  "orientation": "portrait",
+  "icons": [{"src": "https://cdn-icons-png.flaticon.com/512/3144/3144456.png", "sizes": "512x512", "type": "image/png"}]
+}
+EOF
+
+    cat << 'EOF' > public/sw.js
+self.addEventListener('install', (e) => { console.log('SW Install'); });
+self.addEventListener('fetch', (e) => { });
+EOF
+
     cat << 'EOF' > public/index.html
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tendo Store App</title>
+    <title>Tendo Store</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0088cc">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3144/3144456.png">
+    
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; margin: 0; display: flex; justify-content: center; }
         #app { width: 100%; max-width: 480px; background: #fafafa; min-height: 100vh; box-shadow: 0 0 20px rgba(0,0,0,0.05); position: relative; padding-bottom: 50px;}
-        .header { background: linear-gradient(135deg, #0088cc, #005580); color: white; padding: 20px; text-align: center; font-size: 22px; font-weight: bold; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; box-shadow: 0 4px 15px rgba(0,136,204,0.2);}
+        .header { background: linear-gradient(135deg, #0088cc, #005580); color: white; padding: 20px; text-align: center; font-size: 22px; font-weight: bold; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; box-shadow: 0 4px 15px rgba(0,136,204,0.2); display: flex; justify-content: space-between; align-items: center;}
         .container { padding: 20px; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); margin-bottom: 20px; border: 1px solid #f0f0f0;}
-        .card-saldo { background: linear-gradient(135deg, #11998e, #38ef7d); color: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(17,153,142,0.3); margin-bottom: 25px;}
+        .card-saldo { background: linear-gradient(135deg, #11998e, #38ef7d); color: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(17,153,142,0.3); margin-bottom: 25px; position: relative;}
+        
         .btn { background: #0088cc; color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s;}
-        .btn:active { transform: scale(0.98); }
+        .btn-outline { background: white; color: #0088cc; border: 2px solid #0088cc; padding: 15px; width: 100%; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px;}
+        .btn-topup { background: #fff; color: #11998e; border: none; padding: 8px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; position: absolute; right: 20px; top: 50%; transform: translateY(-50%); box-shadow: 0 2px 5px rgba(0,0,0,0.1);}
+        .btn-buy { background: #ff9800; color: white; border: none; padding: 8px 15px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;}
+        
+        .btn:active, .btn-buy:active, .btn-topup:active { transform: scale(0.95); }
+        .btn-install { background: #ff9800; font-size: 12px; padding: 8px 12px; border-radius: 8px; border: none; color: white; font-weight: bold; cursor: pointer; display: none;}
+        
         input { width: 100%; padding: 15px; margin-bottom: 15px; border: 1.5px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; outline: none;}
         input:focus { border-color: #0088cc; }
-        .hidden { display: none; }
+        .hidden { display: none !important; }
+        
         .product-item { background: white; padding: 15px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.02);}
-        .product-info { flex: 1; }
-        .product-name { font-weight: bold; font-size: 15px; color: #333; margin-bottom: 5px;}
-        .product-cat { font-size: 11px; font-weight: bold; color: #fff; background: #888; padding: 3px 8px; border-radius: 5px; display: inline-block; letter-spacing: 0.5px;}
-        .cat-pulsa { background: #ff9800; }
-        .cat-data { background: #2196f3; }
-        .cat-game { background: #9c27b0; }
-        .product-price { color: #0088cc; font-weight: bold; font-size: 16px; white-space: nowrap;}
+        .product-info { flex: 1; padding-right: 10px;}
+        .product-name { font-weight: bold; font-size: 14px; color: #333; margin-bottom: 5px; line-height: 1.4;}
+        .product-cat { font-size: 10px; font-weight: bold; color: #fff; background: #888; padding: 3px 6px; border-radius: 5px; display: inline-block;}
+        .cat-pulsa { background: #ff9800; } .cat-data { background: #2196f3; } .cat-game { background: #9c27b0; }
+        .product-price-box { text-align: right;}
+        .product-price { color: #0088cc; font-weight: bold; font-size: 15px; white-space: nowrap; margin-bottom: 8px;}
+        
         .section-title { font-size: 18px; color: #444; margin-bottom: 15px; font-weight: 800; }
+        .cat-buttons { display: flex; overflow-x: auto; gap: 10px; margin-bottom: 20px; padding-bottom: 5px;}
+        .cat-btn { background: white; border: 1px solid #ddd; padding: 8px 15px; border-radius: 20px; font-size: 13px; white-space: nowrap; cursor: pointer; font-weight: bold; color: #555;}
+        .cat-btn.active { background: #0088cc; color: white; border-color: #0088cc;}
+        
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 20px;}
+        .modal-box { background: white; width: 100%; max-width: 400px; border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);}
+        .modal-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #333;}
+        .modal-detail { font-size: 14px; color: #666; margin-bottom: 20px; background: #f9f9f9; padding: 10px; border-radius: 10px;}
+        .modal-btns { display: flex; gap: 10px; margin-top: 10px;}
+        .btn-cancel { background: #eee; color: #555; }
     </style>
 </head>
 <body>
     <div id="app">
-        <div class="header">📱 Tendo Store App</div>
+        <div class="header">
+            <span>📱 Tendo Store</span>
+            <button id="install-btn" class="btn-install">📥 INSTALL</button>
+        </div>
         <div class="container">
             
             <div id="login-screen">
                 <div class="card" style="margin-top: 20px;">
-                    <h2 style="margin-top:0; color: #333; text-align: center;">Masuk Member</h2>
-                    <p style="font-size:14px; color:#666; text-align: center; margin-bottom: 25px;">Masukkan ID Member atau Nomor WhatsApp Anda yang terdaftar di sistem kami.</p>
-                    <input type="number" id="phone-input" placeholder="Contoh: 628123456789">
-                    <button class="btn" onclick="login()">Masuk ke Aplikasi</button>
+                    <h2 style="margin-top:0; color: #333; text-align: center;">Masuk Akun</h2>
+                    <input type="email" id="log-email" placeholder="Alamat Email">
+                    <input type="password" id="log-pass" placeholder="Password">
+                    <button class="btn" onclick="login()">Login</button>
+                    <button class="btn-outline" onclick="showScreen('register-screen')">Belum Punya Akun? Daftar</button>
+                </div>
+            </div>
+
+            <div id="register-screen" class="hidden">
+                <div class="card" style="margin-top: 20px;">
+                    <h2 style="margin-top:0; color: #333; text-align: center;">Daftar Akun Baru</h2>
+                    <p style="font-size:13px; color:#666; text-align:center;">Gunakan Nomor WhatsApp yang aktif untuk menerima kode OTP.</p>
+                    <input type="email" id="reg-email" placeholder="Alamat Email">
+                    <input type="number" id="reg-phone" placeholder="Nomor WhatsApp (Contoh: 62812...)">
+                    <input type="password" id="reg-pass" placeholder="Buat Password">
+                    <button class="btn" onclick="requestOTP()">Kirim Kode OTP</button>
+                    <button class="btn-outline" onclick="showScreen('login-screen')">Sudah Punya Akun? Login</button>
+                </div>
+            </div>
+
+            <div id="otp-screen" class="hidden">
+                <div class="card" style="margin-top: 20px;">
+                    <h2 style="margin-top:0; color: #333; text-align: center;">Verifikasi OTP</h2>
+                    <p style="font-size:13px; color:#666; text-align:center;">Kode 4 digit telah dikirim ke WhatsApp Anda.</p>
+                    <input type="number" id="otp-code" placeholder="Masukkan 4 Digit Kode" style="text-align:center; font-size:24px; letter-spacing: 5px;">
+                    <button class="btn" onclick="verifyOTP()">Verifikasi & Daftar</button>
+                    <button class="btn-outline" onclick="showScreen('register-screen')">Kembali</button>
                 </div>
             </div>
 
@@ -79,83 +146,201 @@ generate_web_app() {
                 <div class="card-saldo">
                     <div style="font-size:14px; opacity: 0.9; margin-bottom: 5px;">Total Saldo Anda</div>
                     <h1 style="margin: 0; font-size: 32px;" id="user-saldo">Rp 0</h1>
-                    <div style="font-size:13px; opacity: 0.8; margin-top: 10px; background: rgba(0,0,0,0.1); display: inline-block; padding: 4px 10px; border-radius: 20px;" id="user-id">ID: -</div>
+                    <div style="font-size:13px; opacity: 0.8; margin-top: 10px;" id="user-email">Email: -</div>
+                    
+                    <button class="btn-topup" onclick="reqTopup()">➕ TOPUP</button>
                 </div>
                 
                 <div class="section-title">🛒 Katalog Produk</div>
+                
+                <div class="cat-buttons" id="cat-filters">
+                    <div class="cat-btn active" onclick="filterCat('Semua', this)">Semua</div>
+                    <div class="cat-btn" onclick="filterCat('Pulsa', this)">Pulsa</div>
+                    <div class="cat-btn" onclick="filterCat('Paket Data', this)">Data</div>
+                    <div class="cat-btn" onclick="filterCat('Topup Game', this)">Game</div>
+                    <div class="cat-btn" onclick="filterCat('Topup E-Wallet', this)">E-Wallet</div>
+                    <div class="cat-btn" onclick="filterCat('Token Listrik', this)">PLN</div>
+                </div>
+
                 <div id="product-list">
-                    <div style="text-align:center; padding: 20px; color: #888;">Memuat data dari server...</div>
+                    <div style="text-align:center; padding: 20px; color: #888;">Memuat data...</div>
                 </div>
             </div>
             
+            <div id="order-modal" class="modal-overlay hidden">
+                <div class="modal-box">
+                    <div class="modal-title">Konfirmasi Pesanan</div>
+                    <div class="modal-detail">
+                        <strong id="m-name">Nama Produk</strong><br>
+                        <span style="color:#0088cc; font-weight:bold; font-size: 16px;" id="m-price">Rp 0</span>
+                    </div>
+                    <label style="font-size:14px; font-weight:bold; color:#555; display:block; margin-bottom:5px;">Masukkan Nomor / ID Tujuan:</label>
+                    <input type="text" id="m-target" placeholder="Contoh: 08123456789">
+                    
+                    <div class="modal-btns">
+                        <button class="btn btn-cancel" onclick="closeModal()">Batal</button>
+                        <button class="btn" id="m-submit" onclick="processOrder()">Beli Sekarang</button>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
     <script>
-        // FUNGSI LOGIN / CEK DATABASE
-        async function login() {
-            let phone = document.getElementById('phone-input').value.trim();
-            if(!phone) return alert('Silakan masukkan nomor WhatsApp Anda!');
-            
-            let btn = document.querySelector('.btn');
-            btn.innerText = 'Memeriksa...';
-            btn.style.opacity = '0.7';
-            
-            try {
-                let res = await fetch('/api/member', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({phone: phone})
-                });
-                let data = await res.json();
-                
-                if(data.success) {
-                    document.getElementById('login-screen').classList.add('hidden');
-                    document.getElementById('dashboard-screen').classList.remove('hidden');
-                    document.getElementById('user-saldo').innerText = 'Rp ' + data.data.saldo.toLocaleString('id-ID');
-                    document.getElementById('user-id').innerText = 'Member ID: ' + phone;
-                    loadProducts(); // Panggil data harga
-                } else {
-                    alert('Nomor belum terdaftar! Silakan chat Bot WA Tendo Store terlebih dahulu agar nomor terdaftar otomatis.');
-                    btn.innerText = 'Masuk ke Aplikasi';
-                    btn.style.opacity = '1';
-                }
-            } catch(e) {
-                alert('Gagal terhubung ke server.');
-                btn.innerText = 'Masuk ke Aplikasi';
-                btn.style.opacity = '1';
-            }
+        // PWA SETUP
+        let deferredPrompt;
+        const installBtn = document.getElementById('install-btn');
+        window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; installBtn.style.display = 'block'; });
+        installBtn.addEventListener('click', async () => { if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt = null; installBtn.style.display = 'none';} });
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+
+        let allProducts = {};
+        let currentUser = ""; // Phone number
+        let currentEmail = "";
+        let selectedSKU = "";
+        let tempRegPhone = "";
+
+        function showScreen(id) {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('register-screen').classList.add('hidden');
+            document.getElementById('otp-screen').classList.add('hidden');
+            document.getElementById('dashboard-screen').classList.add('hidden');
+            document.getElementById(id).classList.remove('hidden');
         }
 
-        // FUNGSI MENGAMBIL DATA PRODUK DARI VPS
+        // SISTEM LOGIN
+        async function login() {
+            let email = document.getElementById('log-email').value.trim();
+            let pass = document.getElementById('log-pass').value.trim();
+            if(!email || !pass) return alert('Masukkan Email dan Password!');
+            
+            try {
+                let res = await fetch('/api/login', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email, password: pass})
+                });
+                let data = await res.json();
+                if(data.success) {
+                    currentUser = data.phone;
+                    currentEmail = email;
+                    document.getElementById('user-saldo').innerText = 'Rp ' + data.data.saldo.toLocaleString('id-ID');
+                    document.getElementById('user-email').innerText = email;
+                    showScreen('dashboard-screen');
+                    loadProducts(); 
+                } else { alert(data.message); }
+            } catch(e) { alert('Gagal terhubung ke server.'); }
+        }
+
+        // SISTEM DAFTAR & OTP
+        async function requestOTP() {
+            let email = document.getElementById('reg-email').value.trim();
+            let phone = document.getElementById('reg-phone').value.trim();
+            let pass = document.getElementById('reg-pass').value.trim();
+            if(!email || !phone || !pass) return alert('Lengkapi semua data!');
+            
+            try {
+                let res = await fetch('/api/register', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email, phone, password: pass})
+                });
+                let data = await res.json();
+                if(data.success) {
+                    tempRegPhone = phone;
+                    alert('Kode OTP berhasil dikirim ke WhatsApp Anda!');
+                    showScreen('otp-screen');
+                } else { alert(data.message); }
+            } catch(e) { alert('Server error.'); }
+        }
+
+        async function verifyOTP() {
+            let otp = document.getElementById('otp-code').value.trim();
+            if(!otp) return alert('Masukkan OTP!');
+            try {
+                let res = await fetch('/api/verify-otp', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({phone: tempRegPhone, otp})
+                });
+                let data = await res.json();
+                if(data.success) {
+                    alert('Registrasi Berhasil! Silakan Login.');
+                    document.getElementById('log-email').value = document.getElementById('reg-email').value;
+                    document.getElementById('log-pass').value = document.getElementById('reg-pass').value;
+                    showScreen('login-screen');
+                } else { alert(data.message); }
+            } catch(e) { alert('Server error.'); }
+        }
+
+        // FITUR TOPUP VIA WA
+        function reqTopup() {
+            let pesan = `Halo Admin, saya ingin mengajukan Topup Saldo akun Tendo Store.%0A%0A📧 Email: *${currentEmail}*%0A📱 No WA Akun: *${currentUser}*%0A💰 Nominal Topup: `;
+            window.open(`https://wa.me/6282224460678?text=${pesan}`, '_blank');
+        }
+
+        // PRODUK & ORDER
         async function loadProducts() {
             try {
                 let res = await fetch('/api/produk');
-                let produk = await res.json();
-                let listHTML = '';
-                
-                for(let key in produk) {
-                    let p = produk[key];
-                    let badgeClass = 'cat-pulsa';
-                    if(p.kategori === 'Paket Data') badgeClass = 'cat-data';
-                    if(p.kategori === 'Topup Game') badgeClass = 'cat-game';
-                    
-                    listHTML += `
-                        <div class="product-item">
-                            <div class="product-info">
-                                <div class="product-name">${p.nama}</div>
-                                <div class="product-cat ${badgeClass}">${p.kategori} - ${p.brand || 'Lainnya'}</div>
-                            </div>
-                            <div class="product-price">Rp ${p.harga.toLocaleString('id-ID')}</div>
+                allProducts = await res.json();
+                renderProducts('Semua');
+            } catch(e) { document.getElementById('product-list').innerHTML = '<div style="color:red;">Gagal memuat produk.</div>'; }
+        }
+
+        function filterCat(cat, el) {
+            document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
+            el.classList.add('active');
+            renderProducts(cat);
+        }
+
+        function renderProducts(filterCategory) {
+            let listHTML = '';
+            for(let key in allProducts) {
+                let p = allProducts[key];
+                if (filterCategory !== 'Semua' && p.kategori !== filterCategory) continue;
+                let badgeClass = 'cat-pulsa';
+                if(p.kategori === 'Paket Data') badgeClass = 'cat-data';
+                if(p.kategori === 'Topup Game') badgeClass = 'cat-game';
+                let safeName = p.nama.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                listHTML += `
+                    <div class="product-item">
+                        <div class="product-info">
+                            <div class="product-name">${p.nama}</div>
+                            <div class="product-cat ${badgeClass}">${p.kategori} - ${p.brand || 'Lainnya'}</div>
                         </div>
-                    `;
-                }
-                
-                if(!listHTML) listHTML = '<div style="text-align:center; color:#888;">Produk sedang kosong</div>';
-                document.getElementById('product-list').innerHTML = listHTML;
-            } catch(e) {
-                document.getElementById('product-list').innerHTML = '<div style="text-align:center; color:red;">Gagal memuat produk.</div>';
+                        <div class="product-price-box">
+                            <div class="product-price">Rp ${p.harga.toLocaleString('id-ID')}</div>
+                            <button class="btn-buy" onclick="openModal('${key}', '${safeName}', ${p.harga})">Beli</button>
+                        </div>
+                    </div>`;
             }
+            if(!listHTML) listHTML = '<div style="text-align:center; color:#888;">Produk kosong.</div>';
+            document.getElementById('product-list').innerHTML = listHTML;
+        }
+
+        function openModal(sku, nama, harga) {
+            selectedSKU = sku;
+            document.getElementById('m-name').innerText = nama;
+            document.getElementById('m-price').innerText = 'Rp ' + harga.toLocaleString('id-ID');
+            document.getElementById('m-target').value = '';
+            document.getElementById('order-modal').classList.remove('hidden');
+        }
+        function closeModal() { document.getElementById('order-modal').classList.add('hidden'); selectedSKU = ""; }
+
+        async function processOrder() {
+            let target = document.getElementById('m-target').value.trim();
+            if(!target || target.length < 4) return alert("Masukkan Nomor/ID Tujuan yang benar!");
+            let btn = document.getElementById('m-submit');
+            let originalText = btn.innerText; btn.innerText = 'Memproses...'; btn.disabled = true;
+
+            try {
+                let res = await fetch('/api/order', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({phone: currentUser, sku: selectedSKU, tujuan: target})
+                });
+                let data = await res.json();
+                if(data.success) {
+                    alert('✅ Pesanan Diproses!\nStruk akan dikirim ke WhatsApp Anda.');
+                    document.getElementById('user-saldo').innerText = 'Rp ' + data.saldo.toLocaleString('id-ID');
+                    closeModal();
+                } else { alert('❌ Gagal: ' + data.message); }
+            } catch(e) { alert('Kesalahan jaringan.'); }
+            btn.innerText = originalText; btn.disabled = false;
         }
     </script>
 </body>
@@ -164,7 +349,7 @@ EOF
 }
 
 # ==========================================
-# 2. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BOT + API SERVER)
+# 3. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BOT + API SERVER)
 # ==========================================
 generate_bot_script() {
     cat << 'EOF' > index.js
@@ -180,7 +365,6 @@ const crypto = require('crypto');
 
 const app = express();
 app.use(bodyParser.json());
-// 🌟 MENGAKTIFKAN FOLDER PUBLIC UNTUK WEB APP
 app.use(express.static('public')); 
 
 const configFile = './config.json';
@@ -204,32 +388,129 @@ if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
 if (!fs.existsSync(produkFile)) saveJSON(produkFile, {});
 if (!fs.existsSync(trxFile)) saveJSON(trxFile, {});
 
+let globalSock = null;
+let tempOtpDB = {}; // Menyimpan OTP sementara
+
 // ==========================================
-// 🚀 API ENDPOINT UNTUK WEB APP MENGAMBIL DATA
+// 🚀 API ENDPOINT WEB
 // ==========================================
 
-// API Mengambil Katalog Produk
-app.get('/api/produk', (req, res) => {
-    let produk = loadJSON(produkFile);
-    res.json(produk);
+app.get('/api/produk', (req, res) => { res.json(loadJSON(produkFile)); });
+
+// SISTEM LOGIN
+app.post('/api/login', (req, res) => {
+    let { email, password } = req.body;
+    let db = loadJSON(dbFile);
+    let userPhone = Object.keys(db).find(k => db[k].email === email && db[k].password === password);
+
+    if (userPhone) res.json({success: true, data: db[userPhone], phone: userPhone});
+    else res.json({success: false, message: 'Email atau Password salah!'});
 });
 
-// API Cek Data Member (Login Web)
-app.post('/api/member', (req, res) => {
+// REQUEST OTP DAFTAR
+app.post('/api/register', (req, res) => {
+    let { email, phone, password } = req.body;
+    phone = phone.replace(/[^0-9]/g, '');
+    
     let db = loadJSON(dbFile);
-    let phone = req.body.phone; 
+    let emailExists = Object.keys(db).find(k => db[k].email === email);
+    if (emailExists) return res.json({success: false, message: 'Email sudah terdaftar!'});
+
+    let otp = Math.floor(1000 + Math.random() * 9000).toString();
+    tempOtpDB[phone] = { email, password, otp };
+
+    if (globalSock) {
+        let msg = `*🛡️ TENDO STORE SECURITY 🛡️*\n\n`;
+        msg += `Permintaan pembuatan akun Web App.\n\n`;
+        msg += `Email: ${email}\n`;
+        msg += `Kode OTP Anda: *${otp}*\n\n`;
+        msg += `_⚠️ Jangan bagikan kode ini kepada siapapun!_`;
+        globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>console.log("Gagal kirim OTP"));
+    }
+
+    res.json({success: true, message: 'OTP dikirim ke WA'});
+});
+
+// VERIFIKASI OTP
+app.post('/api/verify-otp', (req, res) => {
+    let { phone, otp } = req.body;
+    phone = phone.replace(/[^0-9]/g, '');
     
-    // Hapus karakter non-angka untuk keamanan
-    if(phone) phone = phone.replace(/[^0-9]/g, '');
-    
-    if (db[phone]) {
-        res.json({success: true, data: db[phone]});
+    if(tempOtpDB[phone] && tempOtpDB[phone].otp === otp) {
+        let db = loadJSON(dbFile);
+        
+        // Jika user sdh pernah daftar via WA, kita tambahkan email/pass ke akun lamanya
+        if(db[phone]) {
+            db[phone].email = tempOtpDB[phone].email;
+            db[phone].password = tempOtpDB[phone].password;
+        } else {
+            // Member benar-benar baru
+            db[phone] = {
+                saldo: 0,
+                tanggal_daftar: new Date().toLocaleDateString('id-ID'),
+                jid: phone + '@s.whatsapp.net',
+                step: 'idle',
+                email: tempOtpDB[phone].email,
+                password: tempOtpDB[phone].password
+            };
+        }
+        
+        saveJSON(dbFile, db);
+        delete tempOtpDB[phone];
+        res.json({success: true});
     } else {
-        res.json({success: false, message: "Nomor tidak terdaftar"});
+        res.json({success: false, message: 'Kode OTP Salah!'});
     }
 });
 
+// ORDER
+app.post('/api/order', async (req, res) => {
+    let { phone, sku, tujuan } = req.body;
+    let db = loadJSON(dbFile);
+    let produkDB = loadJSON(produkFile);
+    let config = loadJSON(configFile);
 
+    if (!db[phone]) return res.json({success: false, message: 'ID Member tidak valid.'});
+    if (!produkDB[sku]) return res.json({success: false, message: 'Produk tidak valid.'});
+
+    let p = produkDB[sku];
+    if (db[phone].saldo < p.harga) return res.json({success: false, message: 'Saldo tidak mencukupi. Silakan Topup.'});
+
+    let username = (config.digiflazzUsername || '').trim();
+    let apiKey = (config.digiflazzApiKey || '').trim();
+    let refId = 'WEB-' + Date.now();
+    let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
+
+    try {
+        const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
+            username: username, buyer_sku_code: sku, customer_no: tujuan, ref_id: refId, sign: sign
+        });
+        const resData = response.data.data;
+        const statusOrder = resData.status; 
+        
+        if (statusOrder === 'Gagal') {
+            return res.json({success: false, message: resData.message});
+        } else {
+            db[phone].saldo -= p.harga;
+            saveJSON(dbFile, db);
+
+            let trxs = loadJSON(trxFile);
+            let targetJid = db[phone].jid || phone + '@s.whatsapp.net';
+            trxs[refId] = { jid: targetJid, sku: sku, tujuan: tujuan, harga: p.harga, nama: p.nama, tanggal: Date.now() };
+            saveJSON(trxFile, trxs);
+
+            if (globalSock) {
+                let msgWa = `🌐 *STRUK PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[phone].saldo.toLocaleString('id-ID')}`;
+                globalSock.sendMessage(targetJid, { text: msgWa }).catch(e=>{});
+            }
+            return res.json({success: true, saldo: db[phone].saldo});
+        }
+    } catch (error) { return res.json({success: false, message: 'Server API Down'}); }
+});
+
+// ==========================================
+// MESIN BOT WHATSAPP
+// ==========================================
 let pairingRequested = false; 
 
 function doBackupAndSend() {
@@ -254,61 +535,31 @@ if (configAwal.autoBackup) {
 }
 
 async function startBot() {
-    console.log("\x1b[36m\n⏳ Sedang menyiapkan mesin bot...\x1b[0m");
     const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
     let config = loadJSON(configFile);
-    
-    console.log("\x1b[36m⏳ Mengambil konfigurasi keamanan WhatsApp terbaru...\x1b[0m");
     const { version, isLatest } = await fetchLatestBaileysVersion();
     
     const sock = makeWASocket({
-        version,
-        auth: state,
-        logger: pino({ level: 'silent' }),
-        browser: Browsers.ubuntu('Chrome'),
-        printQRInTerminal: false,
-        syncFullHistory: false
+        version, auth: state, logger: pino({ level: 'silent' }), browser: Browsers.ubuntu('Chrome'), printQRInTerminal: false, syncFullHistory: false
     });
+    
+    globalSock = sock; 
 
     if (!sock.authState.creds.registered && !pairingRequested) {
         pairingRequested = true;
-        let phoneNumber = config.botNumber;
-        
-        if (!phoneNumber) {
-            console.log('\x1b[31m\n❌ NOMOR BOT BELUM DIATUR! Keluar...\x1b[0m');
-            process.exit(0);
-        }
-
         setTimeout(async () => {
             try {
-                let formattedNumber = phoneNumber.replace(/[^0-9]/g, '');
+                let formattedNumber = config.botNumber.replace(/[^0-9]/g, '');
                 const code = await sock.requestPairingCode(formattedNumber);
-                console.log(`\x1b[32m\n=======================================================\x1b[0m`);
-                console.log(`\x1b[1m\x1b[33m🔑 KODE TAUTAN ANDA :  ${code}  \x1b[0m`);
-                console.log(`\x1b[32m=======================================================\x1b[0m`);
-                console.log('👉 Buka WA di HP -> Perangkat Tertaut -> Tautkan dengan nomor telepon saja.');
-                console.log('\x1b[31m⚠️ SEGERA MASUKKAN KODENYA KE HP ANDA!\x1b[0m\n');
-            } catch (error) {
-                pairingRequested = false; 
-            }
+                console.log(`\x1b[33m🔑 KODE TAUTAN : ${code}\x1b[0m\n`);
+            } catch (error) { pairingRequested = false; }
         }, 8000); 
     }
 
     sock.ev.on('creds.update', saveCreds);
-
     sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect } = update;
-        if (connection === 'close') {
-            let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
-            if (reason === DisconnectReason.loggedOut) {
-                process.exit(0);
-            } else {
-                pairingRequested = false;
-                setTimeout(startBot, 4000);
-            }
-        } else if (connection === 'open') {
-            console.log('\x1b[32m\n✅ BOT WHATSAPP BERHASIL TERHUBUNG DENGAN AMAN!\x1b[0m');
-        }
+        if (update.connection === 'close') setTimeout(startBot, 4000);
+        else if (update.connection === 'open') console.log('\x1b[32m✅ BOT WA TERHUBUNG!\x1b[0m');
     });
 
     setInterval(async () => {
@@ -327,52 +578,32 @@ async function startBot() {
 
             try {
                 const cekRes = await axios.post('https://api.digiflazz.com/v1/transaction', {
-                    username: userAPI,
-                    buyer_sku_code: trx.sku,
-                    customer_no: trx.tujuan,
-                    ref_id: ref,
-                    sign: signCheck
+                    username: userAPI, buyer_sku_code: trx.sku, customer_no: trx.tujuan, ref_id: ref, sign: signCheck
                 });
 
                 const resData = cekRes.data.data;
-                const statusUpdate = resData.status;
-                const sn = resData.sn || '-';
-
-                if (statusUpdate === 'Sukses') {
-                    let msg = `✅ *UPDATE STATUS: SUKSES*\n\n📦 Produk: ${trx.nama}\n📱 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n🔑 SN/Catatan: ${sn}`;
-                    await sock.sendMessage(trx.jid, { text: msg });
-                    delete trxs[ref];
-                    saveJSON(trxFile, trxs);
-                } else if (statusUpdate === 'Gagal') {
+                if (resData.status === 'Sukses' || resData.status === 'Gagal') {
                     let db = loadJSON(dbFile);
                     let senderNum = trx.jid.split('@')[0];
-                    if (db[senderNum]) {
-                        db[senderNum].saldo += trx.harga;
-                        saveJSON(dbFile, db);
+                    let msg = '';
+                    
+                    if(resData.status === 'Sukses') {
+                        msg = `✅ *STATUS: SUKSES*\n\n📦 Produk: ${trx.nama}\n📱 Tujuan: ${trx.tujuan}\n🔑 SN: ${resData.sn || '-'}`;
+                    } else {
+                        if (db[senderNum]) { db[senderNum].saldo += trx.harga; saveJSON(dbFile, db); }
+                        msg = `❌ *STATUS: GAGAL*\n\n📦 Produk: ${trx.nama}\nAlasan: ${resData.message}\n_💰 Saldo dikembalikan._`;
                     }
-                    let msg = `❌ *UPDATE STATUS: GAGAL*\n\n📦 Produk: ${trx.nama}\n📱 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\nAlasan: ${resData.message}\n\n_💰 Saldo Rp ${trx.harga.toLocaleString('id-ID')} telah dikembalikan._`;
+                    
                     await sock.sendMessage(trx.jid, { text: msg });
                     delete trxs[ref];
                     saveJSON(trxFile, trxs);
-                } else {
-                    if (Date.now() - trx.tanggal > 24 * 60 * 60 * 1000) {
-                        delete trxs[ref];
-                        saveJSON(trxFile, trxs);
-                    }
+                } else if (Date.now() - trx.tanggal > 24 * 60 * 60 * 1000) {
+                    delete trxs[ref]; saveJSON(trxFile, trxs);
                 }
             } catch (err) {}
             await new Promise(r => setTimeout(r, 2000)); 
         }
     }, 15000); 
-
-    const brandStructure = {
-        'Pulsa': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri'],
-        'Paket Data': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri'],
-        'Topup Game': ['Mobile Legends', 'Free Fire'],
-        'Topup E-Wallet': ['Gopay', 'Dana', 'Shopee Pay'],
-        'Token Listrik': ['Token Listrik'],
-        'Masa Aktif': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri']
-    };
 
     sock.ev.on('messages.upsert', async m => {
         try {
@@ -382,429 +613,54 @@ async function startBot() {
             const from = msg.key.remoteJid;
             const senderJid = jidNormalizedUser(msg.key.participant || msg.key.remoteJid);
             const sender = senderJid.split('@')[0]; 
-            
             const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
             if (!body) return;
 
             let db = loadJSON(dbFile);
             let config = loadJSON(configFile);
-            let produkDB = loadJSON(produkFile);
-            let namaBot = config.botName || "Tendo Store";
-
             if (!db[sender]) {
-                db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: senderJid, step: 'idle', temp_sku: '', temp_category: '', temp_brand: '' };
+                db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: senderJid, step: 'idle'};
                 saveJSON(dbFile, db);
-            } else {
-                if (!db[sender].step) db[sender].step = 'idle';
-                if (!db[sender].temp_sku) db[sender].temp_sku = '';
-                if (!db[sender].temp_category) db[sender].temp_category = '';
-                if (!db[sender].temp_brand) db[sender].temp_brand = '';
             }
 
-            let bodyLower = body.trim().toLowerCase();
-            let rawCommand = bodyLower.split(' ')[0];
-
-            if (['batal', 'cancel', 'bot', 'menu', '.menu', 'p', 'ping'].includes(rawCommand)) {
-                if (db[sender].step !== 'idle') {
-                    db[sender].step = 'idle';
-                    db[sender].temp_sku = '';
-                    db[sender].temp_category = '';
-                    db[sender].temp_brand = '';
-                    saveJSON(dbFile, db);
-                    if (['batal', 'cancel'].includes(rawCommand)) {
-                        await sock.sendMessage(from, { text: `✅ Proses pesanan dibatalkan.\n\n_Ketik *bot* untuk kembali ke menu utama._` });
-                        return;
-                    }
-                }
-            }
-
-            if (db[sender].step === 'select_brand') {
-                let cat = db[sender].temp_category;
-                let brands = brandStructure[cat];
-                let inputNum = parseInt(body.trim());
-                
-                if (!isNaN(inputNum) && inputNum > 0 && inputNum <= brands.length) {
-                    db[sender].temp_brand = brands[inputNum - 1];
-                    db[sender].step = 'order_product';
-                    saveJSON(dbFile, db);
-                    
-                    let filteredKeys = Object.keys(produkDB).filter(k => 
-                        (produkDB[k].kategori || 'Lainnya') === cat && (produkDB[k].brand || 'Lainnya') === db[sender].temp_brand
-                    );
-                    
-                    if (filteredKeys.length === 0) {
-                        db[sender].step = 'idle'; saveJSON(dbFile, db);
-                        return await sock.sendMessage(from, { text: `🛒 Maaf, produk untuk *${cat} - ${db[sender].temp_brand}* sedang kosong.\n_Ketik *bot* untuk kembali._`});
-                    }
-                    
-                    let textCat = `🛒 *PILIH PRODUK: ${cat.toUpperCase()} - ${db[sender].temp_brand.toUpperCase()}*\n\n`;
-                    filteredKeys.forEach((k, i) => {
-                        textCat += `*${i+1}.* ${produkDB[k].nama} - Rp ${produkDB[k].harga.toLocaleString('id-ID')}\n`;
-                        if (produkDB[k].deskripsi) textCat += `   └ _${produkDB[k].deskripsi}_\n`;
-                    });
-                    textCat += `\n👉 *Balas pesan ini dengan NOMOR URUT produknya saja (Contoh: ketik 1)*\n\n_Ketik *batal* untuk membatalkan pesanan._`;
-                    
-                    await sock.sendMessage(from, { text: textCat.trim() });
-                    return;
-                } else {
-                    return await sock.sendMessage(from, { text: `❌ Pilihan tidak valid!\nSilakan balas dengan *angka urutan* yang ada.\n\n_Ketik *batal* jika ingin membatalkan pesanan._` });
-                }
-            }
-
-            if (db[sender].step === 'order_product') {
-                let cat = db[sender].temp_category;
-                let brand = db[sender].temp_brand;
-                let filteredKeys = Object.keys(produkDB).filter(k => 
-                    (produkDB[k].kategori || 'Lainnya') === cat && (produkDB[k].brand || 'Lainnya') === brand
-                );
-                
-                let inputKode = body.trim();
-                
-                if (!isNaN(inputKode) && Number(inputKode) > 0 && Number(inputKode) <= filteredKeys.length) {
-                    db[sender].temp_sku = filteredKeys[Number(inputKode) - 1];
-                    db[sender].step = 'order_target';
-                    saveJSON(dbFile, db);
-                    
-                    let p = produkDB[db[sender].temp_sku];
-                    let msgBalasan = `📦 Produk dipilih: *${p.nama}*\n`;
-                    msgBalasan += `💰 Harga: Rp ${p.harga.toLocaleString('id-ID')}\n\n`;
-                    if (p.deskripsi) msgBalasan += `📝 *Info Detail:*\n${p.deskripsi}\n\n`;
-                    msgBalasan += `📱 *Silakan balas dengan NOMOR/ID TUJUAN pengisian!*\n`;
-                    msgBalasan += `_(Pastikan nomor tujuan benar)_\n\n`;
-                    msgBalasan += `_Ketik *batal* untuk membatalkan pesanan._`;
-                    
-                    await sock.sendMessage(from, { text: msgBalasan });
-                    return;
-                } else {
-                    await sock.sendMessage(from, { text: `❌ Pilihan tidak valid!\nSilakan balas dengan *angka urutan* produk saja (contoh: 1).\n\n_Ketik *batal* jika ingin membatalkan pesanan._` });
-                    return;
-                }
-            }
-
-            if (db[sender].step === 'order_target') {
-                let tujuan = body.trim(); 
-                let kodeProduk = db[sender].temp_sku;
-                
-                db[sender].step = 'idle';
-                db[sender].temp_sku = '';
-                db[sender].temp_category = '';
-                db[sender].temp_brand = '';
-                saveJSON(dbFile, db);
-
-                if(!tujuan || tujuan.length < 4) {
-                    return await sock.sendMessage(from, { text: `❌ Format nomor/ID tujuan salah. Pesanan dibatalkan. Silakan ulangi dari awal.` });
-                }
-
-                const hargaProduk = produkDB[kodeProduk].harga;
-
-                if (db[sender].saldo < hargaProduk) {
-                    return await sock.sendMessage(from, { text: `❌ *Saldo tidak mencukupi!*\n\n💰 Saldo Anda: Rp ${db[sender].saldo.toLocaleString('id-ID')}\n🏷️ Harga Produk: Rp ${hargaProduk.toLocaleString('id-ID')}\n\nSilakan isi saldo terlebih dahulu.` });
-                }
-
-                let username = (config.digiflazzUsername || '').trim();
-                let apiKey = (config.digiflazzApiKey || '').trim();
-
-                if (!username || !apiKey) {
-                    return await sock.sendMessage(from, { text: `❌ Sistem bermasalah: API Digiflazz belum dikonfigurasi oleh Admin.` });
-                }
-
-                let refId = 'TENDO-' + Date.now();
-                let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
-
-                await sock.sendMessage(from, { text: `⏳ *Sedang memproses pesanan...*\n\n📦 Produk: ${produkDB[kodeProduk].nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}` });
-
-                try {
-                    const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
-                        username: username,
-                        buyer_sku_code: kodeProduk,
-                        customer_no: tujuan,
-                        ref_id: refId,
-                        sign: sign
-                    });
-
-                    const resData = response.data.data;
-                    const statusOrder = resData.status; 
-                    const sn = resData.sn || '-';
-                    const message = resData.message || '';
-
-                    if (statusOrder === 'Gagal') {
-                        await sock.sendMessage(from, { text: `❌ *Transaksi Gagal!*\nAlasan: ${message}\n\n_Saldo Anda tidak dipotong._` });
-                    } else if (statusOrder === 'Pending') {
-                        db[sender].saldo -= hargaProduk;
-                        saveJSON(dbFile, db);
-
-                        let trxs = loadJSON(trxFile);
-                        trxs[refId] = { jid: from, sku: kodeProduk, tujuan: tujuan, harga: hargaProduk, nama: produkDB[kodeProduk].nama, tanggal: Date.now() };
-                        saveJSON(trxFile, trxs);
-
-                        let pesanPending = `⏳ *PESANAN SEDANG DIPROSES*\n\n`;
-                        pesanPending += `📦 Produk: ${produkDB[kodeProduk].nama}\n`;
-                        pesanPending += `📱 Tujuan: ${tujuan}\n`;
-                        pesanPending += `🔖 Ref ID: ${refId}\n`;
-                        pesanPending += `⚙️ Status: *Pending (Menunggu)*\n\n`;
-                        pesanPending += `_Sistem akan otomatis menginformasikan jika transaksi sukses atau gagal._`;
-
-                        await sock.sendMessage(from, { text: pesanPending });
-                    } else {
-                        db[sender].saldo -= hargaProduk;
-                        saveJSON(dbFile, db);
-
-                        let pesanSukses = `✅ *PESANAN BERHASIL DIPROSES*\n\n`;
-                        pesanSukses += `📦 Produk: ${produkDB[kodeProduk].nama}\n`;
-                        pesanSukses += `📱 Tujuan: ${tujuan}\n`;
-                        pesanSukses += `🔖 Ref ID: ${refId}\n`;
-                        pesanSukses += `⚙️ Status: *${statusOrder}*\n`;
-                        pesanSukses += `🔑 SN/Catatan: ${sn}\n\n`;
-                        pesanSukses += `💰 Sisa Saldo: Rp ${db[sender].saldo.toLocaleString('id-ID')}`;
-
-                        await sock.sendMessage(from, { text: pesanSukses });
-                    }
-                } catch (error) {
-                    let errMessage = error.response?.data?.data?.message || 'Terjadi kesalahan saat menghubungi server Digiflazz/API Down.';
-                    await sock.sendMessage(from, { text: `❌ *Transaksi Gagal!*\nAlasan: ${errMessage}\n\n_Saldo Anda tidak dipotong._` });
-                }
-                return;
-            }
-
-            let command = '';
-            const catMap = {
-                '3': 'Pulsa', 'pulsa': 'Pulsa',
-                '4': 'Paket Data', 'paket': 'Paket Data', 'data': 'Paket Data',
-                '5': 'Topup Game', 'game': 'Topup Game',
-                '6': 'Topup E-Wallet', 'ewallet': 'Topup E-Wallet', 'dana': 'Topup E-Wallet', 'gopay': 'Topup E-Wallet',
-                '7': 'Token Listrik', 'token': 'Token Listrik', 'pln': 'Token Listrik', 'listrik': 'Token Listrik',
-                '8': 'Masa Aktif', 'masa': 'Masa Aktif', 'aktif': 'Masa Aktif'
-            };
-
-            if (['bot', 'menu', '.menu', 'help', 'halo', 'hai', 'p', 'ping', 'info'].includes(rawCommand)) command = 'bot';
-            else if (['1', '1.', '1.saldo', 'saldo', '.saldo'].includes(rawCommand)) command = '.saldo';
-            else if (['2', '2.', '2.harga', 'harga', '.harga', 'list'].includes(rawCommand)) command = '.harga';
-            else if (catMap[rawCommand]) {
-                command = '.show_cat';
-                db[sender].temp_category = catMap[rawCommand];
-            } else if (rawCommand === 'order' || rawCommand === '.order') {
-                command = '.order_bypass';
-            }
-
-            if (command === 'bot') {
-                let menuText = `👋 Selamat Datang di *${namaBot}* (v25)\n`;
-                menuText += `📌 *ID Member:* ${sender}\n\n`;
-                menuText += `1. *Cek Saldo*\n`;
-                menuText += `2. *Cek Semua Harga*\n`;
-                menuText += `3. *Pulsa*\n`;
-                menuText += `4. *Paket Data*\n`;
-                menuText += `5. *Topup Game*\n`;
-                menuText += `6. *Topup E-Wallet*\n`;
-                menuText += `7. *Token Listrik*\n`;
-                menuText += `8. *Masa Aktif*\n\n`;
-                menuText += `_👉 Cukup balas dengan angka pilihan di atas untuk order/cek (Contoh: ketik *3* untuk membeli Pulsa)._\n\n`;
-                menuText += `🌐 *Akses Web App Tendo Store sekarang untuk kemudahan bertransaksi!*`;
+            let rawCommand = body.trim().toLowerCase().split(' ')[0];
+            if (['bot', 'menu', 'p', 'ping', 'halo'].includes(rawCommand)) {
+                let menuText = `👋 *${config.botName || "Tendo Store"}*\n\nSilakan akses aplikasi kami untuk kemudahan berbelanja:\n🌐 http://${process.env.IP_ADDRESS || 'IP_VPS_ANDA'}:3000`;
                 await sock.sendMessage(from, { text: menuText });
-                return;
             }
-
-            if (command === '.saldo') {
-                await sock.sendMessage(from, { text: `💰 Saldo Anda saat ini: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` });
-                return;
-            }
-
-            if (command === '.harga') {
-                let keys = Object.keys(produkDB);
-                if (keys.length === 0) {
-                    return await sock.sendMessage(from, { text: `🛒 *Daftar Harga ${namaBot}*\n\nMaaf, belum ada produk yang tersedia saat ini.`});
-                }
-                
-                let textHarga = `🛒 *KATALOG PRODUK LENGKAP*\n\n`;
-                let cats = ["Pulsa", "Paket Data", "Topup Game", "Topup E-Wallet", "Token Listrik", "Masa Aktif", "Lainnya"];
-                
-                cats.forEach(c => {
-                    let catKeys = keys.filter(k => (produkDB[k].kategori || 'Lainnya') === c);
-                    if(catKeys.length > 0) {
-                        textHarga += `➖ *${c.toUpperCase()}* ➖\n`;
-                        let brands = [...new Set(catKeys.map(k => produkDB[k].brand || 'Lainnya'))];
-                        brands.forEach(b => {
-                            textHarga += `🔸 *${b.toUpperCase()}*\n`;
-                            let brandKeys = catKeys.filter(k => (produkDB[k].brand || 'Lainnya') === b);
-                            brandKeys.forEach(k => {
-                                textHarga += `   ${produkDB[k].nama} - Rp ${produkDB[k].harga.toLocaleString('id-ID')}\n`;
-                                if(produkDB[k].deskripsi) textHarga += `   └ _${produkDB[k].deskripsi}_\n`;
-                            });
-                        });
-                        textHarga += `\n`;
-                    }
-                });
-                
-                textHarga += `_💡 Ketik angka kategori di menu utama (misal: ketik 3 untuk Pulsa) untuk mulai membeli._`;
-                await sock.sendMessage(from, { text: textHarga.trim() });
-                return;
-            }
-
-            if (command === '.show_cat') {
-                let cat = db[sender].temp_category;
-                let brands = brandStructure[cat] || [];
-                
-                if (brands.length === 1) {
-                    db[sender].temp_brand = brands[0];
-                    db[sender].step = 'order_product';
-                    saveJSON(dbFile, db);
-                    
-                    let filteredKeys = Object.keys(produkDB).filter(k => 
-                        (produkDB[k].kategori || 'Lainnya') === cat && (produkDB[k].brand || 'Lainnya') === db[sender].temp_brand
-                    );
-                    
-                    if (filteredKeys.length === 0) {
-                        db[sender].step = 'idle'; saveJSON(dbFile, db);
-                        return await sock.sendMessage(from, { text: `🛒 Maaf, produk untuk kategori *${cat}* sedang kosong.\n_Ketik *bot* untuk kembali._`});
-                    }
-                    
-                    let textCat = `🛒 *PILIH PRODUK: ${cat.toUpperCase()}*\n\n`;
-                    filteredKeys.forEach((k, i) => {
-                        textCat += `*${i+1}.* ${produkDB[k].nama} - Rp ${produkDB[k].harga.toLocaleString('id-ID')}\n`;
-                        if (produkDB[k].deskripsi) textCat += `   └ _${produkDB[k].deskripsi}_\n`;
-                    });
-                    textCat += `\n👉 *Silakan balas pesan ini dengan NOMOR URUT produknya saja (Contoh: ketik 1)*\n\n_Ketik *batal* untuk membatalkan._`;
-                    
-                    await sock.sendMessage(from, { text: textCat.trim() });
-                    return;
-                } else {
-                    db[sender].step = 'select_brand';
-                    saveJSON(dbFile, db);
-                    
-                    let textBrand = `🛒 *PILIH PROVIDER / GAME / E-WALLET*\n\n`;
-                    textBrand += `Kategori: *${cat.toUpperCase()}*\n\n`;
-                    brands.forEach((b, i) => {
-                        textBrand += `*${i+1}.* ${b}\n`;
-                    });
-                    textBrand += `\n👉 *Balas pesan ini dengan ANGKA pilihannya (Contoh: ketik 1)*\n\n_Ketik *batal* untuk membatalkan._`;
-                    await sock.sendMessage(from, { text: textBrand });
-                    return;
-                }
-            }
-
-            if (command === '.order_bypass') {
-                const args = body.split(' ').slice(1);
-                if (args.length >= 2) {
-                    let kodeProduk = args[0].toUpperCase();
-                    const tujuan = args[1].replace(/[^0-9]/g, '');
-                    if (!produkDB[kodeProduk]) return await sock.sendMessage(from, { text: `❌ Kode tidak ditemukan.` });
-                    
-                    db[sender].step = 'order_target'; 
-                    db[sender].temp_sku = kodeProduk;
-                    saveJSON(dbFile, db);
-                    
-                    m.messages[0].message.conversation = tujuan;
-                    sock.ev.emit('messages.upsert', m);
-                } else {
-                    await sock.sendMessage(from, { text: `Ketik *bot* untuk melihat menu, atau pilih angka kategori langsung.` });
-                }
-            }
-
-        } catch (err) {
-            console.error("Kesalahan sistem WhatsApp: ", err);
-        }
+        } catch (err) {}
     });
-
-    if (global.broadcastInterval) clearInterval(global.broadcastInterval);
-    global.broadcastInterval = setInterval(async () => {
-        if (fs.existsSync('./broadcast.txt')) {
-            let textBroadcast = fs.readFileSync('./broadcast.txt', 'utf-8');
-            fs.unlinkSync('./broadcast.txt');
-
-            if (textBroadcast.trim()) {
-                let db = loadJSON(dbFile);
-                let config = loadJSON(configFile);
-                let namaBot = config.botName || "Tendo Store";
-                let members = Object.keys(db);
-                for (let num of members) {
-                    try {
-                        let targetJid = db[num].jid || (num + '@s.whatsapp.net');
-                        await sock.sendMessage(targetJid, { text: `📢 *INFORMASI ${namaBot}*\n\n${textBroadcast.trim()}` });
-                        await new Promise(res => setTimeout(res, 3000));
-                    } catch (err) {}
-                }
-            }
-        }
-    }, 5000);
 }
 
 if (require.main === module) {
-    app.listen(3000, '0.0.0.0', () => {
-        console.log('\x1b[32m🌐 SERVER WEB APLIKASI AKTIF PADA PORT 3000.\x1b[0m');
-    }).on('error', (err) => {
-        console.log('\x1b[31m⚠️ Gagal menjalankan server web. Mungkin port 3000 sudah dipakai.\x1b[0m');
-    });
-    startBot().catch(err => console.error(err));
+    app.listen(3000, '0.0.0.0', () => { console.log('\x1b[32m🌐 SERVER WEB AKTIF (PORT 3000).\x1b[0m'); });
+    startBot().catch(err => {});
 }
 EOF
 }
 
 # ==========================================
-# 3. FUNGSI INSTALASI DEPENDENSI
+# 4. FUNGSI INSTALASI DEPENDENSI
 # ==========================================
 install_dependencies() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     echo -e "${C_YELLOW}${C_BOLD}             🚀 MENGINSTALL SISTEM BOT 🚀             ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    
     export DEBIAN_FRONTEND=noninteractive
     export NEEDRESTART_MODE=a
-    export NEEDRESTART_SUSPEND=1
 
-    spin() {
-        local pid=$1
-        local delay=0.1
-        local spinstr='|/-\'
-        while kill -0 $pid 2>/dev/null; do
-            local temp=${spinstr#?}
-            printf " [%c] " "$spinstr"
-            local spinstr=$temp${spinstr%"$temp"}
-            sleep $delay
-            printf "\b\b\b\b\b"
-        done
-        printf "      \b\b\b\b\b\b"
-    }
-
-    echo -ne "${C_MAG}>> Mengupdate repositori sistem...${C_RST}"
-    (sudo -E apt-get update > /dev/null 2>&1 && sudo -E apt-get upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1) &
-    spin $!
-    echo -e "${C_GREEN}[Selesai]${C_RST}"
-    
-    echo -ne "${C_MAG}>> Menginstall dependensi...${C_RST}"
-    sudo -E apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" curl git wget nano zip unzip > /dev/null 2>&1 &
-    spin $!
-    echo -e "${C_GREEN}[Selesai]${C_RST}"
-    
-    echo -ne "${C_MAG}>> Menginstall Node.js...${C_RST}"
-    (curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - > /dev/null 2>&1 && sudo -E apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" nodejs > /dev/null 2>&1) &
-    spin $!
-    echo -e "${C_GREEN}[Selesai]${C_RST}"
-    
-    echo -ne "${C_MAG}>> Memperbarui NPM & Install PM2...${C_RST}"
-    (sudo npm install -g npm@11.11.0 > /dev/null 2>&1 && sudo npm install -g pm2 > /dev/null 2>&1) &
-    spin $!
-    echo -e "${C_GREEN}[Selesai]${C_RST}"
-    
-    echo -ne "${C_MAG}>> Meracik sistem utama bot (v25)...${C_RST}"
+    echo -ne "${C_MAG}>> Meracik sistem utama bot (v28 FULL)...${C_RST}"
     generate_bot_script
     generate_web_app
     if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
-    rm -rf node_modules package-lock.json
+    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser > /dev/null 2>&1
     echo -e "${C_GREEN}[Selesai]${C_RST}"
-    
-    echo -ne "${C_MAG}>> Mengunduh modul WhatsApp Baileys...${C_RST}"
-    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser > /dev/null 2>&1 &
-    spin $!
-    echo -e "${C_GREEN}[Selesai]${C_RST}"
-    
-    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_GREEN}${C_BOLD}                 ✅ INSTALASI SELESAI!                ${C_RST}"
-    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     read -p "Tekan Enter untuk kembali ke Panel Utama..."
 }
 
 # ==========================================
-# LAIN-LAIN: SUB-MENU TELEGRAM & BACKUP 
+# 5. SUB-MENU TELEGRAM SETUP
 # ==========================================
 menu_telegram() {
     while true; do
@@ -865,6 +721,9 @@ menu_telegram() {
     done
 }
 
+# ==========================================
+# 6. SUB-MENU BACKUP & RESTORE
+# ==========================================
 menu_backup() {
     while true; do
         clear
@@ -929,6 +788,9 @@ menu_backup() {
     done
 }
 
+# ==========================================
+# 7. SUB-MENU MANAJEMEN MEMBER
+# ==========================================
 menu_member() {
     while true; do
         clear
@@ -946,7 +808,7 @@ menu_member() {
 
         case $subchoice in
             1)
-                read -p "Masukkan ID Member: " nomor
+                read -p "Masukkan ID Member (No WA): " nomor
                 read -p "Masukkan Jumlah Saldo: " jumlah
                 node -e "
                     const fs = require('fs');
@@ -960,7 +822,7 @@ menu_member() {
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
-                read -p "Masukkan ID Member: " nomor
+                read -p "Masukkan ID Member (No WA): " nomor
                 read -p "Masukkan Jumlah Saldo yg dikurangi: " jumlah
                 node -e "
                     const fs = require('fs');
@@ -982,7 +844,7 @@ menu_member() {
                     let members = Object.keys(db);
                     if(members.length === 0) console.log('\x1b[33mBelum ada member.\x1b[0m');
                     else {
-                        members.forEach((m, i) => console.log((i + 1) + '. ID: ' + m + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID')));
+                        members.forEach((m, i) => console.log((i + 1) + '. ID: ' + m + ' | Email: ' + (db[m].email || '-') + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID')));
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -994,7 +856,7 @@ menu_member() {
 }
 
 # ==========================================
-# 7. MANAJEMEN PRODUK (DENGAN KATEGORI & BRAND)
+# 8. MANAJEMEN PRODUK (DENGAN KATEGORI & BRAND)
 # ==========================================
 menu_produk() {
     while true; do
@@ -1280,19 +1142,19 @@ menu_produk() {
 }
 
 # ==========================================
-# 8. MENU UTAMA (PANEL KONTROL)
+# 9. MENU UTAMA (PANEL KONTROL)
 # ==========================================
 while true; do
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     echo -e "${C_YELLOW}${C_BOLD}             🤖 PANEL ADMIN TENDO STORE 🤖            ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_MAG}▶ MANAJEMEN BOT${C_RST}"
+    echo -e "${C_MAG}▶ MANAJEMEN BOT & WEB APP${C_RST}"
     echo -e "  ${C_GREEN}[1]${C_RST}  Install & Perbarui Sistem"
     echo -e "  ${C_GREEN}[2]${C_RST}  Mulai Bot (Terminal / Scan QR)"
-    echo -e "  ${C_GREEN}[3]${C_RST}  Jalankan Bot di Latar Belakang (PM2)"
-    echo -e "  ${C_GREEN}[4]${C_RST}  Hentikan Bot (PM2)"
-    echo -e "  ${C_GREEN}[5]${C_RST}  Lihat Log / Error Bot"
+    echo -e "  ${C_GREEN}[3]${C_RST}  Jalankan Bot & Web di Latar Belakang (PM2)"
+    echo -e "  ${C_GREEN}[4]${C_RST}  Hentikan Bot & Web (PM2)"
+    echo -e "  ${C_GREEN}[5]${C_RST}  Lihat Log / Error"
     echo ""
     echo -e "${C_MAG}▶ MANAJEMEN TOKO & SISTEM${C_RST}"
     echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo Member"
@@ -1325,16 +1187,18 @@ while true; do
                 fi
             fi
             echo -e "\n${C_MAG}⏳ Menjalankan bot... (Tekan CTRL+C untuk mematikan dan kembali ke menu)${C_RST}"
+            export IP_ADDRESS=$(curl -s ifconfig.me)
             node index.js
             echo -e "\n${C_YELLOW}⚠️ Proses bot terhenti.${C_RST}"
             read -p "Tekan Enter untuk kembali ke panel utama..."
             ;;
         3) 
             pm2 delete tendo-bot >/dev/null 2>&1
+            export IP_ADDRESS=$(curl -s ifconfig.me)
             pm2 start index.js --name "tendo-bot" >/dev/null 2>&1
             pm2 save >/dev/null 2>&1
             pm2 startup >/dev/null 2>&1
-            echo -e "\n${C_GREEN}✅ Bot berhasil berjalan di latar belakang!${C_RST}"
+            echo -e "\n${C_GREEN}✅ Sistem berhasil berjalan di latar belakang!${C_RST}"
             sleep 2 ;;
         4) 
             pm2 stop tendo-bot >/dev/null 2>&1
