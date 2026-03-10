@@ -12,6 +12,10 @@ C_MAG="\e[35m"
 C_RST="\e[0m"
 C_BOLD="\e[1m"
 
+# Buka Port 3000 di VPS agar Web bisa diakses
+sudo ufw allow 3000/tcp > /dev/null 2>&1 || true
+sudo iptables -A INPUT -p tcp --dport 3000 -j ACCEPT > /dev/null 2>&1 || true
+
 # ==========================================
 # 1. BIKIN SHORTCUT 'BOT' OTOMATIS DI VPS
 # ==========================================
@@ -22,7 +26,145 @@ if [ ! -f "/usr/bin/bot" ]; then
 fi
 
 # ==========================================
-# 2. FUNGSI UNTUK MEMBUAT FILE INDEX.JS
+# FUNGSI MEMBUAT TAMPILAN WEB APLIKASI (FRONTEND)
+# ==========================================
+generate_web_app() {
+    echo -e "${C_CYAN}⏳ Meracik Tampilan Web App...${C_RST}"
+    mkdir -p public
+    cat << 'EOF' > public/index.html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tendo Store App</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; margin: 0; display: flex; justify-content: center; }
+        #app { width: 100%; max-width: 480px; background: #fafafa; min-height: 100vh; box-shadow: 0 0 20px rgba(0,0,0,0.05); position: relative; padding-bottom: 50px;}
+        .header { background: linear-gradient(135deg, #0088cc, #005580); color: white; padding: 20px; text-align: center; font-size: 22px; font-weight: bold; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; box-shadow: 0 4px 15px rgba(0,136,204,0.2);}
+        .container { padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); margin-bottom: 20px; border: 1px solid #f0f0f0;}
+        .card-saldo { background: linear-gradient(135deg, #11998e, #38ef7d); color: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(17,153,142,0.3); margin-bottom: 25px;}
+        .btn { background: #0088cc; color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s;}
+        .btn:active { transform: scale(0.98); }
+        input { width: 100%; padding: 15px; margin-bottom: 15px; border: 1.5px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; outline: none;}
+        input:focus { border-color: #0088cc; }
+        .hidden { display: none; }
+        .product-item { background: white; padding: 15px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.02);}
+        .product-info { flex: 1; }
+        .product-name { font-weight: bold; font-size: 15px; color: #333; margin-bottom: 5px;}
+        .product-cat { font-size: 11px; font-weight: bold; color: #fff; background: #888; padding: 3px 8px; border-radius: 5px; display: inline-block; letter-spacing: 0.5px;}
+        .cat-pulsa { background: #ff9800; }
+        .cat-data { background: #2196f3; }
+        .cat-game { background: #9c27b0; }
+        .product-price { color: #0088cc; font-weight: bold; font-size: 16px; white-space: nowrap;}
+        .section-title { font-size: 18px; color: #444; margin-bottom: 15px; font-weight: 800; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header">📱 Tendo Store App</div>
+        <div class="container">
+            
+            <div id="login-screen">
+                <div class="card" style="margin-top: 20px;">
+                    <h2 style="margin-top:0; color: #333; text-align: center;">Masuk Member</h2>
+                    <p style="font-size:14px; color:#666; text-align: center; margin-bottom: 25px;">Masukkan ID Member atau Nomor WhatsApp Anda yang terdaftar di sistem kami.</p>
+                    <input type="number" id="phone-input" placeholder="Contoh: 628123456789">
+                    <button class="btn" onclick="login()">Masuk ke Aplikasi</button>
+                </div>
+            </div>
+
+            <div id="dashboard-screen" class="hidden">
+                <div class="card-saldo">
+                    <div style="font-size:14px; opacity: 0.9; margin-bottom: 5px;">Total Saldo Anda</div>
+                    <h1 style="margin: 0; font-size: 32px;" id="user-saldo">Rp 0</h1>
+                    <div style="font-size:13px; opacity: 0.8; margin-top: 10px; background: rgba(0,0,0,0.1); display: inline-block; padding: 4px 10px; border-radius: 20px;" id="user-id">ID: -</div>
+                </div>
+                
+                <div class="section-title">🛒 Katalog Produk</div>
+                <div id="product-list">
+                    <div style="text-align:center; padding: 20px; color: #888;">Memuat data dari server...</div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <script>
+        // FUNGSI LOGIN / CEK DATABASE
+        async function login() {
+            let phone = document.getElementById('phone-input').value.trim();
+            if(!phone) return alert('Silakan masukkan nomor WhatsApp Anda!');
+            
+            let btn = document.querySelector('.btn');
+            btn.innerText = 'Memeriksa...';
+            btn.style.opacity = '0.7';
+            
+            try {
+                let res = await fetch('/api/member', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({phone: phone})
+                });
+                let data = await res.json();
+                
+                if(data.success) {
+                    document.getElementById('login-screen').classList.add('hidden');
+                    document.getElementById('dashboard-screen').classList.remove('hidden');
+                    document.getElementById('user-saldo').innerText = 'Rp ' + data.data.saldo.toLocaleString('id-ID');
+                    document.getElementById('user-id').innerText = 'Member ID: ' + phone;
+                    loadProducts(); // Panggil data harga
+                } else {
+                    alert('Nomor belum terdaftar! Silakan chat Bot WA Tendo Store terlebih dahulu agar nomor terdaftar otomatis.');
+                    btn.innerText = 'Masuk ke Aplikasi';
+                    btn.style.opacity = '1';
+                }
+            } catch(e) {
+                alert('Gagal terhubung ke server.');
+                btn.innerText = 'Masuk ke Aplikasi';
+                btn.style.opacity = '1';
+            }
+        }
+
+        // FUNGSI MENGAMBIL DATA PRODUK DARI VPS
+        async function loadProducts() {
+            try {
+                let res = await fetch('/api/produk');
+                let produk = await res.json();
+                let listHTML = '';
+                
+                for(let key in produk) {
+                    let p = produk[key];
+                    let badgeClass = 'cat-pulsa';
+                    if(p.kategori === 'Paket Data') badgeClass = 'cat-data';
+                    if(p.kategori === 'Topup Game') badgeClass = 'cat-game';
+                    
+                    listHTML += `
+                        <div class="product-item">
+                            <div class="product-info">
+                                <div class="product-name">${p.nama}</div>
+                                <div class="product-cat ${badgeClass}">${p.kategori} - ${p.brand || 'Lainnya'}</div>
+                            </div>
+                            <div class="product-price">Rp ${p.harga.toLocaleString('id-ID')}</div>
+                        </div>
+                    `;
+                }
+                
+                if(!listHTML) listHTML = '<div style="text-align:center; color:#888;">Produk sedang kosong</div>';
+                document.getElementById('product-list').innerHTML = listHTML;
+            } catch(e) {
+                document.getElementById('product-list').innerHTML = '<div style="text-align:center; color:red;">Gagal memuat produk.</div>';
+            }
+        }
+    </script>
+</body>
+</html>
+EOF
+}
+
+# ==========================================
+# 2. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BOT + API SERVER)
 # ==========================================
 generate_bot_script() {
     cat << 'EOF' > index.js
@@ -38,6 +180,8 @@ const crypto = require('crypto');
 
 const app = express();
 app.use(bodyParser.json());
+// 🌟 MENGAKTIFKAN FOLDER PUBLIC UNTUK WEB APP
+app.use(express.static('public')); 
 
 const configFile = './config.json';
 const dbFile = './database.json';
@@ -59,6 +203,32 @@ saveJSON(configFile, configAwal);
 if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
 if (!fs.existsSync(produkFile)) saveJSON(produkFile, {});
 if (!fs.existsSync(trxFile)) saveJSON(trxFile, {});
+
+// ==========================================
+// 🚀 API ENDPOINT UNTUK WEB APP MENGAMBIL DATA
+// ==========================================
+
+// API Mengambil Katalog Produk
+app.get('/api/produk', (req, res) => {
+    let produk = loadJSON(produkFile);
+    res.json(produk);
+});
+
+// API Cek Data Member (Login Web)
+app.post('/api/member', (req, res) => {
+    let db = loadJSON(dbFile);
+    let phone = req.body.phone; 
+    
+    // Hapus karakter non-angka untuk keamanan
+    if(phone) phone = phone.replace(/[^0-9]/g, '');
+    
+    if (db[phone]) {
+        res.json({success: true, data: db[phone]});
+    } else {
+        res.json({success: false, message: "Nomor tidak terdaftar"});
+    }
+});
+
 
 let pairingRequested = false; 
 
@@ -90,7 +260,6 @@ async function startBot() {
     
     console.log("\x1b[36m⏳ Mengambil konfigurasi keamanan WhatsApp terbaru...\x1b[0m");
     const { version, isLatest } = await fetchLatestBaileysVersion();
-    console.log(`\x1b[34m📡 Menghubungkan ke WA Web v${version.join('.')} (Stabil: ${isLatest})\x1b[0m`);
     
     const sock = makeWASocket({
         version,
@@ -235,7 +404,6 @@ async function startBot() {
             let bodyLower = body.trim().toLowerCase();
             let rawCommand = bodyLower.split(' ')[0];
 
-            // BATAL DAN MENU UTAMA
             if (['batal', 'cancel', 'bot', 'menu', '.menu', 'p', 'ping'].includes(rawCommand)) {
                 if (db[sender].step !== 'idle') {
                     db[sender].step = 'idle';
@@ -250,9 +418,6 @@ async function startBot() {
                 }
             }
 
-            // ==========================================
-            // LOGIKA PEMILIHAN KATEGORI, BRAND & PRODUK
-            // ==========================================
             if (db[sender].step === 'select_brand') {
                 let cat = db[sender].temp_category;
                 let brands = brandStructure[cat];
@@ -401,9 +566,6 @@ async function startBot() {
                 return;
             }
 
-            // ==========================================
-            // KECERDASAN ROUTER MENU (V24)
-            // ==========================================
             let command = '';
             const catMap = {
                 '3': 'Pulsa', 'pulsa': 'Pulsa',
@@ -420,10 +582,12 @@ async function startBot() {
             else if (catMap[rawCommand]) {
                 command = '.show_cat';
                 db[sender].temp_category = catMap[rawCommand];
+            } else if (rawCommand === 'order' || rawCommand === '.order') {
+                command = '.order_bypass';
             }
 
             if (command === 'bot') {
-                let menuText = `👋 Selamat Datang di *${namaBot}* (v24)\n`;
+                let menuText = `👋 Selamat Datang di *${namaBot}* (v25)\n`;
                 menuText += `📌 *ID Member:* ${sender}\n\n`;
                 menuText += `1. *Cek Saldo*\n`;
                 menuText += `2. *Cek Semua Harga*\n`;
@@ -433,7 +597,8 @@ async function startBot() {
                 menuText += `6. *Topup E-Wallet*\n`;
                 menuText += `7. *Token Listrik*\n`;
                 menuText += `8. *Masa Aktif*\n\n`;
-                menuText += `_👉 Cukup balas dengan angka pilihan di atas untuk order/cek (Contoh: ketik *3* untuk membeli Pulsa)._`;
+                menuText += `_👉 Cukup balas dengan angka pilihan di atas untuk order/cek (Contoh: ketik *3* untuk membeli Pulsa)._\n\n`;
+                menuText += `🌐 *Akses Web App Tendo Store sekarang untuk kemudahan bertransaksi!*`;
                 await sock.sendMessage(from, { text: menuText });
                 return;
             }
@@ -478,7 +643,6 @@ async function startBot() {
                 let cat = db[sender].temp_category;
                 let brands = brandStructure[cat] || [];
                 
-                // Jika hanya ada 1 brand (contoh: Token Listrik), langsung tampilkan produknya
                 if (brands.length === 1) {
                     db[sender].temp_brand = brands[0];
                     db[sender].step = 'order_product';
@@ -503,7 +667,6 @@ async function startBot() {
                     await sock.sendMessage(from, { text: textCat.trim() });
                     return;
                 } else {
-                    // Jika ada lebih dari 1 brand, suruh pilih provider/brand dulu
                     db[sender].step = 'select_brand';
                     saveJSON(dbFile, db);
                     
@@ -515,6 +678,24 @@ async function startBot() {
                     textBrand += `\n👉 *Balas pesan ini dengan ANGKA pilihannya (Contoh: ketik 1)*\n\n_Ketik *batal* untuk membatalkan._`;
                     await sock.sendMessage(from, { text: textBrand });
                     return;
+                }
+            }
+
+            if (command === '.order_bypass') {
+                const args = body.split(' ').slice(1);
+                if (args.length >= 2) {
+                    let kodeProduk = args[0].toUpperCase();
+                    const tujuan = args[1].replace(/[^0-9]/g, '');
+                    if (!produkDB[kodeProduk]) return await sock.sendMessage(from, { text: `❌ Kode tidak ditemukan.` });
+                    
+                    db[sender].step = 'order_target'; 
+                    db[sender].temp_sku = kodeProduk;
+                    saveJSON(dbFile, db);
+                    
+                    m.messages[0].message.conversation = tujuan;
+                    sock.ev.emit('messages.upsert', m);
+                } else {
+                    await sock.sendMessage(from, { text: `Ketik *bot* untuk melihat menu, atau pilih angka kategori langsung.` });
                 }
             }
 
@@ -547,9 +728,11 @@ async function startBot() {
 }
 
 if (require.main === module) {
-    app.listen(3000, () => {
-        console.log('\x1b[32m🌐 Server Webhook siap.\x1b[0m');
-    }).on('error', (err) => {});
+    app.listen(3000, '0.0.0.0', () => {
+        console.log('\x1b[32m🌐 SERVER WEB APLIKASI AKTIF PADA PORT 3000.\x1b[0m');
+    }).on('error', (err) => {
+        console.log('\x1b[31m⚠️ Gagal menjalankan server web. Mungkin port 3000 sudah dipakai.\x1b[0m');
+    });
     startBot().catch(err => console.error(err));
 }
 EOF
@@ -602,8 +785,9 @@ install_dependencies() {
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    echo -ne "${C_MAG}>> Meracik sistem utama bot (v24)...${C_RST}"
+    echo -ne "${C_MAG}>> Meracik sistem utama bot (v25)...${C_RST}"
     generate_bot_script
+    generate_web_app
     if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
     rm -rf node_modules package-lock.json
     echo -e "${C_GREEN}[Selesai]${C_RST}"
@@ -1007,7 +1191,6 @@ menu_produk() {
                         }
                     }
                     
-                    // Supaya produk lama yang belum di set brand-nya otomatis menjadi 'Lainnya' jika diedit tanpa mengubah kategori
                     if(!item.brand) item.brand = 'Lainnya';
                     
                     if (oldKey !== newKey) {
