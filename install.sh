@@ -26,7 +26,7 @@ if [ ! -f "/usr/bin/bot" ]; then
 fi
 
 # ==========================================
-# 2. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI (PREMIUM ICONS & NAVBAR)
+# 2. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI
 # ==========================================
 generate_web_app() {
     mkdir -p public
@@ -59,7 +59,7 @@ EOF
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0b2136">
     <style>
-        /* TEMA PREMIUM EKSKLUSIF SESUAI GAMBAR 2 */
+        /* TEMA PREMIUM EKSKLUSIF */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f7f6; color: #1e293b; margin: 0; display: flex; justify-content: center; }
         #app { width: 100%; max-width: 480px; background: #f8fafc; min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 80px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.05);}
         
@@ -103,12 +103,11 @@ EOF
         .grid-icon-wrap svg { width: 100%; height: 100%; }
         .grid-text { font-size: 10px; color: #0b2136; font-weight: 800; line-height: 1.2; text-transform: uppercase;}
 
-        /* BOTTOM NAV DENGAN ANIMASI GRAYSCALE KE WARNA */
+        /* BOTTOM NAV */
         .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 480px; background: #ffffff; display: flex; justify-content: space-around; padding: 10px 0 8px; border-top: 1px solid #e2e8f0; box-shadow: 0 -2px 10px rgba(0,0,0,0.02); z-index: 90;}
         .nav-item { text-align: center; color: #94a3b8; font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700; transition: color 0.3s;}
-        .nav-icon { margin-bottom: 3px; display: flex; justify-content: center; align-items: center; filter: grayscale(100%); opacity: 0.6; transition: filter 0.3s, opacity 0.3s;}
+        .nav-icon { margin-bottom: 3px; display: flex; justify-content: center; align-items: center;}
         .nav-item.active { color: #0b2136;}
-        .nav-item.active .nav-icon { filter: grayscale(0%); opacity: 1;}
 
         /* TAB SYSTEM */
         .provider-tabs { display: flex; overflow-x: auto; gap: 10px; padding: 15px 20px; background: #ffffff; border-bottom: 1px solid #f1f5f9; position: sticky; top: 56px; z-index: 50;}
@@ -140,7 +139,7 @@ EOF
         .sidebar-menu { padding: 10px 0; flex: 1;}
         .sidebar-item { padding: 15px 20px; display: flex; align-items: center; color: #334155; text-decoration: none; font-size: 14px; border-bottom: 1px solid #f8fafc; font-weight: 600;}
         .sidebar-item:active { background: #f1f5f9; }
-        .sb-icon { width: 30px; font-size: 18px; color: inherit; filter: grayscale(100%); }
+        .sb-icon { width: 30px; font-size: 18px; color: inherit; }
 
         /* FORMS & COMPONENTS */
         .container { padding: 20px; }
@@ -182,6 +181,12 @@ EOF
         
         .screen-header { padding: 15px 20px; font-weight: 800; font-size: 18px; display: flex; align-items: center; gap: 15px; background: #ffffff; border-bottom: 1px solid #e2e8f0; position: sticky; top:0; z-index: 10; color: #0b2136;}
         .hidden { display: none !important; }
+        
+        /* Ikon Back (Panah kiri) */
+        .back-icon {
+            cursor: pointer;
+            fill: #0b2136;
+        }
     </style>
 </head>
 <body>
@@ -263,7 +268,7 @@ EOF
 
             <div class="grid-title">Layanan Favorit</div>
             <div class="grid-container">
-                <div class="grid-box" onclick="loadCategory('Pulsa Reguler')">
+                <div class="grid-box" onclick="loadCategory('Pulsa')">
                     <div class="grid-icon-wrap">
                         <svg viewBox="0 0 48 48">
                             <rect x="6" y="4" width="22" height="36" rx="4" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
@@ -275,7 +280,7 @@ EOF
                     </div>
                     <div class="grid-text">PULSA</div>
                 </div>
-                <div class="grid-box" onclick="loadCategory('Paket Data')">
+                <div class="grid-box" onclick="loadCategory('Data')">
                     <div class="grid-icon-wrap">
                         <svg viewBox="0 0 48 48">
                             <rect x="6" y="6" width="20" height="32" rx="4" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
@@ -309,7 +314,7 @@ EOF
                     </div>
                     <div class="grid-text">SMS TELP</div>
                 </div>
-                <div class="grid-box" onclick="loadCategory('Token PLN')">
+                <div class="grid-box" onclick="loadCategory('PLN')">
                     <div class="grid-icon-wrap">
                         <svg viewBox="0 0 48 48">
                             <rect x="6" y="14" width="12" height="16" rx="2" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
@@ -347,7 +352,7 @@ EOF
                     </div>
                     <div class="grid-text">TAGIHAN</div>
                 </div>
-                <div class="grid-box" onclick="loadCategory('Saldo E-Toll')">
+                <div class="grid-box" onclick="loadCategory('E-Toll')">
                     <div class="grid-icon-wrap">
                         <svg viewBox="0 0 48 48">
                             <rect x="6" y="14" width="6" height="26" fill="#F97316" stroke="#0b2136" stroke-width="2"/>
@@ -382,13 +387,15 @@ EOF
             <div style="padding: 20px; margin: 30px 20px; background: #ffffff; border-radius: 16px; text-align: center; border: 1px dashed #cbd5e1;" id="install-banner" class="hidden">
                 <strong style="color:#0b2136; font-size:14px;">Aplikasi Tendo Store</strong><br>
                 <span style="font-size:12px; color:#64748b; font-weight: 600;">Pasang di layar utama HP Anda untuk akses cepat!</span><br>
-                <button class="btn" style="margin-top:15px; padding: 10px 30px; font-size:13px; width:auto; border-radius:20px;" id="install-btn">Install Sekarang</button>
+                <button class="btn" style="margin-top:15px; padding: 10px 30px; font-size:12px; width:auto; border-radius:20px;" id="install-btn">Install Sekarang</button>
             </div>
         </div>
 
         <div id="produk-screen" class="hidden">
             <div class="screen-header">
-                <span style="cursor:pointer; font-size:22px; margin-right: 10px;" onclick="showDashboard()">🔙</span>
+                <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                </svg>
                 <span id="cat-title-text" style="text-transform: uppercase;">Katalog</span>
             </div>
             
@@ -398,8 +405,10 @@ EOF
 
         <div id="history-screen" class="hidden">
             <div class="screen-header">
-                <span style="cursor:pointer; font-size:22px; margin-right: 10px;" onclick="showDashboard()">🔙</span>
-                <span>Riwayat Transaksi</span>
+                <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                </svg>
+                <span style="text-transform: uppercase;">Riwayat Transaksi</span>
             </div>
             <div id="history-list" style="padding-top:10px;"></div>
         </div>
@@ -408,7 +417,7 @@ EOF
             <div class="prof-header">
                 <div class="prof-avatar" id="p-avatar">T</div>
                 <h2 style="margin:0 0 5px 0; font-size: 20px;" id="p-username">Username</h2>
-                <div style="font-size:13px; opacity:0.9;" id="p-id">ID: TD-000000</div>
+                <div style="font-size:13px; font-weight: bold; color: rgba(255,255,255,0.8);" id="p-id">ID: TD-000000</div>
             </div>
             <div class="prof-box">
                 <div class="prof-row"><span class="prof-label">Email</span><span class="prof-val" id="p-email">-</span></div>
@@ -427,7 +436,9 @@ EOF
 
         <div id="notif-screen" class="hidden">
             <div class="screen-header">
-                <span style="cursor:pointer; font-size:22px; margin-right: 10px;" onclick="showDashboard()">🔙</span>
+                <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                </svg>
                 <span>Pemberitahuan</span>
             </div>
             <div class="container">
@@ -442,15 +453,15 @@ EOF
             <div class="nav-item active" id="nav-home" onclick="showDashboard()">
                 <span class="nav-icon">
                     <svg viewBox="0 0 24 24" width="24" height="24">
-                      <path d="M3 10 l9-7 9 7 v11 a2 2 0 0 1 -2 2 H5 a2 2 0 0 1 -2 -2 z" fill="#E0F2FE" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                      <path d="M9 22 V12 h6 v10" fill="#60A5FA" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                      <path d="M3 10 l9-7 9 7 v11 a2 2 0 0 1 -2 2 H5 a2 2 0 0 1 -2 -2 z" fill="#f8fafc" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                      <path d="M9 22 V12 h6 v10" fill="#e2e8f0" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                     </svg>
                 </span>HOME
             </div>
             <div class="nav-item" id="nav-history" onclick="showHistory()">
                 <span class="nav-icon">
                     <svg viewBox="0 0 24 24" width="24" height="24">
-                      <rect x="5" y="3" width="14" height="18" rx="2" fill="#E0F2FE" stroke="currentColor" stroke-width="2"/>
+                      <rect x="5" y="3" width="14" height="18" rx="2" fill="#f8fafc" stroke="currentColor" stroke-width="2"/>
                       <path d="M9 8h6 M9 12h6 M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                     </svg>
                 </span>RIWAYAT
@@ -458,16 +469,16 @@ EOF
             <div class="nav-item" id="nav-notif" onclick="showNotif()">
                 <span class="nav-icon">
                     <svg viewBox="0 0 24 24" width="24" height="24">
-                      <path d="M18 8 A6 6 0 0 0 6 8 c0 7 -3 9 -3 9 h18 s-3 -2 -3 -9" fill="#FEF08A" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                      <path d="M13.73 21 a2 2 0 0 1 -3.46 0" fill="#F59E0B" stroke="currentColor" stroke-width="2"/>
+                      <path d="M18 8 A6 6 0 0 0 6 8 c0 7 -3 9 -3 9 h18 s-3 -2 -3 -9" fill="#f8fafc" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                      <path d="M13.73 21 a2 2 0 0 1 -3.46 0" fill="#e2e8f0" stroke="currentColor" stroke-width="2"/>
                     </svg>
                 </span>INFO
             </div>
             <div class="nav-item" id="nav-profile" onclick="showProfile()">
                 <span class="nav-icon">
                     <svg viewBox="0 0 24 24" width="24" height="24">
-                      <path d="M20 21 v-2 a4 4 0 0 0 -4 -4 H8 a4 4 0 0 0 -4 4 v2" fill="#DCFCE7" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                      <circle cx="12" cy="7" r="4" fill="#4ADE80" stroke="currentColor" stroke-width="2"/>
+                      <path d="M20 21 v-2 a4 4 0 0 0 -4 -4 H8 a4 4 0 0 0 -4 4 v2" fill="#f8fafc" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                      <circle cx="12" cy="7" r="4" fill="#e2e8f0" stroke="currentColor" stroke-width="2"/>
                     </svg>
                 </span>PROFIL
             </div>
@@ -537,6 +548,7 @@ EOF
     </div>
 
     <script>
+        // PWA SETUP
         let deferredPrompt;
         const installBanner = document.getElementById('install-banner');
         const installBtn = document.getElementById('install-btn');
@@ -548,8 +560,10 @@ EOF
         });
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 
+        // GLOBAL VARS
         let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let currentEditMode = "";
 
+        // UI HELPERS
         function toggleSidebar() {
             const sb = document.getElementById('sidebar');
             const ov = document.getElementById('sb-overlay');
@@ -600,7 +614,6 @@ EOF
 
         function showDashboard() { 
             showScreen('dashboard-screen', 'nav-home'); 
-            document.getElementById('top-title').innerText = "Tendo Store"; 
             syncUserData();
         }
         function showHistory() { showScreen('history-screen', 'nav-history'); syncUserData(); }
@@ -1072,11 +1085,11 @@ function doBackupAndSend() {
 if (configAwal.autoBackup) setInterval(doBackupAndSend, (configAwal.backupInterval || 720) * 60 * 1000); 
 
 const brandStructure = {
-    'Pulsa Reguler': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
+    'Pulsa': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
     'Masa Aktif': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
     'SMS & Telp': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
-    'Paket Data': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
-    'Token PLN': ['Token PLN'],
+    'Data': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
+    'PLN': ['Token PLN'],
     'E-Wallet': ['Gopay', 'Dana', 'Shopee Pay', 'OVO', 'LinkAja'],
     'Tagihan': ['PLN Pasca', 'BPJS', 'PDAM', 'Indihome'],
     'Saldo E-Toll': ['Mandiri E-Money', 'Brizzi', 'TapCash'],
@@ -1225,7 +1238,7 @@ install_dependencies() {
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
-    echo -ne "${C_MAG}>> Meracik sistem utama & Web App (v39 FINAL UI)...${C_RST}"
+    echo -ne "${C_MAG}>> Meracik sistem utama & Web App (v40 PREMIUM FINAL)...${C_RST}"
     generate_bot_script
     generate_web_app
     if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
@@ -1458,7 +1471,7 @@ menu_member() {
 }
 
 # ==========================================
-# 8. MANAJEMEN PRODUK
+# 8. MANAJEMEN PRODUK (KATEGORI SESUAI GAMBAR)
 # ==========================================
 menu_produk() {
     while true; do
@@ -1480,11 +1493,11 @@ menu_produk() {
             1)
                 echo -e "\n${C_MAG}--- TAMBAH PRODUK BARU ---${C_RST}"
                 echo -e "${C_CYAN}Pilih Kategori Utama:${C_RST}"
-                echo "1. Pulsa Reguler     6. E-Wallet"
-                echo "2. Paket Data        7. Tagihan"
-                echo "3. Masa Aktif        8. Saldo E-Toll"
-                echo "4. SMS & Telp        9. Digital"
-                echo "5. Token PLN"
+                echo "1. Pulsa         6. E-Wallet"
+                echo "2. Data          7. Tagihan"
+                echo "3. Masa Aktif    8. E-Toll"
+                echo "4. SMS Telp      9. Digital"
+                echo "5. PLN"
                 read -p "👉 Masukkan Nomor Kategori [1-9]: " cat_idx
                 
                 brand_idx="1"
@@ -1784,7 +1797,7 @@ while true; do
     echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo Member"
     echo -e "  ${C_GREEN}[7]${C_RST}  🛒 Manajemen Daftar Produk & Harga"
     echo -e "  ${C_GREEN}[8]${C_RST}  ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
-    echo -e "  ${C_GREEN}[9]${C_RST}  💾 Backup & Restore (Khusus 4 File Inti)"
+    echo -e "  ${C_GREEN}[9]${C_RST}  💾 Backup & Restore Data Database"
     echo -e "  ${C_GREEN}[10]${C_RST} 🔌 Ganti API Digiflazz"
     echo -e "  ${C_GREEN}[11]${C_RST} 🔄 Ganti Akun Bot WA (Reset Sesi)"
     echo -e "  ${C_GREEN}[12]${C_RST} 📢 Kirim Pesan Broadcast Kesemua Member (WA)"
