@@ -26,7 +26,7 @@ if [ ! -f "/usr/bin/bot" ]; then
 fi
 
 # ==========================================
-# 2. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI (PREMIUM UI)
+# 2. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI (PREMIUM ICONS & NAVBAR)
 # ==========================================
 generate_web_app() {
     mkdir -p public
@@ -59,9 +59,9 @@ EOF
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0b2136">
     <style>
-        /* TEMA PREMIUM EKSKLUSIF SESUAI GAMBAR */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; display: flex; justify-content: center; }
-        #app { width: 100%; max-width: 480px; background: #ffffff; min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 80px; border-left: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.05);}
+        /* TEMA PREMIUM EKSKLUSIF SESUAI GAMBAR 2 */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f7f6; color: #1e293b; margin: 0; display: flex; justify-content: center; }
+        #app { width: 100%; max-width: 480px; background: #f8fafc; min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 80px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.05);}
         
         /* TOP BAR */
         .top-bar { background: #0b2136; color: #ffffff; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100;}
@@ -69,49 +69,46 @@ EOF
         .brand-title { font-size: 16px; font-weight: bold; flex: 1; text-align: center; margin-right: -10px;}
         .trx-badge { font-size: 11px; background: #e3f2fd; color: #0b2136; padding: 4px 10px; border-radius: 12px; font-weight: 800;}
 
-        /* BANNER SALDO (MENYATU DENGAN HEADER & MELENGKUNG) */
+        /* BANNER SALDO */
+        .banner-container { background: #0b2136; border-radius: 0 0 25px 25px; padding: 0 20px 25px; box-shadow: 0 4px 15px rgba(11,33,54,0.1);}
         .banner { 
             background: linear-gradient(180deg, #0b2136 0%, #163756 100%); 
-            margin: 0; border-radius: 0 0 25px 25px; padding: 15px 20px 35px; 
+            border-radius: 16px; padding: 25px 20px; 
             color: #ffffff; text-align: center; position: relative; overflow: hidden;
-            box-shadow: 0 8px 20px rgba(11,33,54,0.15);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
         }
-        /* Efek garis lengkung transparan di banner */
-        .banner::before {
-            content: ''; position: absolute; bottom: -30px; left: -20px; right: -20px; height: 100px;
-            border-radius: 50%; border: 2px solid rgba(255,255,255,0.05); pointer-events: none;
-        }
-        .banner::after {
-            content: ''; position: absolute; top: -50px; right: -30px; width: 150px; height: 150px;
-            border-radius: 50%; border: 1px solid rgba(255,255,255,0.05); pointer-events: none;
-        }
+        .banner::before { content: ''; position: absolute; bottom: -40px; left: -20px; right: -20px; height: 120px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.05); pointer-events: none; }
+        .banner::after { content: ''; position: absolute; top: -50px; right: -30px; width: 150px; height: 150px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.05); pointer-events: none; }
         .saldo-title { font-size: 12px; font-weight: normal; opacity: 0.8; margin-bottom: 5px;}
-        .saldo-amount { font-size: 32px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 15px;}
+        .saldo-amount { font-size: 34px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 15px;}
         .btn-topup-dash { 
             background: #ffffff; color: #0b2136; border: none; 
-            padding: 8px 22px; border-radius: 20px; font-weight: 800; font-size: 11px; 
+            padding: 8px 25px; border-radius: 20px; font-weight: 900; font-size: 12px; 
             cursor: pointer; display: inline-block; position: relative; z-index: 2;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.2s;
         }
+        .btn-topup-dash:active { transform: scale(0.95); }
 
-        /* GRID MENU (PERSIS SEPERTI GAMBAR) */
+        /* GRID MENU */
         .grid-title { margin: 25px 20px 15px; font-weight: 800; color: #1e293b; font-size: 16px;}
         .grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 0 20px;}
         .grid-box { 
             background: #ffffff; border-radius: 14px; padding: 15px 5px; 
             text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; 
-            border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(226,232,240,0.4);
-            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(226,232,240,0.5);
+            transition: transform 0.2s, border-color 0.2s;
         }
-        .grid-box:active { transform: scale(0.95); border-color: #cbd5e1; }
-        .grid-icon-wrap { font-size: 28px; margin-bottom: 8px; line-height: 1;}
-        .grid-text { font-size: 10px; color: #334155; font-weight: 800; line-height: 1.2; text-transform: uppercase;}
+        .grid-box:active { transform: scale(0.95); border-color: #0b2136; }
+        .grid-icon-wrap { width: 45px; height: 45px; margin-bottom: 8px; display: flex; justify-content: center; align-items: center;}
+        .grid-icon-wrap svg { width: 100%; height: 100%; }
+        .grid-text { font-size: 10px; color: #0b2136; font-weight: 800; line-height: 1.2; text-transform: uppercase;}
 
-        /* BOTTOM NAV */
+        /* BOTTOM NAV DENGAN ANIMASI GRAYSCALE KE WARNA */
         .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 480px; background: #ffffff; display: flex; justify-content: space-around; padding: 10px 0 8px; border-top: 1px solid #e2e8f0; box-shadow: 0 -2px 10px rgba(0,0,0,0.02); z-index: 90;}
-        .nav-item { text-align: center; color: #94a3b8; font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700;}
+        .nav-item { text-align: center; color: #94a3b8; font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700; transition: color 0.3s;}
+        .nav-icon { margin-bottom: 3px; display: flex; justify-content: center; align-items: center; filter: grayscale(100%); opacity: 0.6; transition: filter 0.3s, opacity 0.3s;}
         .nav-item.active { color: #0b2136;}
-        .nav-icon { font-size: 22px; margin-bottom: 2px; display: block;}
+        .nav-item.active .nav-icon { filter: grayscale(0%); opacity: 1;}
 
         /* TAB SYSTEM */
         .provider-tabs { display: flex; overflow-x: auto; gap: 10px; padding: 15px 20px; background: #ffffff; border-bottom: 1px solid #f1f5f9; position: sticky; top: 56px; z-index: 50;}
@@ -122,14 +119,15 @@ EOF
         /* PRODUCT LIST STYLE */
         .brand-header { padding: 15px 20px 5px; font-weight: bold; color: #64748b; font-size: 12px; text-transform: uppercase;}
         .product-item { background: #ffffff; padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02);}
-        .prod-logo { width: 45px; height: 45px; background: #f8fafc; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 800; color: #0b2136; font-size: 14px; border: 1px solid #e2e8f0;}
+        .prod-logo { width: 45px; height: 45px; background: #f8fafc; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; color: #0b2136; font-size: 14px; border: 1px solid #e2e8f0;}
         .prod-info { flex: 1; }
         .prod-name { font-weight: 800; font-size: 13px; color: #0b2136; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;}
-        .badge-open { background: #e0f2fe; color: #0284c7; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800;}
+        .badge-open { background: #e0f2fe; color: #0284c7; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800; border: 1px solid #bae6fd;}
         .prod-desc { font-size: 10px; color: #64748b; font-weight: 600; margin-bottom: 4px;}
         .prod-price { color: #0b2136; font-weight: 900; font-size: 15px;}
-        .badge-laris { background: #fff7ed; color: #ea580c; font-size: 9px; padding: 3px 8px; border-radius: 10px; font-weight: bold; float: right; margin-top: -15px;}
-        .btn-buy { background: #0b2136; color: #ffffff; border: none; padding: 8px 22px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer;}
+        .badge-laris { background: #fff7ed; color: #ea580c; font-size: 9px; padding: 3px 8px; border-radius: 10px; font-weight: bold; float: right; margin-top: -15px; border: 1px solid #ffedd5;}
+        .btn-buy { background: #0b2136; color: #ffffff; border: none; padding: 8px 22px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s;}
+        .btn-buy:active { transform: scale(0.95); }
 
         /* SIDEBAR */
         .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); z-index: 999; display: none; opacity: 0; transition: opacity 0.3s;}
@@ -142,7 +140,7 @@ EOF
         .sidebar-menu { padding: 10px 0; flex: 1;}
         .sidebar-item { padding: 15px 20px; display: flex; align-items: center; color: #334155; text-decoration: none; font-size: 14px; border-bottom: 1px solid #f8fafc; font-weight: 600;}
         .sidebar-item:active { background: #f1f5f9; }
-        .sb-icon { width: 30px; font-size: 18px; color: inherit; }
+        .sb-icon { width: 30px; font-size: 18px; color: inherit; filter: grayscale(100%); }
 
         /* FORMS & COMPONENTS */
         .container { padding: 20px; }
@@ -255,36 +253,143 @@ EOF
         </div>
 
         <div id="dashboard-screen" class="hidden">
-            <div class="banner" id="home-banner">
-                <div class="saldo-title">Sisa Saldo Anda</div>
-                <div class="saldo-amount" id="user-saldo">Rp 0</div>
-                <button class="btn-topup-dash" onclick="openTopupModal()">[+] ISI SALDO</button>
+            <div class="banner-container">
+                <div class="banner" id="home-banner">
+                    <div class="saldo-title">Sisa Saldo Anda</div>
+                    <div class="saldo-amount" id="user-saldo">Rp 0,00</div>
+                    <button class="btn-topup-dash" onclick="openTopupModal()">[+] ISI SALDO</button>
+                </div>
             </div>
 
             <div class="grid-title">Layanan Favorit</div>
             <div class="grid-container">
-                <div class="grid-box" onclick="loadCategory('Pulsa')"><div class="grid-icon-wrap">📱</div><div class="grid-text">PULSA</div></div>
-                <div class="grid-box" onclick="loadCategory('Data')"><div class="grid-icon-wrap">🌐</div><div class="grid-text">DATA</div></div>
-                <div class="grid-box" onclick="loadCategory('Masa Aktif')"><div class="grid-icon-wrap">📆</div><div class="grid-text">MASA AKTIF</div></div>
-                <div class="grid-box" onclick="loadCategory('SMS Telp')"><div class="grid-icon-wrap">📞</div><div class="grid-text">SMS TELP</div></div>
-                <div class="grid-box" onclick="loadCategory('PLN')"><div class="grid-icon-wrap">⚡</div><div class="grid-text">PLN</div></div>
-                <div class="grid-box" onclick="loadCategory('E-Wallet')"><div class="grid-icon-wrap">💼</div><div class="grid-text">E-WALLET</div></div>
-                <div class="grid-box" onclick="loadCategory('Tagihan')"><div class="grid-icon-wrap">🧾</div><div class="grid-text">TAGIHAN</div></div>
-                <div class="grid-box" onclick="loadCategory('E-Toll')"><div class="grid-icon-wrap">🛣️</div><div class="grid-text">E-TOLL</div></div>
-                <div class="grid-box" onclick="loadCategory('Digital')"><div class="grid-icon-wrap">🎮</div><div class="grid-text">DIGITAL</div></div>
+                <div class="grid-box" onclick="loadCategory('Pulsa Reguler')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 48 48">
+                            <rect x="6" y="4" width="22" height="36" rx="4" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
+                            <rect x="13" y="34" width="8" height="2" rx="1" fill="#0b2136"/>
+                            <circle cx="28" cy="32" r="8" fill="#FBBF24" stroke="#0b2136" stroke-width="2"/>
+                            <text x="28" y="36" font-size="12" font-family="Arial" font-weight="bold" fill="#0b2136" text-anchor="middle">$</text>
+                            <path d="M38 24 v-10 M44 24 v-16" stroke="#4ADE80" stroke-width="3" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="grid-text">PULSA</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('Paket Data')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 48 48">
+                            <rect x="6" y="6" width="20" height="32" rx="4" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
+                            <circle cx="32" cy="24" r="10" fill="#4ADE80" stroke="#0b2136" stroke-width="2"/>
+                            <path d="M22 24 h20 M32 14 v20 M27 15 c-4 5 -4 13 0 18 M37 15 c4 5 4 13 0 18" fill="none" stroke="#0b2136" stroke-width="2"/>
+                            <circle cx="16" cy="14" r="2" fill="#0b2136"/><circle cx="16" cy="22" r="2" fill="#0b2136"/><circle cx="16" cy="30" r="2" fill="#0b2136"/>
+                        </svg>
+                    </div>
+                    <div class="grid-text">DATA</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('Masa Aktif')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 48 48">
+                            <rect x="6" y="10" width="30" height="26" rx="3" fill="#ffffff" stroke="#0b2136" stroke-width="2"/>
+                            <path d="M12 6 v8 M30 6 v8" stroke="#F87171" stroke-width="3" stroke-linecap="round"/>
+                            <rect x="6" y="10" width="30" height="8" rx="3" fill="#F87171" stroke="#0b2136" stroke-width="2"/>
+                            <path d="M6 18 h30" stroke="#0b2136" stroke-width="2"/>
+                            <circle cx="34" cy="34" r="10" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
+                            <path d="M34 28 v6 l4 4" fill="none" stroke="#0b2136" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="grid-text">MASA AKTIF</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('SMS & Telp')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 48 48">
+                            <path d="M12 34 c-4-4 -6-10 -2-14 l4-4 c2-2 6-2 8 0 l2 2 c2 2 2 4 0 6 l-2 2 c0 4 4 8 8 8 l2-2 c2-2 4-2 6 0 l2 2 c2 2 2 6 0 8 l-4 4 c-4 4 -10 2 -14 -2 z" fill="#4ADE80" stroke="#0b2136" stroke-width="2"/>
+                            <path d="M26 12 h14 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-4 l-6 4 v-4 h-4 a4 4 0 0 1 -4 -4 v-8 a4 4 0 0 1 4 -4 z" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
+                            <circle cx="30" cy="20" r="1.5" fill="#0b2136"/><circle cx="35" cy="20" r="1.5" fill="#0b2136"/><circle cx="40" cy="20" r="1.5" fill="#0b2136"/>
+                        </svg>
+                    </div>
+                    <div class="grid-text">SMS TELP</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('Token PLN')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 48 48">
+                            <rect x="6" y="14" width="12" height="16" rx="2" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
+                            <path d="M10 8 v6 M14 8 v6" stroke="#0b2136" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M12 18 l-3 5 h6 l-3 5" fill="none" stroke="#0b2136" stroke-width="1.5" stroke-linejoin="round"/>
+                            <path d="M12 30 v4 c0 4 6 4 10 4 c10 0 10 -14 10 -14" fill="none" stroke="#0b2136" stroke-width="2"/>
+                            <circle cx="32" cy="18" r="10" fill="#FBBF24" stroke="#0b2136" stroke-width="2"/>
+                            <path d="M28 28 l4 4 l4-4" fill="none" stroke="#0b2136" stroke-width="2"/>
+                            <path d="M30 14 l-2 6 h6 l-2 6" fill="none" stroke="#0b2136" stroke-width="2" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="grid-text">PLN</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('E-Wallet')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 48 48">
+                            <path d="M14 10 h16 l4 -4 h8 v10" fill="#4ADE80" stroke="#0b2136" stroke-width="2" stroke-linejoin="round"/>
+                            <path d="M10 14 h12 l4 -4 h10 v10" fill="#34D399" stroke="#0b2136" stroke-width="2" stroke-linejoin="round"/>
+                            <rect x="4" y="16" width="36" height="24" rx="4" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
+                            <path d="M40 24 h-6 a4 4 0 0 0 0 8 h6" fill="#ffffff" stroke="#0b2136" stroke-width="2"/>
+                            <circle cx="36" cy="28" r="2" fill="#0b2136"/>
+                        </svg>
+                    </div>
+                    <div class="grid-text">E-WALLET</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('Tagihan')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 48 48">
+                            <path d="M10 6 h16 l4 4 v26 l-3-2 l-3 2 l-3-2 l-3 2 l-3-2 l-3 2 l-3-2 l-3 2 v-32 z" fill="#ffffff" stroke="#0b2136" stroke-width="2"/>
+                            <path d="M14 14 h10 M14 20 h14 M14 26 h6" stroke="#0b2136" stroke-width="2" stroke-linecap="round"/>
+                            <rect x="22" y="24" width="22" height="14" rx="2" fill="#4ADE80" stroke="#0b2136" stroke-width="2"/>
+                            <circle cx="33" cy="31" r="3" fill="#ffffff" stroke="#0b2136" stroke-width="1.5"/>
+                            <path d="M20 28 h2 M42 28 h2" stroke="#0b2136" stroke-width="2"/>
+                        </svg>
+                    </div>
+                    <div class="grid-text">TAGIHAN</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('Saldo E-Toll')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 48 48">
+                            <rect x="6" y="14" width="6" height="26" fill="#F97316" stroke="#0b2136" stroke-width="2"/>
+                            <path d="M4 14 h10 M9 14 v-4 h24 v4" fill="none" stroke="#0b2136" stroke-width="2"/>
+                            <rect x="15" y="6" width="12" height="4" fill="#ffffff" stroke="#0b2136" stroke-width="2"/>
+                            <path d="M12 24 h28" stroke="#0b2136" stroke-width="2" stroke-dasharray="4 4"/>
+                            <path d="M22 36 l-2 -8 h12 l-2 8 z" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
+                            <path d="M20 36 h12 v4 h-12 z" fill="#3B82F6" stroke="#0b2136" stroke-width="2"/>
+                            <circle cx="23" cy="38" r="1.5" fill="#ffffff"/><circle cx="29" cy="38" r="1.5" fill="#ffffff"/>
+                        </svg>
+                    </div>
+                    <div class="grid-text">E-TOLL</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('Digital')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 48 48">
+                            <path d="M8 26 c0-8 6-12 16-12 s16 4 16 12 c0 4-2 10-6 10 c-2 0-4-2-4-4 l-2-4 h-8 l-2 4 c0 2-2 4-4 4 c-4 0-6-6-6-10 z" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
+                            <circle cx="14" cy="24" r="3" fill="#ffffff" stroke="#0b2136" stroke-width="1.5"/>
+                            <path d="M14 21 v6 M11 24 h6" stroke="#0b2136" stroke-width="1.5"/>
+                            <circle cx="34" cy="22" r="1.5" fill="#0b2136"/><circle cx="32" cy="25" r="1.5" fill="#0b2136"/>
+                            <circle cx="36" cy="25" r="1.5" fill="#0b2136"/><circle cx="34" cy="28" r="1.5" fill="#0b2136"/>
+                            <rect x="10" y="4" width="8" height="6" rx="1" fill="#A78BFA" stroke="#0b2136" stroke-width="1.5"/>
+                            <path d="M13 5 l3 2 l-3 2 z" fill="#ffffff"/>
+                            <rect x="28" y="4" width="8" height="6" rx="1" fill="#F472B6" stroke="#0b2136" stroke-width="1.5"/>
+                            <path d="M31 5 l3 2 l-3 2 z" fill="#ffffff"/>
+                        </svg>
+                    </div>
+                    <div class="grid-text">DIGITAL</div>
+                </div>
             </div>
             
             <div style="padding: 20px; margin: 30px 20px; background: #ffffff; border-radius: 16px; text-align: center; border: 1px dashed #cbd5e1;" id="install-banner" class="hidden">
                 <strong style="color:#0b2136; font-size:14px;">Aplikasi Tendo Store</strong><br>
-                <span style="font-size:12px; color:#64748b; font-weight: 600;">Pasang di layar utama HP Anda!</span><br>
-                <button class="btn" style="margin-top:15px; padding: 10px 30px; font-size:12px; width:auto; border-radius:20px;" id="install-btn">Install Sekarang</button>
+                <span style="font-size:12px; color:#64748b; font-weight: 600;">Pasang di layar utama HP Anda untuk akses cepat!</span><br>
+                <button class="btn" style="margin-top:15px; padding: 10px 30px; font-size:13px; width:auto; border-radius:20px;" id="install-btn">Install Sekarang</button>
             </div>
         </div>
 
         <div id="produk-screen" class="hidden">
             <div class="screen-header">
                 <span style="cursor:pointer; font-size:22px; margin-right: 10px;" onclick="showDashboard()">🔙</span>
-                <span id="cat-title-text">Katalog</span>
+                <span id="cat-title-text" style="text-transform: uppercase;">Katalog</span>
             </div>
             
             <div class="provider-tabs" id="provider-tabs"></div>
@@ -303,7 +408,7 @@ EOF
             <div class="prof-header">
                 <div class="prof-avatar" id="p-avatar">T</div>
                 <h2 style="margin:0 0 5px 0; font-size: 20px;" id="p-username">Username</h2>
-                <div style="font-size:13px; font-weight: bold; color: rgba(255,255,255,0.8);" id="p-id">ID: TD-000000</div>
+                <div style="font-size:13px; opacity:0.9;" id="p-id">ID: TD-000000</div>
             </div>
             <div class="prof-box">
                 <div class="prof-row"><span class="prof-label">Email</span><span class="prof-val" id="p-email">-</span></div>
@@ -313,7 +418,7 @@ EOF
             </div>
             
             <div style="padding: 0 20px;">
-                <h3 style="font-size:14px; color:#64748b; margin-bottom:15px; font-weight: 800;">PENGATURAN</h3>
+                <h3 style="font-size:14px; color:#888; margin-bottom:15px;">PENGATURAN</h3>
                 <button class="prof-action-btn" onclick="openEditModal('email')"><span style="font-size: 18px;">✉️</span> Ubah Email</button>
                 <button class="prof-action-btn" onclick="openEditModal('phone')"><span style="font-size: 18px;">📱</span> Ubah Nomor WA</button>
                 <button class="prof-action-btn" onclick="openEditModal('password')"><span style="font-size: 18px;">🔐</span> Ubah Password</button>
@@ -328,38 +433,66 @@ EOF
             <div class="container">
                 <div class="card" style="border-left: 4px solid #0b2136;">
                     <h3 style="margin-top:0; color: #0b2136; font-size:15px;">📢 Info Terbaru</h3>
-                    <p id="notif-text" style="color: #475569; line-height: 1.6; font-size:13px; white-space: pre-wrap; font-weight: 600;">Memuat...</p>
+                    <p id="notif-text" style="color: #555; line-height: 1.6; font-size:13px; white-space: pre-wrap; font-weight: 500;">Memuat...</p>
                 </div>
             </div>
         </div>
 
         <div class="bottom-nav" id="main-bottom-nav">
-            <div class="nav-item active" id="nav-home" onclick="showDashboard()"><span class="nav-icon">🏠</span>Home</div>
-            <div class="nav-item" id="nav-history" onclick="showHistory()"><span class="nav-icon">🧾</span>Riwayat</div>
-            <div class="nav-item" id="nav-notif" onclick="showNotif()"><span class="nav-icon">🔔</span>Info</div>
-            <div class="nav-item" id="nav-profile" onclick="showProfile()"><span class="nav-icon">👤</span>Profil</div>
+            <div class="nav-item active" id="nav-home" onclick="showDashboard()">
+                <span class="nav-icon">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                      <path d="M3 10 l9-7 9 7 v11 a2 2 0 0 1 -2 2 H5 a2 2 0 0 1 -2 -2 z" fill="#E0F2FE" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                      <path d="M9 22 V12 h6 v10" fill="#60A5FA" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    </svg>
+                </span>HOME
+            </div>
+            <div class="nav-item" id="nav-history" onclick="showHistory()">
+                <span class="nav-icon">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                      <rect x="5" y="3" width="14" height="18" rx="2" fill="#E0F2FE" stroke="currentColor" stroke-width="2"/>
+                      <path d="M9 8h6 M9 12h6 M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </span>RIWAYAT
+            </div>
+            <div class="nav-item" id="nav-notif" onclick="showNotif()">
+                <span class="nav-icon">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                      <path d="M18 8 A6 6 0 0 0 6 8 c0 7 -3 9 -3 9 h18 s-3 -2 -3 -9" fill="#FEF08A" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                      <path d="M13.73 21 a2 2 0 0 1 -3.46 0" fill="#F59E0B" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </span>INFO
+            </div>
+            <div class="nav-item" id="nav-profile" onclick="showProfile()">
+                <span class="nav-icon">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                      <path d="M20 21 v-2 a4 4 0 0 0 -4 -4 H8 a4 4 0 0 0 -4 4 v2" fill="#DCFCE7" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                      <circle cx="12" cy="7" r="4" fill="#4ADE80" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </span>PROFIL
+            </div>
         </div>
 
         <div id="contact-modal" class="modal-overlay hidden">
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Pusat Bantuan</h3>
-                <p style="font-size:13px; color:#64748b; margin-bottom: 20px; font-weight: 600;">Silakan pilih platform untuk menghubungi Admin:</p>
-                <button class="btn" style="margin-bottom:10px; background:#22c55e;" onclick="window.open('https://wa.me/6282224460678', '_blank'); closeContactModal()">WhatsApp Admin</button>
-                <button class="btn" style="background:#0ea5e9;" onclick="window.open('https://t.me/tendo_32', '_blank'); closeContactModal()">Telegram Admin</button>
-                <div style="margin-top:20px;"><a href="#" style="color:#94a3b8; text-decoration:none; font-size:14px; font-weight:bold;" onclick="closeContactModal()">Tutup</a></div>
+                <p style="font-size:13px; color:#666; margin-bottom: 20px;">Silakan pilih platform untuk menghubungi Admin:</p>
+                <button class="btn" style="margin-bottom:10px; background:#25D366;" onclick="window.open('https://wa.me/6282224460678', '_blank'); closeContactModal()">WhatsApp Admin</button>
+                <button class="btn" style="background:#2CA5E0;" onclick="window.open('https://t.me/tendo_32', '_blank'); closeContactModal()">Telegram Admin</button>
+                <div style="margin-top:20px;"><a href="#" style="color:#aaa; text-decoration:none; font-size:14px; font-weight:bold;" onclick="closeContactModal()">Tutup</a></div>
             </div>
         </div>
 
         <div id="order-modal" class="modal-overlay hidden">
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Beli Produk</h3>
-                <div style="background:#f8fafc; padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid #e2e8f0;">
-                    <strong id="m-name" style="font-size:14px; color:#0b2136; line-height:1.4; display:block; margin-bottom:8px;">Produk</strong>
-                    <span style="color:#0b2136; font-weight:900; font-size: 22px;" id="m-price">Rp 0</span>
+                <div style="background:#f9f9f9; padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid #eee;">
+                    <strong id="m-name" style="font-size:14px; color:#2c3e50; line-height:1.4; display:block; margin-bottom:8px;">Produk</strong>
+                    <span style="color:#2c3e50; font-weight:900; font-size: 22px;" id="m-price">Rp 0</span>
                 </div>
                 <input type="text" id="m-target" placeholder="Masukkan Nomor/ID Tujuan">
                 <div class="modal-btns">
-                    <button class="btn-outline" style="margin-top:0; border-color:#e2e8f0; color:#64748b;" onclick="closeOrderModal()">Batal</button>
+                    <button class="btn-outline" style="margin-top:0; border-color:#ddd; color:#888;" onclick="closeOrderModal()">Batal</button>
                     <button class="btn" id="m-submit" onclick="processOrder()">Beli Sekarang</button>
                 </div>
             </div>
@@ -368,11 +501,11 @@ EOF
         <div id="topup-modal" class="modal-overlay hidden">
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Isi Saldo</h3>
-                <p style="font-size:12px; color:#64748b; margin-bottom:20px; font-weight: 600;">Sistem akan mengarahkan Anda ke WhatsApp Admin untuk instruksi pembayaran.</p>
+                <p style="font-size:12px; color:#666; margin-bottom:20px;">Sistem akan mengarahkan Anda ke WhatsApp Admin untuk instruksi pembayaran.</p>
                 <input type="text" id="topup-id" placeholder="Nomor HP atau Email Akun">
                 <input type="number" id="topup-nominal" placeholder="Nominal (Cth: 50000)">
                 <div class="modal-btns">
-                    <button class="btn-outline" style="margin-top:0; border-color:#e2e8f0; color:#64748b;" onclick="closeTopupModal()">Batal</button>
+                    <button class="btn-outline" style="margin-top:0; border-color:#ddd; color:#888;" onclick="closeTopupModal()">Batal</button>
                     <button class="btn" onclick="sendTopup()">Ajukan Topup</button>
                 </div>
             </div>
@@ -385,16 +518,16 @@ EOF
                 <div id="edit-step-1">
                     <input type="text" id="edit-input" placeholder="Masukkan data baru">
                     <div class="modal-btns">
-                        <button class="btn-outline" style="margin-top:0; border-color:#e2e8f0; color:#64748b;" onclick="closeEditModal()">Batal</button>
+                        <button class="btn-outline" style="margin-top:0; border-color:#ddd; color:#888;" onclick="closeEditModal()">Batal</button>
                         <button class="btn" onclick="reqEditOTP()">Kirim OTP</button>
                     </div>
                 </div>
 
                 <div id="edit-step-2" class="hidden">
-                    <p style="font-size:12px; color:#64748b; font-weight: 600;">OTP telah dikirim ke WA Anda.</p>
-                    <input type="number" id="edit-otp-input" placeholder="----" style="letter-spacing:12px; text-align:center; font-size:24px; background:#f8fafc;">
+                    <p style="font-size:12px; color:#666; font-weight: bold;">OTP telah dikirim ke WA Anda.</p>
+                    <input type="number" id="edit-otp-input" placeholder="----" style="letter-spacing:12px; text-align:center; font-size:24px; background:#f4f7f6;">
                     <div class="modal-btns">
-                        <button class="btn-outline" style="margin-top:0; border-color:#e2e8f0; color:#64748b;" onclick="closeEditModal()">Batal</button>
+                        <button class="btn-outline" style="margin-top:0; border-color:#ddd; color:#888;" onclick="closeEditModal()">Batal</button>
                         <button class="btn" onclick="verifyEditOTP()">Simpan</button>
                     </div>
                 </div>
@@ -404,7 +537,6 @@ EOF
     </div>
 
     <script>
-        // PWA SETUP
         let deferredPrompt;
         const installBanner = document.getElementById('install-banner');
         const installBtn = document.getElementById('install-btn');
@@ -416,10 +548,8 @@ EOF
         });
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 
-        // GLOBAL VARS
         let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let currentEditMode = "";
 
-        // UI HELPERS
         function toggleSidebar() {
             const sb = document.getElementById('sidebar');
             const ov = document.getElementById('sb-overlay');
@@ -518,7 +648,7 @@ EOF
                 let data = await res.json();
                 if(data.success) {
                     userData = data.data; let u = userData;
-                    document.getElementById('user-saldo').innerText = 'Rp ' + u.saldo.toLocaleString('id-ID');
+                    document.getElementById('user-saldo').innerText = 'Rp ' + u.saldo.toLocaleString('id-ID', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('top-trx-badge').innerText = (u.trx_count || 0) + ' Trx';
                     
                     let firstLetter = (u.username || "T").charAt(0).toUpperCase();
@@ -536,7 +666,7 @@ EOF
 
                     let histHTML = '';
                     let historyList = u.history || [];
-                    if(historyList.length === 0) histHTML = '<div style="text-align:center; color:#94a3b8; font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
+                    if(historyList.length === 0) histHTML = '<div style="text-align:center; color:#888; font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
                     else {
                         historyList.forEach(h => {
                             let statClass = 'stat-Pending';
@@ -679,7 +809,7 @@ EOF
                 filterBrand(cat, brands[0], document.querySelector('#provider-tabs .tab-btn'));
             } else {
                 document.getElementById('provider-tabs').style.display = 'none';
-                document.getElementById('product-list').innerHTML = '<div style="text-align:center; color:#94a3b8; padding:30px; font-weight:bold;">Produk belum tersedia.</div>';
+                document.getElementById('product-list').innerHTML = '<div style="text-align:center; color:#888; padding:30px; font-weight:bold;">Produk belum tersedia.</div>';
             }
             showScreen('produk-screen', 'nav-home');
         }
@@ -942,14 +1072,14 @@ function doBackupAndSend() {
 if (configAwal.autoBackup) setInterval(doBackupAndSend, (configAwal.backupInterval || 720) * 60 * 1000); 
 
 const brandStructure = {
-    'Pulsa': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
+    'Pulsa Reguler': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
     'Masa Aktif': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
-    'SMS Telp': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
-    'Data': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
-    'PLN': ['Token PLN'],
+    'SMS & Telp': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
+    'Paket Data': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
+    'Token PLN': ['Token PLN'],
     'E-Wallet': ['Gopay', 'Dana', 'Shopee Pay', 'OVO', 'LinkAja'],
     'Tagihan': ['PLN Pasca', 'BPJS', 'PDAM', 'Indihome'],
-    'E-Toll': ['Mandiri E-Money', 'Brizzi', 'TapCash'],
+    'Saldo E-Toll': ['Mandiri E-Money', 'Brizzi', 'TapCash'],
     'Digital': ['Mobile Legends', 'Free Fire', 'PUBG', 'Vidio', 'Netflix']
 };
 
@@ -1095,7 +1225,7 @@ install_dependencies() {
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
-    echo -ne "${C_MAG}>> Meracik sistem utama & Web App (v38 PREMIUM UI)...${C_RST}"
+    echo -ne "${C_MAG}>> Meracik sistem utama & Web App (v39 FINAL UI)...${C_RST}"
     generate_bot_script
     generate_web_app
     if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
@@ -1350,11 +1480,11 @@ menu_produk() {
             1)
                 echo -e "\n${C_MAG}--- TAMBAH PRODUK BARU ---${C_RST}"
                 echo -e "${C_CYAN}Pilih Kategori Utama:${C_RST}"
-                echo "1. Pulsa         6. E-Wallet"
-                echo "2. Data          7. Tagihan"
-                echo "3. Masa Aktif    8. E-Toll"
-                echo "4. SMS Telp      9. Digital"
-                echo "5. PLN"
+                echo "1. Pulsa Reguler     6. E-Wallet"
+                echo "2. Paket Data        7. Tagihan"
+                echo "3. Masa Aktif        8. Saldo E-Toll"
+                echo "4. SMS & Telp        9. Digital"
+                echo "5. Token PLN"
                 read -p "👉 Masukkan Nomor Kategori [1-9]: " cat_idx
                 
                 brand_idx="1"
