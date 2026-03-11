@@ -26,7 +26,7 @@ if [ ! -f "/usr/bin/bot" ]; then
 fi
 
 # ==========================================
-# 2. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI
+# 2. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI (PREMIUM UI)
 # ==========================================
 generate_web_app() {
     mkdir -p public
@@ -37,8 +37,8 @@ generate_web_app() {
   "short_name": "Tendo Store",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2c3e50",
+  "background_color": "#f8fafc",
+  "theme_color": "#0b2136",
   "orientation": "portrait",
   "icons": [{"src": "https://cdn-icons-png.flaticon.com/512/3144/3144456.png", "sizes": "512x512", "type": "image/png"}]
 }
@@ -57,126 +57,132 @@ EOF
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tendo Store</title>
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#2c3e50">
+    <meta name="theme-color" content="#0b2136">
     <style>
-        /* TEMA EKSKLUSIF: PUTIH & BOATSWAIN (#2c3e50) */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #ffffff; color: #2c3e50; margin: 0; display: flex; justify-content: center; }
-        #app { width: 100%; max-width: 480px; background: #ffffff; min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 80px; border-left: 2px solid #2c3e50; border-right: 2px solid #2c3e50; box-sizing: border-box;}
+        /* TEMA PREMIUM EKSKLUSIF SESUAI GAMBAR */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; display: flex; justify-content: center; }
+        #app { width: 100%; max-width: 480px; background: #ffffff; min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 80px; border-left: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.05);}
         
         /* TOP BAR */
-        .top-bar { background: #2c3e50; color: #ffffff; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; border-bottom: 2px solid #ffffff;}
+        .top-bar { background: #0b2136; color: #ffffff; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100;}
         .menu-btn { font-size: 24px; cursor: pointer; background: none; border: none; color: #ffffff; padding: 0; margin-right: 15px;}
-        .brand-title { font-size: 16px; font-weight: bold; flex: 1;}
-        .trx-badge { font-size: 12px; background: #ffffff; color: #2c3e50; padding: 4px 10px; border-radius: 12px; font-weight: bold;}
+        .brand-title { font-size: 16px; font-weight: bold; flex: 1; text-align: center; margin-right: -10px;}
+        .trx-badge { font-size: 11px; background: #e3f2fd; color: #0b2136; padding: 4px 10px; border-radius: 12px; font-weight: 800;}
 
-        /* SIDEBAR */
-        .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(44,62,80,0.85); z-index: 999; display: none; opacity: 0; transition: opacity 0.3s;}
-        .sidebar { position: fixed; top:0; left:-300px; width: 280px; height: 100%; background: #ffffff; z-index: 1000; transition: left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; border-right: 3px solid #2c3e50;}
-        .sidebar.open { left: 0; }
-        .sidebar-header { padding: 30px 20px; text-align: center; border-bottom: 2px solid #2c3e50; background: #2c3e50; color: #ffffff;}
-        .sidebar-avatar { width: 70px; height: 70px; background: #ffffff; border-radius: 50%; margin: 0 auto 10px auto; display: flex; justify-content: center; align-items: center; color: #2c3e50; font-size: 30px; font-weight: bold; border: 2px solid #ffffff;}
-        .sidebar-name { font-weight: bold; font-size: 16px; color: #ffffff;}
-        .sidebar-phone { font-size: 12px; color: #ffffff; opacity: 0.9;}
-        .sidebar-menu { padding: 10px 0; flex: 1;}
-        .sidebar-item { padding: 15px 20px; display: flex; align-items: center; color: #2c3e50; text-decoration: none; font-size: 14px; border-bottom: 1px solid rgba(44,62,80,0.1); font-weight: 600;}
-        .sidebar-item:active { background: #2c3e50; color: #ffffff; }
-        .sb-icon { width: 30px; font-size: 18px; color: inherit; filter: grayscale(100%);}
+        /* BANNER SALDO (MENYATU DENGAN HEADER & MELENGKUNG) */
+        .banner { 
+            background: linear-gradient(180deg, #0b2136 0%, #163756 100%); 
+            margin: 0; border-radius: 0 0 25px 25px; padding: 15px 20px 35px; 
+            color: #ffffff; text-align: center; position: relative; overflow: hidden;
+            box-shadow: 0 8px 20px rgba(11,33,54,0.15);
+        }
+        /* Efek garis lengkung transparan di banner */
+        .banner::before {
+            content: ''; position: absolute; bottom: -30px; left: -20px; right: -20px; height: 100px;
+            border-radius: 50%; border: 2px solid rgba(255,255,255,0.05); pointer-events: none;
+        }
+        .banner::after {
+            content: ''; position: absolute; top: -50px; right: -30px; width: 150px; height: 150px;
+            border-radius: 50%; border: 1px solid rgba(255,255,255,0.05); pointer-events: none;
+        }
+        .saldo-title { font-size: 12px; font-weight: normal; opacity: 0.8; margin-bottom: 5px;}
+        .saldo-amount { font-size: 32px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 15px;}
+        .btn-topup-dash { 
+            background: #ffffff; color: #0b2136; border: none; 
+            padding: 8px 22px; border-radius: 20px; font-weight: 800; font-size: 11px; 
+            cursor: pointer; display: inline-block; position: relative; z-index: 2;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        /* GRID MENU (PERSIS SEPERTI GAMBAR) */
+        .grid-title { margin: 25px 20px 15px; font-weight: 800; color: #1e293b; font-size: 16px;}
+        .grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 0 20px;}
+        .grid-box { 
+            background: #ffffff; border-radius: 14px; padding: 15px 5px; 
+            text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; 
+            border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(226,232,240,0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .grid-box:active { transform: scale(0.95); border-color: #cbd5e1; }
+        .grid-icon-wrap { font-size: 28px; margin-bottom: 8px; line-height: 1;}
+        .grid-text { font-size: 10px; color: #334155; font-weight: 800; line-height: 1.2; text-transform: uppercase;}
 
         /* BOTTOM NAV */
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 476px; background: #ffffff; display: flex; justify-content: space-around; padding: 10px 0; border-top: 2px solid #2c3e50; z-index: 90;}
-        .nav-item { text-align: center; color: #2c3e50; font-size: 11px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; opacity: 0.5; filter: grayscale(100%);}
-        .nav-item.active { opacity: 1; font-weight: bold; filter: none;}
-        .nav-icon { font-size: 20px; margin-bottom: 4px; display: block;}
-
-        /* DASHBOARD BANNER (MODERN WAVE STYLE) */
-        .banner { 
-            background: linear-gradient(135deg, #2c3e50, #1a252f); 
-            margin: 15px 20px; border-radius: 20px; padding: 25px 20px; 
-            color: #ffffff; position: relative; box-shadow: 0 8px 20px rgba(44,62,80,0.2);
-            overflow: hidden; text-align: center;
-        }
-        .banner::before {
-            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.05) 10%, transparent 20%);
-            background-size: 20px 20px; transform: rotate(30deg); pointer-events: none;
-        }
-        .saldo-title { font-size: 13px; font-weight: normal; opacity: 0.9; margin-bottom: 5px;}
-        .saldo-amount { font-size: 32px; font-weight: 900; letter-spacing: 1px;}
-        .btn-topup-dash { 
-            background: #ffffff; color: #2c3e50; border: none; 
-            padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 12px; 
-            margin-top: 15px; cursor: pointer; display: inline-block;
-        }
-
-        /* GRID MENU (CLEAN WHITE CARDS) */
-        .grid-title { margin: 25px 20px 15px; font-weight: 800; color: #2c3e50; font-size: 16px; }
-        .grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px 12px; padding: 0 20px;}
-        .grid-box { 
-            background: #ffffff; border-radius: 16px; padding: 15px 5px; 
-            text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; 
-            border: 1px solid rgba(44,62,80,0.15); box-shadow: 0 4px 10px rgba(44,62,80,0.05);
-            transition: transform 0.2s;
-        }
-        .grid-box:active { transform: scale(0.95); border-color: #2c3e50; }
-        .grid-icon-wrap { font-size: 30px; margin-bottom: 8px; }
-        .grid-text { font-size: 10px; color: #2c3e50; font-weight: 800; line-height: 1.2; text-transform: uppercase;}
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 480px; background: #ffffff; display: flex; justify-content: space-around; padding: 10px 0 8px; border-top: 1px solid #e2e8f0; box-shadow: 0 -2px 10px rgba(0,0,0,0.02); z-index: 90;}
+        .nav-item { text-align: center; color: #94a3b8; font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700;}
+        .nav-item.active { color: #0b2136;}
+        .nav-icon { font-size: 22px; margin-bottom: 2px; display: block;}
 
         /* TAB SYSTEM */
-        .provider-tabs { display: flex; overflow-x: auto; gap: 10px; padding: 15px 20px; background: #ffffff; border-bottom: 2px solid #2c3e50; position: sticky; top: 56px; z-index: 50;}
+        .provider-tabs { display: flex; overflow-x: auto; gap: 10px; padding: 15px 20px; background: #ffffff; border-bottom: 1px solid #f1f5f9; position: sticky; top: 56px; z-index: 50;}
         .provider-tabs::-webkit-scrollbar { display: none; }
-        .tab-btn { background: #ffffff; border: 2px solid #2c3e50; padding: 8px 18px; border-radius: 20px; font-size: 12px; white-space: nowrap; cursor: pointer; font-weight: bold; color: #2c3e50; opacity: 0.6; transition: 0.2s;}
-        .tab-btn.active { opacity: 1; background: #2c3e50; color: #ffffff;}
+        .tab-btn { background: #ffffff; border: 1px solid #cbd5e1; padding: 8px 18px; border-radius: 20px; font-size: 12px; white-space: nowrap; cursor: pointer; font-weight: bold; color: #64748b; transition: 0.2s;}
+        .tab-btn.active { background: #0b2136; color: #ffffff; border-color: #0b2136;}
 
         /* PRODUCT LIST STYLE */
-        .brand-header { padding: 10px 20px; background: #ffffff; font-weight: bold; color: #2c3e50; font-size: 14px; text-transform: uppercase; margin-top: 15px; border-bottom: 2px solid #2c3e50;}
-        .product-item { background: #ffffff; padding: 15px; border-radius: 16px; margin: 15px 20px; border: 2px solid #2c3e50; display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 10px rgba(44,62,80,0.05);}
-        .prod-logo { width: 45px; height: 45px; background: #ffffff; border: 2px solid #2c3e50; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: #2c3e50; font-size: 14px;}
+        .brand-header { padding: 15px 20px 5px; font-weight: bold; color: #64748b; font-size: 12px; text-transform: uppercase;}
+        .product-item { background: #ffffff; padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02);}
+        .prod-logo { width: 45px; height: 45px; background: #f8fafc; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 800; color: #0b2136; font-size: 14px; border: 1px solid #e2e8f0;}
         .prod-info { flex: 1; }
-        .prod-name { font-weight: 800; font-size: 13px; color: #2c3e50; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;}
-        .badge-open { background: #ffffff; color: #2c3e50; font-size: 9px; padding: 2px 6px; border-radius: 4px; border: 1px solid #2c3e50;}
-        .prod-desc { font-size: 10px; color: #2c3e50; font-weight: bold; margin-bottom: 4px; opacity: 0.8;}
-        .prod-price { color: #2c3e50; font-weight: 900; font-size: 15px;}
-        .badge-laris { background: #ffffff; color: #2c3e50; font-size: 9px; padding: 3px 6px; border-radius: 10px; font-weight: bold; float: right; margin-top: -15px; border: 1px solid #2c3e50;}
-        .btn-buy { background: #2c3e50; color: #ffffff; border: 1px solid #2c3e50; padding: 8px 20px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer;}
+        .prod-name { font-weight: 800; font-size: 13px; color: #0b2136; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;}
+        .badge-open { background: #e0f2fe; color: #0284c7; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800;}
+        .prod-desc { font-size: 10px; color: #64748b; font-weight: 600; margin-bottom: 4px;}
+        .prod-price { color: #0b2136; font-weight: 900; font-size: 15px;}
+        .badge-laris { background: #fff7ed; color: #ea580c; font-size: 9px; padding: 3px 8px; border-radius: 10px; font-weight: bold; float: right; margin-top: -15px;}
+        .btn-buy { background: #0b2136; color: #ffffff; border: none; padding: 8px 22px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer;}
+
+        /* SIDEBAR */
+        .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); z-index: 999; display: none; opacity: 0; transition: opacity 0.3s;}
+        .sidebar { position: fixed; top:0; left:-300px; width: 280px; height: 100%; background: #ffffff; z-index: 1000; transition: left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 5px 0 15px rgba(0,0,0,0.1);}
+        .sidebar.open { left: 0; }
+        .sidebar-header { padding: 30px 20px; text-align: center; border-bottom: 1px solid #f1f5f9; background: #0b2136; color: #ffffff;}
+        .sidebar-avatar { width: 70px; height: 70px; background: #ffffff; border-radius: 50%; margin: 0 auto 10px auto; display: flex; justify-content: center; align-items: center; color: #0b2136; font-size: 30px; font-weight: bold;}
+        .sidebar-name { font-weight: bold; font-size: 16px; color: #ffffff;}
+        .sidebar-phone { font-size: 12px; color: #cbd5e1;}
+        .sidebar-menu { padding: 10px 0; flex: 1;}
+        .sidebar-item { padding: 15px 20px; display: flex; align-items: center; color: #334155; text-decoration: none; font-size: 14px; border-bottom: 1px solid #f8fafc; font-weight: 600;}
+        .sidebar-item:active { background: #f1f5f9; }
+        .sb-icon { width: 30px; font-size: 18px; color: inherit; }
 
         /* FORMS & COMPONENTS */
         .container { padding: 20px; }
-        .card { background: #ffffff; padding: 25px 20px; border-radius: 16px; margin-bottom: 20px; border: 2px solid #2c3e50; box-shadow: 0 4px 15px rgba(44,62,80,0.05);}
-        input { width: 100%; padding: 14px; margin-bottom: 12px; border: 2px solid #2c3e50; border-radius: 10px; box-sizing: border-box; font-size: 14px; outline: none; background: #ffffff; color: #2c3e50; font-weight: bold;}
-        input::placeholder { color: #2c3e50; opacity: 0.5; font-weight: normal; }
-        .checkbox-container { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; font-size: 14px; font-weight: bold;}
+        .card { background: #ffffff; padding: 25px 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(226,232,240,0.5);}
+        input { width: 100%; padding: 15px; margin-bottom: 12px; border: 1px solid #cbd5e1; border-radius: 12px; box-sizing: border-box; font-size: 14px; outline: none; background: #f8fafc; color: #0b2136; font-weight: 600; transition: border-color 0.2s;}
+        input:focus { border-color: #0b2136; background: #ffffff;}
+        input::placeholder { color: #94a3b8; font-weight: normal; }
+        .checkbox-container { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; font-size: 13px; font-weight: 600; color: #475569;}
         .checkbox-container input { width: 18px; height: 18px; margin: 0; cursor: pointer;}
         
-        .btn { background: #2c3e50; color: #ffffff; border: 2px solid #2c3e50; padding: 14px; width: 100%; border-radius: 10px; font-size: 14px; font-weight: bold; cursor: pointer;}
-        .btn-outline { background: #ffffff; color: #2c3e50; border: 2px solid #2c3e50; padding: 14px; width: 100%; border-radius: 10px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
+        .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer;}
+        .btn-outline { background: #ffffff; color: #0b2136; border: 1.5px solid #0b2136; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
         .btn:active, .btn-outline:active { transform: scale(0.98); }
 
         /* PROFILE SCREEN */
-        .prof-header { background: #2c3e50; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; border-bottom: 2px solid #2c3e50;}
-        .prof-avatar { width: 80px; height: 80px; background: #ffffff; color: #2c3e50; border-radius: 50%; font-size: 40px; display: flex; justify-content: center; align-items: center; margin: 0 auto 10px auto; font-weight: bold;}
-        .prof-box { background: #ffffff; margin: -20px 20px 20px; border-radius: 16px; padding: 20px; position: relative; z-index: 10; border: 2px solid #2c3e50;}
-        .prof-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed #2c3e50; font-size: 13px;}
+        .prof-header { background: #0b2136; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
+        .prof-avatar { width: 80px; height: 80px; background: #ffffff; color: #0b2136; border-radius: 50%; font-size: 40px; display: flex; justify-content: center; align-items: center; margin: 0 auto 10px auto; font-weight: bold;}
+        .prof-box { background: #ffffff; margin: -20px 20px 20px; border-radius: 16px; padding: 20px; position: relative; z-index: 10; border: 1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(226,232,240,0.5);}
+        .prof-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed #e2e8f0; font-size: 13px;}
         .prof-row:last-child { border-bottom: none;}
-        .prof-label { color: #2c3e50; font-weight: bold; opacity: 0.8;}
-        .prof-val { color: #2c3e50; font-weight: 900; text-align: right;}
-        .prof-action-btn { background: #ffffff; color: #2c3e50; border: 2px solid #2c3e50; padding: 12px; width: 100%; border-radius: 10px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 13px;}
+        .prof-label { color: #64748b; font-weight: 600;}
+        .prof-val { color: #0b2136; font-weight: 900; text-align: right;}
+        .prof-action-btn { background: #f8fafc; color: #0b2136; border: 1px solid #e2e8f0; padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px;}
 
         /* HISTORY ITEMS */
-        .hist-item { background: #ffffff; padding: 15px; border-radius: 12px; margin: 10px 20px; border: 2px solid #2c3e50;}
-        .hist-top { display: flex; justify-content: space-between; font-size: 11px; color: #2c3e50; margin-bottom: 5px; font-weight: bold;}
-        .hist-title { font-weight: 800; font-size: 13px; color: #2c3e50; margin-bottom: 3px;}
-        .hist-target { font-size: 12px; color: #2c3e50; font-weight: bold; opacity: 0.8;}
-        .stat-badge { padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 10px; border: 1px solid #2c3e50;}
-        .stat-Sukses { background: #2c3e50; color: #ffffff; } 
-        .stat-Pending { background: #ffffff; color: #2c3e50; border-style: dashed;} 
-        .stat-Gagal { background: #ffffff; color: #2c3e50; text-decoration: line-through; }
+        .hist-item { background: #ffffff; padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(226,232,240,0.5);}
+        .hist-top { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-bottom: 5px; font-weight: 700;}
+        .hist-title { font-weight: 800; font-size: 14px; color: #0b2136; margin-bottom: 3px;}
+        .hist-target { font-size: 12px; color: #475569; font-weight: 600;}
+        .stat-badge { padding: 4px 10px; border-radius: 8px; font-weight: bold; font-size: 10px;}
+        .stat-Sukses { background: #dcfce7; color: #166534; } 
+        .stat-Pending { background: #ffedd5; color: #c2410c; } 
+        .stat-Gagal { background: #fee2e2; color: #b91c1c; text-decoration: line-through; }
 
         /* MODAL */
-        .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(44,62,80,0.9); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
-        .modal-box { background: #ffffff; width: 100%; max-width: 340px; border-radius: 20px; padding: 25px; text-align: center; border: 4px solid #2c3e50;}
+        .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
+        .modal-box { background: #ffffff; width: 100%; max-width: 340px; border-radius: 20px; padding: 25px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2);}
         .modal-btns { display: flex; gap: 10px; margin-top: 15px;}
         
-        .screen-header { padding: 15px 20px; font-weight: 900; font-size: 16px; display: flex; align-items: center; gap: 15px; background: #ffffff; border-bottom: 2px solid #2c3e50; position: sticky; top:0; z-index: 10; color: #2c3e50; filter: grayscale(100%); text-transform: uppercase;}
+        .screen-header { padding: 15px 20px; font-weight: 800; font-size: 18px; display: flex; align-items: center; gap: 15px; background: #ffffff; border-bottom: 1px solid #e2e8f0; position: sticky; top:0; z-index: 10; color: #0b2136;}
         .hidden { display: none !important; }
     </style>
 </head>
@@ -184,7 +190,7 @@ EOF
     <div id="app">
         <div class="top-bar" id="home-topbar">
             <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-            <div class="brand-title" id="top-title">Hai, Tendo Store</div>
+            <div class="brand-title" id="top-title">Tendo Store</div>
             <div class="trx-badge" id="top-trx-badge">0 Trx</div>
         </div>
 
@@ -196,23 +202,23 @@ EOF
                 <div class="sidebar-phone" id="sb-phone">Belum Login</div>
             </div>
             <div class="sidebar-menu">
-                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showProfile()"><span class="sb-icon">👤</span> PROFIL AKUN</a>
-                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showHistory()"><span class="sb-icon">🔁</span> TRANSAKSI SAYA</a>
-                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showNotif()"><span class="sb-icon">🔔</span> PEMBERITAHUAN</a>
-                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showContactModal()"><span class="sb-icon">📞</span> BANTUAN ADMIN</a>
+                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showProfile()"><span class="sb-icon">👤</span> Profil Akun</a>
+                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showHistory()"><span class="sb-icon">🔁</span> Transaksi Saya</a>
+                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showNotif()"><span class="sb-icon">🔔</span> Pemberitahuan</a>
+                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showContactModal()"><span class="sb-icon">📞</span> Bantuan Admin</a>
             </div>
             <div style="padding: 20px;">
-                <button class="btn-outline" style="border-width: 2px;" onclick="logout()">KELUAR AKUN</button>
+                <button class="btn-outline" style="color: #ef4444; border-color: #ef4444;" onclick="logout()">Keluar Akun</button>
             </div>
         </div>
 
         <div id="login-screen" class="container">
-            <div style="text-align:center; margin: 30px 0;">
-                <h1 style="color:#2c3e50; margin:0; text-transform: uppercase; font-weight:900;">Tendo Store</h1>
-                <p style="color:#2c3e50; font-size:13px; margin-top:5px; font-weight: bold;">MONOCHROME PPOB</p>
+            <div style="text-align:center; margin: 40px 0;">
+                <h1 style="color:#0b2136; margin:0; font-weight:900; font-size: 28px;">Tendo Store</h1>
+                <p style="color:#64748b; font-size:13px; margin-top:5px; font-weight: 600;">Solusi Pembayaran Digital</p>
             </div>
             <div class="card">
-                <h2 style="margin-top:0; text-align:center; font-size:18px; text-transform:uppercase;">Masuk Akun</h2>
+                <h2 style="margin-top:0; text-align:center; font-size:18px;">Masuk Akun</h2>
                 <input type="email" id="log-email" placeholder="Alamat Email">
                 <input type="password" id="log-pass" placeholder="Password">
                 
@@ -220,36 +226,36 @@ EOF
                     <input type="checkbox" id="rem-login"> Tetap masuk
                 </label>
 
-                <button class="btn" onclick="login()">LOGIN SEKARANG</button>
-                <button class="btn-outline" onclick="showScreen('register-screen')">BUAT AKUN BARU</button>
+                <button class="btn" onclick="login()">Login Sekarang</button>
+                <button class="btn-outline" onclick="showScreen('register-screen')">Buat Akun Baru</button>
             </div>
         </div>
 
         <div id="register-screen" class="container hidden">
             <div class="card">
-                <h2 style="margin-top:0; text-align:center; font-size:18px; text-transform:uppercase;">Daftar Akun</h2>
-                <p style="font-size:13px; color:#2c3e50; text-align: center; font-weight: bold;">Gunakan Nomor WA Aktif (08/62)</p>
-                <input type="text" id="reg-user" placeholder="Username (Contoh: BudiCell)">
+                <h2 style="margin-top:0; text-align:center; font-size:18px;">Daftar Akun</h2>
+                <p style="font-size:12px; color:#64748b; text-align: center; margin-bottom: 20px; font-weight: 600;">Gunakan Nomor WhatsApp Aktif (08/62)</p>
+                <input type="text" id="reg-user" placeholder="Username (Cth: BudiCell)">
                 <input type="email" id="reg-email" placeholder="Alamat Email">
-                <input type="number" id="reg-phone" placeholder="Nomor HP/WA">
+                <input type="number" id="reg-phone" placeholder="Nomor WhatsApp">
                 <input type="password" id="reg-pass" placeholder="Buat Password">
-                <button class="btn" onclick="requestOTP()">KIRIM OTP WA</button>
-                <button class="btn-outline" onclick="showScreen('login-screen')">KEMBALI KE LOGIN</button>
+                <button class="btn" onclick="requestOTP()">Kirim OTP WhatsApp</button>
+                <button class="btn-outline" style="border:none;" onclick="showScreen('login-screen')">Kembali ke Login</button>
             </div>
         </div>
 
         <div id="otp-screen" class="container hidden">
             <div class="card" style="text-align:center;">
-                <h2 style="margin-top:0; font-size:18px; text-transform:uppercase;">Verifikasi WhatsApp</h2>
-                <p style="font-size:12px; color:#2c3e50; font-weight: bold;">Kode 4 digit telah dikirim ke WA.</p>
-                <input type="number" id="otp-code" placeholder="----" style="text-align:center; font-size:24px; letter-spacing: 10px; font-weight:bold;">
-                <button class="btn" onclick="verifyOTP()">VERIFIKASI & DAFTAR</button>
-                <button class="btn-outline" onclick="showScreen('register-screen')">BATAL</button>
+                <h2 style="margin-top:0; font-size:18px;">Verifikasi WhatsApp</h2>
+                <p style="font-size:13px; color:#64748b; margin-bottom: 20px; font-weight: 600;">Kode OTP 4 digit telah dikirim ke WA.</p>
+                <input type="number" id="otp-code" placeholder="----" style="text-align:center; font-size:28px; letter-spacing: 12px; font-weight:bold; background:#f8fafc;">
+                <button class="btn" onclick="verifyOTP()">Verifikasi & Daftar</button>
+                <button class="btn-outline" style="border:none;" onclick="showScreen('register-screen')">Batal</button>
             </div>
         </div>
 
         <div id="dashboard-screen" class="hidden">
-            <div class="banner">
+            <div class="banner" id="home-banner">
                 <div class="saldo-title">Sisa Saldo Anda</div>
                 <div class="saldo-amount" id="user-saldo">Rp 0</div>
                 <button class="btn-topup-dash" onclick="openTopupModal()">[+] ISI SALDO</button>
@@ -260,7 +266,7 @@ EOF
                 <div class="grid-box" onclick="loadCategory('Pulsa')"><div class="grid-icon-wrap">📱</div><div class="grid-text">PULSA</div></div>
                 <div class="grid-box" onclick="loadCategory('Data')"><div class="grid-icon-wrap">🌐</div><div class="grid-text">DATA</div></div>
                 <div class="grid-box" onclick="loadCategory('Masa Aktif')"><div class="grid-icon-wrap">📆</div><div class="grid-text">MASA AKTIF</div></div>
-                <div class="grid-box" onclick="loadCategory('SMS Telp')"><div class="grid-icon-wrap">☎️</div><div class="grid-text">SMS TELP</div></div>
+                <div class="grid-box" onclick="loadCategory('SMS Telp')"><div class="grid-icon-wrap">📞</div><div class="grid-text">SMS TELP</div></div>
                 <div class="grid-box" onclick="loadCategory('PLN')"><div class="grid-icon-wrap">⚡</div><div class="grid-text">PLN</div></div>
                 <div class="grid-box" onclick="loadCategory('E-Wallet')"><div class="grid-icon-wrap">💼</div><div class="grid-text">E-WALLET</div></div>
                 <div class="grid-box" onclick="loadCategory('Tagihan')"><div class="grid-icon-wrap">🧾</div><div class="grid-text">TAGIHAN</div></div>
@@ -268,17 +274,17 @@ EOF
                 <div class="grid-box" onclick="loadCategory('Digital')"><div class="grid-icon-wrap">🎮</div><div class="grid-text">DIGITAL</div></div>
             </div>
             
-            <div style="padding: 15px; margin: 25px 20px; background: #ffffff; border-radius: 15px; text-align: center; border: 2px dashed #2c3e50;" id="install-banner" class="hidden">
-                <strong style="color:#2c3e50; text-transform: uppercase;">Aplikasi Tendo Store</strong><br>
-                <span style="font-size:11px; color:#2c3e50; font-weight: bold;">Pasang di layar utama HP Anda!</span><br>
-                <button class="btn" style="margin-top:10px; padding: 8px; font-size:12px; width:auto; padding: 8px 30px;" id="install-btn">INSTALL SEKARANG</button>
+            <div style="padding: 20px; margin: 30px 20px; background: #ffffff; border-radius: 16px; text-align: center; border: 1px dashed #cbd5e1;" id="install-banner" class="hidden">
+                <strong style="color:#0b2136; font-size:14px;">Aplikasi Tendo Store</strong><br>
+                <span style="font-size:12px; color:#64748b; font-weight: 600;">Pasang di layar utama HP Anda!</span><br>
+                <button class="btn" style="margin-top:15px; padding: 10px 30px; font-size:12px; width:auto; border-radius:20px;" id="install-btn">Install Sekarang</button>
             </div>
         </div>
 
         <div id="produk-screen" class="hidden">
             <div class="screen-header">
-                <span style="cursor:pointer; font-size:20px;" onclick="showDashboard()">🔙</span>
-                <span id="cat-title-text" style="text-transform: uppercase;">KATALOG</span>
+                <span style="cursor:pointer; font-size:22px; margin-right: 10px;" onclick="showDashboard()">🔙</span>
+                <span id="cat-title-text">Katalog</span>
             </div>
             
             <div class="provider-tabs" id="provider-tabs"></div>
@@ -287,109 +293,109 @@ EOF
 
         <div id="history-screen" class="hidden">
             <div class="screen-header">
-                <span style="cursor:pointer; font-size:20px;" onclick="showDashboard()">🔙</span>
-                <span style="text-transform: uppercase;">RIWAYAT TRANSAKSI</span>
+                <span style="cursor:pointer; font-size:22px; margin-right: 10px;" onclick="showDashboard()">🔙</span>
+                <span>Riwayat Transaksi</span>
             </div>
-            <div id="history-list" style="padding-top:5px;"></div>
+            <div id="history-list" style="padding-top:10px;"></div>
         </div>
 
         <div id="profile-screen" class="hidden">
             <div class="prof-header">
                 <div class="prof-avatar" id="p-avatar">T</div>
-                <h2 style="margin:0 0 5px 0; font-size: 20px; text-transform: uppercase;" id="p-username">Username</h2>
-                <div style="font-size:13px; font-weight: bold;" id="p-id">ID: TD-000000</div>
+                <h2 style="margin:0 0 5px 0; font-size: 20px;" id="p-username">Username</h2>
+                <div style="font-size:13px; font-weight: bold; color: rgba(255,255,255,0.8);" id="p-id">ID: TD-000000</div>
             </div>
             <div class="prof-box">
                 <div class="prof-row"><span class="prof-label">Email</span><span class="prof-val" id="p-email">-</span></div>
-                <div class="prof-row"><span class="prof-label">No. WhatsApp</span><span class="prof-val" id="p-phone">-</span></div>
-                <div class="prof-row"><span class="prof-label">Tgl Bergabung</span><span class="prof-val" id="p-date">-</span></div>
+                <div class="prof-row"><span class="prof-label">WhatsApp</span><span class="prof-val" id="p-phone">-</span></div>
+                <div class="prof-row"><span class="prof-label">Tgl Daftar</span><span class="prof-val" id="p-date">-</span></div>
                 <div class="prof-row"><span class="prof-label">Total Transaksi</span><span class="prof-val" id="p-trx">0 Kali</span></div>
             </div>
             
             <div style="padding: 0 20px;">
-                <h3 style="font-size:14px; color:#2c3e50; margin-bottom:10px; text-transform: uppercase;">PENGATURAN AKUN</h3>
-                <button class="prof-action-btn" onclick="openEditModal('email')">✉️ UBAH ALAMAT EMAIL</button>
-                <button class="prof-action-btn" onclick="openEditModal('phone')">📱 UBAH NOMOR WA</button>
-                <button class="prof-action-btn" onclick="openEditModal('password')">🔐 UBAH PASSWORD</button>
+                <h3 style="font-size:14px; color:#64748b; margin-bottom:15px; font-weight: 800;">PENGATURAN</h3>
+                <button class="prof-action-btn" onclick="openEditModal('email')"><span style="font-size: 18px;">✉️</span> Ubah Email</button>
+                <button class="prof-action-btn" onclick="openEditModal('phone')"><span style="font-size: 18px;">📱</span> Ubah Nomor WA</button>
+                <button class="prof-action-btn" onclick="openEditModal('password')"><span style="font-size: 18px;">🔐</span> Ubah Password</button>
             </div>
         </div>
 
         <div id="notif-screen" class="hidden">
             <div class="screen-header">
-                <span style="cursor:pointer; font-size:20px;" onclick="showDashboard()">🔙</span>
-                <span style="text-transform: uppercase;">PEMBERITAHUAN</span>
+                <span style="cursor:pointer; font-size:22px; margin-right: 10px;" onclick="showDashboard()">🔙</span>
+                <span>Pemberitahuan</span>
             </div>
             <div class="container">
-                <div class="card">
-                    <h3 style="margin-top:0; color: #2c3e50; font-size:15px; text-transform: uppercase;">📢 INFO TERBARU</h3>
-                    <p id="notif-text" style="color: #2c3e50; line-height: 1.6; font-size:13px; white-space: pre-wrap; font-weight: bold;">Memuat...</p>
+                <div class="card" style="border-left: 4px solid #0b2136;">
+                    <h3 style="margin-top:0; color: #0b2136; font-size:15px;">📢 Info Terbaru</h3>
+                    <p id="notif-text" style="color: #475569; line-height: 1.6; font-size:13px; white-space: pre-wrap; font-weight: 600;">Memuat...</p>
                 </div>
             </div>
         </div>
 
         <div class="bottom-nav" id="main-bottom-nav">
-            <div class="nav-item active" id="nav-home" onclick="showDashboard()"><span class="nav-icon">🏠</span>HOME</div>
-            <div class="nav-item" id="nav-history" onclick="showHistory()"><span class="nav-icon">🧾</span>RIWAYAT</div>
-            <div class="nav-item" id="nav-notif" onclick="showNotif()"><span class="nav-icon">🔔</span>INFO</div>
-            <div class="nav-item" id="nav-profile" onclick="showProfile()"><span class="nav-icon">👤</span>PROFIL</div>
+            <div class="nav-item active" id="nav-home" onclick="showDashboard()"><span class="nav-icon">🏠</span>Home</div>
+            <div class="nav-item" id="nav-history" onclick="showHistory()"><span class="nav-icon">🧾</span>Riwayat</div>
+            <div class="nav-item" id="nav-notif" onclick="showNotif()"><span class="nav-icon">🔔</span>Info</div>
+            <div class="nav-item" id="nav-profile" onclick="showProfile()"><span class="nav-icon">👤</span>Profil</div>
         </div>
 
         <div id="contact-modal" class="modal-overlay hidden">
             <div class="modal-box">
-                <h3 style="margin-top:0; font-size:16px; text-transform: uppercase;">PUSAT BANTUAN</h3>
-                <p style="font-size:12px; color:#2c3e50; margin-bottom: 20px; font-weight: bold;">Hubungi Admin melalui:</p>
-                <button class="btn" style="margin-bottom:10px;" onclick="window.open('https://wa.me/6282224460678', '_blank'); closeContactModal()">💬 WHATSAPP ADMIN</button>
-                <button class="btn-outline" onclick="window.open('https://t.me/tendo_32', '_blank'); closeContactModal()">✈️ TELEGRAM ADMIN</button>
-                <div style="margin-top:15px;"><a href="#" style="color:#2c3e50; text-decoration:underline; font-size:13px; font-weight:bold;" onclick="closeContactModal()">TUTUP</a></div>
+                <h3 style="margin-top:0; font-size:18px;">Pusat Bantuan</h3>
+                <p style="font-size:13px; color:#64748b; margin-bottom: 20px; font-weight: 600;">Silakan pilih platform untuk menghubungi Admin:</p>
+                <button class="btn" style="margin-bottom:10px; background:#22c55e;" onclick="window.open('https://wa.me/6282224460678', '_blank'); closeContactModal()">WhatsApp Admin</button>
+                <button class="btn" style="background:#0ea5e9;" onclick="window.open('https://t.me/tendo_32', '_blank'); closeContactModal()">Telegram Admin</button>
+                <div style="margin-top:20px;"><a href="#" style="color:#94a3b8; text-decoration:none; font-size:14px; font-weight:bold;" onclick="closeContactModal()">Tutup</a></div>
             </div>
         </div>
 
         <div id="order-modal" class="modal-overlay hidden">
             <div class="modal-box">
-                <h3 style="margin-top:0; font-size:16px; text-transform: uppercase;">KONFIRMASI</h3>
-                <div style="background:#ffffff; padding:15px; border-radius:12px; margin-bottom:15px; border: 2px dashed #2c3e50;">
-                    <strong id="m-name" style="font-size:13px; color:#2c3e50; line-height:1.3; display:block; margin-bottom:5px; text-transform:uppercase;">Produk</strong>
-                    <span style="color:#2c3e50; font-weight:900; font-size: 20px;" id="m-price">Rp 0</span>
+                <h3 style="margin-top:0; font-size:18px;">Beli Produk</h3>
+                <div style="background:#f8fafc; padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid #e2e8f0;">
+                    <strong id="m-name" style="font-size:14px; color:#0b2136; line-height:1.4; display:block; margin-bottom:8px;">Produk</strong>
+                    <span style="color:#0b2136; font-weight:900; font-size: 22px;" id="m-price">Rp 0</span>
                 </div>
                 <input type="text" id="m-target" placeholder="Masukkan Nomor/ID Tujuan">
                 <div class="modal-btns">
-                    <button class="btn-outline" style="margin-top:0;" onclick="closeOrderModal()">BATAL</button>
-                    <button class="btn" id="m-submit" onclick="processOrder()">BELI SEKARANG</button>
+                    <button class="btn-outline" style="margin-top:0; border-color:#e2e8f0; color:#64748b;" onclick="closeOrderModal()">Batal</button>
+                    <button class="btn" id="m-submit" onclick="processOrder()">Beli Sekarang</button>
                 </div>
             </div>
         </div>
 
         <div id="topup-modal" class="modal-overlay hidden">
             <div class="modal-box">
-                <h3 style="margin-top:0; font-size:16px; text-transform: uppercase;">FORMULIR ISI SALDO</h3>
-                <p style="font-size:11px; color:#2c3e50; margin-bottom:15px; font-weight: bold;">Isi data. Sistem akan mengarahkan ke WA Admin.</p>
+                <h3 style="margin-top:0; font-size:18px;">Isi Saldo</h3>
+                <p style="font-size:12px; color:#64748b; margin-bottom:20px; font-weight: 600;">Sistem akan mengarahkan Anda ke WhatsApp Admin untuk instruksi pembayaran.</p>
                 <input type="text" id="topup-id" placeholder="Nomor HP atau Email Akun">
                 <input type="number" id="topup-nominal" placeholder="Nominal (Cth: 50000)">
                 <div class="modal-btns">
-                    <button class="btn-outline" style="margin-top:0;" onclick="closeTopupModal()">BATAL</button>
-                    <button class="btn" onclick="sendTopup()">AJUKAN TOPUP</button>
+                    <button class="btn-outline" style="margin-top:0; border-color:#e2e8f0; color:#64748b;" onclick="closeTopupModal()">Batal</button>
+                    <button class="btn" onclick="sendTopup()">Ajukan Topup</button>
                 </div>
             </div>
         </div>
 
         <div id="edit-modal" class="modal-overlay hidden">
             <div class="modal-box">
-                <h3 style="margin-top:0; font-size:16px; text-transform: uppercase;" id="edit-title">UBAH DATA</h3>
+                <h3 style="margin-top:0; font-size:18px;" id="edit-title">Ubah Data</h3>
                 
                 <div id="edit-step-1">
                     <input type="text" id="edit-input" placeholder="Masukkan data baru">
                     <div class="modal-btns">
-                        <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">BATAL</button>
-                        <button class="btn" onclick="reqEditOTP()">KIRIM OTP</button>
+                        <button class="btn-outline" style="margin-top:0; border-color:#e2e8f0; color:#64748b;" onclick="closeEditModal()">Batal</button>
+                        <button class="btn" onclick="reqEditOTP()">Kirim OTP</button>
                     </div>
                 </div>
 
                 <div id="edit-step-2" class="hidden">
-                    <p style="font-size:11px; color:#2c3e50; font-weight: bold;">OTP telah dikirim ke WA Anda.</p>
-                    <input type="number" id="edit-otp-input" placeholder="----" style="letter-spacing:10px; text-align:center; font-size:20px;">
+                    <p style="font-size:12px; color:#64748b; font-weight: 600;">OTP telah dikirim ke WA Anda.</p>
+                    <input type="number" id="edit-otp-input" placeholder="----" style="letter-spacing:12px; text-align:center; font-size:24px; background:#f8fafc;">
                     <div class="modal-btns">
-                        <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">BATAL</button>
-                        <button class="btn" onclick="verifyEditOTP()">SIMPAN DATA</button>
+                        <button class="btn-outline" style="margin-top:0; border-color:#e2e8f0; color:#64748b;" onclick="closeEditModal()">Batal</button>
+                        <button class="btn" onclick="verifyEditOTP()">Simpan</button>
                     </div>
                 </div>
             </div>
@@ -464,7 +470,7 @@ EOF
 
         function showDashboard() { 
             showScreen('dashboard-screen', 'nav-home'); 
-            document.getElementById('top-title').innerText = "Hai, " + (userData.username || "Member"); 
+            document.getElementById('top-title').innerText = "Tendo Store"; 
             syncUserData();
         }
         function showHistory() { showScreen('history-screen', 'nav-history'); syncUserData(); }
@@ -475,7 +481,7 @@ EOF
             try {
                 let res = await fetch('/api/notif');
                 let data = await res.json();
-                document.getElementById('notif-text').innerText = data.text || "Tidak ada pemberitahuan sistem.";
+                document.getElementById('notif-text').innerText = data.text || "Tidak ada pemberitahuan sistem saat ini.";
             } catch(e) {}
         }
 
@@ -530,7 +536,7 @@ EOF
 
                     let histHTML = '';
                     let historyList = u.history || [];
-                    if(historyList.length === 0) histHTML = '<div style="text-align:center; color:#2c3e50; font-weight:bold; margin-top: 30px; font-size:13px; text-transform:uppercase;">Belum ada transaksi.</div>';
+                    if(historyList.length === 0) histHTML = '<div style="text-align:center; color:#94a3b8; font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
                     else {
                         historyList.forEach(h => {
                             let statClass = 'stat-Pending';
@@ -541,7 +547,7 @@ EOF
                                     <div class="hist-top"><span>${h.tanggal}</span> <span class="stat-badge ${statClass}">${h.status}</span></div>
                                     <div class="hist-title">${h.nama}</div>
                                     <div class="hist-target">Tujuan: ${h.tujuan}</div>
-                                    ${h.sn && h.sn !== '-' ? `<div style="font-size:11px; color:#2c3e50; margin-top:6px; background:#ffffff; border: 1px dashed #2c3e50; padding:5px 8px; border-radius:5px; font-weight:bold;">SN: ${h.sn}</div>` : ''}
+                                    ${h.sn && h.sn !== '-' ? `<div style="font-size:11px; color:#0b2136; margin-top:6px; background:#f8fafc; padding:6px 10px; border-radius:6px; font-weight:bold; border: 1px solid #e2e8f0;">SN: ${h.sn}</div>` : ''}
                                 </div>
                             `;
                         });
@@ -556,7 +562,7 @@ EOF
             let pass = document.getElementById('log-pass').value.trim();
             let rem = document.getElementById('rem-login').checked;
             if(!email || !pass) return alert('Isi Email & Password!');
-            let btn = document.querySelector('#login-screen .btn'); btn.innerText = "MEMERIKSA...";
+            let btn = document.querySelector('#login-screen .btn'); btn.innerText = "Memeriksa...";
             try {
                 let res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email, password:pass}) });
                 let data = await res.json();
@@ -566,7 +572,7 @@ EOF
                     fetchAllProducts(); showDashboard();
                 } else alert(data.message);
             } catch(e) { alert('Gagal terhubung.'); }
-            btn.innerText = "LOGIN SEKARANG";
+            btn.innerText = "Login Sekarang";
         }
 
         async function requestOTP() {
@@ -575,14 +581,14 @@ EOF
             let phone = document.getElementById('reg-phone').value.trim();
             let pass = document.getElementById('reg-pass').value.trim();
             if(!user || !email || !phone || !pass) return alert('Semua kolom wajib diisi!');
-            let btn = document.querySelector('#register-screen .btn'); btn.innerText = "MENGIRIM...";
+            let btn = document.querySelector('#register-screen .btn'); btn.innerText = "Mengirim...";
             try {
                 let res = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:user, email, phone, password:pass}) });
                 let data = await res.json();
                 if(data.success) { tempRegPhone = phone; showScreen('otp-screen', null); } 
                 else alert(data.message);
             } catch(e) { alert('Error server.'); }
-            btn.innerText = "KIRIM OTP WA";
+            btn.innerText = "Kirim OTP WA";
         }
 
         async function verifyOTP() {
@@ -606,9 +612,9 @@ EOF
             document.getElementById('edit-step-1').classList.remove('hidden');
             document.getElementById('edit-step-2').classList.add('hidden');
             
-            if(type === 'email') { document.getElementById('edit-title').innerText = "GANTI EMAIL"; inp.type="email"; inp.placeholder="Email baru"; inp.value = userData.email;}
-            if(type === 'phone') { document.getElementById('edit-title').innerText = "GANTI NOMOR WA"; inp.type="number"; inp.placeholder="Nomor WA baru (08/62)"; inp.value = currentUser;}
-            if(type === 'password') { document.getElementById('edit-title').innerText = "GANTI PASSWORD"; inp.type="text"; inp.placeholder="Password baru"; inp.value = userData.password;}
+            if(type === 'email') { document.getElementById('edit-title').innerText = "Ganti Email"; inp.type="email"; inp.placeholder="Email baru"; inp.value = userData.email;}
+            if(type === 'phone') { document.getElementById('edit-title').innerText = "Ganti Nomor WA"; inp.type="number"; inp.placeholder="Nomor WA baru (08/62)"; inp.value = currentUser;}
+            if(type === 'password') { document.getElementById('edit-title').innerText = "Ganti Password"; inp.type="text"; inp.placeholder="Password baru"; inp.value = userData.password;}
             document.getElementById('edit-modal').classList.remove('hidden');
         }
         
@@ -617,7 +623,7 @@ EOF
         async function reqEditOTP() {
             let val = document.getElementById('edit-input').value.trim();
             if(!val) return alert("Isi data baru!");
-            let btn = document.querySelector('#edit-step-1 .btn'); btn.innerText = "MENGIRIM...";
+            let btn = document.querySelector('#edit-step-1 .btn'); btn.innerText = "Mengirim...";
             try {
                 let res = await fetch('/api/req-edit-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, type: currentEditMode, newValue: val}) });
                 let data = await res.json();
@@ -626,13 +632,13 @@ EOF
                     document.getElementById('edit-step-2').classList.remove('hidden');
                 } else alert(data.message);
             } catch(e) { alert('Error server'); }
-            btn.innerText = "KIRIM OTP";
+            btn.innerText = "Kirim OTP";
         }
 
         async function verifyEditOTP() {
             let otp = document.getElementById('edit-otp-input').value.trim();
             if(!otp) return alert("Masukkan OTP!");
-            let btn = document.querySelector('#edit-step-2 .btn'); btn.innerText = "MEMPROSES...";
+            let btn = document.querySelector('#edit-step-2 .btn'); btn.innerText = "Memproses...";
             try {
                 let res = await fetch('/api/verify-edit-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, otp: otp}) });
                 let data = await res.json();
@@ -643,7 +649,7 @@ EOF
                     else { syncUserData(); }
                 } else alert(data.message);
             } catch(e) { alert('Error server'); }
-            btn.innerText = "VERIFIKASI & SIMPAN";
+            btn.innerText = "Simpan";
         }
 
         async function fetchAllProducts() {
@@ -673,7 +679,7 @@ EOF
                 filterBrand(cat, brands[0], document.querySelector('#provider-tabs .tab-btn'));
             } else {
                 document.getElementById('provider-tabs').style.display = 'none';
-                document.getElementById('product-list').innerHTML = '<div style="text-align:center; color:#2c3e50; padding:20px; font-weight:bold; text-transform:uppercase;">Produk Kosong.</div>';
+                document.getElementById('product-list').innerHTML = '<div style="text-align:center; color:#94a3b8; padding:30px; font-weight:bold;">Produk belum tersedia.</div>';
             }
             showScreen('produk-screen', 'nav-home');
         }
@@ -699,16 +705,16 @@ EOF
                             ${p.nama}
                             <span class="badge-open">OPEN</span>
                         </div>
-                        ${p.deskripsi ? `<div class="prod-desc">INFO: ${p.deskripsi}</div>` : `<div class="prod-desc">FAST PROSES</div>`}
+                        ${p.deskripsi ? `<div class="prod-desc">${p.deskripsi}</div>` : `<div class="prod-desc">Proses Otomatis</div>`}
                         <div class="prod-price">Rp ${p.harga.toLocaleString('id-ID')}</div>
                     </div>
                     <div>
                         <div class="badge-laris">TERLARIS</div>
-                        <button class="btn-buy" onclick="openOrderModal('${key}', '${safeName}', ${p.harga})">BELI</button>
+                        <button class="btn-buy" onclick="openOrderModal('${key}', '${safeName}', ${p.harga})">Beli</button>
                     </div>
                 </div>`;
             }
-            document.getElementById('product-list').innerHTML = listHTML || '<div style="text-align:center; padding:20px; font-weight:bold;">KOSONG</div>';
+            document.getElementById('product-list').innerHTML = listHTML || '<div style="text-align:center; padding:30px; font-weight:bold; color:#94a3b8;">KOSONG</div>';
         }
 
         function openOrderModal(sku, nama, harga) {
@@ -724,7 +730,7 @@ EOF
             let target = document.getElementById('m-target').value.trim();
             if(!target || target.length < 4) return alert("Nomor tujuan tidak valid!");
             let btn = document.getElementById('m-submit');
-            let ori = btn.innerText; btn.innerText = 'PROSES...'; btn.disabled = true;
+            let ori = btn.innerText; btn.innerText = 'Proses...'; btn.disabled = true;
             try {
                 let res = await fetch('/api/order', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, sku: selectedSKU, tujuan: target}) });
                 let data = await res.json();
@@ -928,7 +934,7 @@ app.post('/api/order', async (req, res) => {
 function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
-    exec(`rm -f backup.zip && zip backup.zip config.json database.json trx.json index.js package-lock.json package.json produk.json 2>/dev/null`, (err) => {
+    exec(`rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json 2>/dev/null`, (err) => {
         if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Tendo Store" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
     });
 }
@@ -1089,7 +1095,7 @@ install_dependencies() {
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
-    echo -ne "${C_MAG}>> Meracik sistem utama & Web App (v36 MONOCHROME)...${C_RST}"
+    echo -ne "${C_MAG}>> Meracik sistem utama & Web App (v38 PREMIUM UI)...${C_RST}"
     generate_bot_script
     generate_web_app
     if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
@@ -1178,7 +1184,7 @@ menu_backup() {
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "${C_YELLOW}${C_BOLD}               💾 BACKUP & RESTORE 💾               ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Backup Sekarang (Kirim ke Telegram)"
+        echo -e "  ${C_GREEN}[1]${C_RST} Backup 4 File Inti (Kirim ke Telegram)"
         echo -e "  ${C_GREEN}[2]${C_RST} Restore Database & Bot dari Link"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
@@ -1191,7 +1197,7 @@ menu_backup() {
                 echo -e "\n${C_MAG}⏳ Sedang memproses arsip backup...${C_RST}"
                 if ! command -v zip &> /dev/null; then sudo apt install zip -y > /dev/null 2>&1; fi
                 rm -f backup.zip
-                zip backup.zip config.json database.json trx.json index.js package-lock.json package.json produk.json 2>/dev/null
+                zip backup.zip config.json database.json trx.json produk.json 2>/dev/null
                 echo -e "${C_GREEN}✅ File backup.zip berhasil dikompresi!${C_RST}"
                 node -e "
                     const fs = require('fs');
@@ -1199,7 +1205,7 @@ menu_backup() {
                     let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
                     if(config.teleToken && config.teleChatId) {
                         console.log('\x1b[36m⏳ Sedang mengirim ke Telegram...\x1b[0m');
-                        let cmd = \`curl -s -F chat_id=\"\${config.teleChatId}\" -F document=@\"backup.zip\" -F caption=\"📦 Manual Backup\" https://api.telegram.org/bot\${config.teleToken}/sendDocument\`;
+                        let cmd = \`curl -s -F chat_id=\"\${config.teleChatId}\" -F document=@\"backup.zip\" -F caption=\"📦 Manual Backup 4 File Wajib\" https://api.telegram.org/bot\${config.teleToken}/sendDocument\`;
                         exec(cmd, (err) => {
                             if(err) console.log('\x1b[31m❌ Gagal mengirim ke Telegram.\x1b[0m');
                             else console.log('\x1b[32m✅ File Backup berhasil mendarat di Telegram!\x1b[0m');
@@ -1322,7 +1328,7 @@ menu_member() {
 }
 
 # ==========================================
-# 8. MANAJEMEN PRODUK (KATEGORI SESUAI GAMBAR)
+# 8. MANAJEMEN PRODUK
 # ==========================================
 menu_produk() {
     while true; do
@@ -1467,7 +1473,7 @@ menu_produk() {
                 echo -e "\n${C_MAG}--- EDIT PRODUK : $OLD_NAMA ---${C_RST}"
                 echo -e "${C_YELLOW}💡 Biarkan kosong (tekan Enter) jika Anda TIDAK INGIN mengubah datanya.${C_RST}"
                 echo -e "${C_CYAN}Kategori saat ini: $OLD_KAT | Provider: $OLD_BRAND${C_RST}"
-                echo "1. Pulsa | 2. Data | 3. Masa Aktif | 4. SMS | 5. PLN | 6. E-Wallet | 7. Tagihan | 8. E-Toll | 9. Digital"
+                echo "1. Pulsa | 2. Data | 3. Masa Aktif | 4. SMS Telp | 5. PLN | 6. E-Wallet | 7. Tagihan | 8. E-Toll | 9. Digital"
                 
                 read -p "Ubah Kategori? (Ketik angka 1-9) [Enter jika tidak]: " new_cat_idx
                 
@@ -1648,10 +1654,10 @@ while true; do
     echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo Member"
     echo -e "  ${C_GREEN}[7]${C_RST}  🛒 Manajemen Daftar Produk & Harga"
     echo -e "  ${C_GREEN}[8]${C_RST}  ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
-    echo -e "  ${C_GREEN}[9]${C_RST}  💾 Backup & Restore Data Database"
+    echo -e "  ${C_GREEN}[9]${C_RST}  💾 Backup & Restore (Khusus 4 File Inti)"
     echo -e "  ${C_GREEN}[10]${C_RST} 🔌 Ganti API Digiflazz"
     echo -e "  ${C_GREEN}[11]${C_RST} 🔄 Ganti Akun Bot WA (Reset Sesi)"
-    echo -e "  ${C_GREEN}[12]${C_RST} 📢 Kirim Pesan Broadcast WA"
+    echo -e "  ${C_GREEN}[12]${C_RST} 📢 Kirim Pesan Broadcast Kesemua Member (WA)"
     echo -e "  ${C_GREEN}[13]${C_RST} 🌐 Kirim Pemberitahuan ke Website Aplikasi"
     echo -e "  ${C_GREEN}[14]${C_RST} 💬 Kirim Pesan Langsung (Japri) ke Pelanggan"
     echo -e "${C_CYAN}======================================================${C_RST}"
