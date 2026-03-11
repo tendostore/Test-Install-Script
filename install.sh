@@ -59,15 +59,17 @@ EOF
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#2c3e50">
     <style>
-        /* KUNCI WARNA: PUTIH & BOATSWAIN */
+        /* TEMA EKSKLUSIF: PUTIH & BOATSWAIN (#2c3e50) */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #ffffff; color: #2c3e50; margin: 0; display: flex; justify-content: center; }
         #app { width: 100%; max-width: 480px; background: #ffffff; min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 80px; border-left: 2px solid #2c3e50; border-right: 2px solid #2c3e50; box-sizing: border-box;}
         
+        /* TOP BAR */
         .top-bar { background: #2c3e50; color: #ffffff; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; border-bottom: 2px solid #ffffff;}
         .menu-btn { font-size: 24px; cursor: pointer; background: none; border: none; color: #ffffff; padding: 0; margin-right: 15px;}
         .brand-title { font-size: 16px; font-weight: bold; flex: 1;}
         .trx-badge { font-size: 12px; background: #ffffff; color: #2c3e50; padding: 4px 10px; border-radius: 12px; font-weight: bold;}
 
+        /* SIDEBAR */
         .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(44,62,80,0.85); z-index: 999; display: none; opacity: 0; transition: opacity 0.3s;}
         .sidebar { position: fixed; top:0; left:-300px; width: 280px; height: 100%; background: #ffffff; z-index: 1000; transition: left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; border-right: 3px solid #2c3e50;}
         .sidebar.open { left: 0; }
@@ -80,43 +82,66 @@ EOF
         .sidebar-item:active { background: #2c3e50; color: #ffffff; }
         .sb-icon { width: 30px; font-size: 18px; color: inherit; filter: grayscale(100%);}
 
+        /* BOTTOM NAV */
         .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 476px; background: #ffffff; display: flex; justify-content: space-around; padding: 10px 0; border-top: 2px solid #2c3e50; z-index: 90;}
         .nav-item { text-align: center; color: #2c3e50; font-size: 11px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; opacity: 0.5; filter: grayscale(100%);}
         .nav-item.active { opacity: 1; font-weight: bold; filter: none;}
         .nav-icon { font-size: 20px; margin-bottom: 4px; display: block;}
 
-        .banner { background: #2c3e50; margin: 15px; border-radius: 15px; padding: 20px; color: #ffffff; position: relative; border: 2px solid #2c3e50;}
-        .saldo-wrapper { display: flex; align-items: center; gap: 15px;}
-        .wallet-icon { font-size: 30px; background: #ffffff; padding: 10px; border-radius: 12px; color: #2c3e50; filter: grayscale(100%);}
-        .saldo-title { font-size: 12px; font-weight: bold;}
-        .saldo-amount { font-size: 24px; font-weight: bold; margin-top: 3px;}
-        .btn-topup-dash { background: #ffffff; color: #2c3e50; border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 12px; position: absolute; right: 20px; top: 50%; transform: translateY(-50%); cursor: pointer;}
+        /* DASHBOARD BANNER (MODERN WAVE STYLE) */
+        .banner { 
+            background: linear-gradient(135deg, #2c3e50, #1a252f); 
+            margin: 15px 20px; border-radius: 20px; padding: 25px 20px; 
+            color: #ffffff; position: relative; box-shadow: 0 8px 20px rgba(44,62,80,0.2);
+            overflow: hidden; text-align: center;
+        }
+        .banner::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.05) 10%, transparent 20%);
+            background-size: 20px 20px; transform: rotate(30deg); pointer-events: none;
+        }
+        .saldo-title { font-size: 13px; font-weight: normal; opacity: 0.9; margin-bottom: 5px;}
+        .saldo-amount { font-size: 32px; font-weight: 900; letter-spacing: 1px;}
+        .btn-topup-dash { 
+            background: #ffffff; color: #2c3e50; border: none; 
+            padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 12px; 
+            margin-top: 15px; cursor: pointer; display: inline-block;
+        }
 
-        .grid-title { margin: 25px 15px 15px; font-weight: 800; color: #2c3e50; font-size: 15px; text-transform: uppercase;}
-        .grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px 10px; padding: 0 15px;}
-        .grid-box { text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; filter: grayscale(100%);}
-        .grid-icon-wrap { width: 50px; height: 50px; background: #ffffff; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; margin-bottom: 8px; border: 2px solid #2c3e50; color: #2c3e50;}
-        .grid-box:active .grid-icon-wrap { background: #2c3e50; color: #ffffff; }
-        .grid-text { font-size: 11px; color: #2c3e50; font-weight: bold; line-height: 1.2; text-transform: uppercase;}
+        /* GRID MENU (CLEAN WHITE CARDS) */
+        .grid-title { margin: 25px 20px 15px; font-weight: 800; color: #2c3e50; font-size: 16px; }
+        .grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px 12px; padding: 0 20px;}
+        .grid-box { 
+            background: #ffffff; border-radius: 16px; padding: 15px 5px; 
+            text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; 
+            border: 1px solid rgba(44,62,80,0.15); box-shadow: 0 4px 10px rgba(44,62,80,0.05);
+            transition: transform 0.2s;
+        }
+        .grid-box:active { transform: scale(0.95); border-color: #2c3e50; }
+        .grid-icon-wrap { font-size: 30px; margin-bottom: 8px; }
+        .grid-text { font-size: 10px; color: #2c3e50; font-weight: 800; line-height: 1.2; text-transform: uppercase;}
 
-        .provider-tabs { display: flex; overflow-x: auto; gap: 10px; padding: 15px; background: #ffffff; border-bottom: 2px solid #2c3e50; position: sticky; top: 56px; z-index: 50;}
+        /* TAB SYSTEM */
+        .provider-tabs { display: flex; overflow-x: auto; gap: 10px; padding: 15px 20px; background: #ffffff; border-bottom: 2px solid #2c3e50; position: sticky; top: 56px; z-index: 50;}
         .provider-tabs::-webkit-scrollbar { display: none; }
         .tab-btn { background: #ffffff; border: 2px solid #2c3e50; padding: 8px 18px; border-radius: 20px; font-size: 12px; white-space: nowrap; cursor: pointer; font-weight: bold; color: #2c3e50; opacity: 0.6; transition: 0.2s;}
         .tab-btn.active { opacity: 1; background: #2c3e50; color: #ffffff;}
 
-        .brand-header { padding: 10px 15px; background: #ffffff; font-weight: bold; color: #2c3e50; font-size: 14px; text-transform: uppercase; margin-top: 15px; border-bottom: 2px solid #2c3e50;}
-        .product-item { background: #ffffff; padding: 15px; border-radius: 12px; margin: 15px; border: 2px solid #2c3e50; display: flex; align-items: center; gap: 15px;}
-        .prod-logo { width: 40px; height: 40px; background: #ffffff; border: 2px solid #2c3e50; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: #2c3e50; font-size: 12px;}
+        /* PRODUCT LIST STYLE */
+        .brand-header { padding: 10px 20px; background: #ffffff; font-weight: bold; color: #2c3e50; font-size: 14px; text-transform: uppercase; margin-top: 15px; border-bottom: 2px solid #2c3e50;}
+        .product-item { background: #ffffff; padding: 15px; border-radius: 16px; margin: 15px 20px; border: 2px solid #2c3e50; display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 10px rgba(44,62,80,0.05);}
+        .prod-logo { width: 45px; height: 45px; background: #ffffff; border: 2px solid #2c3e50; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: #2c3e50; font-size: 14px;}
         .prod-info { flex: 1; }
         .prod-name { font-weight: 800; font-size: 13px; color: #2c3e50; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;}
         .badge-open { background: #ffffff; color: #2c3e50; font-size: 9px; padding: 2px 6px; border-radius: 4px; border: 1px solid #2c3e50;}
-        .prod-desc { font-size: 10px; color: #2c3e50; font-weight: 600; margin-bottom: 4px; opacity: 0.8;}
+        .prod-desc { font-size: 10px; color: #2c3e50; font-weight: bold; margin-bottom: 4px; opacity: 0.8;}
         .prod-price { color: #2c3e50; font-weight: 900; font-size: 15px;}
         .badge-laris { background: #ffffff; color: #2c3e50; font-size: 9px; padding: 3px 6px; border-radius: 10px; font-weight: bold; float: right; margin-top: -15px; border: 1px solid #2c3e50;}
         .btn-buy { background: #2c3e50; color: #ffffff; border: 1px solid #2c3e50; padding: 8px 20px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer;}
 
+        /* FORMS & COMPONENTS */
         .container { padding: 20px; }
-        .card { background: #ffffff; padding: 20px; border-radius: 15px; margin-bottom: 20px; border: 2px solid #2c3e50;}
+        .card { background: #ffffff; padding: 25px 20px; border-radius: 16px; margin-bottom: 20px; border: 2px solid #2c3e50; box-shadow: 0 4px 15px rgba(44,62,80,0.05);}
         input { width: 100%; padding: 14px; margin-bottom: 12px; border: 2px solid #2c3e50; border-radius: 10px; box-sizing: border-box; font-size: 14px; outline: none; background: #ffffff; color: #2c3e50; font-weight: bold;}
         input::placeholder { color: #2c3e50; opacity: 0.5; font-weight: normal; }
         .checkbox-container { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; font-size: 14px; font-weight: bold;}
@@ -126,16 +151,18 @@ EOF
         .btn-outline { background: #ffffff; color: #2c3e50; border: 2px solid #2c3e50; padding: 14px; width: 100%; border-radius: 10px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
         .btn:active, .btn-outline:active { transform: scale(0.98); }
 
+        /* PROFILE SCREEN */
         .prof-header { background: #2c3e50; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; border-bottom: 2px solid #2c3e50;}
         .prof-avatar { width: 80px; height: 80px; background: #ffffff; color: #2c3e50; border-radius: 50%; font-size: 40px; display: flex; justify-content: center; align-items: center; margin: 0 auto 10px auto; font-weight: bold;}
-        .prof-box { background: #ffffff; margin: -20px 15px 15px; border-radius: 15px; padding: 20px; position: relative; z-index: 10; border: 2px solid #2c3e50;}
+        .prof-box { background: #ffffff; margin: -20px 20px 20px; border-radius: 16px; padding: 20px; position: relative; z-index: 10; border: 2px solid #2c3e50;}
         .prof-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed #2c3e50; font-size: 13px;}
         .prof-row:last-child { border-bottom: none;}
         .prof-label { color: #2c3e50; font-weight: bold; opacity: 0.8;}
         .prof-val { color: #2c3e50; font-weight: 900; text-align: right;}
         .prof-action-btn { background: #ffffff; color: #2c3e50; border: 2px solid #2c3e50; padding: 12px; width: 100%; border-radius: 10px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 13px;}
 
-        .hist-item { background: #ffffff; padding: 15px; border-radius: 12px; margin: 10px 15px; border: 2px solid #2c3e50;}
+        /* HISTORY ITEMS */
+        .hist-item { background: #ffffff; padding: 15px; border-radius: 12px; margin: 10px 20px; border: 2px solid #2c3e50;}
         .hist-top { display: flex; justify-content: space-between; font-size: 11px; color: #2c3e50; margin-bottom: 5px; font-weight: bold;}
         .hist-title { font-weight: 800; font-size: 13px; color: #2c3e50; margin-bottom: 3px;}
         .hist-target { font-size: 12px; color: #2c3e50; font-weight: bold; opacity: 0.8;}
@@ -144,8 +171,9 @@ EOF
         .stat-Pending { background: #ffffff; color: #2c3e50; border-style: dashed;} 
         .stat-Gagal { background: #ffffff; color: #2c3e50; text-decoration: line-through; }
 
+        /* MODAL */
         .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(44,62,80,0.9); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
-        .modal-box { background: #ffffff; width: 100%; max-width: 340px; border-radius: 20px; padding: 20px; text-align: center; border: 4px solid #2c3e50;}
+        .modal-box { background: #ffffff; width: 100%; max-width: 340px; border-radius: 20px; padding: 25px; text-align: center; border: 4px solid #2c3e50;}
         .modal-btns { display: flex; gap: 10px; margin-top: 15px;}
         
         .screen-header { padding: 15px 20px; font-weight: 900; font-size: 16px; display: flex; align-items: center; gap: 15px; background: #ffffff; border-bottom: 2px solid #2c3e50; position: sticky; top:0; z-index: 10; color: #2c3e50; filter: grayscale(100%); text-transform: uppercase;}
@@ -222,30 +250,25 @@ EOF
 
         <div id="dashboard-screen" class="hidden">
             <div class="banner">
-                <div class="saldo-wrapper">
-                    <div class="wallet-icon">💳</div>
-                    <div>
-                        <div class="saldo-title">SISA SALDO ANDA</div>
-                        <div class="saldo-amount" id="user-saldo">Rp 0</div>
-                    </div>
-                </div>
-                <button class="btn-topup-dash" onclick="openTopupModal()">➕ ISI SALDO</button>
+                <div class="saldo-title">Sisa Saldo Anda</div>
+                <div class="saldo-amount" id="user-saldo">Rp 0</div>
+                <button class="btn-topup-dash" onclick="openTopupModal()">[+] ISI SALDO</button>
             </div>
 
-            <div class="grid-title">LAYANAN FAVORIT</div>
+            <div class="grid-title">Layanan Favorit</div>
             <div class="grid-container">
-                <div class="grid-box" onclick="loadCategory('Pulsa Reguler')"><div class="grid-icon-wrap">📱</div><div class="grid-text">PULSA</div></div>
-                <div class="grid-box" onclick="loadCategory('Paket Data')"><div class="grid-icon-wrap">🌐</div><div class="grid-text">DATA</div></div>
+                <div class="grid-box" onclick="loadCategory('Pulsa')"><div class="grid-icon-wrap">📱</div><div class="grid-text">PULSA</div></div>
+                <div class="grid-box" onclick="loadCategory('Data')"><div class="grid-icon-wrap">🌐</div><div class="grid-text">DATA</div></div>
                 <div class="grid-box" onclick="loadCategory('Masa Aktif')"><div class="grid-icon-wrap">📆</div><div class="grid-text">MASA AKTIF</div></div>
-                <div class="grid-box" onclick="loadCategory('SMS & Telp')"><div class="grid-icon-wrap">☎️</div><div class="grid-text">SMS TELP</div></div>
-                <div class="grid-box" onclick="loadCategory('Token PLN')"><div class="grid-icon-wrap">⚡</div><div class="grid-text">TOKEN PLN</div></div>
+                <div class="grid-box" onclick="loadCategory('SMS Telp')"><div class="grid-icon-wrap">☎️</div><div class="grid-text">SMS TELP</div></div>
+                <div class="grid-box" onclick="loadCategory('PLN')"><div class="grid-icon-wrap">⚡</div><div class="grid-text">PLN</div></div>
                 <div class="grid-box" onclick="loadCategory('E-Wallet')"><div class="grid-icon-wrap">💼</div><div class="grid-text">E-WALLET</div></div>
                 <div class="grid-box" onclick="loadCategory('Tagihan')"><div class="grid-icon-wrap">🧾</div><div class="grid-text">TAGIHAN</div></div>
-                <div class="grid-box" onclick="loadCategory('Saldo E-Toll')"><div class="grid-icon-wrap">🛣️</div><div class="grid-text">E-TOLL</div></div>
+                <div class="grid-box" onclick="loadCategory('E-Toll')"><div class="grid-icon-wrap">🛣️</div><div class="grid-text">E-TOLL</div></div>
                 <div class="grid-box" onclick="loadCategory('Digital')"><div class="grid-icon-wrap">🎮</div><div class="grid-text">DIGITAL</div></div>
             </div>
             
-            <div style="padding: 15px; margin: 25px 15px; background: #ffffff; border-radius: 15px; text-align: center; border: 2px dashed #2c3e50;" id="install-banner" class="hidden">
+            <div style="padding: 15px; margin: 25px 20px; background: #ffffff; border-radius: 15px; text-align: center; border: 2px dashed #2c3e50;" id="install-banner" class="hidden">
                 <strong style="color:#2c3e50; text-transform: uppercase;">Aplikasi Tendo Store</strong><br>
                 <span style="font-size:11px; color:#2c3e50; font-weight: bold;">Pasang di layar utama HP Anda!</span><br>
                 <button class="btn" style="margin-top:10px; padding: 8px; font-size:12px; width:auto; padding: 8px 30px;" id="install-btn">INSTALL SEKARANG</button>
@@ -283,7 +306,7 @@ EOF
                 <div class="prof-row"><span class="prof-label">Total Transaksi</span><span class="prof-val" id="p-trx">0 Kali</span></div>
             </div>
             
-            <div style="padding: 0 15px;">
+            <div style="padding: 0 20px;">
                 <h3 style="font-size:14px; color:#2c3e50; margin-bottom:10px; text-transform: uppercase;">PENGATURAN AKUN</h3>
                 <button class="prof-action-btn" onclick="openEditModal('email')">✉️ UBAH ALAMAT EMAIL</button>
                 <button class="prof-action-btn" onclick="openEditModal('phone')">📱 UBAH NOMOR WA</button>
@@ -375,6 +398,7 @@ EOF
     </div>
 
     <script>
+        // PWA SETUP
         let deferredPrompt;
         const installBanner = document.getElementById('install-banner');
         const installBtn = document.getElementById('install-btn');
@@ -386,8 +410,10 @@ EOF
         });
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 
+        // GLOBAL VARS
         let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let currentEditMode = "";
 
+        // UI HELPERS
         function toggleSidebar() {
             const sb = document.getElementById('sidebar');
             const ov = document.getElementById('sb-overlay');
@@ -631,7 +657,7 @@ EOF
             
             let brands = [];
             for(let key in allProducts) {
-                if(cat !== 'Semua' && allProducts[key].kategori !== cat) continue;
+                if(allProducts[key].kategori !== cat) continue;
                 let b = allProducts[key].brand || 'Lainnya';
                 if(!brands.includes(b)) brands.push(b);
             }
@@ -660,7 +686,7 @@ EOF
             let listHTML = '';
             for(let key in allProducts) {
                 let p = allProducts[key];
-                if (cat !== 'Semua' && p.kategori !== cat) continue;
+                if (p.kategori !== cat) continue;
                 if ((p.brand || 'Lainnya') !== brand) continue;
                 let safeName = p.nama.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 let initial = p.brand ? p.brand.substring(0,2).toUpperCase() : 'PR';
@@ -910,14 +936,14 @@ function doBackupAndSend() {
 if (configAwal.autoBackup) setInterval(doBackupAndSend, (configAwal.backupInterval || 720) * 60 * 1000); 
 
 const brandStructure = {
-    'Pulsa Reguler': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
+    'Pulsa': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
     'Masa Aktif': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
-    'SMS & Telp': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
-    'Paket Data': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
-    'Token PLN': ['Token PLN'],
+    'SMS Telp': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
+    'Data': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
+    'PLN': ['Token PLN'],
     'E-Wallet': ['Gopay', 'Dana', 'Shopee Pay', 'OVO', 'LinkAja'],
     'Tagihan': ['PLN Pasca', 'BPJS', 'PDAM', 'Indihome'],
-    'Saldo E-Toll': ['Mandiri E-Money', 'Brizzi', 'TapCash'],
+    'E-Toll': ['Mandiri E-Money', 'Brizzi', 'TapCash'],
     'Digital': ['Mobile Legends', 'Free Fire', 'PUBG', 'Vidio', 'Netflix']
 };
 
@@ -940,7 +966,6 @@ async function startBot() {
     sock.ev.on('creds.update', saveCreds);
     sock.ev.on('connection.update', (u) => { if(u.connection === 'close') setTimeout(startBot, 4000); });
 
-    // SYSTEM WATCHER FOR JAPRI (DM)
     setInterval(() => {
         if(fs.existsSync(japriFile)) {
             let lines = fs.readFileSync(japriFile, 'utf8').split('\n');
@@ -1019,7 +1044,7 @@ EOF
 }
 
 # ==========================================
-# 4. INSTALASI DEPENDENSI (FULL LOADING BASH)
+# 4. INSTALASI DEPENDENSI
 # ==========================================
 install_dependencies() {
     clear
@@ -1064,7 +1089,7 @@ install_dependencies() {
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
-    echo -ne "${C_MAG}>> Meracik sistem utama & Web App (v35 MONOCHROME)...${C_RST}"
+    echo -ne "${C_MAG}>> Meracik sistem utama & Web App (v36 MONOCHROME)...${C_RST}"
     generate_bot_script
     generate_web_app
     if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
@@ -1297,7 +1322,7 @@ menu_member() {
 }
 
 # ==========================================
-# 8. MANAJEMEN PRODUK (DENGAN KATEGORI & BRAND)
+# 8. MANAJEMEN PRODUK (KATEGORI SESUAI GAMBAR)
 # ==========================================
 menu_produk() {
     while true; do
@@ -1319,11 +1344,11 @@ menu_produk() {
             1)
                 echo -e "\n${C_MAG}--- TAMBAH PRODUK BARU ---${C_RST}"
                 echo -e "${C_CYAN}Pilih Kategori Utama:${C_RST}"
-                echo "1. Pulsa Reguler     6. E-Wallet"
-                echo "2. Paket Data        7. Tagihan"
-                echo "3. Masa Aktif        8. Saldo E-Toll"
-                echo "4. SMS & Telp        9. Digital"
-                echo "5. Token PLN"
+                echo "1. Pulsa         6. E-Wallet"
+                echo "2. Data          7. Tagihan"
+                echo "3. Masa Aktif    8. E-Toll"
+                echo "4. SMS Telp      9. Digital"
+                echo "5. PLN"
                 read -p "👉 Masukkan Nomor Kategori [1-9]: " cat_idx
                 
                 brand_idx="1"
@@ -1364,21 +1389,21 @@ menu_produk() {
                 
                 node -e "
                     const fs = require('fs');
-                    const catMap = {'1':'Pulsa Reguler', '2':'Paket Data', '3':'Masa Aktif', '4':'SMS & Telp', '5':'Token PLN', '6':'E-Wallet', '7':'Tagihan', '8':'Saldo E-Toll', '9':'Digital'};
+                    const catMap = {'1':'Pulsa', '2':'Data', '3':'Masa Aktif', '4':'SMS Telp', '5':'PLN', '6':'E-Wallet', '7':'Tagihan', '8':'E-Toll', '9':'Digital'};
                     const brandMap = {
-                        'Pulsa Reguler': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'Paket Data': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
+                        'Pulsa': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
+                        'Data': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
                         'Masa Aktif': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'SMS & Telp': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
+                        'SMS Telp': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
                         'E-Wallet': {'1':'Gopay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
                         'Tagihan': {'1':'PLN Pasca', '2':'BPJS', '3':'PDAM', '4':'Indihome'},
-                        'Saldo E-Toll': {'1':'Mandiri E-Money', '2':'Brizzi', '3':'TapCash'},
+                        'E-Toll': {'1':'Mandiri E-Money', '2':'Brizzi', '3':'TapCash'},
                         'Digital': {'1':'Mobile Legends', '2':'Free Fire', '3':'PUBG', '4':'Vidio', '5':'Netflix'},
-                        'Token PLN': {'1':'Token PLN'}
+                        'PLN': {'1':'Token PLN'}
                     };
                     
                     let catName = catMap[process.env.TMP_CAT_IDX] || 'Lainnya';
-                    let brandName = (brandMap[catName] && brandMap[catName][process.env.TMP_BRAND_IDX]) ? brandMap[catName][process.env.TMP_BRAND_IDX] : (catName === 'Token PLN' ? 'Token PLN' : 'Lainnya');
+                    let brandName = (brandMap[catName] && brandMap[catName][process.env.TMP_BRAND_IDX]) ? brandMap[catName][process.env.TMP_BRAND_IDX] : (catName === 'PLN' ? 'Token PLN' : 'Lainnya');
                     
                     let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
                     let key = process.env.TMP_KODE.toUpperCase().replace(/\s+/g, '');
@@ -1482,17 +1507,17 @@ menu_produk() {
                 
                 node -e "
                     const fs = require('fs');
-                    const catMap = {'1':'Pulsa Reguler', '2':'Paket Data', '3':'Masa Aktif', '4':'SMS & Telp', '5':'Token PLN', '6':'E-Wallet', '7':'Tagihan', '8':'Saldo E-Toll', '9':'Digital'};
+                    const catMap = {'1':'Pulsa', '2':'Data', '3':'Masa Aktif', '4':'SMS Telp', '5':'PLN', '6':'E-Wallet', '7':'Tagihan', '8':'E-Toll', '9':'Digital'};
                     const brandMap = {
-                        'Pulsa Reguler': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'Paket Data': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
+                        'Pulsa': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
+                        'Data': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
                         'Masa Aktif': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'SMS & Telp': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
+                        'SMS Telp': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
                         'E-Wallet': {'1':'Gopay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
                         'Tagihan': {'1':'PLN Pasca', '2':'BPJS', '3':'PDAM', '4':'Indihome'},
-                        'Saldo E-Toll': {'1':'Mandiri E-Money', '2':'Brizzi', '3':'TapCash'},
+                        'E-Toll': {'1':'Mandiri E-Money', '2':'Brizzi', '3':'TapCash'},
                         'Digital': {'1':'Mobile Legends', '2':'Free Fire', '3':'PUBG', '4':'Vidio', '5':'Netflix'},
-                        'Token PLN': {'1':'Token PLN'}
+                        'PLN': {'1':'Token PLN'}
                     };
 
                     let produk = JSON.parse(fs.readFileSync('produk.json'));
@@ -1512,7 +1537,7 @@ menu_produk() {
                         let cName = catMap[process.env.NEW_CAT_IDX];
                         if(cName) {
                             item.kategori = cName;
-                            item.brand = (brandMap[cName] && brandMap[cName][process.env.NEW_BRAND_IDX]) ? brandMap[cName][process.env.NEW_BRAND_IDX] : (cName === 'Token PLN' ? 'Token PLN' : 'Lainnya');
+                            item.brand = (brandMap[cName] && brandMap[cName][process.env.NEW_BRAND_IDX]) ? brandMap[cName][process.env.NEW_BRAND_IDX] : (cName === 'PLN' ? 'Token PLN' : 'Lainnya');
                         }
                     }
                     
@@ -1575,7 +1600,7 @@ menu_produk() {
                     if(keys.length === 0) {
                         console.log('\x1b[33mBelum ada produk.\x1b[0m');
                     } else {
-                        let cats = ['Pulsa Reguler', 'Paket Data', 'Masa Aktif', 'SMS & Telp', 'Token PLN', 'E-Wallet', 'Tagihan', 'Saldo E-Toll', 'Digital', 'Lainnya'];
+                        let cats = ['Pulsa', 'Data', 'Masa Aktif', 'SMS Telp', 'PLN', 'E-Wallet', 'Tagihan', 'E-Toll', 'Digital', 'Lainnya'];
                         let count = 0;
                         cats.forEach(c => {
                             let catKeys = keys.filter(k => (produk[k].kategori || 'Lainnya') === c);
@@ -1626,7 +1651,7 @@ while true; do
     echo -e "  ${C_GREEN}[9]${C_RST}  💾 Backup & Restore Data Database"
     echo -e "  ${C_GREEN}[10]${C_RST} 🔌 Ganti API Digiflazz"
     echo -e "  ${C_GREEN}[11]${C_RST} 🔄 Ganti Akun Bot WA (Reset Sesi)"
-    echo -e "  ${C_GREEN}[12]${C_RST} 📢 Kirim Pesan Broadcast Kesemua Member (WA)"
+    echo -e "  ${C_GREEN}[12]${C_RST} 📢 Kirim Pesan Broadcast WA"
     echo -e "  ${C_GREEN}[13]${C_RST} 🌐 Kirim Pemberitahuan ke Website Aplikasi"
     echo -e "  ${C_GREEN}[14]${C_RST} 💬 Kirim Pesan Langsung (Japri) ke Pelanggan"
     echo -e "${C_CYAN}======================================================${C_RST}"
