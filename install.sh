@@ -1150,8 +1150,12 @@ async function startBot() {
                         if (db[senderNum]) { db[senderNum].saldo += trx.harga; if(db[senderNum].history && db[senderNum].history.length > 0) db[senderNum].history[0].status = 'Gagal'; saveJSON(dbFile, db); }
                         msg = `❌ *STATUS: GAGAL*\n\n📦 Produk: ${trx.nama}\nAlasan: ${resData.message}\n_💰 Saldo dikembalikan._`;
                     }
-                    await sock.sendMessage(trx.jid, { text: msg });
+                    
+                    // PERBAIKAN: Hapus dari antrean file TERLEBIH DAHULU agar tidak terjadi looping refund
                     delete trxs[ref]; saveJSON(trxFile, trxs);
+                    
+                    // Gunakan catch untuk mencegah error memberhentikan proses berikutnya
+                    sock.sendMessage(trx.jid, { text: msg }).catch(e => {}); 
                 } else if (Date.now() - trx.tanggal > 24 * 60 * 60 * 1000) { delete trxs[ref]; saveJSON(trxFile, trxs); }
             } catch (err) {}
             await new Promise(r => setTimeout(r, 2000)); 
