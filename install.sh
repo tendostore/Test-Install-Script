@@ -1,8 +1,35 @@
+#!/bin/bash
+# Script One-Click Install & Run untuk Update Harga Jual Tendo Store
+
+echo "==================================================="
+echo "  Memulai proses instalasi dependensi Tendo Store  "
+echo "==================================================="
+
+# 1. Update sistem dan install Python serta pip
+echo "[1/4] Memperbarui sistem dan menginstal Python3..."
+sudo apt-get update -y
+sudo apt-get install python3 python3-pip -y
+
+# 2. Menginstal library Python yang dibutuhkan
+echo "[2/4] Menginstal library pandas dan openpyxl..."
+pip3 install pandas openpyxl
+
+# 3. Membuat file script Python secara otomatis
+echo "[3/4] Menyiapkan script pemroses harga..."
+cat << 'EOF' > edit_harga.py
 import pandas as pd
 import re
+import os
 
 # Membaca file produk
 file_name = 'daftar-produk-buyer.xlsx - Worksheet.csv'
+
+# Pengecekan apakah file CSV tersedia di folder yang sama
+if not os.path.exists(file_name):
+    print(f"\n[ERROR] File '{file_name}' tidak ditemukan!")
+    print("Pastikan Anda sudah mengupload file CSV tersebut ke folder yang sama dengan script ini sebelum menjalankan install.sh")
+    exit(1)
+
 df = pd.read_csv(file_name)
 
 # Fungsi untuk mendeteksi kategori dari nama produk
@@ -64,4 +91,13 @@ df['Harga Jual'] = df.apply(hitung_harga_jual, axis=1)
 output_file = 'daftar-produk-harga-jual.xlsx'
 df.to_excel(output_file, index=False, engine='openpyxl')
 
-print(f"Selesai! File berhasil disimpan dengan nama: {output_file}")
+print(f"\n[SUKSES] File berhasil diproses dan disimpan dengan nama: {output_file}")
+EOF
+
+# 4. Mengeksekusi script Python
+echo "[4/4] Menjalankan pemrosesan data..."
+python3 edit_harga.py
+
+echo "==================================================="
+echo "           Proses instalasi selesai!               "
+echo "==================================================="
