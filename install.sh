@@ -4,34 +4,35 @@ echo "==================================================="
 echo "  Proses Installasi & Update Harga Tendo Store"
 echo "==================================================="
 
-# 1. Update dan Install Dependencies di VPS
 echo "[1/3] Menginstall Python dan Library yang dibutuhkan..."
 apt-get update -y
 apt-get install python3 python3-pip python3-pandas -y
 pip3 install openpyxl --break-system-packages 2>/dev/null || pip3 install openpyxl
 
-# 2. Membuat file Python secara otomatis
-echo "[2/3] Membuat script pemroses harga..."
+echo "[2/3] Membuat script pemroses harga otomatis..."
 cat << 'EOF' > edit_harga.py
 import pandas as pd
 import re
 import os
 import sys
+import glob
 
-# Konfigurasi Nama File
-file_name = 'daftar-produk-buyer.xlsx - Worksheet.csv'
-output_file = 'daftar-produk-harga-jual.xlsx'
+# 1. Fitur Auto-Detect: Cari file CSV apa saja di folder saat ini
+csv_files = glob.glob('*.csv')
 
-# Pengecekan ketersediaan file CSV
-if not os.path.exists(file_name):
-    print(f"ERROR: File '{file_name}' tidak ditemukan di folder ini!")
-    print("Pastikan file CSV sudah di-upload ke VPS sebelum menjalankan script.")
+if not csv_files:
+    print("ERROR: Tidak ada file CSV yang ditemukan di server ini!")
+    print("Pastikan Anda sudah meng-upload file CSV produk ke VPS (146.190.80.114) sebelum menjalankan script.")
     sys.exit(1)
 
-print(f"Membaca data dari {file_name}...")
+# Gunakan file CSV pertama yang otomatis ditemukan oleh sistem
+file_name = csv_files[0]
+output_file = 'daftar-produk-harga-jual.xlsx'
+
+print(f"\nFile ditemukan! Membaca data dari: '{file_name}'...")
 df = pd.read_csv(file_name)
 
-# Fungsi deteksi kategori dari nama produk
+# Fungsi deteksi kategori
 def tentukan_kategori(nama_produk):
     nama = str(nama_produk).lower()
     if re.search(r'pln|token', nama): return 'pln'
@@ -44,7 +45,7 @@ def tentukan_kategori(nama_produk):
     if re.search(r'perdana|aktivasi|kpk', nama): return 'perdana'
     return 'data' 
 
-# Fungsi hitung margin sesuai aturan Tendo Store
+# Fungsi hitung margin sesuai aturan
 def hitung_harga_jual(row):
     kategori = tentukan_kategori(row['Produk'])
     try:
@@ -54,20 +55,13 @@ def hitung_harga_jual(row):
         
     margin = 0
     
-    # Aturan Pulsa & PLN
-    if kategori == 'pulsa':
-        margin = 1500
-    elif kategori == 'pln':
-        margin = 1000
-        
-    # Aturan E-Money
+    if kategori == 'pulsa': margin = 1500
+    elif kategori == 'pln': margin = 1000
     elif kategori == 'e-money':
         if harga_modal < 100: margin = 0
         elif harga_modal < 1000: margin = 300
         elif harga_modal < 5000: margin = 600
-        else: margin = 1000 # Untuk < 50k dan > 50k untungnya sama Rp.1.000
-        
-    # Aturan Data, Game, Voucher, SMS, Masa Aktif, Aktivasi Perdana
+        else: margin = 1000
     else: 
         if harga_modal < 100: margin = 0
         elif harga_modal < 1000: margin = 300
@@ -92,9 +86,8 @@ print(f"Menyimpan hasil ke {output_file}...")
 df.to_excel(output_file, index=False, engine='openpyxl')
 
 print("=== SELESAI ===")
-print(f"File berhasil diperbarui: {output_file}")
+print(f"File berhasil diperbarui dan siap digunakan: {output_file}")
 EOF
 
-# 3. Menjalankan Python Script
 echo "[3/3] Menjalankan script Python..."
 python3 edit_harga.py
