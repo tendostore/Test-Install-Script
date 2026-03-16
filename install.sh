@@ -109,12 +109,12 @@ EOF
         .grid-icon-wrap svg { width: 100%; height: 100%; stroke-width: 1.5; fill: none; }
         .grid-text { font-size: 10px; color: #0b2136; font-weight: 800; line-height: 1.3; text-transform: uppercase;}
 
-        /* BRAND GRID (TAMPILAN PROVIDER) */
-        .brand-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 20px;}
-        .brand-card { background: #ffffff; border: 1px solid #e2e8f0; padding: 20px 10px; border-radius: 16px; text-align: center; box-shadow: 0 4px 10px rgba(226,232,240,0.4); cursor: pointer; transition: transform 0.2s, border-color 0.2s;}
-        .brand-card:active { transform: scale(0.95); border-color: #0b2136;}
-        .b-logo { width: 55px; height: 55px; background: #f1f5f9; color: #0b2136; border-radius: 50%; font-weight: 900; font-size: 18px; display: flex; justify-content: center; align-items: center; margin: 0 auto 12px auto; border: 1px solid #e2e8f0;}
-        .b-name { font-size: 14px; font-weight: 800; color: #1e293b;}
+        /* BRAND LIST (VERTICAL) */
+        .brand-list { display: flex; flex-direction: column; padding: 15px 20px; gap: 12px; }
+        .brand-row { background: #ffffff; padding: 15px; border-radius: 14px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s, border-color 0.2s;}
+        .brand-row:active { transform: scale(0.98); border-color: #0b2136;}
+        .b-logo { width: 45px; height: 45px; background: #f8fafc; color: #0b2136; border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; border: 1px solid #e2e8f0; flex-shrink: 0;}
+        .b-name { font-size: 14px; font-weight: 800; color: #1e293b; flex: 1;}
 
         /* BOTTOM NAV */
         .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 480px; background: #ffffff; display: flex; justify-content: space-around; padding: 10px 0 8px; border-top: 1px solid #e2e8f0; box-shadow: 0 -2px 10px rgba(0,0,0,0.02); z-index: 90;}
@@ -159,7 +159,7 @@ EOF
         .btn-outline { background: #ffffff; color: #0b2136; border: 1.5px solid #0b2136; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
         .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
 
-        /* PROFILE SCREEN */
+        /* PROFILE & MODAL */
         .prof-header { background: #0b2136; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
         .prof-avatar { width: 80px; height: 80px; background: #ffffff; color: #0b2136; border-radius: 50%; font-size: 40px; display: flex; justify-content: center; align-items: center; margin: 0 auto 10px auto; font-weight: bold;}
         .prof-box { background: #ffffff; margin: -20px 20px 20px; border-radius: 16px; padding: 20px; position: relative; z-index: 10; border: 1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(226,232,240,0.5);}
@@ -169,7 +169,6 @@ EOF
         .prof-action-btn { background: #f8fafc; color: #0b2136; border: 1px solid #e2e8f0; padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px;}
         .prof-action-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
 
-        /* HISTORY ITEMS */
         .hist-item { background: #ffffff; padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(226,232,240,0.5); cursor: pointer;}
         .hist-item:active { transform: scale(0.98); }
         .hist-top { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-bottom: 5px; font-weight: 700;}
@@ -180,7 +179,6 @@ EOF
         .stat-Pending { background: #ffedd5; color: #c2410c; } 
         .stat-Gagal { background: #fee2e2; color: #b91c1c; text-decoration: line-through; }
 
-        /* MODAL */
         .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
         .modal-box { background: #ffffff; width: 100%; max-width: 340px; border-radius: 20px; padding: 25px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;}
         .modal-btns { display: flex; gap: 10px; margin-top: 15px;}
@@ -314,12 +312,6 @@ EOF
                     <div class="grid-text">PERDANA</div>
                 </div>
             </div>
-            
-            <div style="padding: 20px; margin: 30px 20px; background: #ffffff; border-radius: 16px; text-align: center; border: 1px dashed #cbd5e1;" id="install-banner" class="hidden">
-                <strong style="color:#0b2136; font-size:14px;">Aplikasi Digital Tendo Store</strong><br>
-                <span style="font-size:12px; color:#64748b; font-weight: 600;">Pasang di layar utama HP Anda untuk akses cepat!</span><br>
-                <button class="btn" style="margin-top:15px; padding: 10px 30px; font-size:12px; width:auto; border-radius:20px;" id="install-btn">Install Sekarang</button>
-            </div>
         </div>
 
         <div id="brand-screen" class="hidden">
@@ -327,9 +319,9 @@ EOF
                 <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
-                <span id="brand-cat-title" style="text-transform: uppercase;">Pilih Provider</span>
+                <span id="brand-cat-title" style="text-transform: uppercase;">Kategori</span>
             </div>
-            <div class="brand-grid" id="brand-list"></div>
+            <div class="brand-list" id="brand-list"></div>
         </div>
 
         <div id="produk-screen" class="hidden">
@@ -753,7 +745,7 @@ EOF
         async function loadCategory(cat) {
             currentCategory = cat; 
             await fetchAllProducts(); 
-            document.getElementById('brand-cat-title').innerText = "Provider " + cat;
+            document.getElementById('brand-cat-title').innerText = cat;
             
             let brands = [];
             for(let key in allProducts) {
@@ -768,9 +760,12 @@ EOF
                 brands.forEach(b => {
                     let initial = b.substring(0,2).toUpperCase();
                     gridHTML += `
-                    <div class="brand-card" onclick="loadProducts('${cat}', '${b}')">
+                    <div class="brand-row" onclick="loadProducts('${cat}', '${b}')">
                         <div class="b-logo">${initial}</div>
                         <div class="b-name">${b}</div>
+                        <div style="margin-left:auto">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </div>
                     </div>`;
                 });
                 document.getElementById('brand-list').innerHTML = gridHTML;
@@ -1028,17 +1023,20 @@ app.post('/api/order', async (req, res) => {
     let { phone, sku, tujuan } = req.body;
     let pNorm = normalizePhone(phone);
     let db = loadJSON(dbFile); let produkDB = loadJSON(produkFile); let config = loadJSON(configFile);
-
-    if (!db[pNorm]) return res.json({success: false, message: 'Sesi Anda tidak valid. Silakan Logout dan Login kembali.'});
+    
+    // Perbaikan deteksi sesi (Mengecek kedua format nomor HP)
+    let targetKey = db[pNorm] ? pNorm : (db[phone] ? phone : null);
+    if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid. Silakan Logout dan Login kembali.'});
+    
     let p = produkDB[sku];
     if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
-    if (db[pNorm].saldo < p.harga) return res.json({success: false, message: 'Saldo tidak cukup.'});
+    if (db[targetKey].saldo < p.harga) return res.json({success: false, message: 'Saldo tidak cukup.'});
 
     let username = (config.digiflazzUsername || '').trim();
     let apiKey = (config.digiflazzApiKey || '').trim();
     let refId = 'WEB-' + Date.now();
     let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
-    let maxPrice = parseInt(p.harga); // HARGA JUAL ADALAH MAX PRICE
+    let maxPrice = parseInt(p.harga);
 
     try {
         const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
@@ -1047,22 +1045,22 @@ app.post('/api/order', async (req, res) => {
         const statusOrder = response.data.data.status; 
         if (statusOrder === 'Gagal') return res.json({success: false, message: response.data.data.message});
         
-        db[pNorm].saldo -= p.harga; db[pNorm].trx_count = (db[pNorm].trx_count || 0) + 1;
-        db[pNorm].history = db[pNorm].history || [];
-        db[pNorm].history.unshift({ tanggal: new Date().toLocaleString('id-ID'), nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-' });
-        if(db[pNorm].history.length > 20) db[pNorm].history.pop();
+        db[targetKey].saldo -= p.harga; db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
+        db[targetKey].history = db[targetKey].history || [];
+        db[targetKey].history.unshift({ tanggal: new Date().toLocaleString('id-ID'), nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-' });
+        if(db[targetKey].history.length > 20) db[targetKey].history.pop();
         saveJSON(dbFile, db);
         
         let trxs = loadJSON(trxFile);
-        let targetJid = db[pNorm].jid || pNorm + '@s.whatsapp.net';
+        let targetJid = db[targetKey].jid || targetKey + '@s.whatsapp.net';
         trxs[refId] = { jid: targetJid, sku: sku, tujuan: tujuan, harga: p.harga, nama: p.nama, tanggal: Date.now() };
         saveJSON(trxFile, trxs);
 
         if (globalSock) {
-            let msgWa = `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[pNorm].saldo.toLocaleString('id-ID')}`;
+            let msgWa = `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
             globalSock.sendMessage(targetJid, { text: msgWa }).catch(e=>{});
         }
-        return res.json({success: true, saldo: db[pNorm].saldo});
+        return res.json({success: true, saldo: db[targetKey].saldo});
     } catch (error) { 
         return res.json({success: false, message: 'Gagal diproses Digiflazz (Nomor Salah/Server Down/Harga Berubah)'}); 
     }
@@ -1152,7 +1150,7 @@ async function startBot() {
                 let menuText = `👋 *${config.botName || "Digital Tendo Store"}*\n\nSilakan belanja lebih mudah di Aplikasi:\n🌐 http://${process.env.IP_ADDRESS || 'IP_VPS_ANDA'}:3000\n\n_(Atau balas 1 untuk Cek Saldo)_`;
                 return await sock.sendMessage(from, { text: menuText });
             }
-            if (['1', 'saldo'].includes(rawCommand)) return await sendMessage(from, { text: `💰 Saldo Anda: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` });
+            if (['1', 'saldo'].includes(rawCommand)) return await sock.sendMessage(from, { text: `💰 Saldo Anda: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` });
         } catch (err) {}
     });
 }
@@ -1686,7 +1684,7 @@ menu_produk() {
                 ;;
             5)
                 echo -e "\n${C_MAG}--- IMPORT PRODUK VIA EXCEL (.XLSX) / CSV ---${C_RST}"
-                echo -e "Sistem Import Cerdas. Format kolom apapun akan terdeteksi!"
+                echo -e "Format tabel Digiflazz (English & Indo headers) didukung sepenuhnya!"
                 read -p "Masukkan nama file lengkap (contoh: daftar-produk-buyer.xlsx ATAU namafile.csv): " nama_file_excel
                 if [ ! -f "$nama_file_excel" ]; then
                     echo -e "${C_RED}❌ File tidak ditemukan. Pastikan file $nama_file_excel ada di direktori $(pwd)${C_RST}"
@@ -1744,42 +1742,79 @@ menu_produk() {
                                 
                                 if(isNaN(hargaAwal)) return;
 
-                                let kategori = 'Voucher';
+                                // --- LOGIKA KATEGORI (SANGAT KETAT) ---
+                                let kategori = 'Lainnya';
                                 let nLower = ' ' + nama.toLowerCase() + ' '; 
+                                let nUpper = nama.toUpperCase();
 
-                                if (nLower.match(/gopay|ovo|dana|shopee|linkaja|isaku|maxim|brizzi|e-toll|e-money|grab|gojek|mtix/)) kategori = 'E-Money';
-                                else if (nLower.match(/pln|token listrik/)) kategori = 'PLN';
-                                else if (nLower.match(/free fire| ff |mobile legend|mlbb|pubg|diamond| uc |genshin|valorant|aov|call of duty|codm|garena|unipin|steam/)) kategori = 'Game';
-                                else if (nLower.match(/ sms |telpon|telepon|nelpon|voice| bicara /)) kategori = 'Paket SMS & Telpon';
-                                else if (nLower.match(/masa aktif/)) kategori = 'Masa Aktif';
-                                else if (nLower.match(/perdana|aktivasi| kpk /)) kategori = 'Aktivasi Perdana';
-                                else if (nLower.match(/ gb | mb |data|kuota|internet|combo|xtra|flash|paket| omg /)) kategori = 'Data';
-                                else if (nLower.match(/voucher|vcr|voc/)) kategori = 'Voucher';
-                                else if (nLower.match(/pulsa|promo|reguler|transfer|telkomsel|xl|axis|indosat|isat|tri|three|smartfren|by\.u/)) kategori = 'Pulsa';
-                                else kategori = 'Voucher'; 
+                                if (nLower.match(/gopay|go-pay|ovo|dana|shopee|linkaja|link aja|isaku|brizzi|e-toll|e-money|mtix/)) {
+                                    kategori = 'E-Money';
+                                }
+                                else if (nLower.match(/free fire| ff |mobile legend|mlbb|pubg/)) {
+                                    kategori = 'Game';
+                                }
+                                else if (nLower.match(/voucher|vcr|voc|spotify|google play|garena|unipin/)) {
+                                    kategori = 'Voucher';
+                                }
+                                else if (nLower.match(/pln|token listrik/)) {
+                                    kategori = 'PLN';
+                                }
+                                else if (nLower.match(/masa aktif/)) {
+                                    kategori = 'Masa Aktif';
+                                }
+                                else if (nLower.match(/perdana|aktivasi| kpk /)) {
+                                    kategori = 'Aktivasi Perdana';
+                                }
+                                else if (nLower.match(/ sms |telpon|telepon|nelpon|voice| bicara /) && !nLower.match(/ gb | mb |data|kuota|internet|combo|flash/)) {
+                                    kategori = 'Paket SMS & Telpon';
+                                }
+                                else if (nLower.match(/ gb | mb |data|kuota|internet|combo|xtra|flash|paket| omg /)) {
+                                    kategori = 'Data';
+                                }
+                                else if (nLower.match(/pulsa|promo|reguler|transfer/)) {
+                                    kategori = 'Pulsa';
+                                }
+                                else {
+                                    if(nUpper.includes('TELKOMSEL') || nUpper.includes('XL') || nUpper.includes('AXIS') || nUpper.includes('INDOSAT') || nUpper.includes('TRI') || nUpper.includes('SMARTFREN') || nUpper.includes('BY.U')) {
+                                        kategori = 'Pulsa';
+                                    } else {
+                                        kategori = 'Voucher';
+                                    }
+                                }
 
+                                // --- LOGIKA BRAND PROVIDER (SANGAT KETAT) ---
                                 let brand = 'Lainnya';
-                                if(brandCol && row[brandCol]) {
-                                    brand = row[brandCol].toString().trim();
-                                } else {
-                                    let nUpper = nama.toUpperCase();
-                                    if(nUpper.includes('TELKOMSEL') || nUpper.includes('TSEL') || nUpper.includes('AS ') || nUpper.includes('SIMPATI')) brand = 'Telkomsel';
-                                    else if(nUpper.includes('XL')) brand = 'XL';
-                                    else if(nUpper.includes('AXIS')) brand = 'Axis';
-                                    else if(nUpper.includes('INDOSAT') || nUpper.includes('ISAT') || nUpper.includes('IM3')) brand = 'Indosat';
-                                    else if(nUpper.includes('TRI') || nUpper.includes('THREE') || nUpper.includes(' BIMA ')) brand = 'Tri';
-                                    else if(nUpper.includes('SMARTFREN')) brand = 'Smartfren';
-                                    else if(nUpper.includes('BY.U') || nUpper.includes('BYU')) brand = 'By.U';
-                                    else if(nUpper.includes('DANA')) brand = 'Dana';
-                                    else if(nUpper.includes('OVO')) brand = 'OVO';
-                                    else if(nUpper.includes('GOPAY') || nUpper.includes('GO-PAY')) brand = 'Gopay';
-                                    else if(nUpper.includes('SHOPEE')) brand = 'ShopeePay';
-                                    else if(nUpper.includes('LINKAJA')) brand = 'LinkAja';
-                                    else if(nLower.includes('mobile legends') || nLower.includes('mlbb')) brand = 'Mobile Legends';
-                                    else if(nLower.includes('free fire') || nLower.includes(' ff ')) brand = 'Free Fire';
-                                    else if(nLower.includes('pubg')) brand = 'PUBG';
-                                    else if(nLower.includes('pln') || nLower.includes('token')) brand = 'PLN';
-                                    else brand = nama.split(' ')[0].toUpperCase(); 
+                                
+                                if (kategori === 'E-Money') {
+                                    if (nLower.includes('gopay') || nLower.includes('go-pay')) brand = 'Gopay';
+                                    else if (nLower.includes('ovo')) brand = 'OVO';
+                                    else if (nLower.includes('dana')) brand = 'Dana';
+                                    else if (nLower.includes('shopee')) brand = 'ShopeePay';
+                                    else if (nLower.includes('linkaja') || nLower.includes('link aja')) brand = 'LinkAja';
+                                } 
+                                else if (kategori === 'Game') {
+                                    if (nLower.includes('mobile legend') || nLower.includes('mlbb')) brand = 'Mobile Legends';
+                                    else if (nLower.includes('free fire') || nLower.includes(' ff ')) brand = 'Free Fire';
+                                    else if (nLower.includes('pubg')) brand = 'PUBG';
+                                }
+                                else if (kategori === 'PLN') {
+                                    brand = 'PLN';
+                                }
+                                else {
+                                    if(brandCol && row[brandCol]) {
+                                        brand = row[brandCol].toString().trim();
+                                    } else {
+                                        if(nUpper.includes('BY.U') || nUpper.includes('BYU')) brand = 'By.U';
+                                        else if(nUpper.includes('TELKOMSEL') || nUpper.includes('TSEL') || nUpper.includes('AS ') || nUpper.includes('SIMPATI')) brand = 'Telkomsel';
+                                        else if(nUpper.includes('XL')) brand = 'XL';
+                                        else if(nUpper.includes('AXIS')) brand = 'Axis';
+                                        else if(nUpper.includes('INDOSAT') || nUpper.includes('ISAT') || nUpper.includes('IM3')) brand = 'Indosat';
+                                        else if(nUpper.includes('TRI') || nUpper.includes('THREE') || nUpper.includes(' BIMA ')) brand = 'Tri';
+                                        else if(nUpper.includes('SMARTFREN')) brand = 'Smartfren';
+                                        else if(nLower.includes('spotify')) brand = 'Spotify';
+                                        else if(nLower.includes('google play')) brand = 'Google Play';
+                                        else brand = nama.split(' ')[0].toUpperCase(); 
+                                    }
                                 }
 
                                 let margin = 0;
