@@ -12,7 +12,7 @@ C_MAG="\e[35m"
 C_RST="\e[0m"
 C_BOLD="\e[1m"
 
-# Buka Port 3000, 80 (HTTP), dan 443 (HTTPS)
+# Buka Port 3000
 sudo ufw allow 3000/tcp > /dev/null 2>&1 || true
 sudo ufw allow 80/tcp > /dev/null 2>&1 || true
 sudo ufw allow 443/tcp > /dev/null 2>&1 || true
@@ -78,7 +78,10 @@ EOF
         .menu-btn { cursor: pointer; background: none; border: none; padding: 0; margin-right: 15px; display: flex; align-items: center; justify-content: center;}
         .menu-btn svg { width: 28px; height: 28px; stroke: #ffffff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
         .brand-title { font-size: 16px; font-weight: bold; flex: 1; text-align: center; margin-right: -10px;}
-        .trx-badge { font-size: 11px; background: #e3f2fd; color: #0b2136; padding: 4px 10px; border-radius: 12px; font-weight: 800;}
+        
+        /* TRX BADGE BISA DIKLIK */
+        .trx-badge { font-size: 11px; background: #e3f2fd; color: #0b2136; padding: 4px 10px; border-radius: 12px; font-weight: 800; cursor: pointer; transition: transform 0.2s;}
+        .trx-badge:active { transform: scale(0.95); }
 
         /* BANNER SALDO */
         .banner-container { background: #0b2136; border-radius: 0 0 25px 25px; padding: 0 20px 25px; box-shadow: 0 4px 15px rgba(11,33,54,0.1);}
@@ -201,7 +204,7 @@ EOF
                 <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
             <div class="brand-title" id="top-title">Digital Tendo Store</div>
-            <div class="trx-badge" id="top-trx-badge">0 Trx</div>
+            <div class="trx-badge" id="top-trx-badge" onclick="showHistory()">0 Trx</div>
         </div>
 
         <div class="sidebar-overlay" id="sb-overlay" onclick="toggleSidebar()"></div>
@@ -670,6 +673,9 @@ EOF
             btn.innerText = "Memeriksa..."; btn.disabled = true;
             
             let data = await apiCall('/api/login', {email, password:pass});
+            
+            btn.innerText = "Login Sekarang"; btn.disabled = false;
+            
             if(data && data.success) {
                 if(rem) { localStorage.setItem('tendo_email', email); localStorage.setItem('tendo_pass', pass); }
                 currentUser = data.phone; userData = data.data;
@@ -677,7 +683,6 @@ EOF
             } else {
                 alert(data ? data.message : "Gagal terhubung.");
             }
-            btn.innerText = "Login Sekarang"; btn.disabled = false;
         }
 
         async function requestOTP() {
@@ -688,15 +693,18 @@ EOF
             if(!user || !email || !phone || !pass) return alert('Semua kolom wajib diisi!');
             
             let btn = document.getElementById('btn-register');
+            let ori = btn.innerText;
             btn.innerText = "Mengirim..."; btn.disabled = true;
             
             let data = await apiCall('/api/register', {username:user, email, phone, password:pass});
+            
+            btn.innerText = ori; btn.disabled = false; // Reset tombol secepatnya
+            
             if(data && data.success) { 
                 tempRegPhone = phone; showScreen('otp-screen', null); 
             } else {
                 alert(data ? data.message : "Error server.");
             }
-            btn.innerText = "Kirim OTP WhatsApp"; btn.disabled = false;
         }
 
         async function verifyOTP() {
@@ -704,9 +712,13 @@ EOF
             if(!otp) return alert('Masukkan OTP!');
             
             let btn = document.getElementById('btn-verify');
+            let ori = btn.innerText;
             btn.innerText = "Memproses..."; btn.disabled = true;
             
             let data = await apiCall('/api/verify-otp', {phone: tempRegPhone, otp});
+            
+            btn.innerText = ori; btn.disabled = false;
+            
             if(data && data.success) {
                 alert('Pendaftaran Berhasil! Silakan Login.');
                 document.getElementById('log-email').value = document.getElementById('reg-email').value;
@@ -715,7 +727,6 @@ EOF
             } else {
                 alert(data ? data.message : "Error server.");
             }
-            btn.innerText = "Verifikasi & Daftar"; btn.disabled = false;
         }
 
         function openEditModal(type) {
@@ -737,16 +748,19 @@ EOF
             if(!val) return alert("Isi data baru!");
             
             let btn = document.getElementById('btn-req-edit');
+            let ori = btn.innerText;
             btn.innerText = "Mengirim..."; btn.disabled = true;
             
             let data = await apiCall('/api/req-edit-otp', {phone: currentUser, type: currentEditMode, newValue: val});
+            
+            btn.innerText = ori; btn.disabled = false;
+            
             if(data && data.success) {
                 document.getElementById('edit-step-1').classList.add('hidden');
                 document.getElementById('edit-step-2').classList.remove('hidden');
             } else {
                 alert(data ? data.message : "Error server");
             }
-            btn.innerText = "Kirim OTP"; btn.disabled = false;
         }
 
         async function verifyEditOTP() {
@@ -754,9 +768,13 @@ EOF
             if(!otp) return alert("Masukkan OTP!");
             
             let btn = document.getElementById('btn-verify-edit');
+            let ori = btn.innerText;
             btn.innerText = "Memproses..."; btn.disabled = true;
             
             let data = await apiCall('/api/verify-edit-otp', {phone: currentUser, otp: otp});
+            
+            btn.innerText = ori; btn.disabled = false;
+            
             if(data && data.success) {
                 alert("Berhasil diubah!");
                 closeEditModal();
@@ -765,7 +783,6 @@ EOF
             } else {
                 alert(data ? data.message : "Error server");
             }
-            btn.innerText = "Simpan"; btn.disabled = false;
         }
 
         async function fetchAllProducts() {
@@ -858,6 +875,9 @@ EOF
             btn.innerText = 'Proses...'; btn.disabled = true;
             
             let data = await apiCall('/api/order', {phone: currentUser, sku: selectedSKU, tujuan: target});
+            
+            btn.innerText = ori; btn.disabled = false;
+            
             if(data && data.success) {
                 alert('Pesanan Sukses Diproses!\nCek tab Riwayat Anda.');
                 closeOrderModal();
@@ -866,7 +886,6 @@ EOF
             } else {
                 alert(data ? 'Gagal: ' + data.message : "Kesalahan server.");
             }
-            btn.innerText = ori; btn.disabled = false;
         }
     </script>
 </body>
@@ -981,14 +1000,18 @@ app.post('/api/register', (req, res) => {
     let otp = Math.floor(1000 + Math.random() * 9000).toString();
     tempOtpDB[phone] = { username, email, password, otp };
 
-    try {
-        if (globalSock) {
-            let msg = `*🛡️ TENDO SECURITY 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
-            globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
-        }
-    } catch(err) { console.error(err); }
-    
+    // Kirim response INSTAN ke web agar tombol tidak macet!
     res.json({success: true});
+
+    // Jalankan pengiriman WA di belakang layar
+    setTimeout(() => {
+        try {
+            if (globalSock) {
+                let msg = `*🛡️ TENDO SECURITY 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
+                globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
+            }
+        } catch(err) { console.error(err); }
+    }, 500);
 });
 
 app.post('/api/verify-otp', (req, res) => {
@@ -1011,10 +1034,14 @@ app.post('/api/req-edit-otp', (req, res) => {
     let otp = Math.floor(1000 + Math.random() * 9000).toString();
     tempOtpDB[phone + '_edit'] = { type, newValue, otp };
     
-    try {
-        if (globalSock) globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ TENDO SECURITY 🛡️*\n\nKode OTP untuk mengubah data Anda adalah: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
-    } catch(e) {}
+    // Kirim response INSTAN
     res.json({success: true});
+
+    setTimeout(() => {
+        try {
+            if (globalSock) globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ TENDO SECURITY 🛡️*\n\nKode OTP untuk mengubah data Anda adalah: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
+        } catch(e) {}
+    }, 500);
 });
 
 app.post('/api/verify-edit-otp', (req, res) => {
@@ -1102,11 +1129,17 @@ app.post('/api/order', async (req, res) => {
         trxs[refId] = { jid: targetJid, sku: sku, tujuan: tujuan, harga: p.harga, nama: p.nama, tanggal: Date.now() };
         saveJSON(trxFile, trxs);
 
-        if (globalSock) {
-            let msgWa = `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
-            globalSock.sendMessage(targetJid, { text: msgWa }).catch(e=>{});
-        }
-        return res.json({success: true, saldo: db[targetKey].saldo});
+        // Response instan ke web
+        res.json({success: true, saldo: db[targetKey].saldo});
+
+        // Kirim nota di background
+        setTimeout(() => {
+            if (globalSock) {
+                let msgWa = `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
+                globalSock.sendMessage(targetJid, { text: msgWa }).catch(e=>{});
+            }
+        }, 500);
+
     } catch (error) { 
         return res.json({success: false, message: 'Gagal diproses Digiflazz (Nomor Salah/Server Down/Harga Berubah)'}); 
     }
@@ -1730,7 +1763,7 @@ menu_produk() {
                 ;;
             5)
                 echo -e "\n${C_MAG}--- IMPORT PRODUK VIA EXCEL (.XLSX) / CSV ---${C_RST}"
-                echo -e "Format tabel Digiflazz (English & Indo headers) didukung sepenuhnya!"
+                echo -e "Sistem Import Cerdas. Format kolom apapun akan terdeteksi!"
                 read -p "Masukkan nama file lengkap (contoh: daftar-produk-buyer.xlsx ATAU namafile.csv): " nama_file_excel
                 if [ ! -f "$nama_file_excel" ]; then
                     echo -e "${C_RED}❌ File tidak ditemukan. Pastikan file $nama_file_excel ada di direktori $(pwd)${C_RST}"
@@ -1788,7 +1821,6 @@ menu_produk() {
                                 
                                 if(isNaN(hargaAwal)) return;
 
-                                // --- LOGIKA KATEGORI (SUPER KETAT) ---
                                 let kategori = 'Lainnya';
                                 let nLower = ' ' + nama.toLowerCase() + ' '; 
                                 let nUpper = nama.toUpperCase();
@@ -1811,7 +1843,6 @@ menu_produk() {
                                 else if (nLower.match(/perdana|aktivasi| kpk /)) {
                                     kategori = 'Aktivasi Perdana';
                                 }
-                                // SMS/Telp tidak boleh ada unsur GB / Kuota Data
                                 else if (nLower.match(/ sms |telpon|telepon|nelpon|voice| bicara /) && !nLower.match(/ gb | mb |data|kuota|internet|combo|flash/)) {
                                     kategori = 'Paket SMS & Telpon';
                                 }
@@ -1829,7 +1860,6 @@ menu_produk() {
                                     }
                                 }
 
-                                // --- LOGIKA BRAND PROVIDER (SUPER KETAT) ---
                                 let brand = 'Lainnya';
                                 
                                 if (kategori === 'E-Money') {
@@ -1952,7 +1982,7 @@ while true; do
     echo -e "  ${C_GREEN}[13]${C_RST} 🌐 Kirim Pengumuman Web"
     echo -e "  ${C_GREEN}[14]${C_RST} 💬 Kirim Pesan Japri WA"
     echo -e "  ${C_GREEN}[15]${C_RST} 💳 Setup API Pembayaran Midtrans (Topup Otomatis)"
-    echo -e "  ${C_GREEN}[16]${C_RST} 🌍 Setup Domain & HTTPS (SSL) ${C_YELLOW}*Baru*${C_RST}"
+    echo -e "  ${C_GREEN}[16]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
     echo -e "${C_CYAN}======================================================${C_RST}"
