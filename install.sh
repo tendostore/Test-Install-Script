@@ -109,6 +109,13 @@ EOF
         .grid-icon-wrap svg { width: 100%; height: 100%; stroke-width: 1.5; fill: none; }
         .grid-text { font-size: 10px; color: #0b2136; font-weight: 800; line-height: 1.3; text-transform: uppercase;}
 
+        /* BRAND GRID (TAMPILAN PROVIDER) */
+        .brand-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 20px;}
+        .brand-card { background: #ffffff; border: 1px solid #e2e8f0; padding: 20px 10px; border-radius: 16px; text-align: center; box-shadow: 0 4px 10px rgba(226,232,240,0.4); cursor: pointer; transition: transform 0.2s, border-color 0.2s;}
+        .brand-card:active { transform: scale(0.95); border-color: #0b2136;}
+        .b-logo { width: 55px; height: 55px; background: #f1f5f9; color: #0b2136; border-radius: 50%; font-weight: 900; font-size: 18px; display: flex; justify-content: center; align-items: center; margin: 0 auto 12px auto; border: 1px solid #e2e8f0;}
+        .b-name { font-size: 14px; font-weight: 800; color: #1e293b;}
+
         /* BOTTOM NAV */
         .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 480px; background: #ffffff; display: flex; justify-content: space-around; padding: 10px 0 8px; border-top: 1px solid #e2e8f0; box-shadow: 0 -2px 10px rgba(0,0,0,0.02); z-index: 90;}
         .nav-item { text-align: center; color: #94a3b8; font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700; transition: color 0.3s;}
@@ -116,16 +123,10 @@ EOF
         .nav-icon svg { width: 24px; height: 24px; }
         .nav-item.active { color: #0b2136;}
 
-        /* TAB SYSTEM */
-        .provider-tabs { display: flex; overflow-x: auto; gap: 10px; padding: 15px 20px; background: #ffffff; border-bottom: 1px solid #f1f5f9; position: sticky; top: 56px; z-index: 50;}
-        .provider-tabs::-webkit-scrollbar { display: none; }
-        .tab-btn { background: #ffffff; border: 1px solid #cbd5e1; padding: 8px 18px; border-radius: 20px; font-size: 12px; white-space: nowrap; cursor: pointer; font-weight: bold; color: #64748b; transition: 0.2s;}
-        .tab-btn.active { background: #0b2136; color: #ffffff; border-color: #0b2136;}
-
         /* PRODUCT LIST STYLE */
         .product-item { background: #ffffff; padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); cursor: pointer; transition: 0.2s;}
         .product-item:active { transform: scale(0.98); border-color: #0b2136;}
-        .prod-logo { width: 45px; height: 45px; background: #f8fafc; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; color: #0b2136; font-size: 14px; border: 1px solid #e2e8f0;}
+        .prod-logo { width: 45px; height: 45px; background: #f8fafc; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; color: #0b2136; font-size: 14px; border: 1px solid #e2e8f0; flex-shrink: 0;}
         .prod-info { flex: 1; min-width: 0; }
         .prod-name { font-weight: 800; font-size: 13px; color: #0b2136; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; word-wrap: break-word;}
         .badge-open { background: #e0f2fe; color: #0284c7; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800; border: 1px solid #bae6fd; flex-shrink: 0; margin-left: 8px;}
@@ -321,15 +322,24 @@ EOF
             </div>
         </div>
 
-        <div id="produk-screen" class="hidden">
+        <div id="brand-screen" class="hidden">
             <div class="screen-header">
                 <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
+                <span id="brand-cat-title" style="text-transform: uppercase;">Pilih Provider</span>
+            </div>
+            <div class="brand-grid" id="brand-list"></div>
+        </div>
+
+        <div id="produk-screen" class="hidden">
+            <div class="screen-header">
+                <svg class="back-icon" onclick="goBackToBrands()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
                 <span id="cat-title-text" style="text-transform: uppercase;">Katalog</span>
             </div>
-            <div class="provider-tabs" id="provider-tabs"></div>
-            <div id="product-list" style="padding-top: 5px;"></div>
+            <div id="product-list" style="padding-top: 15px;"></div>
         </div>
 
         <div id="history-screen" class="hidden">
@@ -478,6 +488,7 @@ EOF
 
         // GLOBAL VARS
         let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
+        let currentCategory = ""; 
 
         // UI HELPERS
         function toggleSidebar() {
@@ -496,7 +507,7 @@ EOF
         }
 
         function showScreen(id, navId) {
-            ['login-screen', 'register-screen', 'otp-screen', 'dashboard-screen', 'produk-screen', 'history-screen', 'profile-screen', 'notif-screen'].forEach(s => {
+            ['login-screen', 'register-screen', 'otp-screen', 'dashboard-screen', 'brand-screen', 'produk-screen', 'history-screen', 'profile-screen', 'notif-screen'].forEach(s => {
                 document.getElementById(s).classList.add('hidden');
             });
             document.getElementById(id).classList.remove('hidden');
@@ -740,9 +751,9 @@ EOF
         }
 
         async function loadCategory(cat) {
+            currentCategory = cat; 
             await fetchAllProducts(); 
-            document.getElementById('cat-title-text').innerText = cat;
-            let tabsHTML = '';
+            document.getElementById('brand-cat-title').innerText = "Provider " + cat;
             
             let brands = [];
             for(let key in allProducts) {
@@ -753,33 +764,31 @@ EOF
 
             if(brands.length > 0) {
                 brands.sort();
-                brands.forEach((b, index) => {
-                    let activeClass = index === 0 ? 'active' : '';
-                    tabsHTML += `<div class="tab-btn ${activeClass}" onclick="filterBrand('${cat}', '${b}', this)">${b.toUpperCase()}</div>`;
+                let gridHTML = '';
+                brands.forEach(b => {
+                    let initial = b.substring(0,2).toUpperCase();
+                    gridHTML += `
+                    <div class="brand-card" onclick="loadProducts('${cat}', '${b}')">
+                        <div class="b-logo">${initial}</div>
+                        <div class="b-name">${b}</div>
+                    </div>`;
                 });
-                document.getElementById('provider-tabs').innerHTML = tabsHTML;
-                document.getElementById('provider-tabs').style.display = 'flex';
-                filterBrand(cat, brands[0], document.querySelector('#provider-tabs .tab-btn'));
+                document.getElementById('brand-list').innerHTML = gridHTML;
+                showScreen('brand-screen', 'nav-home');
             } else {
-                document.getElementById('provider-tabs').style.display = 'none';
-                document.getElementById('product-list').innerHTML = '<div style="text-align:center; color:#888; padding:30px; font-weight:bold;">Produk belum tersedia.</div>';
+                alert('Belum ada produk di kategori ini.');
             }
-            showScreen('produk-screen', 'nav-home');
         }
 
-        function filterBrand(cat, brand, el) {
-            if(el) {
-                document.querySelectorAll('#provider-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
-                el.classList.add('active');
-            }
+        function loadProducts(cat, brand) {
+            document.getElementById('cat-title-text').innerText = brand;
             let listHTML = '';
             for(let key in allProducts) {
                 let p = allProducts[key];
-                if (p.kategori !== cat) continue;
-                if ((p.brand || 'Lainnya') !== brand) continue;
+                if (p.kategori !== cat || (p.brand || 'Lainnya') !== brand) continue;
                 let safeName = p.nama.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 let safeDesc = p.deskripsi ? p.deskripsi.replace(/'/g, "\\'").replace(/"/g, '&quot;') : 'Proses Otomatis 24 Jam';
-                let initial = p.brand ? p.brand.substring(0,2).toUpperCase() : 'PR';
+                let initial = brand.substring(0,2).toUpperCase();
                 
                 listHTML += `
                 <div class="product-item" onclick="openOrderModal('${key}', '${safeName}', ${p.harga}, '${safeDesc}')">
@@ -792,6 +801,12 @@ EOF
                 </div>`;
             }
             document.getElementById('product-list').innerHTML = listHTML || '<div style="text-align:center; padding:30px; font-weight:bold; color:#94a3b8;">KOSONG</div>';
+            showScreen('produk-screen', 'nav-home');
+        }
+
+        function goBackToBrands() {
+            if(currentCategory) loadCategory(currentCategory);
+            else showDashboard();
         }
 
         function openOrderModal(sku, nama, harga, desc) {
@@ -1023,7 +1038,7 @@ app.post('/api/order', async (req, res) => {
     let apiKey = (config.digiflazzApiKey || '').trim();
     let refId = 'WEB-' + Date.now();
     let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
-    let maxPrice = parseInt(p.harga) - 100;
+    let maxPrice = parseInt(p.harga); // HARGA JUAL ADALAH MAX PRICE
 
     try {
         const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
@@ -1048,7 +1063,9 @@ app.post('/api/order', async (req, res) => {
             globalSock.sendMessage(targetJid, { text: msgWa }).catch(e=>{});
         }
         return res.json({success: true, saldo: db[pNorm].saldo});
-    } catch (error) { return res.json({success: false, message: 'Server PPOB Down atau Max Price tercapai.'}); }
+    } catch (error) { 
+        return res.json({success: false, message: 'Gagal diproses Digiflazz (Nomor Salah/Server Down/Harga Berubah)'}); 
+    }
 });
 
 function doBackupAndSend() {
@@ -1135,7 +1152,7 @@ async function startBot() {
                 let menuText = `👋 *${config.botName || "Digital Tendo Store"}*\n\nSilakan belanja lebih mudah di Aplikasi:\n🌐 http://${process.env.IP_ADDRESS || 'IP_VPS_ANDA'}:3000\n\n_(Atau balas 1 untuk Cek Saldo)_`;
                 return await sock.sendMessage(from, { text: menuText });
             }
-            if (['1', 'saldo'].includes(rawCommand)) return await sock.sendMessage(from, { text: `💰 Saldo Anda: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` });
+            if (['1', 'saldo'].includes(rawCommand)) return await sendMessage(from, { text: `💰 Saldo Anda: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` });
         } catch (err) {}
     });
 }
@@ -1669,7 +1686,7 @@ menu_produk() {
                 ;;
             5)
                 echo -e "\n${C_MAG}--- IMPORT PRODUK VIA EXCEL (.XLSX) / CSV ---${C_RST}"
-                echo -e "Format tabel Digiflazz (English & Indo headers) didukung sepenuhnya!"
+                echo -e "Sistem Import Cerdas. Format kolom apapun akan terdeteksi!"
                 read -p "Masukkan nama file lengkap (contoh: daftar-produk-buyer.xlsx ATAU namafile.csv): " nama_file_excel
                 if [ ! -f "$nama_file_excel" ]; then
                     echo -e "${C_RED}❌ File tidak ditemukan. Pastikan file $nama_file_excel ada di direktori $(pwd)${C_RST}"
@@ -1701,14 +1718,18 @@ menu_produk() {
                                 let keys = Object.keys(row);
                                 let getColStrict = (keywords) => keys.find(k => keywords.includes(k.toLowerCase().trim()));
                                 
-                                // LOGIKA STRICT MATCHING UNTUK HEADER KOLOM AGAR TIDAK TERTUKAR
                                 let kodeCol = getColStrict(['buyer_sku_code', 'sku', 'kode produk', 'kode']);
                                 let namaCol = getColStrict(['product_name', 'nama produk', 'produk', 'nama']);
                                 let hargaCol = getColStrict(['price', 'harga']);
                                 let statusCol = getColStrict(['buyer_product_status', 'status']);
                                 let descCol = getColStrict(['desc', 'deskripsi']);
-                                let brandCol = getColStrict(['brand', 'provider']);
+                                let brandCol = getColStrict(['brand', 'provider', 'operator']);
                                 
+                                if(!kodeCol) kodeCol = keys.find(k => k.toLowerCase().includes('kode') || k.toLowerCase().includes('sku'));
+                                if(!namaCol) namaCol = keys.find(k => k.toLowerCase().includes('nama') || k.toLowerCase().includes('produk'));
+                                if(!hargaCol) hargaCol = keys.find(k => k.toLowerCase().includes('harga') || k.toLowerCase().includes('price'));
+                                if(!statusCol) statusCol = keys.find(k => k.toLowerCase().includes('status'));
+
                                 if(!kodeCol || !namaCol || !hargaCol) return;
                                 
                                 if(statusCol) {
@@ -1724,27 +1745,41 @@ menu_produk() {
                                 if(isNaN(hargaAwal)) return;
 
                                 let kategori = 'Voucher';
-                                let nLower = nama.toLowerCase();
-                                if(nLower.includes('pulsa')) kategori = 'Pulsa';
-                                else if(nLower.includes('data') || nLower.includes('kuota') || nLower.includes('internet') || nLower.includes('combo') || nLower.includes('flash')) kategori = 'Data';
-                                else if(nLower.includes('mlbb') || nLower.includes('free fire') || nLower.includes('pubg') || nLower.includes('game') || nLower.includes('diamond')) kategori = 'Game';
-                                else if(nLower.includes('dana') || nLower.includes('ovo') || nLower.includes('gopay') || nLower.includes('shopee') || nLower.includes('e-money') || nLower.includes('linkaja')) kategori = 'E-Money';
-                                else if(nLower.includes('pln') || nLower.includes('token')) kategori = 'PLN';
-                                else if(nLower.includes('telpon') || nLower.includes('sms')) kategori = 'Paket SMS & Telpon';
-                                else if(nLower.includes('masa aktif')) kategori = 'Masa Aktif';
-                                else if(nLower.includes('perdana') || nLower.includes('aktivasi')) kategori = 'Aktivasi Perdana';
+                                let nLower = ' ' + nama.toLowerCase() + ' '; 
 
-                                // Deteksi Brand Cerdas Jika Kolom Provider Tidak Ada di Excel
+                                if (nLower.match(/gopay|ovo|dana|shopee|linkaja|isaku|maxim|brizzi|e-toll|e-money|grab|gojek|mtix/)) kategori = 'E-Money';
+                                else if (nLower.match(/pln|token listrik/)) kategori = 'PLN';
+                                else if (nLower.match(/free fire| ff |mobile legend|mlbb|pubg|diamond| uc |genshin|valorant|aov|call of duty|codm|garena|unipin|steam/)) kategori = 'Game';
+                                else if (nLower.match(/ sms |telpon|telepon|nelpon|voice| bicara /)) kategori = 'Paket SMS & Telpon';
+                                else if (nLower.match(/masa aktif/)) kategori = 'Masa Aktif';
+                                else if (nLower.match(/perdana|aktivasi| kpk /)) kategori = 'Aktivasi Perdana';
+                                else if (nLower.match(/ gb | mb |data|kuota|internet|combo|xtra|flash|paket| omg /)) kategori = 'Data';
+                                else if (nLower.match(/voucher|vcr|voc/)) kategori = 'Voucher';
+                                else if (nLower.match(/pulsa|promo|reguler|transfer|telkomsel|xl|axis|indosat|isat|tri|three|smartfren|by\.u/)) kategori = 'Pulsa';
+                                else kategori = 'Voucher'; 
+
                                 let brand = 'Lainnya';
                                 if(brandCol && row[brandCol]) {
                                     brand = row[brandCol].toString().trim();
                                 } else {
-                                    let firstWord = nama.split(' ')[0].toUpperCase();
-                                    if(['TELKOMSEL', 'XL', 'AXIS', 'INDOSAT', 'TRI', 'THREE', 'SMARTFREN', 'BY.U', 'DANA', 'OVO', 'GOPAY', 'SHOPEEPAY', 'LINKAJA', 'PLN'].includes(firstWord)) {
-                                        brand = firstWord;
-                                    } else if (nLower.includes('mobile legends') || nLower.includes('mlbb')) brand = 'Mobile Legends';
-                                    else if (nLower.includes('free fire') || nLower.includes('ff')) brand = 'Free Fire';
-                                    else if (nLower.includes('pubg')) brand = 'PUBG';
+                                    let nUpper = nama.toUpperCase();
+                                    if(nUpper.includes('TELKOMSEL') || nUpper.includes('TSEL') || nUpper.includes('AS ') || nUpper.includes('SIMPATI')) brand = 'Telkomsel';
+                                    else if(nUpper.includes('XL')) brand = 'XL';
+                                    else if(nUpper.includes('AXIS')) brand = 'Axis';
+                                    else if(nUpper.includes('INDOSAT') || nUpper.includes('ISAT') || nUpper.includes('IM3')) brand = 'Indosat';
+                                    else if(nUpper.includes('TRI') || nUpper.includes('THREE') || nUpper.includes(' BIMA ')) brand = 'Tri';
+                                    else if(nUpper.includes('SMARTFREN')) brand = 'Smartfren';
+                                    else if(nUpper.includes('BY.U') || nUpper.includes('BYU')) brand = 'By.U';
+                                    else if(nUpper.includes('DANA')) brand = 'Dana';
+                                    else if(nUpper.includes('OVO')) brand = 'OVO';
+                                    else if(nUpper.includes('GOPAY') || nUpper.includes('GO-PAY')) brand = 'Gopay';
+                                    else if(nUpper.includes('SHOPEE')) brand = 'ShopeePay';
+                                    else if(nUpper.includes('LINKAJA')) brand = 'LinkAja';
+                                    else if(nLower.includes('mobile legends') || nLower.includes('mlbb')) brand = 'Mobile Legends';
+                                    else if(nLower.includes('free fire') || nLower.includes(' ff ')) brand = 'Free Fire';
+                                    else if(nLower.includes('pubg')) brand = 'PUBG';
+                                    else if(nLower.includes('pln') || nLower.includes('token')) brand = 'PLN';
+                                    else brand = nama.split(' ')[0].toUpperCase(); 
                                 }
 
                                 let margin = 0;
