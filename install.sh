@@ -150,8 +150,9 @@ EOF
         .card { background: #ffffff; padding: 25px 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(226,232,240,0.5);}
         input { width: 100%; padding: 15px; margin-bottom: 12px; border: 1px solid #cbd5e1; border-radius: 12px; box-sizing: border-box; font-size: 14px; outline: none; background: #f8fafc; color: #0b2136; font-weight: 600; transition: border-color 0.2s;}
         input:focus { border-color: #0b2136; background: #ffffff;}
+        
         .checkbox-container { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 20px; font-size: 13px; font-weight: 600; color: #475569; cursor: pointer;}
-        .checkbox-container input { width: auto; margin: 0; transform: scale(1.2); cursor: pointer;}
+        .checkbox-container input { width: 16px; height: 16px; margin: 0; padding: 0; cursor: pointer;}
         
         .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer;}
         .btn-outline { background: #ffffff; color: #0b2136; border: 1.5px solid #0b2136; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
@@ -230,7 +231,9 @@ EOF
                 <h2 style="margin-top:0; text-align:center; font-size:18px;">Masuk Akun</h2>
                 <input type="email" id="log-email" placeholder="Alamat Email">
                 <input type="password" id="log-pass" placeholder="Password">
-                <label class="checkbox-container"><input type="checkbox" id="rem-login"> Tetap masuk</label>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="rem-login"> Tetap masuk
+                </label>
                 <button class="btn" onclick="login()">Login Sekarang</button>
                 <button class="btn-outline" onclick="showScreen('register-screen')">Buat Akun Baru</button>
             </div>
@@ -997,7 +1000,7 @@ app.post('/api/order', async (req, res) => {
     let apiKey = (config.digiflazzApiKey || '').trim();
     let refId = 'WEB-' + Date.now();
     let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
-    let maxPrice = parseInt(p.harga) - 100; // FITUR AUTO MAX PRICE PROTEKSI
+    let maxPrice = parseInt(p.harga) - 100; // FITUR AUTO MAX PRICE PROTEKSI AKTIF
 
     try {
         const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
@@ -1400,7 +1403,7 @@ menu_member() {
 }
 
 # ==========================================
-# 8. MANAJEMEN PRODUK (DENGAN IMPORT EXCEL)
+# 8. MANAJEMEN PRODUK & HARGA (DENGAN IMPORT)
 # ==========================================
 menu_produk() {
     while true; do
@@ -1413,10 +1416,11 @@ menu_produk() {
         echo -e "  ${C_GREEN}[3]${C_RST} Hapus Produk"
         echo -e "  ${C_GREEN}[4]${C_RST} Lihat Daftar Produk"
         echo -e "  ${C_GREEN}[5]${C_RST} 🚀 Import Massal via File Digiflazz (.xlsx / .csv)"
+        echo -e "  ${C_GREEN}[6]${C_RST} ⚙️ Atur Margin Keuntungan Import (Auto-Pricing)"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
         echo -e "${C_CYAN}======================================================${C_RST}"
-        echo -ne "${C_YELLOW}Pilih menu [0-5]: ${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-6]: ${C_RST}"
         read prodchoice
 
         case $prodchoice in
@@ -1653,6 +1657,16 @@ menu_produk() {
                         const xlsx = require('xlsx');
                         
                         try {
+                            let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
+                            let margins = config.margin || {
+                                under100: 50,
+                                under1000: 200,
+                                under5000: 500,
+                                under50000: 1000,
+                                under100000: 1500,
+                                above: 2000
+                            };
+
                             const workbook = xlsx.readFile(process.env.EXCEL_PATH);
                             const sheet_name = workbook.SheetNames[0];
                             const rawData = xlsx.utils.sheet_to_json(workbook.Sheets[sheet_name]);
@@ -1697,13 +1711,12 @@ menu_produk() {
                                 else if(nLower.includes('perdana') || nLower.includes('aktivasi')) kategori = 'Aktivasi Perdana';
 
                                 let margin = 0;
-                                if(kategori === 'Pulsa') margin = 1000;
-                                else {
-                                    if(hargaAwal < 1000) margin = 500;
-                                    else if(hargaAwal < 5000) margin = 700;
-                                    else if(hargaAwal < 50000) margin = 1000;
-                                    else margin = 1500;
-                                }
+                                if(hargaAwal < 100) margin = margins.under100;
+                                else if(hargaAwal < 1000) margin = margins.under1000;
+                                else if(hargaAwal < 5000) margin = margins.under5000;
+                                else if(hargaAwal < 50000) margin = margins.under50000;
+                                else if(hargaAwal < 100000) margin = margins.under100000;
+                                else margin = margins.above;
 
                                 produk[kode] = {
                                     nama: nama,
@@ -1722,6 +1735,32 @@ menu_produk() {
                         }
                     "
                 fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            6)
+                echo -e "\n${C_MAG}--- ATUR MARGIN KEUNTUNGAN IMPORT ---${C_RST}"
+                echo -e "${C_YELLOW}Tentukan nominal keuntungan (Rp) untuk masing-masing harga modal.${C_RST}"
+                read -p "1. Keuntungan untuk modal di bawah Rp 100: " m_100
+                read -p "2. Keuntungan untuk modal di bawah Rp 1.000: " m_1000
+                read -p "3. Keuntungan untuk modal di bawah Rp 5.000: " m_5000
+                read -p "4. Keuntungan untuk modal di bawah Rp 50.000: " m_50000
+                read -p "5. Keuntungan untuk modal di bawah Rp 100.000: " m_100000
+                read -p "6. Keuntungan untuk modal di atas Rp 100.000: " m_max
+
+                node -e "
+                    const fs = require('fs');
+                    let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
+                    config.margin = {
+                        under100: parseInt('$m_100') || 0,
+                        under1000: parseInt('$m_1000') || 0,
+                        under5000: parseInt('$m_5000') || 0,
+                        under50000: parseInt('$m_50000') || 0,
+                        under100000: parseInt('$m_100000') || 0,
+                        above: parseInt('$m_max') || 0
+                    };
+                    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                    console.log('\x1b[32m\n✅ Konfigurasi Margin Keuntungan Berhasil Disimpan!\x1b[0m');
+                "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             0) break ;;
