@@ -106,7 +106,7 @@ EOF
         }
         .grid-box:active { transform: scale(0.95); border-color: #0b2136; }
         .grid-icon-wrap { width: 40px; height: 40px; margin-bottom: 10px; display: flex; justify-content: center; align-items: center;}
-        .grid-icon-wrap svg { width: 100%; height: 100%; }
+        .grid-icon-wrap svg { width: 100%; height: 100%; stroke-width: 1.5; fill: none; }
         .grid-text { font-size: 10px; color: #0b2136; font-weight: 800; line-height: 1.3; text-transform: uppercase;}
 
         /* BOTTOM NAV */
@@ -143,7 +143,7 @@ EOF
         .sidebar-menu { padding: 10px 0; flex: 1;}
         .sidebar-item { padding: 15px 20px; display: flex; align-items: center; color: #334155; text-decoration: none; font-size: 14px; border-bottom: 1px solid #f8fafc; font-weight: 600; gap: 15px;}
         .sidebar-item:active { background: #f1f5f9; }
-        .sidebar-item svg { width: 20px; height: 20px; }
+        .sidebar-item svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
         /* FORMS & COMPONENTS */
         .container { padding: 20px; }
@@ -216,6 +216,9 @@ EOF
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); showNotif()">
                     <svg viewBox="0 0 24 24" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> Pemberitahuan
                 </a>
+                <a href="#" class="sidebar-item" onclick="toggleSidebar(); contactAdmin()">
+                    <svg viewBox="0 0 24 24" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Hubungi Admin
+                </a>
             </div>
             <div style="padding: 20px;">
                 <button class="btn-outline" style="color: #ef4444; border-color: #ef4444;" onclick="logout()">Keluar Akun</button>
@@ -267,7 +270,7 @@ EOF
                 <div class="banner" id="home-banner">
                     <div class="saldo-title">Sisa Saldo Anda</div>
                     <div class="saldo-amount" id="user-saldo">Rp 0</div>
-                    <button class="btn-topup-dash" onclick="openTopupModal()">[+] ISI SALDO</button>
+                    <button class="btn-topup-dash" onclick="openTopupModal()">ISI SALDO</button>
                 </div>
             </div>
 
@@ -354,9 +357,9 @@ EOF
             
             <div style="padding: 0 20px;">
                 <h3 style="font-size:14px; color:#888; margin-bottom:15px;">PENGATURAN</h3>
-                <button class="prof-action-btn" onclick="openEditModal('email')"><svg viewBox="0 0 24 24" width="20"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg> Ubah Email</button>
-                <button class="prof-action-btn" onclick="openEditModal('phone')"><svg viewBox="0 0 24 24" width="20"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Ubah Nomor WA</button>
-                <button class="prof-action-btn" onclick="openEditModal('password')"><svg viewBox="0 0 24 24" width="20"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Ubah Password</button>
+                <button class="prof-action-btn" onclick="openEditModal('email')"><svg viewBox="0 0 24 24" width="20" stroke="#64748b"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg> Ubah Email</button>
+                <button class="prof-action-btn" onclick="openEditModal('phone')"><svg viewBox="0 0 24 24" width="20" stroke="#64748b"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Ubah Nomor WA</button>
+                <button class="prof-action-btn" onclick="openEditModal('password')"><svg viewBox="0 0 24 24" width="20" stroke="#64748b"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Ubah Password</button>
                 
                 <button class="prof-action-btn" onclick="contactAdmin()" style="border-color: #bae6fd; color: #0284c7; background: #f0f9ff; margin-top: 15px;">
                     <svg viewBox="0 0 24 24" width="20" stroke="#0284c7"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Hubungi Admin
@@ -525,7 +528,11 @@ EOF
             }
         }
 
-        function showDashboard() { showScreen('dashboard-screen', 'nav-home'); syncUserData(); }
+        function showDashboard() { 
+            showScreen('dashboard-screen', 'nav-home'); 
+            syncUserData(); 
+            fetchAllProducts(); 
+        }
         function showHistory() { showScreen('history-screen', 'nav-history'); syncUserData(); }
         function showProfile() { showScreen('profile-screen', 'nav-profile'); syncUserData(); }
         
@@ -732,7 +739,8 @@ EOF
             allProducts = await res.json();
         }
 
-        function loadCategory(cat) {
+        async function loadCategory(cat) {
+            await fetchAllProducts(); 
             document.getElementById('cat-title-text').innerText = cat;
             let tabsHTML = '';
             
@@ -797,6 +805,10 @@ EOF
         function closeOrderModal() { document.getElementById('order-modal').classList.add('hidden'); }
 
         async function processOrder() {
+            if(!currentUser) {
+                alert('Sesi Anda habis. Silakan login ulang.');
+                logout(); return;
+            }
             let target = document.getElementById('m-target').value.trim();
             if(!target || target.length < 4) return alert("Nomor tujuan tidak valid!");
             let btn = document.getElementById('m-submit');
@@ -999,17 +1011,19 @@ app.post('/api/topup', async (req, res) => {
 
 app.post('/api/order', async (req, res) => {
     let { phone, sku, tujuan } = req.body;
+    let pNorm = normalizePhone(phone);
     let db = loadJSON(dbFile); let produkDB = loadJSON(produkFile); let config = loadJSON(configFile);
 
-    if (!db[phone]) return res.json({success: false, message: 'Sesi tidak valid.'});
+    if (!db[pNorm]) return res.json({success: false, message: 'Sesi Anda tidak valid. Silakan Logout dan Login kembali.'});
     let p = produkDB[sku];
-    if (db[phone].saldo < p.harga) return res.json({success: false, message: 'Saldo tidak cukup.'});
+    if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
+    if (db[pNorm].saldo < p.harga) return res.json({success: false, message: 'Saldo tidak cukup.'});
 
     let username = (config.digiflazzUsername || '').trim();
     let apiKey = (config.digiflazzApiKey || '').trim();
     let refId = 'WEB-' + Date.now();
     let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
-    let maxPrice = parseInt(p.harga) - 100; // FITUR AUTO MAX PRICE PROTEKSI AKTIF
+    let maxPrice = parseInt(p.harga) - 100;
 
     try {
         const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
@@ -1018,22 +1032,22 @@ app.post('/api/order', async (req, res) => {
         const statusOrder = response.data.data.status; 
         if (statusOrder === 'Gagal') return res.json({success: false, message: response.data.data.message});
         
-        db[phone].saldo -= p.harga; db[phone].trx_count = (db[phone].trx_count || 0) + 1;
-        db[phone].history = db[phone].history || [];
-        db[phone].history.unshift({ tanggal: new Date().toLocaleString('id-ID'), nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-' });
-        if(db[phone].history.length > 20) db[phone].history.pop();
+        db[pNorm].saldo -= p.harga; db[pNorm].trx_count = (db[pNorm].trx_count || 0) + 1;
+        db[pNorm].history = db[pNorm].history || [];
+        db[pNorm].history.unshift({ tanggal: new Date().toLocaleString('id-ID'), nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-' });
+        if(db[pNorm].history.length > 20) db[pNorm].history.pop();
         saveJSON(dbFile, db);
         
         let trxs = loadJSON(trxFile);
-        let targetJid = db[phone].jid || phone + '@s.whatsapp.net';
+        let targetJid = db[pNorm].jid || pNorm + '@s.whatsapp.net';
         trxs[refId] = { jid: targetJid, sku: sku, tujuan: tujuan, harga: p.harga, nama: p.nama, tanggal: Date.now() };
         saveJSON(trxFile, trxs);
 
         if (globalSock) {
-            let msgWa = `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[phone].saldo.toLocaleString('id-ID')}`;
+            let msgWa = `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[pNorm].saldo.toLocaleString('id-ID')}`;
             globalSock.sendMessage(targetJid, { text: msgWa }).catch(e=>{});
         }
-        return res.json({success: true, saldo: db[phone].saldo});
+        return res.json({success: true, saldo: db[pNorm].saldo});
     } catch (error) { return res.json({success: false, message: 'Server PPOB Down atau Max Price tercapai.'}); }
 });
 
@@ -1685,13 +1699,15 @@ menu_produk() {
                             
                             rawData.forEach(row => {
                                 let keys = Object.keys(row);
-                                let getCol = (keywords) => keys.find(k => keywords.some(kw => k.toLowerCase().includes(kw)));
+                                let getColStrict = (keywords) => keys.find(k => keywords.includes(k.toLowerCase().trim()));
                                 
-                                let kodeCol = getCol(['buyer_sku_code', 'sku', 'kode produk', 'kode']);
-                                let namaCol = getCol(['product_name', 'nama produk', 'produk', 'nama']);
-                                let hargaCol = getCol(['price', 'harga']);
-                                let statusCol = getCol(['buyer_product_status', 'status']);
-                                let descCol = getCol(['desc', 'deskripsi']);
+                                // LOGIKA STRICT MATCHING UNTUK HEADER KOLOM AGAR TIDAK TERTUKAR
+                                let kodeCol = getColStrict(['buyer_sku_code', 'sku', 'kode produk', 'kode']);
+                                let namaCol = getColStrict(['product_name', 'nama produk', 'produk', 'nama']);
+                                let hargaCol = getColStrict(['price', 'harga']);
+                                let statusCol = getColStrict(['buyer_product_status', 'status']);
+                                let descCol = getColStrict(['desc', 'deskripsi']);
+                                let brandCol = getColStrict(['brand', 'provider']);
                                 
                                 if(!kodeCol || !namaCol || !hargaCol) return;
                                 
@@ -1710,7 +1726,7 @@ menu_produk() {
                                 let kategori = 'Voucher';
                                 let nLower = nama.toLowerCase();
                                 if(nLower.includes('pulsa')) kategori = 'Pulsa';
-                                else if(nLower.includes('data') || nLower.includes('kuota') || nLower.includes('internet')) kategori = 'Data';
+                                else if(nLower.includes('data') || nLower.includes('kuota') || nLower.includes('internet') || nLower.includes('combo') || nLower.includes('flash')) kategori = 'Data';
                                 else if(nLower.includes('mlbb') || nLower.includes('free fire') || nLower.includes('pubg') || nLower.includes('game') || nLower.includes('diamond')) kategori = 'Game';
                                 else if(nLower.includes('dana') || nLower.includes('ovo') || nLower.includes('gopay') || nLower.includes('shopee') || nLower.includes('e-money') || nLower.includes('linkaja')) kategori = 'E-Money';
                                 else if(nLower.includes('pln') || nLower.includes('token')) kategori = 'PLN';
@@ -1718,18 +1734,17 @@ menu_produk() {
                                 else if(nLower.includes('masa aktif')) kategori = 'Masa Aktif';
                                 else if(nLower.includes('perdana') || nLower.includes('aktivasi')) kategori = 'Aktivasi Perdana';
 
-                                // Deteksi Brand Cerdas Jika Kolom Tidak Ada
+                                // Deteksi Brand Cerdas Jika Kolom Provider Tidak Ada di Excel
                                 let brand = 'Lainnya';
-                                let brandCol = getCol(['brand', 'provider']);
                                 if(brandCol && row[brandCol]) {
                                     brand = row[brandCol].toString().trim();
                                 } else {
                                     let firstWord = nama.split(' ')[0].toUpperCase();
                                     if(['TELKOMSEL', 'XL', 'AXIS', 'INDOSAT', 'TRI', 'THREE', 'SMARTFREN', 'BY.U', 'DANA', 'OVO', 'GOPAY', 'SHOPEEPAY', 'LINKAJA', 'PLN'].includes(firstWord)) {
                                         brand = firstWord;
-                                    } else if (nama.toLowerCase().includes('mobile legends') || nama.toLowerCase().includes('mlbb')) brand = 'Mobile Legends';
-                                    else if (nama.toLowerCase().includes('free fire')) brand = 'Free Fire';
-                                    else if (nama.toLowerCase().includes('pubg')) brand = 'PUBG';
+                                    } else if (nLower.includes('mobile legends') || nLower.includes('mlbb')) brand = 'Mobile Legends';
+                                    else if (nLower.includes('free fire') || nLower.includes('ff')) brand = 'Free Fire';
+                                    else if (nLower.includes('pubg')) brand = 'PUBG';
                                 }
 
                                 let margin = 0;
@@ -1754,9 +1769,9 @@ menu_produk() {
                             });
                             
                             fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
-                            console.log('\x1b[32m\n✅ Berhasil mengimport dan mengatur harga untuk ' + added + ' produk otomatis dari file Excel!\x1b[0m');
+                            console.log('\x1b[32m\n✅ Berhasil mengimport dan merapikan ' + added + ' produk ke dalam databse!\x1b[0m');
                         } catch(err) {
-                            console.log('\x1b[31m❌ Gagal memproses file Excel: ' + err.message + '\x1b[0m');
+                            console.log('\x1b[31m❌ Gagal memproses file Excel/CSV: ' + err.message + '\x1b[0m');
                         }
                     "
                 fi
