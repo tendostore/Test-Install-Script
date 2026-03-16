@@ -25,6 +25,11 @@ if [ ! -f "/usr/bin/bot" ]; then
     sudo chmod +x /usr/bin/bot
 fi
 
+# Agar Panel Otomatis Terbuka saat Login Terminal (SSH)
+if ! grep -q "/usr/bin/bot" ~/.bashrc; then
+    echo -e "\n# Auto-start bot panel\nif [ -f /usr/bin/bot ] && [ -t 1 ]; then\n  /usr/bin/bot\nfi" >> ~/.bashrc
+fi
+
 # ==========================================
 # 2. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI
 # ==========================================
@@ -34,7 +39,7 @@ generate_web_app() {
     cat << 'EOF' > public/manifest.json
 {
   "name": "Digital Tendo Store",
-  "short_name": "Digital Tendo",
+  "short_name": "Digital Tendo Store",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f8fafc",
@@ -66,7 +71,7 @@ EOF
         /* TOP BAR */
         .top-bar { background: #0b2136; color: #ffffff; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100;}
         .menu-btn { cursor: pointer; background: none; border: none; padding: 0; margin-right: 15px; display: flex; align-items: center; justify-content: center;}
-        .menu-btn svg { width: 28px; height: 28px; fill: #ffffff; }
+        .menu-btn svg { width: 28px; height: 28px; stroke: #ffffff; }
         .brand-title { font-size: 16px; font-weight: bold; flex: 1; text-align: center; margin-right: -10px;}
         .trx-badge { font-size: 11px; background: #e3f2fd; color: #0b2136; padding: 4px 10px; border-radius: 12px; font-weight: 800;}
 
@@ -100,15 +105,15 @@ EOF
             transition: transform 0.2s, border-color 0.2s;
         }
         .grid-box:active { transform: scale(0.95); border-color: #0b2136; }
-        .grid-icon-wrap { width: 45px; height: 45px; margin-bottom: 8px; display: flex; justify-content: center; align-items: center;}
-        .grid-icon-wrap svg { width: 100%; height: 100%; }
+        .grid-icon-wrap { width: 40px; height: 40px; margin-bottom: 10px; display: flex; justify-content: center; align-items: center;}
+        .grid-icon-wrap svg { width: 100%; height: 100%; stroke-width: 1.5; fill: none; }
         .grid-text { font-size: 10px; color: #0b2136; font-weight: 800; line-height: 1.3; text-transform: uppercase;}
 
         /* BOTTOM NAV */
         .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 480px; background: #ffffff; display: flex; justify-content: space-around; padding: 10px 0 8px; border-top: 1px solid #e2e8f0; box-shadow: 0 -2px 10px rgba(0,0,0,0.02); z-index: 90;}
         .nav-item { text-align: center; color: #94a3b8; font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700; transition: color 0.3s;}
-        .nav-icon { margin-bottom: 3px; display: flex; justify-content: center; align-items: center;}
-        .nav-icon svg { fill: currentColor; }
+        .nav-icon { margin-bottom: 4px; display: flex; justify-content: center; align-items: center;}
+        .nav-icon svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
         .nav-item.active { color: #0b2136;}
 
         /* TAB SYSTEM */
@@ -121,10 +126,10 @@ EOF
         .product-item { background: #ffffff; padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); cursor: pointer; transition: 0.2s;}
         .product-item:active { transform: scale(0.98); border-color: #0b2136;}
         .prod-logo { width: 45px; height: 45px; background: #f8fafc; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; color: #0b2136; font-size: 14px; border: 1px solid #e2e8f0;}
-        .prod-info { flex: 1; }
-        .prod-name { font-weight: 800; font-size: 13px; color: #0b2136; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;}
-        .badge-open { background: #e0f2fe; color: #0284c7; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800; border: 1px solid #bae6fd;}
-        .prod-desc { font-size: 10px; color: #64748b; font-weight: 600; margin-bottom: 4px;}
+        .prod-info { flex: 1; min-width: 0; }
+        .prod-name { font-weight: 800; font-size: 13px; color: #0b2136; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; word-wrap: break-word;}
+        .badge-open { background: #e0f2fe; color: #0284c7; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800; border: 1px solid #bae6fd; flex-shrink: 0; margin-left: 8px;}
+        .prod-desc { font-size: 10px; color: #64748b; font-weight: 600; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;}
         .prod-price { color: #0b2136; font-weight: 900; font-size: 15px;}
 
         /* SIDEBAR */
@@ -138,14 +143,15 @@ EOF
         .sidebar-menu { padding: 10px 0; flex: 1;}
         .sidebar-item { padding: 15px 20px; display: flex; align-items: center; color: #334155; text-decoration: none; font-size: 14px; border-bottom: 1px solid #f8fafc; font-weight: 600; gap: 15px;}
         .sidebar-item:active { background: #f1f5f9; }
-        .sidebar-item svg { width: 20px; height: 20px; fill: #64748b; }
+        .sidebar-item svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
         /* FORMS & COMPONENTS */
         .container { padding: 20px; }
         .card { background: #ffffff; padding: 25px 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(226,232,240,0.5);}
         input { width: 100%; padding: 15px; margin-bottom: 12px; border: 1px solid #cbd5e1; border-radius: 12px; box-sizing: border-box; font-size: 14px; outline: none; background: #f8fafc; color: #0b2136; font-weight: 600; transition: border-color 0.2s;}
         input:focus { border-color: #0b2136; background: #ffffff;}
-        .checkbox-container { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; font-size: 13px; font-weight: 600; color: #475569;}
+        .checkbox-container { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 20px; font-size: 13px; font-weight: 600; color: #475569; cursor: pointer;}
+        .checkbox-container input { width: auto; margin: 0; transform: scale(1.2); cursor: pointer;}
         
         .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer;}
         .btn-outline { background: #ffffff; color: #0b2136; border: 1.5px solid #0b2136; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
@@ -159,6 +165,7 @@ EOF
         .prof-label { color: #64748b; font-weight: 600;}
         .prof-val { color: #0b2136; font-weight: 900; text-align: right;}
         .prof-action-btn { background: #f8fafc; color: #0b2136; border: 1px solid #e2e8f0; padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px;}
+        .prof-action-btn svg { fill: none; stroke: #64748b; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
 
         /* HISTORY ITEMS */
         .hist-item { background: #ffffff; padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(226,232,240,0.5); cursor: pointer;}
@@ -178,14 +185,14 @@ EOF
         
         .screen-header { padding: 15px 20px; font-weight: 800; font-size: 18px; display: flex; align-items: center; gap: 15px; background: #ffffff; border-bottom: 1px solid #e2e8f0; position: sticky; top:0; z-index: 10; color: #0b2136;}
         .hidden { display: none !important; }
-        .back-icon { cursor: pointer; fill: #0b2136; }
+        .back-icon { cursor: pointer; fill: none; stroke: #0b2136; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
     </style>
 </head>
 <body>
     <div id="app">
         <div class="top-bar" id="home-topbar">
             <button class="menu-btn" onclick="toggleSidebar()">
-                <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
             <div class="brand-title" id="top-title">Digital Tendo Store</div>
             <div class="trx-badge" id="top-trx-badge">0 Trx</div>
@@ -200,13 +207,13 @@ EOF
             </div>
             <div class="sidebar-menu">
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); showProfile()">
-                    <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Profil Akun
+                    <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Profil Akun
                 </a>
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); showHistory()">
-                    <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg> Transaksi Saya
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Transaksi Saya
                 </a>
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); showNotif()">
-                    <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg> Pemberitahuan
+                    <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> Pemberitahuan
                 </a>
             </div>
             <div style="padding: 20px;">
@@ -216,7 +223,7 @@ EOF
 
         <div id="login-screen" class="container">
             <div style="text-align:center; margin: 40px 0;">
-                <h1 style="color:#0b2136; margin:0; font-weight:900; font-size: 28px;">Digital Tendo</h1>
+                <h1 style="color:#0b2136; margin:0; font-weight:900; font-size: 28px;">Digital Tendo Store</h1>
                 <p style="color:#64748b; font-size:13px; margin-top:5px; font-weight: 600;">Solusi Pembayaran Digital</p>
             </div>
             <div class="card">
@@ -264,45 +271,45 @@ EOF
             <div class="grid-title">Layanan Produk</div>
             <div class="grid-container">
                 <div class="grid-box" onclick="loadCategory('Pulsa')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24"><path fill="#60A5FA" d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14zm-5-2h-2v-1h-1v-1h1v-1h-1v-2h1v-1h-1v-1h1V9h2v1h1v1h-1v1h1v2h-1v1h1v1h-1v1z"/></svg></div>
+                    <div class="grid-icon-wrap"><svg stroke="#60A5FA" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg></div>
                     <div class="grid-text">PULSA</div>
                 </div>
                 <div class="grid-box" onclick="loadCategory('Data')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24"><path fill="#4ADE80" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div>
+                    <div class="grid-icon-wrap"><svg stroke="#4ADE80" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></div>
                     <div class="grid-text">DATA</div>
                 </div>
                 <div class="grid-box" onclick="loadCategory('Game')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24"><path fill="#F472B6" d="M21.58 16.09l-1.09-7.66C20.21 6.36 18.52 5 16.53 5H7.47C5.48 5 3.79 6.36 3.51 8.43l-1.09 7.66C2.2 17.63 3.39 19 4.94 19h0c.68 0 1.32-.27 1.8-.75L9 16h6l2.25 2.25c.48.48 1.13.75 1.8.75h0c1.55 0 2.74-1.37 2.53-2.91zM11 11H9v2H8v-2H6v-1h2V8h1v2h2v1zm4-1c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm2 3c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/></svg></div>
+                    <div class="grid-icon-wrap"><svg stroke="#F472B6" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2" ry="2"></rect><path d="M6 12h4"></path><path d="M8 10v4"></path><line x1="15" y1="13" x2="15.01" y2="13"></line><line x1="18" y1="11" x2="18.01" y2="11"></line></svg></div>
                     <div class="grid-text">GAME</div>
                 </div>
                 <div class="grid-box" onclick="loadCategory('Voucher')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24"><path fill="#FBBF24" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-1.99.9-1.99 2v4c1.1 0 1.99.9 1.99 2s-.89 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2zm-2 7.46c-1.21-.86-2-2.28-2-3.86 0-1.58.79-3 2-3.86V6h-2v12h2v-2.54zM4 17.46V20h12V4H4v2.54c1.21.86 2 2.28 2 3.86 0 1.58-.79 3-2 3.86z"/></svg></div>
+                    <div class="grid-icon-wrap"><svg stroke="#FBBF24" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2" ry="2"></rect><path d="M2 12a2 2 0 0 1 2-2V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 1 2 2 2 2 0 0 1-2 2v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 1-2-2z"></path></svg></div>
                     <div class="grid-text">VOUCHER</div>
                 </div>
                 <div class="grid-box" onclick="loadCategory('E-Money')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24"><path fill="#3B82F6" d="M21 4H3c-1.11 0-2 .89-2 2v12c0 1.1.89 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H3V6h18v12zm-9-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm0 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5 .67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg></div>
+                    <div class="grid-icon-wrap"><svg stroke="#3B82F6" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg></div>
                     <div class="grid-text">E-MONEY</div>
                 </div>
                 <div class="grid-box" onclick="loadCategory('PLN')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24"><path fill="#F59E0B" d="M7 2v11h3v9l7-12h-4l4-8z"/></svg></div>
+                    <div class="grid-icon-wrap"><svg stroke="#F59E0B" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></div>
                     <div class="grid-text">PLN</div>
                 </div>
                 <div class="grid-box" onclick="loadCategory('Paket SMS & Telpon')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24"><path fill="#8B5CF6" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg></div>
+                    <div class="grid-icon-wrap"><svg stroke="#8B5CF6" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg></div>
                     <div class="grid-text">SMS & TELP</div>
                 </div>
                 <div class="grid-box" onclick="loadCategory('Masa Aktif')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24"><path fill="#EF4444" d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg></div>
+                    <div class="grid-icon-wrap"><svg stroke="#EF4444" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>
                     <div class="grid-text">MASA AKTIF</div>
                 </div>
                 <div class="grid-box" onclick="loadCategory('Aktivasi Perdana')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24"><path fill="#10B981" d="M18 2h-8L4.02 8 4 20c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 15c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm4.5-8H9V4h7.5v5z"/></svg></div>
+                    <div class="grid-icon-wrap"><svg stroke="#10B981" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line><path d="M8 2v20"></path></svg></div>
                     <div class="grid-text">PERDANA</div>
                 </div>
             </div>
             
             <div style="padding: 20px; margin: 30px 20px; background: #ffffff; border-radius: 16px; text-align: center; border: 1px dashed #cbd5e1;" id="install-banner" class="hidden">
-                <strong style="color:#0b2136; font-size:14px;">Aplikasi Digital Tendo</strong><br>
+                <strong style="color:#0b2136; font-size:14px;">Aplikasi Digital Tendo Store</strong><br>
                 <span style="font-size:12px; color:#64748b; font-weight: 600;">Pasang di layar utama HP Anda untuk akses cepat!</span><br>
                 <button class="btn" style="margin-top:15px; padding: 10px 30px; font-size:12px; width:auto; border-radius:20px;" id="install-btn">Install Sekarang</button>
             </div>
@@ -311,7 +318,7 @@ EOF
         <div id="produk-screen" class="hidden">
             <div class="screen-header">
                 <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
-                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                    <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span id="cat-title-text" style="text-transform: uppercase;">Katalog</span>
             </div>
@@ -322,7 +329,7 @@ EOF
         <div id="history-screen" class="hidden">
             <div class="screen-header">
                 <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
-                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                    <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span style="text-transform: uppercase;">Riwayat Transaksi</span>
             </div>
@@ -344,16 +351,16 @@ EOF
             
             <div style="padding: 0 20px;">
                 <h3 style="font-size:14px; color:#888; margin-bottom:15px;">PENGATURAN</h3>
-                <button class="prof-action-btn" onclick="openEditModal('email')"><svg viewBox="0 0 24 24" width="20" fill="#64748b"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg> Ubah Email</button>
-                <button class="prof-action-btn" onclick="openEditModal('phone')"><svg viewBox="0 0 24 24" width="20" fill="#64748b"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg> Ubah Nomor WA</button>
-                <button class="prof-action-btn" onclick="openEditModal('password')"><svg viewBox="0 0 24 24" width="20" fill="#64748b"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg> Ubah Password</button>
+                <button class="prof-action-btn" onclick="openEditModal('email')"><svg viewBox="0 0 24 24" width="20"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg> Ubah Email</button>
+                <button class="prof-action-btn" onclick="openEditModal('phone')"><svg viewBox="0 0 24 24" width="20"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Ubah Nomor WA</button>
+                <button class="prof-action-btn" onclick="openEditModal('password')"><svg viewBox="0 0 24 24" width="20"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Ubah Password</button>
             </div>
         </div>
 
         <div id="notif-screen" class="hidden">
             <div class="screen-header">
                 <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
-                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                    <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span>Pemberitahuan</span>
             </div>
@@ -367,16 +374,16 @@ EOF
 
         <div class="bottom-nav" id="main-bottom-nav">
             <div class="nav-item active" id="nav-home" onclick="showDashboard()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" width="24" height="24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></span>HOME
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></span>HOME
             </div>
             <div class="nav-item" id="nav-history" onclick="showHistory()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" width="24" height="24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg></span>RIWAYAT
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></span>RIWAYAT
             </div>
             <div class="nav-item" id="nav-notif" onclick="showNotif()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" width="24" height="24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg></span>INFO
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>INFO
             </div>
             <div class="nav-item" id="nav-profile" onclick="showProfile()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" width="24" height="24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></span>PROFIL
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>PROFIL
             </div>
         </div>
 
@@ -418,10 +425,8 @@ EOF
                     <div style="display:flex; justify-content:space-between;"><span>Tujuan</span><strong id="hd-target"></strong></div>
                     <div style="display:flex; justify-content:space-between;"><span>SN/Ref</span><strong id="hd-sn" style="word-break:break-all;"></strong></div>
                 </div>
-                <div class="modal-btns">
-                    <button class="btn-outline" style="margin-top:0; border-color:#ddd; color:#888;" onclick="closeHistoryModal()">Tutup</button>
-                    <button class="btn-danger hidden" id="hd-complain-btn" onclick="complainAdmin()">Hubungi Admin</button>
-                </div>
+                <button class="btn-danger" id="hd-complain-btn" onclick="complainAdmin()" style="margin-bottom: 15px;">Hubungi Admin</button>
+                <button class="btn-outline" style="margin-top:0; border-color:#ddd; color:#888;" onclick="closeHistoryModal()">Tutup</button>
             </div>
         </div>
 
@@ -604,9 +609,6 @@ EOF
             document.getElementById('hd-target').innerText = h.tujuan;
             document.getElementById('hd-sn').innerText = h.sn || '-';
             
-            if(h.status === 'Gagal' || h.status === 'Pending') document.getElementById('hd-complain-btn').classList.remove('hidden');
-            else document.getElementById('hd-complain-btn').classList.add('hidden');
-            
             document.getElementById('history-detail-modal').classList.remove('hidden');
         }
         function closeHistoryModal() { document.getElementById('history-detail-modal').classList.add('hidden'); }
@@ -614,7 +616,7 @@ EOF
         function complainAdmin() {
             let h = currentHistoryItem;
             if(!h) return;
-            let pesan = `Halo Admin Digital Tendo,%0A%0ASaya ingin komplain transaksi:%0A%0A📦 Produk: *${h.nama}*%0A📱 Tujuan: *${h.tujuan}*%0A🕒 Waktu: *${h.tanggal}*%0A⚙️ Status: *${h.status}*%0A🔑 SN/Ref: *${h.sn || '-'}*%0A%0AMohon bantuannya dicek. Terima kasih.`;
+            let pesan = `Halo Admin Digital Tendo Store,%0A%0ASaya ingin komplain/tanya transaksi ini:%0A%0A📦 Produk: *${h.nama}*%0A📱 Tujuan: *${h.tujuan}*%0A🕒 Waktu: *${h.tanggal}*%0A⚙️ Status: *${h.status}*%0A🔑 SN/Ref: *${h.sn || '-'}*%0A%0AMohon bantuannya dicek. Terima kasih.`;
             window.open(`https://wa.me/6282224460678?text=${pesan}`, '_blank');
         }
 
@@ -863,7 +865,7 @@ app.post('/api/webhook/midtrans', (req, res) => {
     if(hash !== signature_key) return res.status(403).send("Invalid Signature");
     
     if(transaction_status === 'capture' || transaction_status === 'settlement') {
-        let phone = order_id.split('-')[1]; // Format: TOPUP-PHONE-TIME
+        let phone = order_id.split('-')[1]; 
         let db = loadJSON(dbFile);
         if(db[phone]) {
             let amount = parseInt(gross_amount);
@@ -1027,7 +1029,7 @@ function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
     exec(`rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json 2>/dev/null`, (err) => {
-        if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Tendo Store" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
+        if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
     });
 }
 if (configAwal.autoBackup) setInterval(doBackupAndSend, (configAwal.backupInterval || 720) * 60 * 1000); 
@@ -1410,7 +1412,7 @@ menu_produk() {
         echo -e "  ${C_GREEN}[2]${C_RST} Edit Produk"
         echo -e "  ${C_GREEN}[3]${C_RST} Hapus Produk"
         echo -e "  ${C_GREEN}[4]${C_RST} Lihat Daftar Produk"
-        echo -e "  ${C_GREEN}[5]${C_RST} 🚀 Import Massal via File Excel Digiflazz (.xlsx)"
+        echo -e "  ${C_GREEN}[5]${C_RST} 🚀 Import Massal via File Digiflazz (.xlsx / .csv)"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
         echo -e "${C_CYAN}======================================================${C_RST}"
@@ -1639,9 +1641,9 @@ menu_produk() {
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             5)
-                echo -e "\n${C_MAG}--- IMPORT PRODUK VIA EXCEL (.XLSX) ---${C_RST}"
-                echo -e "Pastikan file .xlsx dari Digiflazz sudah Anda upload ke direktori yang sama di VPS Anda."
-                read -p "Masukkan nama file Excel lengkap beserta .xlsx nya (contoh: prabayar.xlsx): " nama_file_excel
+                echo -e "\n${C_MAG}--- IMPORT PRODUK VIA EXCEL (.XLSX) / CSV ---${C_RST}"
+                echo -e "Format tabel Digiflazz (English headers) kini didukung sepenuhnya!"
+                read -p "Masukkan nama file lengkap (contoh: daftar-produk-buyer.xlsx ATAU namafile.csv): " nama_file_excel
                 if [ ! -f "$nama_file_excel" ]; then
                     echo -e "${C_RED}❌ File tidak ditemukan. Pastikan file $nama_file_excel ada di direktori $(pwd)${C_RST}"
                 else
@@ -1659,24 +1661,30 @@ menu_produk() {
                             let added = 0;
                             
                             rawData.forEach(row => {
-                                // Pencarian kolom cerdas berdasarkan keyword header Digiflazz
-                                let kodeCol = Object.keys(row).find(k => k.toLowerCase().includes('kode') || k.toLowerCase().includes('sku'));
-                                let namaCol = Object.keys(row).find(k => k.toLowerCase().includes('nama') || k.toLowerCase().includes('produk'));
-                                let hargaCol = Object.keys(row).find(k => k.toLowerCase().includes('harga'));
-                                let statusCol = Object.keys(row).find(k => k.toLowerCase().includes('status'));
-                                let brandCol = Object.keys(row).find(k => k.toLowerCase().includes('brand') || k.toLowerCase().includes('provider'));
+                                let keys = Object.keys(row);
+                                let getCol = (keywords) => keys.find(k => keywords.some(kw => k.toLowerCase().includes(kw)));
+                                
+                                let kodeCol = getCol(['buyer_sku_code', 'sku', 'kode']);
+                                let namaCol = keys.find(k => k.toLowerCase() === 'product_name') || keys.find(k => k.toLowerCase().includes('nama') && !k.toLowerCase().includes('seller'));
+                                let hargaCol = getCol(['price', 'harga']);
+                                let statusCol = getCol(['buyer_product_status', 'status']);
+                                let brandCol = getCol(['brand', 'provider']);
+                                let descCol = getCol(['desc', 'deskripsi']);
                                 
                                 if(!kodeCol || !namaCol || !hargaCol) return;
                                 
-                                // Abaikan produk yang sedang gangguan atau tutup dari supplier
-                                if(statusCol && row[statusCol].toString().toLowerCase() !== 'normal' && row[statusCol].toString().toLowerCase() !== 'aktif') return;
+                                if(statusCol) {
+                                    let stat = row[statusCol].toString().toLowerCase();
+                                    if(stat !== 'normal' && stat !== 'aktif' && stat !== 'active') return;
+                                }
 
                                 let kode = row[kodeCol].toString().trim();
                                 let nama = row[namaCol].toString().trim();
                                 let hargaAwal = parseInt(row[hargaCol]);
+                                let deskripsi = descCol && row[descCol] ? row[descCol].toString().trim() : 'Proses Otomatis';
+                                
                                 if(isNaN(hargaAwal)) return;
 
-                                // Logika Kategori Cerdas (Mendeteksi nama produk)
                                 let kategori = 'Voucher';
                                 let nLower = nama.toLowerCase();
                                 if(nLower.includes('pulsa')) kategori = 'Pulsa';
@@ -1688,9 +1696,8 @@ menu_produk() {
                                 else if(nLower.includes('masa aktif')) kategori = 'Masa Aktif';
                                 else if(nLower.includes('perdana') || nLower.includes('aktivasi')) kategori = 'Aktivasi Perdana';
 
-                                // Margin Harga Dinamis
                                 let margin = 0;
-                                if(kategori === 'Pulsa') margin = 1000; // Untung pas untuk pulsa
+                                if(kategori === 'Pulsa') margin = 1000;
                                 else {
                                     if(hargaAwal < 1000) margin = 500;
                                     else if(hargaAwal < 5000) margin = 700;
@@ -1703,7 +1710,7 @@ menu_produk() {
                                     harga: hargaAwal + margin,
                                     kategori: kategori,
                                     brand: brandCol && row[brandCol] ? row[brandCol].toString() : 'Lainnya',
-                                    deskripsi: 'Proses Otomatis'
+                                    deskripsi: deskripsi
                                 };
                                 added++;
                             });
@@ -1740,7 +1747,7 @@ while true; do
     echo ""
     echo -e "${C_MAG}▶ MANAJEMEN TOKO & SISTEM${C_RST}"
     echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo Member"
-    echo -e "  ${C_GREEN}[7]${C_RST}  🛒 Manajemen Produk & Harga (XLSX Import)"
+    echo -e "  ${C_GREEN}[7]${C_RST}  🛒 Manajemen Produk & Harga (XLSX/CSV Import)"
     echo -e "  ${C_GREEN}[8]${C_RST}  ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
     echo -e "  ${C_GREEN}[9]${C_RST}  💾 Backup & Restore Data Database"
     echo -e "  ${C_GREEN}[10]${C_RST} 🔌 Ganti API Digiflazz"
