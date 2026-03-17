@@ -12,17 +12,30 @@ C_MAG="\e[35m"
 C_RST="\e[0m"
 C_BOLD="\e[1m"
 
-# Buka Port 3000
+# Buka Port 3000, 80 (HTTP), dan 443 (HTTPS)
 sudo ufw allow 3000/tcp > /dev/null 2>&1 || true
+sudo ufw allow 80/tcp > /dev/null 2>&1 || true
+sudo ufw allow 443/tcp > /dev/null 2>&1 || true
 sudo iptables -A INPUT -p tcp --dport 3000 -j ACCEPT > /dev/null 2>&1 || true
+sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT > /dev/null 2>&1 || true
+sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT > /dev/null 2>&1 || true
 
 # ==========================================
-# 1. BIKIN SHORTCUT 'BOT' OTOMATIS DI VPS
+# 1. BIKIN SHORTCUT 'BOT' DI VPS
 # ==========================================
+# Hapus sisa-sisa Auto-Start panel yang bikin VPS macet sebelumnya
+sed -i '/# Auto-start bot panel/d' ~/.bashrc
+sed -i '/if \[ -f \/usr\/bin\/bot \] && \[ -t 1 \]; then/d' ~/.bashrc
+sed -i '/\/usr\/bin\/bot/d' ~/.bashrc
+
 if [ ! -f "/usr/bin/bot" ]; then
-    if [ -f "/usr/bin/menu" ]; then sudo rm -f /usr/bin/menu; fi
     echo -e '#!/bin/bash\ncd "'$(pwd)'"\n./install.sh' | sudo tee /usr/bin/bot > /dev/null
     sudo chmod +x /usr/bin/bot
+fi
+
+if [ ! -f "/usr/bin/menu" ]; then
+    echo -e '#!/bin/bash\ncd "'$(pwd)'"\n./install.sh' | sudo tee /usr/bin/menu > /dev/null
+    sudo chmod +x /usr/bin/menu
 fi
 
 # ==========================================
@@ -33,8 +46,8 @@ generate_web_app() {
 
     cat << 'EOF' > public/manifest.json
 {
-  "name": "Tendo Store",
-  "short_name": "Tendo Store",
+  "name": "Digital Tendo Store",
+  "short_name": "Digital Tendo Store",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f8fafc",
@@ -45,7 +58,8 @@ generate_web_app() {
 EOF
 
     cat << 'EOF' > public/sw.js
-self.addEventListener('install', (e) => { });
+self.addEventListener('install', (e) => { self.skipWaiting(); });
+self.addEventListener('activate', (e) => { self.clients.claim(); });
 self.addEventListener('fetch', (e) => { });
 EOF
 
@@ -55,7 +69,7 @@ EOF
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tendo Store</title>
+    <title>Digital Tendo Store</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0b2136">
     <style>
@@ -65,9 +79,13 @@ EOF
         
         /* TOP BAR */
         .top-bar { background: #0b2136; color: #ffffff; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100;}
-        .menu-btn { font-size: 24px; cursor: pointer; background: none; border: none; color: #ffffff; padding: 0; margin-right: 15px;}
+        .menu-btn { cursor: pointer; background: none; border: none; padding: 0; margin-right: 15px; display: flex; align-items: center; justify-content: center;}
+        .menu-btn svg { width: 28px; height: 28px; stroke: #ffffff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
         .brand-title { font-size: 16px; font-weight: bold; flex: 1; text-align: center; margin-right: -10px;}
-        .trx-badge { font-size: 11px; background: #e3f2fd; color: #0b2136; padding: 4px 10px; border-radius: 12px; font-weight: 800;}
+        
+        /* TRX BADGE BISA DIKLIK */
+        .trx-badge { font-size: 11px; background: #e3f2fd; color: #0b2136; padding: 4px 10px; border-radius: 12px; font-weight: 800; cursor: pointer; transition: transform 0.2s;}
+        .trx-badge:active { transform: scale(0.95); }
 
         /* BANNER SALDO */
         .banner-container { background: #0b2136; border-radius: 0 0 25px 25px; padding: 0 20px 25px; box-shadow: 0 4px 15px rgba(11,33,54,0.1);}
@@ -89,44 +107,43 @@ EOF
         }
         .btn-topup-dash:active { transform: scale(0.95); }
 
-        /* GRID MENU */
+        /* GRID MENU (9 Kategori) */
         .grid-title { margin: 25px 20px 15px; font-weight: 800; color: #1e293b; font-size: 16px;}
-        .grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 0 20px;}
+        .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 0 20px;}
         .grid-box { 
             background: #ffffff; border-radius: 14px; padding: 15px 5px; 
-            text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; 
+            text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
             border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(226,232,240,0.5);
             transition: transform 0.2s, border-color 0.2s;
         }
         .grid-box:active { transform: scale(0.95); border-color: #0b2136; }
-        .grid-icon-wrap { width: 45px; height: 45px; margin-bottom: 8px; display: flex; justify-content: center; align-items: center;}
-        .grid-icon-wrap svg { width: 100%; height: 100%; }
-        .grid-text { font-size: 10px; color: #0b2136; font-weight: 800; line-height: 1.2; text-transform: uppercase;}
+        .grid-icon-wrap { width: 40px; height: 40px; margin-bottom: 10px; display: flex; justify-content: center; align-items: center;}
+        .grid-icon-wrap svg { width: 100%; height: 100%; stroke-width: 1.5; fill: none; }
+        .grid-text { font-size: 10px; color: #0b2136; font-weight: 800; line-height: 1.3; text-transform: uppercase;}
+
+        /* BRAND LIST (VERTICAL) */
+        .brand-list { display: flex; flex-direction: column; padding: 15px 20px; gap: 12px; }
+        .brand-row { background: #ffffff; padding: 15px; border-radius: 14px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s, border-color 0.2s;}
+        .brand-row:active { transform: scale(0.98); border-color: #0b2136;}
+        .b-logo { width: 45px; height: 45px; background: #f8fafc; color: #0b2136; border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; border: 1px solid #e2e8f0; flex-shrink: 0;}
+        .b-name { font-size: 14px; font-weight: 800; color: #1e293b; flex: 1;}
 
         /* BOTTOM NAV */
         .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 480px; background: #ffffff; display: flex; justify-content: space-around; padding: 10px 0 8px; border-top: 1px solid #e2e8f0; box-shadow: 0 -2px 10px rgba(0,0,0,0.02); z-index: 90;}
         .nav-item { text-align: center; color: #94a3b8; font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700; transition: color 0.3s;}
-        .nav-icon { margin-bottom: 3px; display: flex; justify-content: center; align-items: center;}
+        .nav-icon { margin-bottom: 4px; display: flex; justify-content: center; align-items: center;}
+        .nav-icon svg { width: 24px; height: 24px; }
         .nav-item.active { color: #0b2136;}
 
-        /* TAB SYSTEM */
-        .provider-tabs { display: flex; overflow-x: auto; gap: 10px; padding: 15px 20px; background: #ffffff; border-bottom: 1px solid #f1f5f9; position: sticky; top: 56px; z-index: 50;}
-        .provider-tabs::-webkit-scrollbar { display: none; }
-        .tab-btn { background: #ffffff; border: 1px solid #cbd5e1; padding: 8px 18px; border-radius: 20px; font-size: 12px; white-space: nowrap; cursor: pointer; font-weight: bold; color: #64748b; transition: 0.2s;}
-        .tab-btn.active { background: #0b2136; color: #ffffff; border-color: #0b2136;}
-
         /* PRODUCT LIST STYLE */
-        .brand-header { padding: 15px 20px 5px; font-weight: bold; color: #64748b; font-size: 12px; text-transform: uppercase;}
-        .product-item { background: #ffffff; padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02);}
-        .prod-logo { width: 45px; height: 45px; background: #f8fafc; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; color: #0b2136; font-size: 14px; border: 1px solid #e2e8f0;}
-        .prod-info { flex: 1; }
-        .prod-name { font-weight: 800; font-size: 13px; color: #0b2136; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;}
-        .badge-open { background: #e0f2fe; color: #0284c7; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800; border: 1px solid #bae6fd;}
-        .prod-desc { font-size: 10px; color: #64748b; font-weight: 600; margin-bottom: 4px;}
+        .product-item { background: #ffffff; padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); cursor: pointer; transition: 0.2s;}
+        .product-item:active { transform: scale(0.98); border-color: #0b2136;}
+        .prod-logo { width: 45px; height: 45px; background: #f8fafc; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; color: #0b2136; font-size: 14px; border: 1px solid #e2e8f0; flex-shrink: 0;}
+        .prod-info { flex: 1; min-width: 0; }
+        .prod-name { font-weight: 800; font-size: 13px; color: #0b2136; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; word-wrap: break-word;}
+        .badge-open { background: #e0f2fe; color: #0284c7; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800; border: 1px solid #bae6fd; flex-shrink: 0; margin-left: 8px;}
+        .prod-desc { font-size: 10px; color: #64748b; font-weight: 600; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;}
         .prod-price { color: #0b2136; font-weight: 900; font-size: 15px;}
-        .badge-laris { background: #fff7ed; color: #ea580c; font-size: 9px; padding: 3px 8px; border-radius: 10px; font-weight: bold; float: right; margin-top: -15px; border: 1px solid #ffedd5;}
-        .btn-buy { background: #0b2136; color: #ffffff; border: none; padding: 8px 22px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s;}
-        .btn-buy:active { transform: scale(0.95); }
 
         /* SIDEBAR */
         .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); z-index: 999; display: none; opacity: 0; transition: opacity 0.3s;}
@@ -137,35 +154,36 @@ EOF
         .sidebar-name { font-weight: bold; font-size: 16px; color: #ffffff;}
         .sidebar-phone { font-size: 12px; color: #cbd5e1;}
         .sidebar-menu { padding: 10px 0; flex: 1;}
-        .sidebar-item { padding: 15px 20px; display: flex; align-items: center; color: #334155; text-decoration: none; font-size: 14px; border-bottom: 1px solid #f8fafc; font-weight: 600;}
+        .sidebar-item { padding: 15px 20px; display: flex; align-items: center; color: #334155; text-decoration: none; font-size: 14px; border-bottom: 1px solid #f8fafc; font-weight: 600; gap: 15px;}
         .sidebar-item:active { background: #f1f5f9; }
-        .sb-icon { width: 30px; font-size: 18px; color: inherit; }
+        .sidebar-item svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
         /* FORMS & COMPONENTS */
         .container { padding: 20px; }
         .card { background: #ffffff; padding: 25px 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(226,232,240,0.5);}
         input { width: 100%; padding: 15px; margin-bottom: 12px; border: 1px solid #cbd5e1; border-radius: 12px; box-sizing: border-box; font-size: 14px; outline: none; background: #f8fafc; color: #0b2136; font-weight: 600; transition: border-color 0.2s;}
         input:focus { border-color: #0b2136; background: #ffffff;}
-        input::placeholder { color: #94a3b8; font-weight: normal; }
-        .checkbox-container { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; font-size: 13px; font-weight: 600; color: #475569;}
-        .checkbox-container input { width: 18px; height: 18px; margin: 0; cursor: pointer;}
         
-        .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer;}
+        .checkbox-container { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 20px; font-size: 13px; font-weight: 600; color: #475569; cursor: pointer;}
+        .checkbox-container input { width: 16px; height: 16px; margin: 0; padding: 0; cursor: pointer;}
+        
+        .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;}
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .btn-outline { background: #ffffff; color: #0b2136; border: 1.5px solid #0b2136; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
-        .btn:active, .btn-outline:active { transform: scale(0.98); }
+        .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
 
-        /* PROFILE SCREEN */
+        /* PROFILE & MODAL */
         .prof-header { background: #0b2136; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
         .prof-avatar { width: 80px; height: 80px; background: #ffffff; color: #0b2136; border-radius: 50%; font-size: 40px; display: flex; justify-content: center; align-items: center; margin: 0 auto 10px auto; font-weight: bold;}
         .prof-box { background: #ffffff; margin: -20px 20px 20px; border-radius: 16px; padding: 20px; position: relative; z-index: 10; border: 1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(226,232,240,0.5);}
         .prof-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed #e2e8f0; font-size: 13px;}
-        .prof-row:last-child { border-bottom: none;}
         .prof-label { color: #64748b; font-weight: 600;}
         .prof-val { color: #0b2136; font-weight: 900; text-align: right;}
         .prof-action-btn { background: #f8fafc; color: #0b2136; border: 1px solid #e2e8f0; padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px;}
+        .prof-action-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
 
-        /* HISTORY ITEMS */
-        .hist-item { background: #ffffff; padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(226,232,240,0.5);}
+        .hist-item { background: #ffffff; padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(226,232,240,0.5); cursor: pointer;}
+        .hist-item:active { transform: scale(0.98); }
         .hist-top { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-bottom: 5px; font-weight: 700;}
         .hist-title { font-weight: 800; font-size: 14px; color: #0b2136; margin-bottom: 3px;}
         .hist-target { font-size: 12px; color: #475569; font-weight: 600;}
@@ -174,41 +192,45 @@ EOF
         .stat-Pending { background: #ffedd5; color: #c2410c; } 
         .stat-Gagal { background: #fee2e2; color: #b91c1c; text-decoration: line-through; }
 
-        /* MODAL */
         .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
-        .modal-box { background: #ffffff; width: 100%; max-width: 340px; border-radius: 20px; padding: 25px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2);}
+        .modal-box { background: #ffffff; width: 100%; max-width: 340px; border-radius: 20px; padding: 25px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;}
         .modal-btns { display: flex; gap: 10px; margin-top: 15px;}
         
         .screen-header { padding: 15px 20px; font-weight: 800; font-size: 18px; display: flex; align-items: center; gap: 15px; background: #ffffff; border-bottom: 1px solid #e2e8f0; position: sticky; top:0; z-index: 10; color: #0b2136;}
         .hidden { display: none !important; }
-        
-        /* Ikon Back (Panah kiri) */
-        .back-icon {
-            cursor: pointer;
-            fill: #0b2136;
-        }
+        .back-icon { cursor: pointer; fill: none; stroke: #0b2136; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
     </style>
 </head>
 <body>
     <div id="app">
         <div class="top-bar" id="home-topbar">
-            <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-            <div class="brand-title" id="top-title">Tendo Store</div>
-            <div class="trx-badge" id="top-trx-badge">0 Trx</div>
+            <button class="menu-btn" onclick="toggleSidebar()">
+                <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <div class="brand-title" id="top-title">Digital Tendo Store</div>
+            <div class="trx-badge" id="top-trx-badge" onclick="showHistory()">0 Trx</div>
         </div>
 
         <div class="sidebar-overlay" id="sb-overlay" onclick="toggleSidebar()"></div>
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="sidebar-avatar" id="sb-avatar">T</div>
-                <div class="sidebar-name" id="sb-name">Tendo Store</div>
+                <div class="sidebar-name" id="sb-name">Digital Tendo Store</div>
                 <div class="sidebar-phone" id="sb-phone">Belum Login</div>
             </div>
             <div class="sidebar-menu">
-                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showProfile()"><span class="sb-icon">👤</span> Profil Akun</a>
-                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showHistory()"><span class="sb-icon">🔁</span> Transaksi Saya</a>
-                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showNotif()"><span class="sb-icon">🔔</span> Pemberitahuan</a>
-                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showContactModal()"><span class="sb-icon">📞</span> Bantuan Admin</a>
+                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showProfile()">
+                    <svg viewBox="0 0 24 24" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Profil Akun
+                </a>
+                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showHistory()">
+                    <svg viewBox="0 0 24 24" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Transaksi Saya
+                </a>
+                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showNotif()">
+                    <svg viewBox="0 0 24 24" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> Pemberitahuan
+                </a>
+                <a href="#" class="sidebar-item" onclick="toggleSidebar(); contactAdmin()">
+                    <svg viewBox="0 0 24 24" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Hubungi Admin
+                </a>
             </div>
             <div style="padding: 20px;">
                 <button class="btn-outline" style="color: #ef4444; border-color: #ef4444;" onclick="logout()">Keluar Akun</button>
@@ -217,19 +239,17 @@ EOF
 
         <div id="login-screen" class="container">
             <div style="text-align:center; margin: 40px 0;">
-                <h1 style="color:#0b2136; margin:0; font-weight:900; font-size: 28px;">Tendo Store</h1>
+                <h1 style="color:#0b2136; margin:0; font-weight:900; font-size: 28px;">Digital Tendo Store</h1>
                 <p style="color:#64748b; font-size:13px; margin-top:5px; font-weight: 600;">Solusi Pembayaran Digital</p>
             </div>
             <div class="card">
                 <h2 style="margin-top:0; text-align:center; font-size:18px;">Masuk Akun</h2>
                 <input type="email" id="log-email" placeholder="Alamat Email">
                 <input type="password" id="log-pass" placeholder="Password">
-                
                 <label class="checkbox-container">
                     <input type="checkbox" id="rem-login"> Tetap masuk
                 </label>
-
-                <button class="btn" onclick="login()">Login Sekarang</button>
+                <button class="btn" id="btn-login" onclick="login()">Login Sekarang</button>
                 <button class="btn-outline" onclick="showScreen('register-screen')">Buat Akun Baru</button>
             </div>
         </div>
@@ -242,7 +262,7 @@ EOF
                 <input type="email" id="reg-email" placeholder="Alamat Email">
                 <input type="number" id="reg-phone" placeholder="Nomor WhatsApp">
                 <input type="password" id="reg-pass" placeholder="Buat Password">
-                <button class="btn" onclick="requestOTP()">Kirim OTP WhatsApp</button>
+                <button class="btn" id="btn-register" onclick="requestOTP()">Kirim OTP WhatsApp</button>
                 <button class="btn-outline" style="border:none;" onclick="showScreen('login-screen')">Kembali ke Login</button>
             </div>
         </div>
@@ -252,7 +272,7 @@ EOF
                 <h2 style="margin-top:0; font-size:18px;">Verifikasi WhatsApp</h2>
                 <p style="font-size:13px; color:#64748b; margin-bottom: 20px; font-weight: 600;">Kode OTP 4 digit telah dikirim ke WA.</p>
                 <input type="number" id="otp-code" placeholder="----" style="text-align:center; font-size:28px; letter-spacing: 12px; font-weight:bold; background:#f8fafc;">
-                <button class="btn" onclick="verifyOTP()">Verifikasi & Daftar</button>
+                <button class="btn" id="btn-verify" onclick="verifyOTP()">Verifikasi & Daftar</button>
                 <button class="btn-outline" style="border:none;" onclick="showScreen('register-screen')">Batal</button>
             </div>
         </div>
@@ -261,152 +281,76 @@ EOF
             <div class="banner-container">
                 <div class="banner" id="home-banner">
                     <div class="saldo-title">Sisa Saldo Anda</div>
-                    <div class="saldo-amount" id="user-saldo">Rp 0,00</div>
-                    <button class="btn-topup-dash" onclick="openTopupModal()">[+] ISI SALDO</button>
+                    <div class="saldo-amount" id="user-saldo">Rp 0</div>
+                    <button class="btn-topup-dash" onclick="openTopupModal()">ISI SALDO</button>
                 </div>
             </div>
 
-            <div class="grid-title">Layanan Favorit</div>
+            <div class="grid-title">Layanan Produk</div>
             <div class="grid-container">
                 <div class="grid-box" onclick="loadCategory('Pulsa')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 48 48">
-                            <rect x="6" y="4" width="22" height="36" rx="4" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
-                            <rect x="13" y="34" width="8" height="2" rx="1" fill="#0b2136"/>
-                            <circle cx="28" cy="32" r="8" fill="#FBBF24" stroke="#0b2136" stroke-width="2"/>
-                            <text x="28" y="36" font-size="12" font-family="Arial" font-weight="bold" fill="#0b2136" text-anchor="middle">$</text>
-                            <path d="M38 24 v-10 M44 24 v-16" stroke="#4ADE80" stroke-width="3" stroke-linecap="round"/>
-                        </svg>
-                    </div>
+                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg></div>
                     <div class="grid-text">PULSA</div>
                 </div>
                 <div class="grid-box" onclick="loadCategory('Data')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 48 48">
-                            <rect x="6" y="6" width="20" height="32" rx="4" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
-                            <circle cx="32" cy="24" r="10" fill="#4ADE80" stroke="#0b2136" stroke-width="2"/>
-                            <path d="M22 24 h20 M32 14 v20 M27 15 c-4 5 -4 13 0 18 M37 15 c4 5 4 13 0 18" fill="none" stroke="#0b2136" stroke-width="2"/>
-                            <circle cx="16" cy="14" r="2" fill="#0b2136"/><circle cx="16" cy="22" r="2" fill="#0b2136"/><circle cx="16" cy="30" r="2" fill="#0b2136"/>
-                        </svg>
-                    </div>
+                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#DCFCE7" stroke="#16A34A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></div>
                     <div class="grid-text">DATA</div>
                 </div>
-                <div class="grid-box" onclick="loadCategory('Masa Aktif')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 48 48">
-                            <rect x="6" y="10" width="30" height="26" rx="3" fill="#ffffff" stroke="#0b2136" stroke-width="2"/>
-                            <path d="M12 6 v8 M30 6 v8" stroke="#F87171" stroke-width="3" stroke-linecap="round"/>
-                            <rect x="6" y="10" width="30" height="8" rx="3" fill="#F87171" stroke="#0b2136" stroke-width="2"/>
-                            <path d="M6 18 h30" stroke="#0b2136" stroke-width="2"/>
-                            <circle cx="34" cy="34" r="10" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
-                            <path d="M34 28 v6 l4 4" fill="none" stroke="#0b2136" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                    </div>
-                    <div class="grid-text">MASA AKTIF</div>
+                <div class="grid-box" onclick="loadCategory('Game')">
+                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" ry="2"></rect><path d="M6 12h4"></path><path d="M8 10v4"></path><line x1="15" y1="13" x2="15.01" y2="13"></line><line x1="18" y1="11" x2="18.01" y2="11"></line></svg></div>
+                    <div class="grid-text">GAME</div>
                 </div>
-                <div class="grid-box" onclick="loadCategory('SMS & Telp')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 48 48">
-                            <path d="M12 34 c-4-4 -6-10 -2-14 l4-4 c2-2 6-2 8 0 l2 2 c2 2 2 4 0 6 l-2 2 c0 4 4 8 8 8 l2-2 c2-2 4-2 6 0 l2 2 c2 2 2 6 0 8 l-4 4 c-4 4 -10 2 -14 -2 z" fill="#4ADE80" stroke="#0b2136" stroke-width="2"/>
-                            <path d="M26 12 h14 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-4 l-6 4 v-4 h-4 a4 4 0 0 1 -4 -4 v-8 a4 4 0 0 1 4 -4 z" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
-                            <circle cx="30" cy="20" r="1.5" fill="#0b2136"/><circle cx="35" cy="20" r="1.5" fill="#0b2136"/><circle cx="40" cy="20" r="1.5" fill="#0b2136"/>
-                        </svg>
-                    </div>
-                    <div class="grid-text">SMS TELP</div>
+                <div class="grid-box" onclick="loadCategory('Voucher')">
+                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#FEF3C7" stroke="#D97706" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" ry="2"></rect><path d="M2 12a2 2 0 0 1 2-2V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 1 2 2 2 2 0 0 1-2 2v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 1-2-2z"></path></svg></div>
+                    <div class="grid-text">VOUCHER</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('E-Money')">
+                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#E0E7FF" stroke="#4F46E5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg></div>
+                    <div class="grid-text">E-MONEY</div>
                 </div>
                 <div class="grid-box" onclick="loadCategory('PLN')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 48 48">
-                            <rect x="6" y="14" width="12" height="16" rx="2" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
-                            <path d="M10 8 v6 M14 8 v6" stroke="#0b2136" stroke-width="2" stroke-linecap="round"/>
-                            <path d="M12 18 l-3 5 h6 l-3 5" fill="none" stroke="#0b2136" stroke-width="1.5" stroke-linejoin="round"/>
-                            <path d="M12 30 v4 c0 4 6 4 10 4 c10 0 10 -14 10 -14" fill="none" stroke="#0b2136" stroke-width="2"/>
-                            <circle cx="32" cy="18" r="10" fill="#FBBF24" stroke="#0b2136" stroke-width="2"/>
-                            <path d="M28 28 l4 4 l4-4" fill="none" stroke="#0b2136" stroke-width="2"/>
-                            <path d="M30 14 l-2 6 h6 l-2 6" fill="none" stroke="#0b2136" stroke-width="2" stroke-linejoin="round"/>
-                        </svg>
-                    </div>
+                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#FEF08A" stroke="#CA8A04" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></div>
                     <div class="grid-text">PLN</div>
                 </div>
-                <div class="grid-box" onclick="loadCategory('E-Wallet')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 48 48">
-                            <path d="M14 10 h16 l4 -4 h8 v10" fill="#4ADE80" stroke="#0b2136" stroke-width="2" stroke-linejoin="round"/>
-                            <path d="M10 14 h12 l4 -4 h10 v10" fill="#34D399" stroke="#0b2136" stroke-width="2" stroke-linejoin="round"/>
-                            <rect x="4" y="16" width="36" height="24" rx="4" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
-                            <path d="M40 24 h-6 a4 4 0 0 0 0 8 h6" fill="#ffffff" stroke="#0b2136" stroke-width="2"/>
-                            <circle cx="36" cy="28" r="2" fill="#0b2136"/>
-                        </svg>
-                    </div>
-                    <div class="grid-text">E-WALLET</div>
+                <div class="grid-box" onclick="loadCategory('Paket SMS & Telpon')">
+                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#EDE9FE" stroke="#7C3AED" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg></div>
+                    <div class="grid-text">SMS & TELP</div>
                 </div>
-                <div class="grid-box" onclick="loadCategory('Tagihan')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 48 48">
-                            <path d="M10 6 h16 l4 4 v26 l-3-2 l-3 2 l-3-2 l-3 2 l-3-2 l-3 2 l-3-2 l-3 2 v-32 z" fill="#ffffff" stroke="#0b2136" stroke-width="2"/>
-                            <path d="M14 14 h10 M14 20 h14 M14 26 h6" stroke="#0b2136" stroke-width="2" stroke-linecap="round"/>
-                            <rect x="22" y="24" width="22" height="14" rx="2" fill="#4ADE80" stroke="#0b2136" stroke-width="2"/>
-                            <circle cx="33" cy="31" r="3" fill="#ffffff" stroke="#0b2136" stroke-width="1.5"/>
-                            <path d="M20 28 h2 M42 28 h2" stroke="#0b2136" stroke-width="2"/>
-                        </svg>
-                    </div>
-                    <div class="grid-text">TAGIHAN</div>
+                <div class="grid-box" onclick="loadCategory('Masa Aktif')">
+                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#FEE2E2" stroke="#DC2626" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>
+                    <div class="grid-text">MASA AKTIF</div>
                 </div>
-                <div class="grid-box" onclick="loadCategory('E-Toll')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 48 48">
-                            <rect x="6" y="14" width="6" height="26" fill="#F97316" stroke="#0b2136" stroke-width="2"/>
-                            <path d="M4 14 h10 M9 14 v-4 h24 v4" fill="none" stroke="#0b2136" stroke-width="2"/>
-                            <rect x="15" y="6" width="12" height="4" fill="#ffffff" stroke="#0b2136" stroke-width="2"/>
-                            <path d="M12 24 h28" stroke="#0b2136" stroke-width="2" stroke-dasharray="4 4"/>
-                            <path d="M22 36 l-2 -8 h12 l-2 8 z" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
-                            <path d="M20 36 h12 v4 h-12 z" fill="#3B82F6" stroke="#0b2136" stroke-width="2"/>
-                            <circle cx="23" cy="38" r="1.5" fill="#ffffff"/><circle cx="29" cy="38" r="1.5" fill="#ffffff"/>
-                        </svg>
-                    </div>
-                    <div class="grid-text">E-TOLL</div>
-                </div>
-                <div class="grid-box" onclick="loadCategory('Digital')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 48 48">
-                            <path d="M8 26 c0-8 6-12 16-12 s16 4 16 12 c0 4-2 10-6 10 c-2 0-4-2-4-4 l-2-4 h-8 l-2 4 c0 2-2 4-4 4 c-4 0-6-6-6-10 z" fill="#60A5FA" stroke="#0b2136" stroke-width="2"/>
-                            <circle cx="14" cy="24" r="3" fill="#ffffff" stroke="#0b2136" stroke-width="1.5"/>
-                            <path d="M14 21 v6 M11 24 h6" stroke="#0b2136" stroke-width="1.5"/>
-                            <circle cx="34" cy="22" r="1.5" fill="#0b2136"/><circle cx="32" cy="25" r="1.5" fill="#0b2136"/>
-                            <circle cx="36" cy="25" r="1.5" fill="#0b2136"/><circle cx="34" cy="28" r="1.5" fill="#0b2136"/>
-                            <rect x="10" y="4" width="8" height="6" rx="1" fill="#A78BFA" stroke="#0b2136" stroke-width="1.5"/>
-                            <path d="M13 5 l3 2 l-3 2 z" fill="#ffffff"/>
-                            <rect x="28" y="4" width="8" height="6" rx="1" fill="#F472B6" stroke="#0b2136" stroke-width="1.5"/>
-                            <path d="M31 5 l3 2 l-3 2 z" fill="#ffffff"/>
-                        </svg>
-                    </div>
-                    <div class="grid-text">DIGITAL</div>
+                <div class="grid-box" onclick="loadCategory('Aktivasi Perdana')">
+                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#D1FAE5" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg></div>
+                    <div class="grid-text">PERDANA</div>
                 </div>
             </div>
-            
-            <div style="padding: 20px; margin: 30px 20px; background: #ffffff; border-radius: 16px; text-align: center; border: 1px dashed #cbd5e1;" id="install-banner" class="hidden">
-                <strong style="color:#0b2136; font-size:14px;">Aplikasi Tendo Store</strong><br>
-                <span style="font-size:12px; color:#64748b; font-weight: 600;">Pasang di layar utama HP Anda untuk akses cepat!</span><br>
-                <button class="btn" style="margin-top:15px; padding: 10px 30px; font-size:12px; width:auto; border-radius:20px;" id="install-btn">Install Sekarang</button>
+        </div>
+
+        <div id="brand-screen" class="hidden">
+            <div class="screen-header">
+                <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+                <span id="brand-cat-title" style="text-transform: uppercase;">Kategori</span>
             </div>
+            <div class="brand-list" id="brand-list"></div>
         </div>
 
         <div id="produk-screen" class="hidden">
             <div class="screen-header">
-                <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
-                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                <svg class="back-icon" onclick="goBackToBrands()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                    <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span id="cat-title-text" style="text-transform: uppercase;">Katalog</span>
             </div>
-            
-            <div class="provider-tabs" id="provider-tabs"></div>
-            <div id="product-list" style="padding-top: 5px;"></div>
+            <div id="product-list" style="padding-top: 15px;"></div>
         </div>
 
         <div id="history-screen" class="hidden">
             <div class="screen-header">
                 <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
-                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                    <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span style="text-transform: uppercase;">Riwayat Transaksi</span>
             </div>
@@ -428,16 +372,20 @@ EOF
             
             <div style="padding: 0 20px;">
                 <h3 style="font-size:14px; color:#888; margin-bottom:15px;">PENGATURAN</h3>
-                <button class="prof-action-btn" onclick="openEditModal('email')"><span style="font-size: 18px;">✉️</span> Ubah Email</button>
-                <button class="prof-action-btn" onclick="openEditModal('phone')"><span style="font-size: 18px;">📱</span> Ubah Nomor WA</button>
-                <button class="prof-action-btn" onclick="openEditModal('password')"><span style="font-size: 18px;">🔐</span> Ubah Password</button>
+                <button class="prof-action-btn" onclick="openEditModal('email')"><svg viewBox="0 0 24 24" width="20" stroke="#64748b"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg> Ubah Email</button>
+                <button class="prof-action-btn" onclick="openEditModal('phone')"><svg viewBox="0 0 24 24" width="20" stroke="#64748b"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Ubah Nomor WA</button>
+                <button class="prof-action-btn" onclick="openEditModal('password')"><svg viewBox="0 0 24 24" width="20" stroke="#64748b"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Ubah Password</button>
+                
+                <button class="prof-action-btn" onclick="contactAdmin()" style="border-color: #bae6fd; color: #0284c7; background: #f0f9ff; margin-top: 15px;">
+                    <svg viewBox="0 0 24 24" width="20" stroke="#0284c7"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Hubungi Admin
+                </button>
             </div>
         </div>
 
         <div id="notif-screen" class="hidden">
             <div class="screen-header">
                 <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
-                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                    <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span>Pemberitahuan</span>
             </div>
@@ -451,57 +399,28 @@ EOF
 
         <div class="bottom-nav" id="main-bottom-nav">
             <div class="nav-item active" id="nav-home" onclick="showDashboard()">
-                <span class="nav-icon">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                      <path d="M3 10 l9-7 9 7 v11 a2 2 0 0 1 -2 2 H5 a2 2 0 0 1 -2 -2 z" fill="#f8fafc" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                      <path d="M9 22 V12 h6 v10" fill="#e2e8f0" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    </svg>
-                </span>HOME
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></span>HOME
             </div>
             <div class="nav-item" id="nav-history" onclick="showHistory()">
-                <span class="nav-icon">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                      <rect x="5" y="3" width="14" height="18" rx="2" fill="#f8fafc" stroke="currentColor" stroke-width="2"/>
-                      <path d="M9 8h6 M9 12h6 M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                </span>RIWAYAT
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></span>RIWAYAT
             </div>
             <div class="nav-item" id="nav-notif" onclick="showNotif()">
-                <span class="nav-icon">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                      <path d="M18 8 A6 6 0 0 0 6 8 c0 7 -3 9 -3 9 h18 s-3 -2 -3 -9" fill="#f8fafc" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                      <path d="M13.73 21 a2 2 0 0 1 -3.46 0" fill="#e2e8f0" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                </span>INFO
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>INFO
             </div>
             <div class="nav-item" id="nav-profile" onclick="showProfile()">
-                <span class="nav-icon">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                      <path d="M20 21 v-2 a4 4 0 0 0 -4 -4 H8 a4 4 0 0 0 -4 4 v2" fill="#f8fafc" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                      <circle cx="12" cy="7" r="4" fill="#e2e8f0" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                </span>PROFIL
-            </div>
-        </div>
-
-        <div id="contact-modal" class="modal-overlay hidden">
-            <div class="modal-box">
-                <h3 style="margin-top:0; font-size:18px;">Pusat Bantuan</h3>
-                <p style="font-size:13px; color:#666; margin-bottom: 20px;">Silakan pilih platform untuk menghubungi Admin:</p>
-                <button class="btn" style="margin-bottom:10px; background:#25D366;" onclick="window.open('https://wa.me/6282224460678', '_blank'); closeContactModal()">WhatsApp Admin</button>
-                <button class="btn" style="background:#2CA5E0;" onclick="window.open('https://t.me/tendo_32', '_blank'); closeContactModal()">Telegram Admin</button>
-                <div style="margin-top:20px;"><a href="#" style="color:#aaa; text-decoration:none; font-size:14px; font-weight:bold;" onclick="closeContactModal()">Tutup</a></div>
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>PROFIL
             </div>
         </div>
 
         <div id="order-modal" class="modal-overlay hidden">
             <div class="modal-box">
-                <h3 style="margin-top:0; font-size:18px;">Beli Produk</h3>
-                <div style="background:#f9f9f9; padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid #eee;">
-                    <strong id="m-name" style="font-size:14px; color:#2c3e50; line-height:1.4; display:block; margin-bottom:8px;">Produk</strong>
-                    <span style="color:#2c3e50; font-weight:900; font-size: 22px;" id="m-price">Rp 0</span>
+                <h3 style="margin-top:0; font-size:18px;">Formulir Pesanan</h3>
+                <div style="background:#f9f9f9; padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid #eee; text-align: left;">
+                    <strong id="m-name" style="font-size:14px; color:#2c3e50; line-height:1.4; display:block; margin-bottom:5px;">Produk</strong>
+                    <div id="m-desc" style="font-size:11px; color:#64748b; margin-bottom:10px; line-height: 1.4;">Deskripsi Produk</div>
+                    <span style="color:#0b2136; font-weight:900; font-size: 20px;" id="m-price">Rp 0</span>
                 </div>
-                <input type="text" id="m-target" placeholder="Masukkan Nomor/ID Tujuan">
+                <input type="text" id="m-target" placeholder="Masukkan Nomor/ID Tujuan" style="text-align:center; font-size: 16px; font-weight: bold;">
                 <div class="modal-btns">
                     <button class="btn-outline" style="margin-top:0; border-color:#ddd; color:#888;" onclick="closeOrderModal()">Batal</button>
                     <button class="btn" id="m-submit" onclick="processOrder()">Beli Sekarang</button>
@@ -511,42 +430,54 @@ EOF
 
         <div id="topup-modal" class="modal-overlay hidden">
             <div class="modal-box">
-                <h3 style="margin-top:0; font-size:18px;">Isi Saldo</h3>
-                <p style="font-size:12px; color:#666; margin-bottom:20px;">Sistem akan mengarahkan Anda ke WhatsApp Admin untuk instruksi pembayaran.</p>
-                <input type="text" id="topup-id" placeholder="Nomor HP atau Email Akun">
-                <input type="number" id="topup-nominal" placeholder="Nominal (Cth: 50000)">
+                <h3 style="margin-top:0; font-size:18px;">Isi Saldo Otomatis</h3>
+                <p style="font-size:12px; color:#666; margin-bottom:20px;">Mendukung QRIS, E-Wallet, dan Virtual Account.</p>
+                <input type="number" id="topup-nominal" placeholder="Nominal (Min. 10000)" style="text-align:center; font-size:18px; font-weight:bold;">
                 <div class="modal-btns">
                     <button class="btn-outline" style="margin-top:0; border-color:#ddd; color:#888;" onclick="closeTopupModal()">Batal</button>
-                    <button class="btn" onclick="sendTopup()">Ajukan Topup</button>
+                    <button class="btn" id="btn-topup-submit" onclick="sendTopup()">Lanjut Bayar</button>
                 </div>
+            </div>
+        </div>
+        
+        <div id="history-detail-modal" class="modal-overlay hidden">
+            <div class="modal-box">
+                <h3 style="margin-top:0; font-size:18px;">Detail Transaksi</h3>
+                <div style="background:#f8fafc; padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid #e2e8f0; text-align: left; font-size:13px; line-height: 1.6;">
+                    <div style="display:flex; justify-content:space-between;"><span>Waktu</span><strong id="hd-time"></strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Status</span><strong id="hd-status"></strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Produk</span><strong id="hd-name"></strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Tujuan</span><strong id="hd-target"></strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>SN/Ref</span><strong id="hd-sn" style="word-break:break-all;"></strong></div>
+                </div>
+                <button class="btn-danger" id="hd-complain-btn" onclick="complainAdmin()" style="margin-bottom: 15px;">Hubungi Admin</button>
+                <button class="btn-outline" style="margin-top:0; border-color:#ddd; color:#888;" onclick="closeHistoryModal()">Tutup</button>
             </div>
         </div>
 
         <div id="edit-modal" class="modal-overlay hidden">
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;" id="edit-title">Ubah Data</h3>
-                
                 <div id="edit-step-1">
                     <input type="text" id="edit-input" placeholder="Masukkan data baru">
                     <div class="modal-btns">
                         <button class="btn-outline" style="margin-top:0; border-color:#ddd; color:#888;" onclick="closeEditModal()">Batal</button>
-                        <button class="btn" onclick="reqEditOTP()">Kirim OTP</button>
+                        <button class="btn" id="btn-req-edit" onclick="reqEditOTP()">Kirim OTP</button>
                     </div>
                 </div>
-
                 <div id="edit-step-2" class="hidden">
                     <p style="font-size:12px; color:#666; font-weight: bold;">OTP telah dikirim ke WA Anda.</p>
                     <input type="number" id="edit-otp-input" placeholder="----" style="letter-spacing:12px; text-align:center; font-size:24px; background:#f4f7f6;">
                     <div class="modal-btns">
                         <button class="btn-outline" style="margin-top:0; border-color:#ddd; color:#888;" onclick="closeEditModal()">Batal</button>
-                        <button class="btn" onclick="verifyEditOTP()">Simpan</button>
+                        <button class="btn" id="btn-verify-edit" onclick="verifyEditOTP()">Simpan</button>
                     </div>
                 </div>
             </div>
         </div>
-
     </div>
 
+    <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="YOUR_CLIENT_KEY_HERE"></script>
     <script>
         // PWA SETUP
         let deferredPrompt;
@@ -561,7 +492,30 @@ EOF
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 
         // GLOBAL VARS
-        let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let currentEditMode = "";
+        let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
+        let currentCategory = ""; 
+
+        // === API WRAPPER ANTI-ERROR (PENCEGAH HTML SYNTAX ERROR) ===
+        async function apiCall(url, bodyData) {
+            try {
+                let options = {
+                    method: bodyData ? 'POST' : 'GET',
+                    headers: bodyData ? {'Content-Type': 'application/json'} : {}
+                };
+                if (bodyData) options.body = JSON.stringify(bodyData);
+
+                let response = await fetch(url, options);
+                let text = await response.text();
+                try {
+                    return JSON.parse(text);
+                } catch(e) {
+                    console.log("Server membalas HTML. Melanjutkan proses...");
+                    return { success: false, bypass: true, message: 'Gangguan server sementara (HTML).' };
+                }
+            } catch (err) {
+                return { success: false, bypass: true, message: 'Kesalahan jaringan. Pastikan internet lancar.' };
+            }
+        }
 
         // UI HELPERS
         function toggleSidebar() {
@@ -580,7 +534,7 @@ EOF
         }
 
         function showScreen(id, navId) {
-            ['login-screen', 'register-screen', 'otp-screen', 'dashboard-screen', 'produk-screen', 'history-screen', 'profile-screen', 'notif-screen'].forEach(s => {
+            ['login-screen', 'register-screen', 'otp-screen', 'dashboard-screen', 'brand-screen', 'produk-screen', 'history-screen', 'profile-screen', 'notif-screen'].forEach(s => {
                 document.getElementById(s).classList.add('hidden');
             });
             document.getElementById(id).classList.remove('hidden');
@@ -599,14 +553,11 @@ EOF
             let savedEmail = localStorage.getItem('tendo_email');
             let savedPass = localStorage.getItem('tendo_pass');
             if(savedEmail && savedPass) {
-                try {
-                    let res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:savedEmail, password:savedPass}) });
-                    let data = await res.json();
-                    if(data.success) {
-                        currentUser = data.phone; userData = data.data;
-                        fetchAllProducts(); showDashboard();
-                    } else showScreen('login-screen', null);
-                } catch(e) { showScreen('login-screen', null); }
+                let data = await apiCall('/api/login', {email:savedEmail, password:savedPass});
+                if(data && data.success) {
+                    currentUser = data.phone; userData = data.data;
+                    fetchAllProducts(); showDashboard();
+                } else { showScreen('login-screen', null); }
             } else {
                 showScreen('login-screen', null);
             }
@@ -614,37 +565,33 @@ EOF
 
         function showDashboard() { 
             showScreen('dashboard-screen', 'nav-home'); 
-            syncUserData();
+            syncUserData(); 
+            fetchAllProducts(); 
         }
         function showHistory() { showScreen('history-screen', 'nav-history'); syncUserData(); }
         function showProfile() { showScreen('profile-screen', 'nav-profile'); syncUserData(); }
         
         async function showNotif() { 
             showScreen('notif-screen', 'nav-notif'); 
-            try {
-                let res = await fetch('/api/notif');
-                let data = await res.json();
-                document.getElementById('notif-text').innerText = data.text || "Tidak ada pemberitahuan sistem saat ini.";
-            } catch(e) {}
+            let data = await apiCall('/api/notif');
+            if(data && data.text) document.getElementById('notif-text').innerText = data.text;
+            else document.getElementById('notif-text').innerText = "Tidak ada pemberitahuan sistem saat ini.";
         }
 
-        function showContactModal() { document.getElementById('contact-modal').classList.remove('hidden'); }
-        function closeContactModal() { document.getElementById('contact-modal').classList.add('hidden'); }
-        
-        function openTopupModal() {
-            document.getElementById('topup-id').value = userData.email || currentUser;
-            document.getElementById('topup-nominal').value = '';
-            document.getElementById('topup-modal').classList.remove('hidden');
-        }
+        function openTopupModal() { document.getElementById('topup-nominal').value = ''; document.getElementById('topup-modal').classList.remove('hidden'); }
         function closeTopupModal() { document.getElementById('topup-modal').classList.add('hidden'); }
         
-        function sendTopup() {
-            let id = document.getElementById('topup-id').value.trim();
-            let nom = document.getElementById('topup-nominal').value.trim();
-            if(!id || !nom) return alert("Lengkapi data!");
-            let pesan = `Halo Admin Tendo Store,%0A%0ASaya ingin mengajukan Topup Saldo.%0A%0A👤 Identitas: *${id}*%0A💰 Nominal: *Rp ${nom}*%0A%0AMohon instruksi pembayaran selanjutnya.`;
-            window.open(`https://wa.me/6282224460678?text=${pesan}`, '_blank');
-            closeTopupModal();
+        async function sendTopup() {
+            let nom = parseInt(document.getElementById('topup-nominal').value);
+            if(!nom || nom < 10000) return alert("Minimal Topup Rp 10.000");
+            let btn = document.getElementById('btn-topup-submit');
+            btn.innerText = "Memproses..."; btn.disabled = true;
+            
+            let data = await apiCall('/api/topup', {phone: currentUser, nominal: nom});
+            if(data && data.success) { window.location.href = data.url; } 
+            else { alert(data ? data.message : "Gagal membuka pembayaran."); }
+            
+            btn.innerText = "Lanjut Bayar"; btn.disabled = false;
         }
 
         function logout() {
@@ -656,48 +603,69 @@ EOF
 
         async function syncUserData() {
             if(!currentUser) return;
-            try {
-                let res = await fetch('/api/user/' + currentUser);
-                let data = await res.json();
-                if(data.success) {
-                    userData = data.data; let u = userData;
-                    document.getElementById('user-saldo').innerText = 'Rp ' + u.saldo.toLocaleString('id-ID', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                    document.getElementById('top-trx-badge').innerText = (u.trx_count || 0) + ' Trx';
-                    
-                    let firstLetter = (u.username || "T").charAt(0).toUpperCase();
-                    document.getElementById('sb-avatar').innerText = firstLetter;
-                    document.getElementById('sb-name').innerText = u.username || "Member";
-                    document.getElementById('sb-phone').innerText = currentUser;
+            let data = await apiCall('/api/user/' + currentUser);
+            if(data && data.success) {
+                userData = data.data; let u = userData;
+                document.getElementById('user-saldo').innerText = 'Rp ' + u.saldo.toLocaleString('id-ID');
+                document.getElementById('top-trx-badge').innerText = (u.trx_count || 0) + ' Trx';
+                
+                let firstLetter = (u.username || "T").charAt(0).toUpperCase();
+                document.getElementById('sb-avatar').innerText = firstLetter;
+                document.getElementById('sb-name').innerText = u.username || "Member";
+                document.getElementById('sb-phone').innerText = currentUser;
 
-                    document.getElementById('p-avatar').innerText = firstLetter;
-                    document.getElementById('p-username').innerText = u.username || "Member";
-                    document.getElementById('p-id').innerText = "ID: " + (u.id_pelanggan || "TD-000");
-                    document.getElementById('p-email').innerText = u.email || '-';
-                    document.getElementById('p-phone').innerText = currentUser;
-                    document.getElementById('p-date').innerText = u.tanggal_daftar || '-';
-                    document.getElementById('p-trx').innerText = (u.trx_count || 0) + ' Kali';
+                document.getElementById('p-avatar').innerText = firstLetter;
+                document.getElementById('p-username').innerText = u.username || "Member";
+                document.getElementById('p-id').innerText = "ID: " + (u.id_pelanggan || "TD-000");
+                document.getElementById('p-email').innerText = u.email || '-';
+                document.getElementById('p-phone').innerText = currentUser;
+                document.getElementById('p-date').innerText = u.tanggal_daftar || '-';
+                document.getElementById('p-trx').innerText = (u.trx_count || 0) + ' Kali';
 
-                    let histHTML = '';
-                    let historyList = u.history || [];
-                    if(historyList.length === 0) histHTML = '<div style="text-align:center; color:#888; font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
-                    else {
-                        historyList.forEach(h => {
-                            let statClass = 'stat-Pending';
-                            if(h.status === 'Sukses') statClass = 'stat-Sukses';
-                            if(h.status === 'Gagal') statClass = 'stat-Gagal';
-                            histHTML += `
-                                <div class="hist-item">
-                                    <div class="hist-top"><span>${h.tanggal}</span> <span class="stat-badge ${statClass}">${h.status}</span></div>
-                                    <div class="hist-title">${h.nama}</div>
-                                    <div class="hist-target">Tujuan: ${h.tujuan}</div>
-                                    ${h.sn && h.sn !== '-' ? `<div style="font-size:11px; color:#0b2136; margin-top:6px; background:#f8fafc; padding:6px 10px; border-radius:6px; font-weight:bold; border: 1px solid #e2e8f0;">SN: ${h.sn}</div>` : ''}
-                                </div>
-                            `;
-                        });
-                    }
-                    document.getElementById('history-list').innerHTML = histHTML;
+                let histHTML = '';
+                let historyList = u.history || [];
+                if(historyList.length === 0) histHTML = '<div style="text-align:center; color:#888; font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
+                else {
+                    historyList.forEach((h, idx) => {
+                        let statClass = 'stat-Pending';
+                        if(h.status === 'Sukses') statClass = 'stat-Sukses';
+                        if(h.status === 'Gagal') statClass = 'stat-Gagal';
+                        let safeH = JSON.stringify(h).replace(/"/g, '&quot;');
+                        histHTML += `
+                            <div class="hist-item" onclick="openHistoryDetail(${safeH})">
+                                <div class="hist-top"><span>${h.tanggal}</span> <span class="stat-badge ${statClass}">${h.status}</span></div>
+                                <div class="hist-title">${h.nama}</div>
+                                <div class="hist-target">Tujuan: ${h.tujuan}</div>
+                            </div>
+                        `;
+                    });
                 }
-            } catch(e) {}
+                document.getElementById('history-list').innerHTML = histHTML;
+            }
+        }
+
+        function openHistoryDetail(h) {
+            currentHistoryItem = h;
+            document.getElementById('hd-time').innerText = h.tanggal;
+            document.getElementById('hd-status').innerText = h.status;
+            document.getElementById('hd-name').innerText = h.nama;
+            document.getElementById('hd-target').innerText = h.tujuan;
+            document.getElementById('hd-sn').innerText = h.sn || '-';
+            
+            document.getElementById('history-detail-modal').classList.remove('hidden');
+        }
+        function closeHistoryModal() { document.getElementById('history-detail-modal').classList.add('hidden'); }
+        
+        function contactAdmin() {
+            let pesan = `Halo Admin Digital Tendo Store,%0A%0ASaya butuh bantuan terkait akun / layanan.`;
+            window.open(`https://wa.me/6282224460678?text=${pesan}`, '_blank');
+        }
+        
+        function complainAdmin() {
+            let h = currentHistoryItem;
+            if(!h) { contactAdmin(); return; }
+            let pesan = `Halo Admin Digital Tendo Store,%0A%0ASaya ingin komplain/tanya transaksi ini:%0A%0A📦 Produk: *${h.nama}*%0A📱 Tujuan: *${h.tujuan}*%0A🕒 Waktu: *${h.tanggal}*%0A⚙️ Status: *${h.status}*%0A🔑 SN/Ref: *${h.sn || '-'}*%0A%0AMohon bantuannya dicek. Terima kasih.`;
+            window.open(`https://wa.me/6282224460678?text=${pesan}`, '_blank');
         }
 
         async function login() {
@@ -705,17 +673,22 @@ EOF
             let pass = document.getElementById('log-pass').value.trim();
             let rem = document.getElementById('rem-login').checked;
             if(!email || !pass) return alert('Isi Email & Password!');
-            let btn = document.querySelector('#login-screen .btn'); btn.innerText = "Memeriksa...";
-            try {
-                let res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email, password:pass}) });
-                let data = await res.json();
-                if(data.success) {
-                    if(rem) { localStorage.setItem('tendo_email', email); localStorage.setItem('tendo_pass', pass); }
-                    currentUser = data.phone; userData = data.data;
-                    fetchAllProducts(); showDashboard();
-                } else alert(data.message);
-            } catch(e) { alert('Gagal terhubung.'); }
-            btn.innerText = "Login Sekarang";
+            
+            let btn = document.getElementById('btn-login');
+            let ori = btn.innerText;
+            btn.innerText = "Memeriksa..."; btn.disabled = true;
+            
+            let data = await apiCall('/api/login', {email, password:pass});
+            
+            btn.innerText = ori; btn.disabled = false;
+            
+            if(data && data.success) {
+                if(rem) { localStorage.setItem('tendo_email', email); localStorage.setItem('tendo_pass', pass); }
+                currentUser = data.phone; userData = data.data;
+                fetchAllProducts(); showDashboard();
+            } else {
+                alert(data && data.message ? data.message : "Gagal terhubung.");
+            }
         }
 
         async function requestOTP() {
@@ -724,29 +697,44 @@ EOF
             let phone = document.getElementById('reg-phone').value.trim();
             let pass = document.getElementById('reg-pass').value.trim();
             if(!user || !email || !phone || !pass) return alert('Semua kolom wajib diisi!');
-            let btn = document.querySelector('#register-screen .btn'); btn.innerText = "Mengirim...";
-            try {
-                let res = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:user, email, phone, password:pass}) });
-                let data = await res.json();
-                if(data.success) { tempRegPhone = phone; showScreen('otp-screen', null); } 
-                else alert(data.message);
-            } catch(e) { alert('Error server.'); }
-            btn.innerText = "Kirim OTP WA";
+            
+            let btn = document.getElementById('btn-register');
+            if (btn.disabled) return;
+            let ori = btn.innerText;
+            btn.innerText = "Mengirim..."; btn.disabled = true;
+            
+            let data = await apiCall('/api/register', {username:user, email, phone, password:pass});
+            
+            btn.innerText = ori; btn.disabled = false;
+            
+            if(data && (data.success || data.bypass)) { 
+                tempRegPhone = phone; showScreen('otp-screen', null); 
+            } else {
+                alert(data && data.message ? data.message : "Pendaftaran Gagal.");
+            }
         }
 
         async function verifyOTP() {
             let otp = document.getElementById('otp-code').value.trim();
             if(!otp) return alert('Masukkan OTP!');
-            try {
-                let res = await fetch('/api/verify-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: tempRegPhone, otp}) });
-                let data = await res.json();
-                if(data.success) {
-                    alert('Pendaftaran Berhasil! Silakan Login.');
-                    document.getElementById('log-email').value = document.getElementById('reg-email').value;
-                    document.getElementById('log-pass').value = document.getElementById('reg-pass').value;
-                    showScreen('login-screen', null);
-                } else alert(data.message);
-            } catch(e) { alert('Error server.'); }
+            
+            let btn = document.getElementById('btn-verify');
+            if (btn.disabled) return;
+            let ori = btn.innerText;
+            btn.innerText = "Memproses..."; btn.disabled = true;
+            
+            let data = await apiCall('/api/verify-otp', {phone: tempRegPhone, otp});
+            
+            btn.innerText = ori; btn.disabled = false;
+            
+            if(data && data.success) {
+                alert('Pendaftaran Berhasil! Silakan Login.');
+                document.getElementById('log-email').value = document.getElementById('reg-email').value;
+                document.getElementById('log-pass').value = document.getElementById('reg-pass').value;
+                showScreen('login-screen', null);
+            } else {
+                alert(data && data.message ? data.message : "Sistem sibuk, coba sesaat lagi.");
+            }
         }
 
         function openEditModal(type) {
@@ -766,43 +754,56 @@ EOF
         async function reqEditOTP() {
             let val = document.getElementById('edit-input').value.trim();
             if(!val) return alert("Isi data baru!");
-            let btn = document.querySelector('#edit-step-1 .btn'); btn.innerText = "Mengirim...";
-            try {
-                let res = await fetch('/api/req-edit-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, type: currentEditMode, newValue: val}) });
-                let data = await res.json();
-                if(data.success) {
-                    document.getElementById('edit-step-1').classList.add('hidden');
-                    document.getElementById('edit-step-2').classList.remove('hidden');
-                } else alert(data.message);
-            } catch(e) { alert('Error server'); }
-            btn.innerText = "Kirim OTP";
+            
+            let btn = document.getElementById('btn-req-edit');
+            if (btn.disabled) return;
+            let ori = btn.innerText;
+            btn.innerText = "Mengirim..."; btn.disabled = true;
+            
+            let data = await apiCall('/api/req-edit-otp', {phone: currentUser, type: currentEditMode, newValue: val});
+            
+            btn.innerText = ori; btn.disabled = false;
+            
+            if(data && (data.success || data.bypass)) {
+                document.getElementById('edit-step-1').classList.add('hidden');
+                document.getElementById('edit-step-2').classList.remove('hidden');
+            } else {
+                alert(data && data.message ? data.message : "Error server");
+            }
         }
 
         async function verifyEditOTP() {
             let otp = document.getElementById('edit-otp-input').value.trim();
             if(!otp) return alert("Masukkan OTP!");
-            let btn = document.querySelector('#edit-step-2 .btn'); btn.innerText = "Memproses...";
-            try {
-                let res = await fetch('/api/verify-edit-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, otp: otp}) });
-                let data = await res.json();
-                if(data.success) {
-                    alert("Berhasil diubah!");
-                    closeEditModal();
-                    if(currentEditMode === 'phone' || currentEditMode === 'password') { logout(); } 
-                    else { syncUserData(); }
-                } else alert(data.message);
-            } catch(e) { alert('Error server'); }
-            btn.innerText = "Simpan";
+            
+            let btn = document.getElementById('btn-verify-edit');
+            if (btn.disabled) return;
+            let ori = btn.innerText;
+            btn.innerText = "Memproses..."; btn.disabled = true;
+            
+            let data = await apiCall('/api/verify-edit-otp', {phone: currentUser, otp: otp});
+            
+            btn.innerText = ori; btn.disabled = false;
+            
+            if(data && data.success) {
+                alert("Berhasil diubah!");
+                closeEditModal();
+                if(currentEditMode === 'phone' || currentEditMode === 'password') { logout(); } 
+                else { syncUserData(); }
+            } else {
+                alert(data && data.message ? data.message : "Error server");
+            }
         }
 
         async function fetchAllProducts() {
-            let res = await fetch('/api/produk');
-            allProducts = await res.json();
+            let data = await apiCall('/api/produk');
+            if(data && !data.bypass) allProducts = data;
         }
 
-        function loadCategory(cat) {
-            document.getElementById('cat-title-text').innerText = cat;
-            let tabsHTML = '';
+        async function loadCategory(cat) {
+            currentCategory = cat; 
+            await fetchAllProducts(); 
+            document.getElementById('brand-cat-title').innerText = cat;
             
             let brands = [];
             for(let key in allProducts) {
@@ -813,77 +814,89 @@ EOF
 
             if(brands.length > 0) {
                 brands.sort();
-                brands.forEach((b, index) => {
-                    let activeClass = index === 0 ? 'active' : '';
-                    tabsHTML += `<div class="tab-btn ${activeClass}" onclick="filterBrand('${cat}', '${b}', this)">${b.toUpperCase()}</div>`;
+                let gridHTML = '';
+                brands.forEach(b => {
+                    let initial = b.substring(0,2).toUpperCase();
+                    gridHTML += `
+                    <div class="brand-row" onclick="loadProducts('${cat}', '${b}')">
+                        <div class="b-logo">${initial}</div>
+                        <div class="b-name">${b}</div>
+                        <div style="margin-left:auto">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </div>
+                    </div>`;
                 });
-                document.getElementById('provider-tabs').innerHTML = tabsHTML;
-                document.getElementById('provider-tabs').style.display = 'flex';
-                filterBrand(cat, brands[0], document.querySelector('#provider-tabs .tab-btn'));
+                document.getElementById('brand-list').innerHTML = gridHTML;
+                showScreen('brand-screen', 'nav-home');
             } else {
-                document.getElementById('provider-tabs').style.display = 'none';
-                document.getElementById('product-list').innerHTML = '<div style="text-align:center; color:#888; padding:30px; font-weight:bold;">Produk belum tersedia.</div>';
+                alert('Belum ada produk di kategori ini.');
             }
-            showScreen('produk-screen', 'nav-home');
         }
 
-        function filterBrand(cat, brand, el) {
-            if(el) {
-                document.querySelectorAll('#provider-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
-                el.classList.add('active');
-            }
+        function loadProducts(cat, brand) {
+            document.getElementById('cat-title-text').innerText = brand;
             let listHTML = '';
             for(let key in allProducts) {
                 let p = allProducts[key];
-                if (p.kategori !== cat) continue;
-                if ((p.brand || 'Lainnya') !== brand) continue;
+                if (p.kategori !== cat || (p.brand || 'Lainnya') !== brand) continue;
                 let safeName = p.nama.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                let initial = p.brand ? p.brand.substring(0,2).toUpperCase() : 'PR';
+                let safeDesc = p.deskripsi ? p.deskripsi.replace(/'/g, "\\'").replace(/"/g, '&quot;') : 'Proses Otomatis 24 Jam';
+                let initial = brand.substring(0,2).toUpperCase();
                 
                 listHTML += `
-                <div class="product-item">
+                <div class="product-item" onclick="openOrderModal('${key}', '${safeName}', ${p.harga}, '${safeDesc}')">
                     <div class="prod-logo">${initial}</div>
                     <div class="prod-info">
-                        <div class="prod-name">
-                            ${p.nama}
-                            <span class="badge-open">OPEN</span>
-                        </div>
-                        ${p.deskripsi ? `<div class="prod-desc">${p.deskripsi}</div>` : `<div class="prod-desc">Proses Otomatis</div>`}
+                        <div class="prod-name">${p.nama} <span class="badge-open">OPEN</span></div>
+                        <div class="prod-desc">${p.deskripsi ? p.deskripsi.substring(0,40)+'...' : 'Proses Cepat'}</div>
                         <div class="prod-price">Rp ${p.harga.toLocaleString('id-ID')}</div>
-                    </div>
-                    <div>
-                        <div class="badge-laris">TERLARIS</div>
-                        <button class="btn-buy" onclick="openOrderModal('${key}', '${safeName}', ${p.harga})">Beli</button>
                     </div>
                 </div>`;
             }
             document.getElementById('product-list').innerHTML = listHTML || '<div style="text-align:center; padding:30px; font-weight:bold; color:#94a3b8;">KOSONG</div>';
+            showScreen('produk-screen', 'nav-home');
         }
 
-        function openOrderModal(sku, nama, harga) {
+        function goBackToBrands() {
+            if(currentCategory) loadCategory(currentCategory);
+            else showDashboard();
+        }
+
+        function openOrderModal(sku, nama, harga, desc) {
             selectedSKU = sku;
             document.getElementById('m-name').innerText = nama;
             document.getElementById('m-price').innerText = 'Rp ' + harga.toLocaleString('id-ID');
+            document.getElementById('m-desc').innerText = desc || 'Proses Otomatis';
             document.getElementById('m-target').value = '';
             document.getElementById('order-modal').classList.remove('hidden');
         }
         function closeOrderModal() { document.getElementById('order-modal').classList.add('hidden'); }
 
         async function processOrder() {
+            if(!currentUser) {
+                alert('Sesi Anda habis. Silakan login ulang.');
+                logout(); return;
+            }
             let target = document.getElementById('m-target').value.trim();
             if(!target || target.length < 4) return alert("Nomor tujuan tidak valid!");
+            
             let btn = document.getElementById('m-submit');
-            let ori = btn.innerText; btn.innerText = 'Proses...'; btn.disabled = true;
-            try {
-                let res = await fetch('/api/order', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, sku: selectedSKU, tujuan: target}) });
-                let data = await res.json();
-                if(data.success) {
-                    alert('Pesanan Sukses Diproses!\nCek tab Riwayat atau WhatsApp Anda.');
-                    closeOrderModal();
-                    syncUserData();
-                } else alert('Gagal: ' + data.message);
-            } catch(e) {}
+            if (btn.disabled) return;
+            let ori = btn.innerText; 
+            btn.innerText = 'Proses...'; btn.disabled = true;
+            
+            let data = await apiCall('/api/order', {phone: currentUser, sku: selectedSKU, tujuan: target});
+            
             btn.innerText = ori; btn.disabled = false;
+            
+            if(data && data.success) {
+                alert('Pesanan Sukses Diproses!\nCek tab Riwayat Anda.');
+                closeOrderModal();
+                syncUserData();
+                showHistory();
+            } else {
+                alert(data && data.message ? 'Gagal: ' + data.message : "Kesalahan server saat memproses order.");
+            }
         }
     </script>
 </body>
@@ -896,8 +909,10 @@ EOF
 # ==========================================
 generate_bot_script() {
     cat << 'EOF' > index.js
+process.on('uncaughtException', function (err) { console.error('Caught exception: ', err); });
+process.on('unhandledRejection', function (reason, p) { console.error('Unhandled Rejection at: Promise', p, 'reason:', reason); });
+
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
-const { Boom } = require('@hapi/boom');
 const fs = require('fs');
 const pino = require('pino');
 const express = require('express');
@@ -905,6 +920,7 @@ const bodyParser = require('body-parser');
 const { exec } = require('child_process');
 const axios = require('axios'); 
 const crypto = require('crypto'); 
+const midtransClient = require('midtrans-client');
 
 const app = express();
 app.use(bodyParser.json());
@@ -917,11 +933,18 @@ const trxFile = './trx.json';
 const notifFile = './web_notif.txt';
 const japriFile = './japri.txt';
 
-const loadJSON = (file) => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+const loadJSON = (file) => {
+    try {
+        return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+    } catch(e) {
+        console.error(`Error loading ${file}:`, e);
+        return {};
+    }
+};
 const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
 
 let configAwal = loadJSON(configFile);
-configAwal.botName = configAwal.botName || "Tendo Store";
+configAwal.botName = configAwal.botName || "Digital Tendo Store";
 configAwal.botNumber = configAwal.botNumber || "";
 saveJSON(configFile, configAwal);
 
@@ -939,162 +962,233 @@ function normalizePhone(phoneStr) {
     return num;
 }
 
+// MIDTRANS WEBHOOK
+app.post('/api/webhook/midtrans', (req, res) => {
+    try {
+        let config = loadJSON(configFile);
+        let { order_id, status_code, gross_amount, signature_key, transaction_status } = req.body;
+        let serverKey = config.midtransServerKey || '';
+        
+        let hash = crypto.createHash('sha512').update(order_id + status_code + gross_amount + serverKey).digest('hex');
+        if(hash !== signature_key) return res.status(403).send("Invalid Signature");
+        
+        if(transaction_status === 'capture' || transaction_status === 'settlement') {
+            let phone = order_id.split('-')[1]; 
+            let db = loadJSON(dbFile);
+            if(db[phone]) {
+                let amount = parseInt(gross_amount);
+                db[phone].saldo += amount;
+                saveJSON(dbFile, db);
+                if(globalSock) {
+                    globalSock.sendMessage(db[phone].jid, {text: `✅ *TOPUP OTOMATIS BERHASIL*\n\nNominal: Rp ${amount.toLocaleString('id-ID')}\nSaldo Sekarang: Rp ${db[phone].saldo.toLocaleString('id-ID')}`}).catch(()=>{});
+                }
+            }
+        }
+        res.status(200).send("OK");
+    } catch(e) { res.status(500).send("Error"); }
+});
+
 // API ROUTER
 app.get('/api/produk', (req, res) => { res.json(loadJSON(produkFile)); });
 app.get('/api/notif', (req, res) => { let txt = fs.existsSync(notifFile) ? fs.readFileSync(notifFile, 'utf8') : ''; res.json({text: txt}); });
 
 app.get('/api/user/:phone', (req, res) => {
-    let db = loadJSON(dbFile);
-    let p = req.params.phone;
-    if(db[p]) res.json({success: true, data: db[p]});
-    else res.json({success: false});
+    try {
+        let db = loadJSON(dbFile); let p = req.params.phone;
+        if(db[p]) res.json({success: true, data: db[p]});
+        else res.json({success: false});
+    } catch(e) { res.json({success: false}); }
 });
 
 app.post('/api/login', (req, res) => {
-    let { email, password } = req.body;
-    let db = loadJSON(dbFile);
-    let userPhone = Object.keys(db).find(k => db[k].email === email && db[k].password === password);
-    if (userPhone) res.json({success: true, data: db[userPhone], phone: userPhone});
-    else res.json({success: false, message: 'Email atau Password salah!'});
+    try {
+        let { email, password } = req.body; let db = loadJSON(dbFile);
+        let userPhone = Object.keys(db).find(k => db[k] && db[k].email === email && db[k].password === password);
+        if (userPhone) res.json({success: true, data: db[userPhone], phone: userPhone});
+        else res.json({success: false, message: 'Email atau Password salah!'});
+    } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
 app.post('/api/register', (req, res) => {
-    let { username, email, password } = req.body;
-    let phone = normalizePhone(req.body.phone); 
-    if(phone.length < 9) return res.json({success: false, message: 'Nomor WA tidak valid!'});
-    
-    let db = loadJSON(dbFile);
-    if (Object.keys(db).find(k => db[k].email === email)) return res.json({success: false, message: 'Email terdaftar!'});
+    try {
+        let { username, email, password } = req.body;
+        let phone = normalizePhone(req.body.phone); 
+        if(!phone || phone.length < 9) return res.json({success: false, message: 'Nomor WA tidak valid!'});
+        
+        let db = loadJSON(dbFile);
+        let isEmailExist = Object.keys(db).some(k => db[k] && db[k].email === email);
+        if (isEmailExist) return res.json({success: false, message: 'Email terdaftar!'});
 
-    let otp = Math.floor(1000 + Math.random() * 9000).toString();
-    tempOtpDB[phone] = { username, email, password, otp };
+        let otp = Math.floor(1000 + Math.random() * 9000).toString();
+        tempOtpDB[phone] = { username, email, password, otp };
 
-    if (globalSock) {
-        let msg = `*🛡️ TENDO STORE SECURITY 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
-        globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
+        // INSTANT RESPONSE
+        res.json({success: true});
+
+        // SEND WA IN BACKGROUND
+        setTimeout(() => {
+            try {
+                if (globalSock) {
+                    let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
+                    globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
+                }
+            } catch(err) { console.error(err); }
+        }, 100);
+
+    } catch(e) { 
+        if (!res.headersSent) res.json({success: false, message: 'Gagal memproses pendaftaran.'}); 
     }
-    res.json({success: true});
 });
 
 app.post('/api/verify-otp', (req, res) => {
-    let otp = req.body.otp;
-    let phone = normalizePhone(req.body.phone);
-    
-    if(tempOtpDB[phone] && tempOtpDB[phone].otp === otp) {
-        let db = loadJSON(dbFile);
-        let idPelanggan = 'TD-' + Math.floor(100000 + Math.random() * 900000); 
-        
-        if(db[phone]) {
-            db[phone].username = tempOtpDB[phone].username;
-            db[phone].email = tempOtpDB[phone].email;
-            db[phone].password = tempOtpDB[phone].password;
-            if(!db[phone].id_pelanggan) db[phone].id_pelanggan = idPelanggan;
-        } else {
-            db[phone] = { id_pelanggan: idPelanggan, username: tempOtpDB[phone].username, email: tempOtpDB[phone].email, password: tempOtpDB[phone].password, saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [] };
-        }
-        saveJSON(dbFile, db);
-        delete tempOtpDB[phone];
-        res.json({success: true});
-    } else res.json({success: false, message: 'Kode OTP Salah!'});
+    try {
+        let otp = req.body.otp; let phone = normalizePhone(req.body.phone);
+        if(tempOtpDB[phone] && tempOtpDB[phone].otp === otp) {
+            let db = loadJSON(dbFile); let idPelanggan = 'TD-' + Math.floor(100000 + Math.random() * 900000); 
+            if(db[phone]) {
+                db[phone].username = tempOtpDB[phone].username; db[phone].email = tempOtpDB[phone].email; db[phone].password = tempOtpDB[phone].password;
+                if(!db[phone].id_pelanggan) db[phone].id_pelanggan = idPelanggan;
+            } else {
+                db[phone] = { id_pelanggan: idPelanggan, username: tempOtpDB[phone].username, email: tempOtpDB[phone].email, password: tempOtpDB[phone].password, saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [] };
+            }
+            saveJSON(dbFile, db); delete tempOtpDB[phone]; res.json({success: true});
+        } else res.json({success: false, message: 'Kode OTP Salah!'});
+    } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
 app.post('/api/req-edit-otp', (req, res) => {
-    let { phone, type, newValue } = req.body;
-    let db = loadJSON(dbFile);
-    if(!db[phone]) return res.json({success: false, message: 'User tidak ditemukan.'});
+    try {
+        let { phone, type, newValue } = req.body; let db = loadJSON(dbFile);
+        if(!db[phone]) return res.json({success: false, message: 'User tidak ditemukan.'});
+        let otp = Math.floor(1000 + Math.random() * 9000).toString();
+        tempOtpDB[phone + '_edit'] = { type, newValue, otp };
+        
+        res.json({success: true});
 
-    let otp = Math.floor(1000 + Math.random() * 9000).toString();
-    tempOtpDB[phone + '_edit'] = { type, newValue, otp };
+        setTimeout(() => {
+            try {
+                if (globalSock) {
+                    globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nKode OTP untuk mengubah data Anda adalah: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
+                }
+            } catch(e){}
+        }, 100);
 
-    if (globalSock) {
-        let msg = `*🛡️ TENDO STORE SECURITY 🛡️*\n\nKode OTP untuk mengubah data Anda adalah: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_`;
-        globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
+    } catch(e) { 
+        if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); 
     }
-    res.json({success: true});
 });
 
 app.post('/api/verify-edit-otp', (req, res) => {
-    let { phone, otp } = req.body;
-    let db = loadJSON(dbFile);
-    let session = tempOtpDB[phone + '_edit'];
-    
-    if(session && session.otp === otp) {
-        if(session.type === 'email') db[phone].email = session.newValue;
-        if(session.type === 'password') db[phone].password = session.newValue;
-        if(session.type === 'phone') {
-            let newPhone = normalizePhone(session.newValue);
-            if(db[newPhone]) return res.json({success: false, message: 'Nomor sudah dipakai akun lain.'});
-            db[newPhone] = db[phone];
-            db[newPhone].jid = newPhone + '@s.whatsapp.net';
-            delete db[phone];
-        }
-        saveJSON(dbFile, db);
-        delete tempOtpDB[phone + '_edit'];
-        res.json({success: true});
-    } else res.json({success: false, message: 'OTP Salah!'});
+    try {
+        let { phone, otp } = req.body; let db = loadJSON(dbFile); let session = tempOtpDB[phone + '_edit'];
+        if(session && session.otp === otp) {
+            if(session.type === 'email') db[phone].email = session.newValue;
+            if(session.type === 'password') db[phone].password = session.newValue;
+            if(session.type === 'phone') {
+                let newPhone = normalizePhone(session.newValue);
+                if(db[newPhone]) return res.json({success: false, message: 'Nomor sudah dipakai akun lain.'});
+                db[newPhone] = db[phone]; db[newPhone].jid = newPhone + '@s.whatsapp.net'; delete db[phone];
+            }
+            saveJSON(dbFile, db); delete tempOtpDB[phone + '_edit']; res.json({success: true});
+        } else res.json({success: false, message: 'OTP Salah!'});
+    } catch(e) { res.json({success: false, message: 'Server error'}); }
+});
+
+app.post('/api/topup', async (req, res) => {
+    try {
+        let config = loadJSON(configFile);
+        if(!config.midtransServerKey) return res.json({success: false, message: "Fitur Topup belum diatur oleh Admin."});
+        
+        let { phone, nominal } = req.body;
+        let db = loadJSON(dbFile);
+        if(!db[phone]) return res.json({success: false, message: "User tidak ditemukan."});
+        
+        let snap = new midtransClient.Snap({
+            isProduction : config.midtransProd || false,
+            serverKey : config.midtransServerKey,
+            clientKey : config.midtransClientKey
+        });
+
+        let parameter = {
+            "transaction_details": {
+                "order_id": "TOPUP-" + phone + "-" + Date.now(),
+                "gross_amount": nominal
+            },
+            "customer_details": {
+                "first_name": db[phone].username,
+                "email": db[phone].email || "user@email.com",
+                "phone": phone
+            }
+        };
+
+        let transaction = await snap.createTransaction(parameter);
+        res.json({success: true, url: transaction.redirect_url});
+    } catch(e) {
+        res.json({success: false, message: "Gagal membuat pembayaran."});
+    }
 });
 
 app.post('/api/order', async (req, res) => {
-    let { phone, sku, tujuan } = req.body;
-    let db = loadJSON(dbFile);
-    let produkDB = loadJSON(produkFile);
-    let config = loadJSON(configFile);
-
-    if (!db[phone]) return res.json({success: false, message: 'Sesi tidak valid.'});
-    let p = produkDB[sku];
-    if (db[phone].saldo < p.harga) return res.json({success: false, message: 'Saldo tidak cukup.'});
-
-    let username = (config.digiflazzUsername || '').trim();
-    let apiKey = (config.digiflazzApiKey || '').trim();
-    let refId = 'WEB-' + Date.now();
-    let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
-
     try {
-        const response = await axios.post('https://api.digiflazz.com/v1/transaction', { username: username, buyer_sku_code: sku, customer_no: tujuan, ref_id: refId, sign: sign });
+        let { phone, sku, tujuan } = req.body;
+        let pNorm = normalizePhone(phone);
+        let db = loadJSON(dbFile); let produkDB = loadJSON(produkFile); let config = loadJSON(configFile);
+        
+        let targetKey = db[pNorm] ? pNorm : (db[phone] ? phone : null);
+        if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid. Silakan Logout dan Login kembali.'});
+        
+        let p = produkDB[sku];
+        if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
+        if (db[targetKey].saldo < p.harga) return res.json({success: false, message: 'Saldo tidak cukup.'});
+
+        let username = (config.digiflazzUsername || '').trim();
+        let apiKey = (config.digiflazzApiKey || '').trim();
+        let refId = 'WEB-' + Date.now();
+        let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
+        let maxPrice = parseInt(p.harga);
+
+        const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
+            username: username, buyer_sku_code: sku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: maxPrice
+        });
+        
         const statusOrder = response.data.data.status; 
         if (statusOrder === 'Gagal') return res.json({success: false, message: response.data.data.message});
         
-        db[phone].saldo -= p.harga;
-        db[phone].trx_count = (db[phone].trx_count || 0) + 1;
-        db[phone].history = db[phone].history || [];
-        db[phone].history.unshift({ tanggal: new Date().toLocaleString('id-ID'), nama: p.nama, tujuan: tujuan, status: statusOrder, sn: '-' });
-        if(db[phone].history.length > 20) db[phone].history.pop();
+        db[targetKey].saldo -= p.harga; db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
+        db[targetKey].history = db[targetKey].history || [];
+        db[targetKey].history.unshift({ tanggal: new Date().toLocaleString('id-ID'), nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-' });
+        if(db[targetKey].history.length > 20) db[targetKey].history.pop();
         saveJSON(dbFile, db);
         
         let trxs = loadJSON(trxFile);
-        let targetJid = db[phone].jid || phone + '@s.whatsapp.net';
+        let targetJid = db[targetKey].jid || targetKey + '@s.whatsapp.net';
         trxs[refId] = { jid: targetJid, sku: sku, tujuan: tujuan, harga: p.harga, nama: p.nama, tanggal: Date.now() };
         saveJSON(trxFile, trxs);
 
-        if (globalSock) {
-            let msgWa = `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[phone].saldo.toLocaleString('id-ID')}`;
-            globalSock.sendMessage(targetJid, { text: msgWa }).catch(e=>{});
-        }
-        return res.json({success: true, saldo: db[phone].saldo});
-    } catch (error) { return res.json({success: false, message: 'Server PPOB Down'}); }
+        res.json({success: true, saldo: db[targetKey].saldo});
+
+        setTimeout(() => {
+            try {
+                if (globalSock) {
+                    let msgWa = `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
+                    globalSock.sendMessage(targetJid, { text: msgWa }).catch(e=>{});
+                }
+            } catch(e){}
+        }, 100);
+
+    } catch (error) { 
+        if (!res.headersSent) return res.json({success: false, message: 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)'}); 
+    }
 });
 
 function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
     exec(`rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json 2>/dev/null`, (err) => {
-        if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Tendo Store" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
+        if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
     });
 }
-
 if (configAwal.autoBackup) setInterval(doBackupAndSend, (configAwal.backupInterval || 720) * 60 * 1000); 
-
-const brandStructure = {
-    'Pulsa': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
-    'Masa Aktif': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
-    'SMS & Telp': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
-    'Data': ['Telkomsel', 'XL', 'Axis', 'Indosat', 'Tri', 'Smartfren', 'By.U'],
-    'PLN': ['Token PLN'],
-    'E-Wallet': ['Gopay', 'Dana', 'Shopee Pay', 'OVO', 'LinkAja'],
-    'Tagihan': ['PLN Pasca', 'BPJS', 'PDAM', 'Indihome'],
-    'Saldo E-Toll': ['Mandiri E-Money', 'Brizzi', 'TapCash'],
-    'Digital': ['Mobile Legends', 'Free Fire', 'PUBG', 'Vidio', 'Netflix']
-};
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
@@ -1117,8 +1211,7 @@ async function startBot() {
 
     setInterval(() => {
         if(fs.existsSync(japriFile)) {
-            let lines = fs.readFileSync(japriFile, 'utf8').split('\n');
-            fs.unlinkSync(japriFile);
+            let lines = fs.readFileSync(japriFile, 'utf8').split('\n'); fs.unlinkSync(japriFile);
             for(let line of lines) {
                 if(line.includes('|')) {
                     let parts = line.split('|'); let target = parts[0]; parts.shift(); let msg = parts.join('|');
@@ -1150,11 +1243,7 @@ async function startBot() {
                         if (db[senderNum]) { db[senderNum].saldo += trx.harga; if(db[senderNum].history && db[senderNum].history.length > 0) db[senderNum].history[0].status = 'Gagal'; saveJSON(dbFile, db); }
                         msg = `❌ *STATUS: GAGAL*\n\n📦 Produk: ${trx.nama}\nAlasan: ${resData.message}\n_💰 Saldo dikembalikan._`;
                     }
-                    
-                    // PERBAIKAN: Hapus dari antrean file TERLEBIH DAHULU agar tidak terjadi looping refund
                     delete trxs[ref]; saveJSON(trxFile, trxs);
-                    
-                    // Gunakan catch untuk mencegah error memberhentikan proses berikutnya
                     sock.sendMessage(trx.jid, { text: msg }).catch(e => {}); 
                 } else if (Date.now() - trx.tanggal > 24 * 60 * 60 * 1000) { delete trxs[ref]; saveJSON(trxFile, trxs); }
             } catch (err) {}
@@ -1169,22 +1258,14 @@ async function startBot() {
             const sender = senderJid.split('@')[0]; const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
             if (!body) return;
 
-            let db = loadJSON(dbFile); let produkDB = loadJSON(produkFile);
+            let db = loadJSON(dbFile); 
             if (!db[sender]) { db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: senderJid, step: 'idle', trx_count:0, history:[]}; saveJSON(dbFile, db); }
-            if (!db[sender].step) db[sender].step = 'idle';
-
             let rawCommand = body.trim().toLowerCase().split(' ')[0];
-            if (['batal', 'cancel'].includes(rawCommand) && db[sender].step !== 'idle') {
-                db[sender].step = 'idle'; saveJSON(dbFile, db);
-                return await sock.sendMessage(from, { text: `✅ Batal.\n\nKetik *bot* untuk menu.` });
-            }
-
             if (['bot', 'menu', 'p'].includes(rawCommand)) {
-                let menuText = `👋 *${config.botName || "Tendo Store"}*\n\nSilakan belanja lebih mudah di Aplikasi:\n🌐 http://${process.env.IP_ADDRESS || 'IP_VPS_ANDA'}:3000\n\n_(Atau balas 1 untuk Cek Saldo)_`;
+                let menuText = `👋 *${config.botName || "Digital Tendo Store"}*\n\nSilakan belanja lebih mudah di Aplikasi:\n🌐 http://${process.env.IP_ADDRESS || 'IP_VPS_ANDA'}:3000\n\n_(Atau balas 1 untuk Cek Saldo)_`;
                 return await sock.sendMessage(from, { text: menuText });
             }
             if (['1', 'saldo'].includes(rawCommand)) return await sock.sendMessage(from, { text: `💰 Saldo Anda: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` });
-
         } catch (err) {}
     });
 }
@@ -1237,20 +1318,20 @@ install_dependencies() {
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    echo -ne "${C_MAG}>> Menginstall PM2 untuk latar belakang...${C_RST}"
+    echo -ne "${C_MAG}>> Menginstall PM2...${C_RST}"
     (sudo npm install -g pm2 > /dev/null 2>&1) &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
-    echo -ne "${C_MAG}>> Meracik sistem utama & Web App (v40 PREMIUM FINAL)...${C_RST}"
+    echo -ne "${C_MAG}>> Meracik sistem utama & Web App...${C_RST}"
     generate_bot_script
     generate_web_app
     if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
     rm -rf node_modules package-lock.json
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    echo -ne "${C_MAG}>> Mengunduh modul WhatsApp & Web API...${C_RST}"
-    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser > /dev/null 2>&1 &
+    echo -ne "${C_MAG}>> Mengunduh modul (Baileys, Midtrans, XLSX, dll)...${C_RST}"
+    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser midtrans-client xlsx > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
@@ -1475,7 +1556,7 @@ menu_member() {
 }
 
 # ==========================================
-# 8. MANAJEMEN PRODUK (KATEGORI SESUAI GAMBAR)
+# 8. MANAJEMEN PRODUK & HARGA (DENGAN IMPORT)
 # ==========================================
 menu_produk() {
     while true; do
@@ -1483,48 +1564,42 @@ menu_produk() {
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "${C_YELLOW}${C_BOLD}             🛒 MANAJEMEN PRODUK BOT 🛒             ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Baru"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Baru Manual"
         echo -e "  ${C_GREEN}[2]${C_RST} Edit Produk"
         echo -e "  ${C_GREEN}[3]${C_RST} Hapus Produk"
         echo -e "  ${C_GREEN}[4]${C_RST} Lihat Daftar Produk"
+        echo -e "  ${C_GREEN}[5]${C_RST} 🚀 Import Massal via File Digiflazz (.xlsx / .csv)"
+        echo -e "  ${C_GREEN}[6]${C_RST} ⚙️ Atur Margin Keuntungan Import (Auto-Pricing)"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
         echo -e "${C_CYAN}======================================================${C_RST}"
-        echo -ne "${C_YELLOW}Pilih menu [0-4]: ${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-6]: ${C_RST}"
         read prodchoice
 
         case $prodchoice in
             1)
-                echo -e "\n${C_MAG}--- TAMBAH PRODUK BARU ---${C_RST}"
+                echo -e "\n${C_MAG}--- TAMBAH PRODUK BARU MANUAL ---${C_RST}"
                 echo -e "${C_CYAN}Pilih Kategori Utama:${C_RST}"
-                echo "1. Pulsa         6. E-Wallet"
-                echo "2. Data          7. Tagihan"
-                echo "3. Masa Aktif    8. E-Toll"
-                echo "4. SMS Telp      9. Digital"
-                echo "5. PLN"
+                echo "1. Pulsa         6. PLN"
+                echo "2. Data          7. Paket SMS & Telpon"
+                echo "3. Game          8. Masa Aktif"
+                echo "4. Voucher       9. Aktivasi Perdana"
+                echo "5. E-Money"
                 read -p "👉 Masukkan Nomor Kategori [1-9]: " cat_idx
                 
                 brand_idx="1"
-                if [ "$cat_idx" == "1" ] || [ "$cat_idx" == "2" ] || [ "$cat_idx" == "3" ] || [ "$cat_idx" == "4" ]; then
+                if [ "$cat_idx" == "1" ] || [ "$cat_idx" == "2" ] || [ "$cat_idx" == "7" ] || [ "$cat_idx" == "8" ]; then
                     echo -e "\n${C_CYAN}Pilih Provider:${C_RST}"
                     echo "1. Telkomsel | 2. XL | 3. Axis | 4. Indosat | 5. Tri | 6. Smartfren | 7. By.U"
                     read -p "👉 Masukkan Nomor Provider [1-7]: " brand_idx
-                elif [ "$cat_idx" == "6" ]; then
+                elif [ "$cat_idx" == "5" ]; then
                     echo -e "\n${C_CYAN}Pilih E-Wallet:${C_RST}"
                     echo "1. Gopay | 2. Dana | 3. Shopee Pay | 4. OVO | 5. LinkAja"
                     read -p "👉 Masukkan Nomor E-Wallet [1-5]: " brand_idx
-                elif [ "$cat_idx" == "7" ]; then
-                    echo -e "\n${C_CYAN}Pilih Tagihan:${C_RST}"
-                    echo "1. PLN Pasca | 2. BPJS | 3. PDAM | 4. Indihome"
-                    read -p "👉 Masukkan Nomor Tagihan [1-4]: " brand_idx
-                elif [ "$cat_idx" == "8" ]; then
-                    echo -e "\n${C_CYAN}Pilih E-Toll:${C_RST}"
-                    echo "1. Mandiri E-Money | 2. Brizzi | 3. TapCash"
-                    read -p "👉 Masukkan Nomor E-Toll [1-3]: " brand_idx
-                elif [ "$cat_idx" == "9" ]; then
-                    echo -e "\n${C_CYAN}Pilih Digital:${C_RST}"
-                    echo "1. Mobile Legends | 2. Free Fire | 3. PUBG | 4. Vidio | 5. Netflix"
-                    read -p "👉 Masukkan Nomor Digital [1-5]: " brand_idx
+                elif [ "$cat_idx" == "3" ]; then
+                    echo -e "\n${C_CYAN}Pilih Game:${C_RST}"
+                    echo "1. Mobile Legends | 2. Free Fire | 3. PUBG"
+                    read -p "👉 Masukkan Nomor Game [1-3]: " brand_idx
                 fi
                 
                 echo ""
@@ -1542,21 +1617,18 @@ menu_produk() {
                 
                 node -e "
                     const fs = require('fs');
-                    const catMap = {'1':'Pulsa', '2':'Data', '3':'Masa Aktif', '4':'SMS Telp', '5':'PLN', '6':'E-Wallet', '7':'Tagihan', '8':'E-Toll', '9':'Digital'};
+                    const catMap = {'1':'Pulsa', '2':'Data', '3':'Game', '4':'Voucher', '5':'E-Money', '6':'PLN', '7':'Paket SMS & Telpon', '8':'Masa Aktif', '9':'Aktivasi Perdana'};
                     const brandMap = {
                         'Pulsa': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
                         'Data': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
+                        'Paket SMS & Telpon': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
                         'Masa Aktif': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'SMS Telp': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'E-Wallet': {'1':'Gopay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
-                        'Tagihan': {'1':'PLN Pasca', '2':'BPJS', '3':'PDAM', '4':'Indihome'},
-                        'E-Toll': {'1':'Mandiri E-Money', '2':'Brizzi', '3':'TapCash'},
-                        'Digital': {'1':'Mobile Legends', '2':'Free Fire', '3':'PUBG', '4':'Vidio', '5':'Netflix'},
-                        'PLN': {'1':'Token PLN'}
+                        'E-Money': {'1':'Gopay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
+                        'Game': {'1':'Mobile Legends', '2':'Free Fire', '3':'PUBG'}
                     };
                     
                     let catName = catMap[process.env.TMP_CAT_IDX] || 'Lainnya';
-                    let brandName = (brandMap[catName] && brandMap[catName][process.env.TMP_BRAND_IDX]) ? brandMap[catName][process.env.TMP_BRAND_IDX] : (catName === 'PLN' ? 'Token PLN' : 'Lainnya');
+                    let brandName = (brandMap[catName] && brandMap[catName][process.env.TMP_BRAND_IDX]) ? brandMap[catName][process.env.TMP_BRAND_IDX] : 'Lainnya';
                     
                     let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
                     let key = process.env.TMP_KODE.toUpperCase().replace(/\s+/g, '');
@@ -1619,40 +1691,12 @@ menu_produk() {
 
                 echo -e "\n${C_MAG}--- EDIT PRODUK : $OLD_NAMA ---${C_RST}"
                 echo -e "${C_YELLOW}💡 Biarkan kosong (tekan Enter) jika Anda TIDAK INGIN mengubah datanya.${C_RST}"
-                echo -e "${C_CYAN}Kategori saat ini: $OLD_KAT | Provider: $OLD_BRAND${C_RST}"
-                echo "1. Pulsa | 2. Data | 3. Masa Aktif | 4. SMS Telp | 5. PLN | 6. E-Wallet | 7. Tagihan | 8. E-Toll | 9. Digital"
                 
-                read -p "Ubah Kategori? (Ketik angka 1-9) [Enter jika tidak]: " new_cat_idx
-                
-                new_brand_idx=""
-                if [ ! -z "$new_cat_idx" ]; then
-                    if [ "$new_cat_idx" == "1" ] || [ "$new_cat_idx" == "2" ] || [ "$new_cat_idx" == "3" ] || [ "$new_cat_idx" == "4" ]; then
-                        echo "1. Telkomsel | 2. XL | 3. Axis | 4. Indosat | 5. Tri | 6. Smartfren | 7. By.U"
-                        read -p "Pilih Provider Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "6" ]; then
-                        echo "1. Gopay | 2. Dana | 3. Shopee Pay | 4. OVO | 5. LinkAja"
-                        read -p "Pilih E-Wallet Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "7" ]; then
-                        echo "1. PLN Pasca | 2. BPJS | 3. PDAM | 4. Indihome"
-                        read -p "Pilih Tagihan Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "8" ]; then
-                        echo "1. Mandiri E-Money | 2. Brizzi | 3. TapCash"
-                        read -p "Pilih E-Toll Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "9" ]; then
-                        echo "1. Mobile Legends | 2. Free Fire | 3. PUBG | 4. Vidio | 5. Netflix"
-                        read -p "Pilih Digital Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "5" ]; then
-                        new_brand_idx="1"
-                    fi
-                fi
-
                 read -p "Kode Baru [$OLD_KODE]: " new_kode
                 read -p "Nama Baru [$OLD_NAMA]: " new_nama
                 read -p "Harga Baru [$OLD_HARGA]: " new_harga
                 read -p "Deskripsi Baru (Ketik - untuk menghapus): " new_desc
                 
-                export NEW_CAT_IDX="$new_cat_idx"
-                export NEW_BRAND_IDX="$new_brand_idx"
                 export NEW_KODE="${new_kode:-$OLD_KODE}"
                 export NEW_NAMA="$new_nama"
                 export NEW_HARGA="$new_harga"
@@ -1660,19 +1704,6 @@ menu_produk() {
                 
                 node -e "
                     const fs = require('fs');
-                    const catMap = {'1':'Pulsa', '2':'Data', '3':'Masa Aktif', '4':'SMS Telp', '5':'PLN', '6':'E-Wallet', '7':'Tagihan', '8':'E-Toll', '9':'Digital'};
-                    const brandMap = {
-                        'Pulsa': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'Data': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'Masa Aktif': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'SMS Telp': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'E-Wallet': {'1':'Gopay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
-                        'Tagihan': {'1':'PLN Pasca', '2':'BPJS', '3':'PDAM', '4':'Indihome'},
-                        'E-Toll': {'1':'Mandiri E-Money', '2':'Brizzi', '3':'TapCash'},
-                        'Digital': {'1':'Mobile Legends', '2':'Free Fire', '3':'PUBG', '4':'Vidio', '5':'Netflix'},
-                        'PLN': {'1':'Token PLN'}
-                    };
-
                     let produk = JSON.parse(fs.readFileSync('produk.json'));
                     let oldKey = process.env.OLD_KODE;
                     let newKey = process.env.NEW_KODE.toUpperCase().replace(/\s+/g, '');
@@ -1685,16 +1716,6 @@ menu_produk() {
                         if (process.env.NEW_DESC.trim() === '-') delete item.deskripsi;
                         else item.deskripsi = process.env.NEW_DESC;
                     }
-                    
-                    if (process.env.NEW_CAT_IDX && process.env.NEW_CAT_IDX.trim() !== '') {
-                        let cName = catMap[process.env.NEW_CAT_IDX];
-                        if(cName) {
-                            item.kategori = cName;
-                            item.brand = (brandMap[cName] && brandMap[cName][process.env.NEW_BRAND_IDX]) ? brandMap[cName][process.env.NEW_BRAND_IDX] : (cName === 'PLN' ? 'Token PLN' : 'Lainnya');
-                        }
-                    }
-                    
-                    if(!item.brand) item.brand = 'Lainnya';
                     
                     if (oldKey !== newKey) {
                         produk[newKey] = item;
@@ -1753,7 +1774,7 @@ menu_produk() {
                     if(keys.length === 0) {
                         console.log('\x1b[33mBelum ada produk.\x1b[0m');
                     } else {
-                        let cats = ['Pulsa', 'Data', 'Masa Aktif', 'SMS Telp', 'PLN', 'E-Wallet', 'Tagihan', 'E-Toll', 'Digital', 'Lainnya'];
+                        let cats = ['Pulsa', 'Data', 'Game', 'Voucher', 'E-Money', 'PLN', 'Paket SMS & Telpon', 'Masa Aktif', 'Aktivasi Perdana', 'Lainnya'];
                         let count = 0;
                         cats.forEach(c => {
                             let catKeys = keys.filter(k => (produk[k].kategori || 'Lainnya') === c);
@@ -1773,6 +1794,196 @@ menu_produk() {
                         });
                         console.log('\n\x1b[32mTotal Produk Keseluruhan: ' + keys.length + '\x1b[0m');
                     }
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            5)
+                echo -e "\n${C_MAG}--- IMPORT PRODUK VIA EXCEL (.XLSX) / CSV ---${C_RST}"
+                echo -e "Sistem Import Cerdas. Format kolom apapun akan terdeteksi!"
+                read -p "Masukkan nama file lengkap (contoh: daftar-produk-buyer.xlsx ATAU namafile.csv): " nama_file_excel
+                if [ ! -f "$nama_file_excel" ]; then
+                    echo -e "${C_RED}❌ File tidak ditemukan. Pastikan file $nama_file_excel ada di direktori $(pwd)${C_RST}"
+                else
+                    export EXCEL_PATH="$nama_file_excel"
+                    node -e "
+                        const fs = require('fs');
+                        const xlsx = require('xlsx');
+                        
+                        try {
+                            let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
+                            let margins = config.margin || {
+                                under100: 50,
+                                under1000: 200,
+                                under5000: 500,
+                                under50000: 1000,
+                                under100000: 1500,
+                                above: 2000
+                            };
+
+                            const workbook = xlsx.readFile(process.env.EXCEL_PATH);
+                            const sheet_name = workbook.SheetNames[0];
+                            const rawData = xlsx.utils.sheet_to_json(workbook.Sheets[sheet_name]);
+                            
+                            let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
+                            let added = 0;
+                            
+                            rawData.forEach(row => {
+                                let keys = Object.keys(row);
+                                let getColStrict = (keywords) => keys.find(k => keywords.includes(k.toLowerCase().trim()));
+                                
+                                let kodeCol = getColStrict(['buyer_sku_code', 'sku', 'kode produk', 'kode']);
+                                let namaCol = getColStrict(['product_name', 'nama produk', 'produk', 'nama']);
+                                let hargaCol = getColStrict(['price', 'harga']);
+                                let statusCol = getColStrict(['buyer_product_status', 'status']);
+                                let descCol = getColStrict(['desc', 'deskripsi']);
+                                let brandCol = getColStrict(['brand', 'provider', 'operator']);
+                                
+                                if(!kodeCol) kodeCol = keys.find(k => k.toLowerCase().includes('kode') || k.toLowerCase().includes('sku'));
+                                if(!namaCol) namaCol = keys.find(k => k.toLowerCase().includes('nama') || k.toLowerCase().includes('produk'));
+                                if(!hargaCol) hargaCol = keys.find(k => k.toLowerCase().includes('harga') || k.toLowerCase().includes('price'));
+                                if(!statusCol) statusCol = keys.find(k => k.toLowerCase().includes('status'));
+
+                                if(!kodeCol || !namaCol || !hargaCol) return;
+                                
+                                if(statusCol) {
+                                    let stat = row[statusCol].toString().toLowerCase();
+                                    if(stat !== 'normal' && stat !== 'aktif' && stat !== 'active') return;
+                                }
+
+                                let kode = row[kodeCol].toString().trim();
+                                let nama = row[namaCol].toString().trim();
+                                let hargaAwal = parseInt(row[hargaCol]);
+                                let deskripsi = descCol && row[descCol] ? row[descCol].toString().trim() : 'Proses Otomatis';
+                                
+                                if(isNaN(hargaAwal)) return;
+
+                                // --- LOGIKA KATEGORI (SUPER KETAT) ---
+                                let kategori = 'Lainnya';
+                                let nLower = ' ' + nama.toLowerCase() + ' '; 
+                                let nUpper = nama.toUpperCase();
+
+                                if (nLower.match(/gopay|go-pay|ovo|dana|shopee|linkaja|link aja|isaku|brizzi|e-toll|e-money|mtix/)) {
+                                    kategori = 'E-Money';
+                                }
+                                else if (nLower.match(/free fire| ff |mobile legend|mlbb|pubg/)) {
+                                    kategori = 'Game';
+                                }
+                                else if (nLower.match(/voucher|vcr|voc|spotify|google play|garena|unipin/)) {
+                                    kategori = 'Voucher';
+                                }
+                                else if (nLower.match(/pln|token listrik/)) {
+                                    kategori = 'PLN';
+                                }
+                                else if (nLower.match(/masa aktif/)) {
+                                    kategori = 'Masa Aktif';
+                                }
+                                else if (nLower.match(/perdana|aktivasi| kpk /)) {
+                                    kategori = 'Aktivasi Perdana';
+                                }
+                                else if (nLower.match(/ sms |telpon|telepon|nelpon|voice| bicara /) && !nLower.match(/ gb | mb |data|kuota|internet|combo|flash/)) {
+                                    kategori = 'Paket SMS & Telpon';
+                                }
+                                else if (nLower.match(/ gb | mb |data|kuota|internet|combo|xtra|flash|paket| omg /)) {
+                                    kategori = 'Data';
+                                }
+                                else if (nLower.match(/pulsa|promo|reguler|transfer/)) {
+                                    kategori = 'Pulsa';
+                                }
+                                else {
+                                    if(nUpper.includes('TELKOMSEL') || nUpper.includes('XL') || nUpper.includes('AXIS') || nUpper.includes('INDOSAT') || nUpper.includes('TRI') || nUpper.includes('SMARTFREN') || nUpper.includes('BY.U')) {
+                                        kategori = 'Pulsa';
+                                    } else {
+                                        kategori = 'Voucher';
+                                    }
+                                }
+
+                                let brand = 'Lainnya';
+                                
+                                if (kategori === 'E-Money') {
+                                    if (nLower.includes('gopay') || nLower.includes('go-pay')) brand = 'Gopay';
+                                    else if (nLower.includes('ovo')) brand = 'OVO';
+                                    else if (nLower.includes('dana')) brand = 'Dana';
+                                    else if (nLower.includes('shopee')) brand = 'ShopeePay';
+                                    else if (nLower.includes('linkaja') || nLower.includes('link aja')) brand = 'LinkAja';
+                                } 
+                                else if (kategori === 'Game') {
+                                    if (nLower.includes('mobile legend') || nLower.includes('mlbb')) brand = 'Mobile Legends';
+                                    else if (nLower.includes('free fire') || nLower.includes(' ff ')) brand = 'Free Fire';
+                                    else if (nLower.includes('pubg')) brand = 'PUBG';
+                                }
+                                else if (kategori === 'PLN') {
+                                    brand = 'PLN';
+                                }
+                                else {
+                                    if(brandCol && row[brandCol]) {
+                                        brand = row[brandCol].toString().trim();
+                                    } else {
+                                        if(nUpper.includes('BY.U') || nUpper.includes('BYU')) brand = 'By.U';
+                                        else if(nUpper.includes('TELKOMSEL') || nUpper.includes('TSEL') || nUpper.includes('AS ') || nUpper.includes('SIMPATI')) brand = 'Telkomsel';
+                                        else if(nUpper.includes('XL')) brand = 'XL';
+                                        else if(nUpper.includes('AXIS')) brand = 'Axis';
+                                        else if(nUpper.includes('INDOSAT') || nUpper.includes('ISAT') || nUpper.includes('IM3')) brand = 'Indosat';
+                                        else if(nUpper.includes('TRI') || nUpper.includes('THREE') || nUpper.includes(' BIMA ')) brand = 'Tri';
+                                        else if(nUpper.includes('SMARTFREN')) brand = 'Smartfren';
+                                        else if(nLower.includes('spotify')) brand = 'Spotify';
+                                        else if(nLower.includes('google play')) brand = 'Google Play';
+                                        else brand = nama.split(' ')[0].toUpperCase(); 
+                                    }
+                                }
+
+                                let margin = 0;
+                                if(kategori === 'Pulsa') margin = 1000;
+                                else {
+                                    if(hargaAwal < 100) margin = margins.under100;
+                                    else if(hargaAwal < 1000) margin = margins.under1000;
+                                    else if(hargaAwal < 5000) margin = margins.under5000;
+                                    else if(hargaAwal < 50000) margin = margins.under50000;
+                                    else if(hargaAwal < 100000) margin = margins.under100000;
+                                    else margin = margins.above;
+                                }
+
+                                produk[kode] = {
+                                    nama: nama,
+                                    harga: hargaAwal + margin,
+                                    kategori: kategori,
+                                    brand: brand,
+                                    deskripsi: deskripsi
+                                };
+                                added++;
+                            });
+                            
+                            fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
+                            console.log('\x1b[32m\n✅ Berhasil mengimport dan merapikan ' + added + ' produk ke dalam databse!\x1b[0m');
+                        } catch(err) {
+                            console.log('\x1b[31m❌ Gagal memproses file Excel/CSV: ' + err.message + '\x1b[0m');
+                        }
+                    "
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            6)
+                echo -e "\n${C_MAG}--- ATUR MARGIN KEUNTUNGAN IMPORT ---${C_RST}"
+                echo -e "${C_YELLOW}Tentukan nominal keuntungan (Rp) untuk masing-masing harga modal.${C_RST}"
+                read -p "1. Keuntungan untuk modal di bawah Rp 100: " m_100
+                read -p "2. Keuntungan untuk modal di bawah Rp 1.000: " m_1000
+                read -p "3. Keuntungan untuk modal di bawah Rp 5.000: " m_5000
+                read -p "4. Keuntungan untuk modal di bawah Rp 50.000: " m_50000
+                read -p "5. Keuntungan untuk modal di bawah Rp 100.000: " m_100000
+                read -p "6. Keuntungan untuk modal di atas Rp 100.000: " m_max
+
+                node -e "
+                    const fs = require('fs');
+                    let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
+                    config.margin = {
+                        under100: parseInt('$m_100') || 0,
+                        under1000: parseInt('$m_1000') || 0,
+                        under5000: parseInt('$m_5000') || 0,
+                        under50000: parseInt('$m_50000') || 0,
+                        under100000: parseInt('$m_100000') || 0,
+                        above: parseInt('$m_max') || 0
+                    };
+                    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                    console.log('\x1b[32m\n✅ Konfigurasi Margin Keuntungan Berhasil Disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
@@ -1799,7 +2010,7 @@ while true; do
     echo ""
     echo -e "${C_MAG}▶ MANAJEMEN TOKO & SISTEM${C_RST}"
     echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo Member"
-    echo -e "  ${C_GREEN}[7]${C_RST}  🛒 Manajemen Daftar Produk & Harga"
+    echo -e "  ${C_GREEN}[7]${C_RST}  🛒 Manajemen Produk & Harga (XLSX/CSV Import)"
     echo -e "  ${C_GREEN}[8]${C_RST}  ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
     echo -e "  ${C_GREEN}[9]${C_RST}  💾 Backup & Restore Data Database"
     echo -e "  ${C_GREEN}[10]${C_RST} 🔌 Ganti API Digiflazz"
@@ -1807,10 +2018,12 @@ while true; do
     echo -e "  ${C_GREEN}[12]${C_RST} 📢 Kirim Pesan Broadcast Kesemua Member (WA)"
     echo -e "  ${C_GREEN}[13]${C_RST} 🌐 Kirim Pemberitahuan ke Website Aplikasi"
     echo -e "  ${C_GREEN}[14]${C_RST} 💬 Kirim Pesan Langsung (Japri) ke Pelanggan"
+    echo -e "  ${C_GREEN}[15]${C_RST} 💳 Setup API Pembayaran Midtrans (Topup Otomatis)"
+    echo -e "  ${C_GREEN}[16]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
     echo -e "${C_CYAN}======================================================${C_RST}"
-    echo -ne "${C_YELLOW}Pilih menu [0-14]: ${C_RST}"
+    echo -ne "${C_YELLOW}Pilih menu [0-16]: ${C_RST}"
     read choice
 
     case $choice in
@@ -1905,6 +2118,76 @@ while true; do
                 echo "$no_japri|$pesan_japri" >> japri.txt
                 echo -e "\n${C_GREEN}✅ Pesan masuk ke antrean dan akan segera dikirim oleh Bot!${C_RST}"
             fi
+            read -p "Tekan Enter untuk kembali..."
+            ;;
+        15)
+            echo -e "\n${C_MAG}--- SETUP PAYMENT GATEWAY MIDTRANS ---${C_RST}"
+            read -p "Masukkan Server Key Midtrans: " mid_server
+            read -p "Masukkan Client Key Midtrans: " mid_client
+            read -p "Gunakan Environment Production (Asli)? (y/n): " is_prod
+            
+            prod_val="false"
+            if [ "$is_prod" == "y" ] || [ "$is_prod" == "Y" ]; then prod_val="true"; fi
+
+            node -e "
+                const fs = require('fs');
+                let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
+                config.midtransServerKey = '$mid_server'.trim();
+                config.midtransClientKey = '$mid_client'.trim();
+                config.midtransProd = $prod_val;
+                fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                console.log('\x1b[32m\n✅ Konfigurasi Midtrans Berhasil Disimpan!\x1b[0m');
+            "
+            read -p "Tekan Enter untuk kembali..."
+            ;;
+        16)
+            clear
+            echo -e "${C_MAG}--- SETUP DOMAIN & HTTPS ---${C_RST}"
+            echo -e "Pastikan A Record domain Anda sudah diarahkan ke IP VPS ini ($(curl -s ifconfig.me))"
+            read -p "Sudah diarahkan? (y/n): " dns_r
+            if [[ "$dns_r" != "y" && "$dns_r" != "Y" ]]; then
+                echo -e "${C_RED}Silakan arahkan DNS terlebih dahulu dari panel domain Anda sebelum mengatur HTTPS!${C_RST}"
+                read -p "Tekan Enter untuk kembali..."
+                continue
+            fi
+
+            read -p "Masukkan Nama Domain Anda (contoh: store.domain.com): " domain_name
+            if [ -z "$domain_name" ]; then
+                echo -e "${C_RED}Domain tidak boleh kosong!${C_RST}"
+                sleep 2; continue
+            fi
+
+            read -p "Masukkan Email (untuk notifikasi SSL Let's Encrypt): " ssl_email
+
+            echo -e "\n${C_CYAN}>> Menginstall Nginx & Certbot...${C_RST}"
+            sudo apt-get update >/dev/null 2>&1
+            sudo apt-get install -y nginx certbot python3-certbot-nginx >/dev/null 2>&1
+
+            echo -e "${C_CYAN}>> Mengatur Konfigurasi Nginx Web Server...${C_RST}"
+            cat <<EOF > /etc/nginx/sites-available/$domain_name
+server {
+    listen 80;
+    server_name $domain_name;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+    }
+}
+EOF
+
+            sudo ln -sf /etc/nginx/sites-available/$domain_name /etc/nginx/sites-enabled/
+            sudo rm -f /etc/nginx/sites-enabled/default
+            sudo nginx -t && sudo systemctl restart nginx
+
+            echo -e "${C_CYAN}>> Meminta Sertifikat SSL HTTPS ke Let's Encrypt...${C_RST}"
+            sudo certbot --nginx -d $domain_name --non-interactive --agree-tos -m $ssl_email --redirect
+
+            echo -e "\n${C_GREEN}✅ Berhasil! Website Digital Tendo Store Anda sekarang bisa diakses dan sudah diamankan di: https://$domain_name ${C_RST}"
             read -p "Tekan Enter untuk kembali..."
             ;;
         0) echo -e "${C_GREEN}Keluar dari panel. Sampai jumpa! 👋${C_RST}"; exit 0 ;;
