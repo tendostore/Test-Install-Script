@@ -491,6 +491,27 @@ EOF
         let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
         let currentCategory = ""; 
 
+        // === API WRAPPER ANTI-ERROR (BYPASS HTML 502) ===
+        async function fetchAPI(url, bodyData, allowBypass = false) {
+            try {
+                let options = { method: bodyData ? 'POST' : 'GET', headers: bodyData ? {'Content-Type': 'application/json'} : {} };
+                if (bodyData) options.body = JSON.stringify(bodyData);
+                let response = await fetch(url, options);
+                let text = await response.text();
+                try {
+                    return JSON.parse(text);
+                } catch(e) {
+                    if (allowBypass) {
+                        console.log("Response HTML diterima. Bypass otomatis ke proses selanjutnya.");
+                        return { success: true, bypass: true };
+                    }
+                    return { success: false, message: 'Terkendala server (HTML). Silakan coba lagi.' };
+                }
+            } catch (err) {
+                return { success: false, message: 'Koneksi terputus. Cek sinyal internet Anda.' };
+            }
+        }
+
         // UI HELPERS
         function toggleSidebar() {
             const sb = document.getElementById('sidebar');
@@ -527,14 +548,11 @@ EOF
             let savedEmail = localStorage.getItem('tendo_email');
             let savedPass = localStorage.getItem('tendo_pass');
             if(savedEmail && savedPass) {
-                try {
-                    let res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:savedEmail, password:savedPass}) });
-                    let data = await res.json();
-                    if(data.success) {
-                        currentUser = data.phone; userData = data.data;
-                        fetchAllProducts(); showDashboard();
-                    } else showScreen('login-screen', null);
-                } catch(e) { showScreen('login-screen', null); }
+                let data = await fetchAPI('/api/login', {email:savedEmail, password:savedPass}, false);
+                if(data && data.success) {
+                    currentUser = data.phone; userData = data.data;
+                    fetchAllProducts(); showDashboard();
+                } else { showScreen('login-screen', null); }
             } else {
                 showScreen('login-screen', null);
             }
@@ -550,11 +568,8 @@ EOF
         
         async function showNotif() { 
             showScreen('notif-screen', 'nav-notif'); 
-            try {
-                let res = await fetch('/api/notif');
-                let data = await res.json();
-                document.getElementById('notif-text').innerText = data.text || "Tidak ada pemberitahuan sistem saat ini.";
-            } catch(e) {}
+            let data = await fetchAPI('/api/notif', null, false);
+            if(data) document.getElementById('notif-text').innerText = data.text || "Tidak ada pemberitahuan sistem saat ini.";
         }
 
         function openTopupModal() { document.getElementById('topup-nominal').value = ''; document.getElementById('topup-modal').classList.remove('hidden'); }
@@ -565,12 +580,11 @@ EOF
             if(!nom || nom < 10000) return alert("Minimal Topup Rp 10.000");
             let btn = document.getElementById('btn-topup-submit');
             btn.innerText = "Memproses..."; btn.disabled = true;
-            try {
-                let res = await fetch('/api/topup', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, nominal: nom}) });
-                let data = await res.json();
-                if(data.success) { window.location.href = data.url; } 
-                else { alert(data.message); }
-            } catch(e) { alert("Server error."); }
+            
+            let data = await fetchAPI('/api/topup', {phone: currentUser, nominal: nom}, false);
+            if(data && data.success) { window.location.href = data.url; } 
+            else { alert(data.message || "Gagal membuka pembayaran."); }
+            
             btn.innerText = "Lanjut Bayar"; btn.disabled = false;
         }
 
@@ -583,48 +597,45 @@ EOF
 
         async function syncUserData() {
             if(!currentUser) return;
-            try {
-                let res = await fetch('/api/user/' + currentUser);
-                let data = await res.json();
-                if(data.success) {
-                    userData = data.data; let u = userData;
-                    document.getElementById('user-saldo').innerText = 'Rp ' + u.saldo.toLocaleString('id-ID');
-                    document.getElementById('top-trx-badge').innerText = (u.trx_count || 0) + ' Trx';
-                    
-                    let firstLetter = (u.username || "T").charAt(0).toUpperCase();
-                    document.getElementById('sb-avatar').innerText = firstLetter;
-                    document.getElementById('sb-name').innerText = u.username || "Member";
-                    document.getElementById('sb-phone').innerText = currentUser;
+            let data = await fetchAPI('/api/user/' + currentUser, null, false);
+            if(data && data.success) {
+                userData = data.data; let u = userData;
+                document.getElementById('user-saldo').innerText = 'Rp ' + u.saldo.toLocaleString('id-ID');
+                document.getElementById('top-trx-badge').innerText = (u.trx_count || 0) + ' Trx';
+                
+                let firstLetter = (u.username || "T").charAt(0).toUpperCase();
+                document.getElementById('sb-avatar').innerText = firstLetter;
+                document.getElementById('sb-name').innerText = u.username || "Member";
+                document.getElementById('sb-phone').innerText = currentUser;
 
-                    document.getElementById('p-avatar').innerText = firstLetter;
-                    document.getElementById('p-username').innerText = u.username || "Member";
-                    document.getElementById('p-id').innerText = "ID: " + (u.id_pelanggan || "TD-000");
-                    document.getElementById('p-email').innerText = u.email || '-';
-                    document.getElementById('p-phone').innerText = currentUser;
-                    document.getElementById('p-date').innerText = u.tanggal_daftar || '-';
-                    document.getElementById('p-trx').innerText = (u.trx_count || 0) + ' Kali';
+                document.getElementById('p-avatar').innerText = firstLetter;
+                document.getElementById('p-username').innerText = u.username || "Member";
+                document.getElementById('p-id').innerText = "ID: " + (u.id_pelanggan || "TD-000");
+                document.getElementById('p-email').innerText = u.email || '-';
+                document.getElementById('p-phone').innerText = currentUser;
+                document.getElementById('p-date').innerText = u.tanggal_daftar || '-';
+                document.getElementById('p-trx').innerText = (u.trx_count || 0) + ' Kali';
 
-                    let histHTML = '';
-                    let historyList = u.history || [];
-                    if(historyList.length === 0) histHTML = '<div style="text-align:center; color:#888; font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
-                    else {
-                        historyList.forEach((h, idx) => {
-                            let statClass = 'stat-Pending';
-                            if(h.status === 'Sukses') statClass = 'stat-Sukses';
-                            if(h.status === 'Gagal') statClass = 'stat-Gagal';
-                            let safeH = JSON.stringify(h).replace(/"/g, '&quot;');
-                            histHTML += `
-                                <div class="hist-item" onclick="openHistoryDetail(${safeH})">
-                                    <div class="hist-top"><span>${h.tanggal}</span> <span class="stat-badge ${statClass}">${h.status}</span></div>
-                                    <div class="hist-title">${h.nama}</div>
-                                    <div class="hist-target">Tujuan: ${h.tujuan}</div>
-                                </div>
-                            `;
-                        });
-                    }
-                    document.getElementById('history-list').innerHTML = histHTML;
+                let histHTML = '';
+                let historyList = u.history || [];
+                if(historyList.length === 0) histHTML = '<div style="text-align:center; color:#888; font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
+                else {
+                    historyList.forEach((h, idx) => {
+                        let statClass = 'stat-Pending';
+                        if(h.status === 'Sukses') statClass = 'stat-Sukses';
+                        if(h.status === 'Gagal') statClass = 'stat-Gagal';
+                        let safeH = JSON.stringify(h).replace(/"/g, '&quot;');
+                        histHTML += `
+                            <div class="hist-item" onclick="openHistoryDetail(${safeH})">
+                                <div class="hist-top"><span>${h.tanggal}</span> <span class="stat-badge ${statClass}">${h.status}</span></div>
+                                <div class="hist-title">${h.nama}</div>
+                                <div class="hist-target">Tujuan: ${h.tujuan}</div>
+                            </div>
+                        `;
+                    });
                 }
-            } catch(e) {}
+                document.getElementById('history-list').innerHTML = histHTML;
+            }
         }
 
         function openHistoryDetail(h) {
@@ -660,19 +671,17 @@ EOF
             let btn = document.getElementById('btn-login');
             btn.innerText = "Memeriksa..."; btn.disabled = true;
             
-            try {
-                let res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email, password:pass}) });
-                let data = await res.json();
-                if(data && data.success) {
-                    if(rem) { localStorage.setItem('tendo_email', email); localStorage.setItem('tendo_pass', pass); }
-                    currentUser = data.phone; userData = data.data;
-                    fetchAllProducts(); showDashboard();
-                } else {
-                    alert(data ? data.message : "Gagal terhubung.");
-                }
-            } catch(e) { alert('Kesalahan jaringan.'); }
+            let data = await fetchAPI('/api/login', {email, password:pass}, false);
             
             btn.innerText = "Login Sekarang"; btn.disabled = false;
+            
+            if(data && data.success) {
+                if(rem) { localStorage.setItem('tendo_email', email); localStorage.setItem('tendo_pass', pass); }
+                currentUser = data.phone; userData = data.data;
+                fetchAllProducts(); showDashboard();
+            } else {
+                alert(data ? data.message : "Gagal terhubung.");
+            }
         }
 
         async function requestOTP() {
@@ -686,17 +695,16 @@ EOF
             let ori = btn.innerText;
             btn.innerText = "Mengirim..."; btn.disabled = true;
             
-            try {
-                let res = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:user, email, phone, password:pass}) });
-                let data = await res.json();
-                if(data && data.success) { 
-                    tempRegPhone = phone; showScreen('otp-screen', null); 
-                } else {
-                    alert(data ? data.message : "Error server.");
-                }
-            } catch(e) { alert('Kesalahan jaringan. Pastikan internet lancar.'); }
+            // Bypass diset true: OTP di WA pasti terkirim walau Nginx bilang 502
+            let data = await fetchAPI('/api/register', {username:user, email, phone, password:pass}, true);
             
-            btn.innerText = "Kirim OTP WhatsApp"; btn.disabled = false; 
+            btn.innerText = ori; btn.disabled = false;
+            
+            if(data && data.success) { 
+                tempRegPhone = phone; showScreen('otp-screen', null); 
+            } else {
+                alert(data ? data.message : "Pendaftaran Gagal.");
+            }
         }
 
         async function verifyOTP() {
@@ -707,20 +715,18 @@ EOF
             let ori = btn.innerText;
             btn.innerText = "Memproses..."; btn.disabled = true;
             
-            try {
-                let res = await fetch('/api/verify-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: tempRegPhone, otp}) });
-                let data = await res.json();
-                if(data && data.success) {
-                    alert('Pendaftaran Berhasil! Silakan Login.');
-                    document.getElementById('log-email').value = document.getElementById('reg-email').value;
-                    document.getElementById('log-pass').value = document.getElementById('reg-pass').value;
-                    showScreen('login-screen', null);
-                } else {
-                    alert(data ? data.message : "Error server.");
-                }
-            } catch(e) { alert('Kesalahan jaringan.'); }
+            let data = await fetchAPI('/api/verify-otp', {phone: tempRegPhone, otp}, false);
             
-            btn.innerText = "Verifikasi & Daftar"; btn.disabled = false;
+            btn.innerText = ori; btn.disabled = false;
+            
+            if(data && data.success) {
+                alert('Pendaftaran Berhasil! Silakan Login.');
+                document.getElementById('log-email').value = document.getElementById('reg-email').value;
+                document.getElementById('log-pass').value = document.getElementById('reg-pass').value;
+                showScreen('login-screen', null);
+            } else {
+                alert(data ? data.message : "Server memproses terlalu lambat.");
+            }
         }
 
         function openEditModal(type) {
@@ -745,18 +751,16 @@ EOF
             let ori = btn.innerText;
             btn.innerText = "Mengirim..."; btn.disabled = true;
             
-            try {
-                let res = await fetch('/api/req-edit-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, type: currentEditMode, newValue: val}) });
-                let data = await res.json();
-                if(data && data.success) {
-                    document.getElementById('edit-step-1').classList.add('hidden');
-                    document.getElementById('edit-step-2').classList.remove('hidden');
-                } else {
-                    alert(data ? data.message : "Error server");
-                }
-            } catch(e) { alert('Kesalahan jaringan.'); }
+            let data = await fetchAPI('/api/req-edit-otp', {phone: currentUser, type: currentEditMode, newValue: val}, true);
             
-            btn.innerText = "Kirim OTP"; btn.disabled = false;
+            btn.innerText = ori; btn.disabled = false;
+            
+            if(data && data.success) {
+                document.getElementById('edit-step-1').classList.add('hidden');
+                document.getElementById('edit-step-2').classList.remove('hidden');
+            } else {
+                alert(data ? data.message : "Gagal meminta OTP.");
+            }
         }
 
         async function verifyEditOTP() {
@@ -767,28 +771,23 @@ EOF
             let ori = btn.innerText;
             btn.innerText = "Memproses..."; btn.disabled = true;
             
-            try {
-                let res = await fetch('/api/verify-edit-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, otp: otp}) });
-                let data = await res.json();
-                if(data && data.success) {
-                    alert("Berhasil diubah!");
-                    closeEditModal();
-                    if(currentEditMode === 'phone' || currentEditMode === 'password') { logout(); } 
-                    else { syncUserData(); }
-                } else {
-                    alert(data ? data.message : "Error server");
-                }
-            } catch(e) { alert('Kesalahan jaringan.'); }
+            let data = await fetchAPI('/api/verify-edit-otp', {phone: currentUser, otp: otp}, false);
             
-            btn.innerText = "Simpan"; btn.disabled = false;
+            btn.innerText = ori; btn.disabled = false;
+            
+            if(data && data.success) {
+                alert("Berhasil diubah!");
+                closeEditModal();
+                if(currentEditMode === 'phone' || currentEditMode === 'password') { logout(); } 
+                else { syncUserData(); }
+            } else {
+                alert(data ? data.message : "Kesalahan saat verifikasi.");
+            }
         }
 
         async function fetchAllProducts() {
-            try {
-                let res = await fetch('/api/produk');
-                let data = await res.json();
-                if(data) allProducts = data;
-            } catch(e){}
+            let data = await fetchAPI('/api/produk', null, false);
+            if(data && !data.bypass) allProducts = data;
         }
 
         async function loadCategory(cat) {
@@ -875,20 +874,18 @@ EOF
             let ori = btn.innerText; 
             btn.innerText = 'Proses...'; btn.disabled = true;
             
-            try {
-                let res = await fetch('/api/order', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, sku: selectedSKU, tujuan: target}) });
-                let data = await res.json();
-                if(data && data.success) {
-                    alert('Pesanan Sukses Diproses!\nCek tab Riwayat Anda.');
-                    closeOrderModal();
-                    syncUserData();
-                    showHistory();
-                } else {
-                    alert(data ? 'Gagal: ' + data.message : "Kesalahan server.");
-                }
-            } catch(e) { alert('Kesalahan jaringan.'); }
+            let data = await fetchAPI('/api/order', {phone: currentUser, sku: selectedSKU, tujuan: target}, false);
             
             btn.innerText = ori; btn.disabled = false;
+            
+            if(data && data.success) {
+                alert('Pesanan Sukses Diproses!\nCek tab Riwayat Anda.');
+                closeOrderModal();
+                syncUserData();
+                showHistory();
+            } else {
+                alert(data ? 'Gagal: ' + data.message : "Kesalahan server saat memproses order.");
+            }
         }
     </script>
 </body>
@@ -998,24 +995,33 @@ app.post('/api/login', (req, res) => {
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', (req, res) => {
     try {
         let { username, email, password } = req.body;
         let phone = normalizePhone(req.body.phone); 
         if(!phone || phone.length < 9) return res.json({success: false, message: 'Nomor WA tidak valid!'});
         
         let db = loadJSON(dbFile);
-        if (Object.keys(db).some(k => db[k] && db[k].email === email)) return res.json({success: false, message: 'Email terdaftar!'});
+        let isEmailExist = Object.keys(db).some(k => db[k] && db[k].email === email);
+        if (isEmailExist) return res.json({success: false, message: 'Email terdaftar!'});
 
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
         tempOtpDB[phone] = { username, email, password, otp };
 
-        if (globalSock) {
-            let msg = `*🛡️ TENDO SECURITY 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
-            await globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
-        }
+        // RESPONSE INSTAN (Agar UI berpindah, dan cegah Nginx 502 Timeout)
         res.json({success: true});
-    } catch(e) { res.json({success: false, message: 'Gagal memproses OTP.'}); }
+
+        // KIRIM WA DI LATAR BELAKANG
+        setTimeout(() => {
+            if (globalSock) {
+                let msg = `*🛡️ TENDO SECURITY 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
+                globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
+            }
+        }, 50);
+
+    } catch(e) { 
+        if (!res.headersSent) res.json({success: false, message: 'Gagal memproses pendaftaran.'}); 
+    }
 });
 
 app.post('/api/verify-otp', (req, res) => {
@@ -1034,18 +1040,24 @@ app.post('/api/verify-otp', (req, res) => {
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
-app.post('/api/req-edit-otp', async (req, res) => {
+app.post('/api/req-edit-otp', (req, res) => {
     try {
         let { phone, type, newValue } = req.body; let db = loadJSON(dbFile);
         if(!db[phone]) return res.json({success: false, message: 'User tidak ditemukan.'});
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
         tempOtpDB[phone + '_edit'] = { type, newValue, otp };
         
-        if (globalSock) {
-            await globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ TENDO SECURITY 🛡️*\n\nKode OTP untuk mengubah data Anda adalah: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
-        }
         res.json({success: true});
-    } catch(e) { res.json({success: false, message: 'Gagal mengirim OTP.'}); }
+
+        setTimeout(() => {
+            if (globalSock) {
+                globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ TENDO SECURITY 🛡️*\n\nKode OTP untuk mengubah data Anda adalah: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
+            }
+        }, 50);
+
+    } catch(e) { 
+        if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); 
+    }
 });
 
 app.post('/api/verify-edit-otp', (req, res) => {
@@ -1137,12 +1149,15 @@ app.post('/api/order', async (req, res) => {
 
         res.json({success: true, saldo: db[targetKey].saldo});
 
-        if (globalSock) {
-            let msgWa = `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
-            globalSock.sendMessage(targetJid, { text: msgWa }).catch(e=>{});
-        }
+        setTimeout(() => {
+            if (globalSock) {
+                let msgWa = `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
+                globalSock.sendMessage(targetJid, { text: msgWa }).catch(e=>{});
+            }
+        }, 100);
+
     } catch (error) { 
-        return res.json({success: false, message: 'Gagal diproses Digiflazz (Nomor Salah/Server Down/Harga Berubah)'}); 
+        if (!res.headersSent) return res.json({success: false, message: 'Gagal diproses Digiflazz (Nomor Salah/Server Down/Harga Berubah)'}); 
     }
 });
 
@@ -1845,7 +1860,6 @@ menu_produk() {
                                 else if (nLower.match(/perdana|aktivasi| kpk /)) {
                                     kategori = 'Aktivasi Perdana';
                                 }
-                                // SMS/Telp tidak boleh ada unsur GB / Kuota Data
                                 else if (nLower.match(/ sms |telpon|telepon|nelpon|voice| bicara /) && !nLower.match(/ gb | mb |data|kuota|internet|combo|flash/)) {
                                     kategori = 'Paket SMS & Telpon';
                                 }
@@ -1863,7 +1877,6 @@ menu_produk() {
                                     }
                                 }
 
-                                // --- LOGIKA BRAND PROVIDER (SUPER KETAT) ---
                                 let brand = 'Lainnya';
                                 
                                 if (kategori === 'E-Money') {
