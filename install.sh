@@ -274,7 +274,7 @@ EOF
                 <input type="email" id="reg-email" placeholder="Alamat Email">
                 <input type="number" id="reg-phone" placeholder="Nomor WhatsApp">
                 <input type="password" id="reg-pass" placeholder="Buat Password">
-                <button class="btn" onclick="requestOTP()">Kirim OTP WhatsApp</button>
+                <button class="btn" id="btn-register" onclick="requestOTP()">Kirim OTP WhatsApp</button>
                 <button class="btn-outline" style="border:none;" onclick="showScreen('login-screen')">Kembali ke Login</button>
             </div>
         </div>
@@ -284,7 +284,7 @@ EOF
                 <h2 style="margin-top:0; font-size:18px;">Verifikasi WhatsApp</h2>
                 <p style="font-size:13px; color:#64748b; margin-bottom: 20px; font-weight: 600;">Kode OTP 4 digit telah dikirim ke WA.</p>
                 <input type="number" id="otp-code" placeholder="----" style="text-align:center; font-size:28px; letter-spacing: 12px; font-weight:bold; background:#f8fafc;">
-                <button class="btn" onclick="verifyOTP()">Verifikasi & Daftar</button>
+                <button class="btn" id="btn-verify" onclick="verifyOTP()">Verifikasi & Daftar</button>
                 <button class="btn-outline" style="border:none;" onclick="showScreen('register-screen')">Batal</button>
             </div>
         </div>
@@ -537,7 +537,7 @@ EOF
         let currentView = 'dashboard'; 
         let bannerInterval;
 
-        // === API CALL KLASIK (ANTI-ERROR) ===
+        // === API CALL WRAPPER SUPER AMAN ===
         async function apiCall(url, bodyData) {
             let options = {};
             if(bodyData) {
@@ -545,8 +545,14 @@ EOF
                 options.headers = {'Content-Type': 'application/json'};
                 options.body = JSON.stringify(bodyData);
             }
-            let res = await fetch(url, options);
-            return await res.json();
+            try {
+                let res = await fetch(url, options);
+                if(!res.ok) throw new Error("Gagal terhubung ke server (Error " + res.status + ")");
+                return await res.json();
+            } catch (e) {
+                console.error("API Call Error:", e);
+                return { success: false, message: e.message || "Kesalahan jaringan." };
+            }
         }
 
         // FUNGSI LOAD BANNER
@@ -631,13 +637,11 @@ EOF
             let savedEmail = localStorage.getItem('tendo_email');
             let savedPass = localStorage.getItem('tendo_pass');
             if(savedEmail && savedPass) {
-                try {
-                    let data = await apiCall('/api/login', {email:savedEmail, password:savedPass});
-                    if(data && data.success) {
-                        currentUser = data.phone; userData = data.data;
-                        fetchAllProducts(); showDashboard();
-                    } else { showScreen('login-screen', null); }
-                } catch(e) { showScreen('login-screen', null); }
+                let data = await apiCall('/api/login', {email:savedEmail, password:savedPass});
+                if(data && data.success) {
+                    currentUser = data.phone; userData = data.data;
+                    fetchAllProducts(); showDashboard();
+                } else { showScreen('login-screen', null); }
             } else {
                 showScreen('login-screen', null);
             }
@@ -655,11 +659,9 @@ EOF
         
         async function showNotif() { 
             showScreen('notif-screen', 'nav-notif'); 
-            try {
-                let data = await apiCall('/api/notif');
-                if(data && data.text) document.getElementById('notif-text').innerText = data.text;
-                else document.getElementById('notif-text').innerText = "Tidak ada pemberitahuan sistem saat ini.";
-            } catch(e){}
+            let data = await apiCall('/api/notif');
+            if(data && data.text) document.getElementById('notif-text').innerText = data.text;
+            else document.getElementById('notif-text').innerText = "Tidak ada pemberitahuan sistem saat ini.";
         }
 
         function openTopupModal() { document.getElementById('topup-nominal').value = ''; document.getElementById('topup-modal').classList.remove('hidden'); }
@@ -671,11 +673,9 @@ EOF
             let btn = document.getElementById('btn-topup-submit');
             btn.innerText = "Memproses..."; btn.disabled = true;
             
-            try {
-                let data = await apiCall('/api/topup', {phone: currentUser, nominal: nom});
-                if(data && data.success) { window.location.href = data.url; } 
-                else { alert(data.message || "Gagal membuka pembayaran."); }
-            } catch(e) { alert("Kesalahan server."); }
+            let data = await apiCall('/api/topup', {phone: currentUser, nominal: nom});
+            if(data && data.success) { window.location.href = data.url; } 
+            else { alert(data.message || "Gagal membuka pembayaran."); }
             
             btn.innerText = "Lanjut Bayar"; btn.disabled = false;
         }
@@ -689,47 +689,45 @@ EOF
 
         async function syncUserData() {
             if(!currentUser) return;
-            try {
-                let data = await apiCall('/api/user/' + currentUser);
-                if(data && data.success) {
-                    userData = data.data; let u = userData;
-                    document.getElementById('user-saldo').innerText = 'Rp ' + u.saldo.toLocaleString('id-ID');
-                    document.getElementById('top-trx-badge').innerText = (u.trx_count || 0) + ' Trx';
-                    
-                    let firstLetter = (u.username || "T").charAt(0).toUpperCase();
-                    document.getElementById('sb-avatar').innerText = firstLetter;
-                    document.getElementById('sb-name').innerText = u.username || "Member";
-                    document.getElementById('sb-phone').innerText = currentUser;
+            let data = await apiCall('/api/user/' + currentUser);
+            if(data && data.success) {
+                userData = data.data; let u = userData;
+                document.getElementById('user-saldo').innerText = 'Rp ' + u.saldo.toLocaleString('id-ID');
+                document.getElementById('top-trx-badge').innerText = (u.trx_count || 0) + ' Trx';
+                
+                let firstLetter = (u.username || "T").charAt(0).toUpperCase();
+                document.getElementById('sb-avatar').innerText = firstLetter;
+                document.getElementById('sb-name').innerText = u.username || "Member";
+                document.getElementById('sb-phone').innerText = currentUser;
 
-                    document.getElementById('p-avatar').innerText = firstLetter;
-                    document.getElementById('p-username').innerText = u.username || "Member";
-                    document.getElementById('p-id').innerText = "ID: " + (u.id_pelanggan || "TD-000");
-                    document.getElementById('p-email').innerText = u.email || '-';
-                    document.getElementById('p-phone').innerText = currentUser;
-                    document.getElementById('p-date').innerText = u.tanggal_daftar || '-';
-                    document.getElementById('p-trx').innerText = (u.trx_count || 0) + ' Kali';
+                document.getElementById('p-avatar').innerText = firstLetter;
+                document.getElementById('p-username').innerText = u.username || "Member";
+                document.getElementById('p-id').innerText = "ID: " + (u.id_pelanggan || "TD-000");
+                document.getElementById('p-email').innerText = u.email || '-';
+                document.getElementById('p-phone').innerText = currentUser;
+                document.getElementById('p-date').innerText = u.tanggal_daftar || '-';
+                document.getElementById('p-trx').innerText = (u.trx_count || 0) + ' Kali';
 
-                    let histHTML = '';
-                    let historyList = u.history || [];
-                    if(historyList.length === 0) histHTML = '<div style="text-align:center; color:#888; font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
-                    else {
-                        historyList.forEach((h, idx) => {
-                            let statClass = 'stat-Pending';
-                            if(h.status === 'Sukses') statClass = 'stat-Sukses';
-                            if(h.status === 'Gagal') statClass = 'stat-Gagal';
-                            let safeH = JSON.stringify(h).replace(/"/g, '&quot;');
-                            histHTML += `
-                                <div class="hist-item" onclick="openHistoryDetail(${safeH})">
-                                    <div class="hist-top"><span>${h.tanggal}</span> <span class="stat-badge ${statClass}">${h.status}</span></div>
-                                    <div class="hist-title">${h.nama}</div>
-                                    <div class="hist-target">Tujuan: ${h.tujuan}</div>
-                                </div>
-                            `;
-                        });
-                    }
-                    document.getElementById('history-list').innerHTML = histHTML;
+                let histHTML = '';
+                let historyList = u.history || [];
+                if(historyList.length === 0) histHTML = '<div style="text-align:center; color:#888; font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
+                else {
+                    historyList.forEach((h, idx) => {
+                        let statClass = 'stat-Pending';
+                        if(h.status === 'Sukses') statClass = 'stat-Sukses';
+                        if(h.status === 'Gagal') statClass = 'stat-Gagal';
+                        let safeH = JSON.stringify(h).replace(/"/g, '&quot;');
+                        histHTML += `
+                            <div class="hist-item" onclick="openHistoryDetail(${safeH})">
+                                <div class="hist-top"><span>${h.tanggal}</span> <span class="stat-badge ${statClass}">${h.status}</span></div>
+                                <div class="hist-title">${h.nama}</div>
+                                <div class="hist-target">Tujuan: ${h.tujuan}</div>
+                            </div>
+                        `;
+                    });
                 }
-            } catch(e) {}
+                document.getElementById('history-list').innerHTML = histHTML;
+            }
         }
 
         function openHistoryDetail(h) {
@@ -766,22 +764,20 @@ EOF
             let ori = btn.innerText;
             btn.innerText = "Memeriksa..."; btn.disabled = true;
             
-            try {
-                let data = await apiCall('/api/login', {email, password:pass});
-                if(data && data.success) {
-                    if(rem) { localStorage.setItem('tendo_email', email); localStorage.setItem('tendo_pass', pass); }
-                    currentUser = data.phone; userData = data.data;
-                    fetchAllProducts(); showDashboard();
-                } else {
-                    alert(data && data.message ? data.message : "Gagal terhubung.");
-                }
-            } catch(e) { alert('Kesalahan jaringan.'); }
+            let data = await apiCall('/api/login', {email, password:pass});
+            if(data && data.success) {
+                if(rem) { localStorage.setItem('tendo_email', email); localStorage.setItem('tendo_pass', pass); }
+                currentUser = data.phone; userData = data.data;
+                fetchAllProducts(); showDashboard();
+            } else {
+                alert(data && data.message ? data.message : "Gagal terhubung.");
+            }
             
             btn.innerText = ori; btn.disabled = false;
         }
 
         // ==========================================
-        // FITUR PENDAFTARAN DIAMBIL DARI INSTALL1
+        // FITUR PENDAFTARAN SUPER AMAN
         // ==========================================
         async function requestOTP() {
             let user = document.getElementById('reg-user').value.trim();
@@ -789,29 +785,41 @@ EOF
             let phone = document.getElementById('reg-phone').value.trim();
             let pass = document.getElementById('reg-pass').value.trim();
             if(!user || !email || !phone || !pass) return alert('Semua kolom wajib diisi!');
-            let btn = document.querySelector('#register-screen .btn'); btn.innerText = "Mengirim...";
-            try {
-                let res = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:user, email, phone, password:pass}) });
-                let data = await res.json();
-                if(data.success) { tempRegPhone = phone; showScreen('otp-screen', null); }
-                else alert(data.message);
-            } catch(e) { alert('Error server.'); }
-            btn.innerText = "Kirim OTP WA";
+            
+            let btn = document.getElementById('btn-register');
+            let ori = btn.innerText;
+            btn.innerText = "Mengirim..."; btn.disabled = true;
+            
+            let data = await apiCall('/api/register', {username:user, email, phone, password:pass});
+            if(data && data.success) { 
+                tempRegPhone = phone; 
+                showScreen('otp-screen', null); 
+            } else {
+                alert(data && data.message ? data.message : "Pendaftaran Gagal.");
+            }
+            
+            btn.innerText = ori; btn.disabled = false;
         }
 
         async function verifyOTP() {
             let otp = document.getElementById('otp-code').value.trim();
             if(!otp) return alert('Masukkan OTP!');
-            try {
-                let res = await fetch('/api/verify-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: tempRegPhone, otp}) });
-                let data = await res.json();
-                if(data.success) {
-                    alert('Pendaftaran Berhasil! Silakan Login.');
-                    document.getElementById('log-email').value = document.getElementById('reg-email').value;
-                    document.getElementById('log-pass').value = document.getElementById('reg-pass').value;
-                    showScreen('login-screen', null);
-                } else alert(data.message);
-            } catch(e) { alert('Error server.'); }
+            
+            let btn = document.getElementById('btn-verify');
+            let ori = btn.innerText;
+            btn.innerText = "Memproses..."; btn.disabled = true;
+            
+            let data = await apiCall('/api/verify-otp', {phone: tempRegPhone, otp: otp});
+            if(data && data.success) {
+                alert('Pendaftaran Berhasil! Silakan Login.');
+                document.getElementById('log-email').value = document.getElementById('reg-email').value;
+                document.getElementById('log-pass').value = document.getElementById('reg-pass').value;
+                showScreen('login-screen', null);
+            } else {
+                alert(data && data.message ? data.message : "Kode OTP Salah.");
+            }
+            
+            btn.innerText = ori; btn.disabled = false;
         }
 
         function openEditModal(type) {
@@ -836,15 +844,13 @@ EOF
             let ori = btn.innerText;
             btn.innerText = "Mengirim..."; btn.disabled = true;
             
-            try {
-                let data = await apiCall('/api/req-edit-otp', {phone: currentUser, type: currentEditMode, newValue: val});
-                if(data && data.success) {
-                    document.getElementById('edit-step-1').classList.add('hidden');
-                    document.getElementById('edit-step-2').classList.remove('hidden');
-                } else {
-                    alert(data && data.message ? data.message : "Error server");
-                }
-            } catch(e) { alert('Kesalahan jaringan.'); }
+            let data = await apiCall('/api/req-edit-otp', {phone: currentUser, type: currentEditMode, newValue: val});
+            if(data && data.success) {
+                document.getElementById('edit-step-1').classList.add('hidden');
+                document.getElementById('edit-step-2').classList.remove('hidden');
+            } else {
+                alert(data && data.message ? data.message : "Error server");
+            }
             
             btn.innerText = ori; btn.disabled = false;
         }
@@ -857,26 +863,22 @@ EOF
             let ori = btn.innerText;
             btn.innerText = "Memproses..."; btn.disabled = true;
             
-            try {
-                let data = await apiCall('/api/verify-edit-otp', {phone: currentUser, otp: otp});
-                if(data && data.success) {
-                    alert("Berhasil diubah!");
-                    closeEditModal();
-                    if(currentEditMode === 'phone' || currentEditMode === 'password') { logout(); } 
-                    else { syncUserData(); }
-                } else {
-                    alert(data && data.message ? data.message : "Error server");
-                }
-            } catch(e) { alert('Kesalahan jaringan.'); }
+            let data = await apiCall('/api/verify-edit-otp', {phone: currentUser, otp: otp});
+            if(data && data.success) {
+                alert("Berhasil diubah!");
+                closeEditModal();
+                if(currentEditMode === 'phone' || currentEditMode === 'password') { logout(); } 
+                else { syncUserData(); }
+            } else {
+                alert(data && data.message ? data.message : "Error server");
+            }
             
             btn.innerText = ori; btn.disabled = false;
         }
 
         async function fetchAllProducts() {
-            try {
-                let data = await apiCall('/api/produk');
-                if(data) allProducts = data;
-            } catch(e){}
+            let data = await apiCall('/api/produk');
+            if(data) allProducts = data;
         }
 
         // ==========================================
@@ -1033,411 +1035,21 @@ EOF
             let ori = btn.innerText; 
             btn.innerText = 'Proses...'; btn.disabled = true;
             
-            try {
-                let data = await apiCall('/api/order', {phone: currentUser, sku: selectedSKU, tujuan: target});
-                if(data && data.success) {
-                    alert('Pesanan Sukses Diproses!\nCek tab Riwayat Anda.');
-                    closeOrderModal();
-                    syncUserData();
-                    showHistory();
-                } else {
-                    alert(data && data.message ? 'Gagal: ' + data.message : "Kesalahan server saat memproses order.");
-                }
-            } catch(e) { alert('Kesalahan jaringan.'); }
+            let data = await apiCall('/api/order', {phone: currentUser, sku: selectedSKU, tujuan: target});
+            if(data && data.success) {
+                alert('Pesanan Sukses Diproses!\nCek tab Riwayat Anda.');
+                closeOrderModal();
+                syncUserData();
+                showHistory();
+            } else {
+                alert(data && data.message ? 'Gagal: ' + data.message : "Kesalahan server saat memproses order.");
+            }
             
             btn.innerText = ori; btn.disabled = false;
         }
     </script>
 </body>
 </html>
-EOF
-}
-
-# ==========================================
-# 3. FUNGSI UNTUK MEMBUAT FILE INDEX.JS
-# ==========================================
-generate_bot_script() {
-    cat << 'EOF' > index.js
-process.on('uncaughtException', function (err) { console.error('Caught exception: ', err); });
-process.on('unhandledRejection', function (reason, p) { console.error('Unhandled Rejection at: Promise', p, 'reason:', reason); });
-
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
-const fs = require('fs');
-const pino = require('pino');
-const express = require('express');
-const bodyParser = require('body-parser');
-const { exec } = require('child_process');
-const axios = require('axios'); 
-const crypto = require('crypto'); 
-const midtransClient = require('midtrans-client');
-
-const app = express();
-app.use(bodyParser.json());
-app.use(express.static('public')); 
-
-const configFile = './config.json';
-const dbFile = './database.json';
-const produkFile = './produk.json';
-const trxFile = './trx.json';
-const notifFile = './web_notif.txt';
-const japriFile = './japri.txt';
-
-const loadJSON = (file) => {
-    try {
-        return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
-    } catch(e) {
-        console.error(`Error loading ${file}:`, e);
-        return {};
-    }
-};
-const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
-
-let configAwal = loadJSON(configFile);
-configAwal.botName = configAwal.botName || "Digital Tendo Store";
-configAwal.botNumber = configAwal.botNumber || "";
-saveJSON(configFile, configAwal);
-
-if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
-if (!fs.existsSync(produkFile)) saveJSON(produkFile, {});
-if (!fs.existsSync(trxFile)) saveJSON(trxFile, {});
-
-let globalSock = null;
-let tempOtpDB = {}; 
-
-function normalizePhone(phoneStr) {
-    if(!phoneStr) return '';
-    let num = phoneStr.replace(/[^0-9]/g, '');
-    if(num.startsWith('0')) return '62' + num.substring(1);
-    return num;
-}
-
-// BANNERS API
-app.get('/api/banners', (req, res) => {
-    let banners = [];
-    try {
-        for (let i = 1; i <= 5; i++) {
-            let folderPath = `./public/baner${i}`;
-            if (fs.existsSync(folderPath)) {
-                let files = fs.readdirSync(folderPath);
-                // Cek gambar saja
-                let imgFiles = files.filter(f => f.match(/\.(jpg|jpeg|png|gif|webp)$/i));
-                if (imgFiles.length > 0) {
-                    banners.push(`/baner${i}/${imgFiles[0]}`);
-                }
-            }
-        }
-    } catch(e) { console.error(e); }
-    res.json({ success: true, data: banners });
-});
-
-// MIDTRANS WEBHOOK
-app.post('/api/webhook/midtrans', (req, res) => {
-    try {
-        let config = loadJSON(configFile);
-        let { order_id, status_code, gross_amount, signature_key, transaction_status } = req.body;
-        let serverKey = config.midtransServerKey || '';
-        
-        let hash = crypto.createHash('sha512').update(order_id + status_code + gross_amount + serverKey).digest('hex');
-        if(hash !== signature_key) return res.status(403).send("Invalid Signature");
-        
-        if(transaction_status === 'capture' || transaction_status === 'settlement') {
-            let phone = order_id.split('-')[1]; 
-            let db = loadJSON(dbFile);
-            if(db[phone]) {
-                let amount = parseInt(gross_amount);
-                db[phone].saldo += amount;
-                saveJSON(dbFile, db);
-                if(globalSock) {
-                    globalSock.sendMessage(db[phone].jid, {text: `✅ *TOPUP OTOMATIS BERHASIL*\n\nNominal: Rp ${amount.toLocaleString('id-ID')}\nSaldo Sekarang: Rp ${db[phone].saldo.toLocaleString('id-ID')}`}).catch(()=>{});
-                }
-            }
-        }
-        res.status(200).send("OK");
-    } catch(e) { res.status(500).send("Error"); }
-});
-
-// API ROUTER
-app.get('/api/produk', (req, res) => { res.json(loadJSON(produkFile)); });
-app.get('/api/notif', (req, res) => { let txt = fs.existsSync(notifFile) ? fs.readFileSync(notifFile, 'utf8') : ''; res.json({text: txt}); });
-
-app.get('/api/user/:phone', (req, res) => {
-    try {
-        let db = loadJSON(dbFile); let p = req.params.phone;
-        if(db[p]) res.json({success: true, data: db[p]});
-        else res.json({success: false});
-    } catch(e) { res.json({success: false}); }
-});
-
-app.post('/api/login', (req, res) => {
-    try {
-        let { email, password } = req.body; let db = loadJSON(dbFile);
-        let userPhone = Object.keys(db).find(k => db[k] && db[k].email === email && db[k].password === password);
-        if (userPhone) res.json({success: true, data: db[userPhone], phone: userPhone});
-        else res.json({success: false, message: 'Email atau Password salah!'});
-    } catch(e) { res.json({success: false, message: 'Server error'}); }
-});
-
-// ==========================================
-// BACKEND PENDAFTARAN DIAMBIL DARI INSTALL1
-// ==========================================
-app.post('/api/register', (req, res) => {
-    let { username, email, password } = req.body;
-    let phone = normalizePhone(req.body.phone);
-    if(phone.length < 9) return res.json({success: false, message: 'Nomor WA tidak valid!'});
-
-    let db = loadJSON(dbFile);
-    if (Object.keys(db).find(k => db[k] && db[k].email === email)) return res.json({success: false, message: 'Email terdaftar!'});
-
-    let otp = Math.floor(1000 + Math.random() * 9000).toString();
-    tempOtpDB[phone] = { username, email, password, otp };
-
-    if (globalSock) {
-        let msg = `*🛡️ TENDO STORE SECURITY 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
-        globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
-    }
-    res.json({success: true});
-});
-
-app.post('/api/verify-otp', (req, res) => {
-    let otp = req.body.otp;
-    let phone = normalizePhone(req.body.phone);
-
-    if(tempOtpDB[phone] && tempOtpDB[phone].otp === otp) {
-        let db = loadJSON(dbFile);
-        let idPelanggan = 'TD-' + Math.floor(100000 + Math.random() * 900000);
-
-        if(db[phone]) {
-            db[phone].username = tempOtpDB[phone].username;
-            db[phone].email = tempOtpDB[phone].email;
-            db[phone].password = tempOtpDB[phone].password;
-            if(!db[phone].id_pelanggan) db[phone].id_pelanggan = idPelanggan;
-        } else {
-            db[phone] = { id_pelanggan: idPelanggan, username: tempOtpDB[phone].username, email: tempOtpDB[phone].email, password: tempOtpDB[phone].password, saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [] };
-        }
-        saveJSON(dbFile, db);
-        delete tempOtpDB[phone];
-        res.json({success: true});
-    } else res.json({success: false, message: 'Kode OTP Salah!'});
-});
-
-app.post('/api/req-edit-otp', (req, res) => {
-    try {
-        let { phone, type, newValue } = req.body; let db = loadJSON(dbFile);
-        if(!db[phone]) return res.json({success: false, message: 'User tidak ditemukan.'});
-        let otp = Math.floor(1000 + Math.random() * 9000).toString();
-        tempOtpDB[phone + '_edit'] = { type, newValue, otp };
-        
-        res.json({success: true});
-
-        setTimeout(() => {
-            try {
-                if (globalSock) {
-                    globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nKode OTP untuk mengubah data Anda adalah: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
-                }
-            } catch(e) {}
-        }, 100);
-
-    } catch(e) { 
-        if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); 
-    }
-});
-
-app.post('/api/verify-edit-otp', (req, res) => {
-    try {
-        let { phone, otp } = req.body; let db = loadJSON(dbFile); let session = tempOtpDB[phone + '_edit'];
-        if(session && session.otp === otp) {
-            if(session.type === 'email') db[phone].email = session.newValue;
-            if(session.type === 'password') db[phone].password = session.newValue;
-            if(session.type === 'phone') {
-                let newPhone = normalizePhone(session.newValue);
-                if(db[newPhone]) return res.json({success: false, message: 'Nomor sudah dipakai akun lain.'});
-                db[newPhone] = db[phone]; db[newPhone].jid = newPhone + '@s.whatsapp.net'; delete db[phone];
-            }
-            saveJSON(dbFile, db); delete tempOtpDB[phone + '_edit']; res.json({success: true});
-        } else res.json({success: false, message: 'OTP Salah!'});
-    } catch(e) { res.json({success: false, message: 'Server error'}); }
-});
-
-app.post('/api/topup', async (req, res) => {
-    try {
-        let config = loadJSON(configFile);
-        if(!config.midtransServerKey) return res.json({success: false, message: "Fitur Topup belum diatur oleh Admin."});
-        
-        let { phone, nominal } = req.body;
-        let db = loadJSON(dbFile);
-        if(!db[phone]) return res.json({success: false, message: "User tidak ditemukan."});
-        
-        let snap = new midtransClient.Snap({
-            isProduction : config.midtransProd || false,
-            serverKey : config.midtransServerKey,
-            clientKey : config.midtransClientKey
-        });
-
-        let parameter = {
-            "transaction_details": {
-                "order_id": "TOPUP-" + phone + "-" + Date.now(),
-                "gross_amount": nominal
-            },
-            "customer_details": {
-                "first_name": db[phone].username,
-                "email": db[phone].email || "user@email.com",
-                "phone": phone
-            }
-        };
-
-        let transaction = await snap.createTransaction(parameter);
-        res.json({success: true, url: transaction.redirect_url});
-    } catch(e) {
-        res.json({success: false, message: "Gagal membuat pembayaran."});
-    }
-});
-
-app.post('/api/order', async (req, res) => {
-    try {
-        let { phone, sku, tujuan } = req.body;
-        let pNorm = normalizePhone(phone);
-        let db = loadJSON(dbFile); let produkDB = loadJSON(produkFile); let config = loadJSON(configFile);
-        
-        let targetKey = db[pNorm] ? pNorm : (db[phone] ? phone : null);
-        if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid. Silakan Logout dan Login kembali.'});
-        
-        let p = produkDB[sku];
-        if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
-        if (db[targetKey].saldo < p.harga) return res.json({success: false, message: 'Saldo tidak cukup.'});
-
-        let username = (config.digiflazzUsername || '').trim();
-        let apiKey = (config.digiflazzApiKey || '').trim();
-        let refId = 'WEB-' + Date.now();
-        let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
-        let maxPrice = parseInt(p.harga);
-
-        const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
-            username: username, buyer_sku_code: sku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: maxPrice
-        });
-        
-        const statusOrder = response.data.data.status; 
-        if (statusOrder === 'Gagal') return res.json({success: false, message: response.data.data.message});
-        
-        db[targetKey].saldo -= p.harga; db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
-        db[targetKey].history = db[targetKey].history || [];
-        db[targetKey].history.unshift({ tanggal: new Date().toLocaleString('id-ID'), nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-' });
-        if(db[targetKey].history.length > 20) db[targetKey].history.pop();
-        saveJSON(dbFile, db);
-        
-        let trxs = loadJSON(trxFile);
-        let targetJid = db[targetKey].jid || targetKey + '@s.whatsapp.net';
-        trxs[refId] = { jid: targetJid, sku: sku, tujuan: tujuan, harga: p.harga, nama: p.nama, tanggal: Date.now() };
-        saveJSON(trxFile, trxs);
-
-        res.json({success: true, saldo: db[targetKey].saldo});
-
-        setTimeout(() => {
-            try {
-                if (globalSock) {
-                    let msgWa = `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
-                    globalSock.sendMessage(targetJid, { text: msgWa }).catch(e=>{});
-                }
-            } catch(e){}
-        }, 100);
-
-    } catch (error) { 
-        if (!res.headersSent) return res.json({success: false, message: 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)'}); 
-    }
-});
-
-function doBackupAndSend() {
-    let cfg = loadJSON(configFile);
-    if (!cfg.teleToken || !cfg.teleChatId) return;
-    exec(`rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json 2>/dev/null`, (err) => {
-        if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
-    });
-}
-if (configAwal.autoBackup) setInterval(doBackupAndSend, (configAwal.backupInterval || 720) * 60 * 1000); 
-
-async function startBot() {
-    const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
-    let config = loadJSON(configFile);
-    const { version } = await fetchLatestBaileysVersion();
-    const sock = makeWASocket({ version, auth: state, logger: pino({ level: 'silent' }), browser: Browsers.ubuntu('Chrome'), printQRInTerminal: false, syncFullHistory: false });
-    globalSock = sock; 
-
-    if (!sock.authState.creds.registered) {
-        setTimeout(async () => {
-            try {
-                let formattedNumber = config.botNumber.replace(/[^0-9]/g, '');
-                const code = await sock.requestPairingCode(formattedNumber);
-                console.log(`\x1b[33m🔑 KODE TAUTAN : ${code}\x1b[0m\n`);
-            } catch (error) {}
-        }, 8000); 
-    }
-    sock.ev.on('creds.update', saveCreds);
-    sock.ev.on('connection.update', (u) => { if(u.connection === 'close') setTimeout(startBot, 4000); });
-
-    setInterval(() => {
-        if(fs.existsSync(japriFile)) {
-            let lines = fs.readFileSync(japriFile, 'utf8').split('\n'); fs.unlinkSync(japriFile);
-            for(let line of lines) {
-                if(line.includes('|')) {
-                    let parts = line.split('|'); let target = parts[0]; parts.shift(); let msg = parts.join('|');
-                    let targetJid = normalizePhone(target) + '@s.whatsapp.net';
-                    sock.sendMessage(targetJid, { text: msg }).catch(e=>{});
-                }
-            }
-        }
-    }, 3000);
-
-    setInterval(async () => {
-        let trxs = loadJSON(trxFile); let keys = Object.keys(trxs); if (keys.length === 0) return;
-        let cfg = loadJSON(configFile); let userAPI = (cfg.digiflazzUsername || '').trim(); let keyAPI = (cfg.digiflazzApiKey || '').trim();
-        if (!userAPI || !keyAPI) return;
-
-        for (let ref of keys) {
-            let trx = trxs[ref]; let signCheck = crypto.createHash('md5').update(userAPI + keyAPI + ref).digest('hex');
-            try {
-                const cekRes = await axios.post('https://api.digiflazz.com/v1/transaction', { username: userAPI, buyer_sku_code: trx.sku, customer_no: trx.tujuan, ref_id: ref, sign: signCheck });
-                const resData = cekRes.data.data;
-                if (resData.status === 'Sukses' || resData.status === 'Gagal') {
-                    let db = loadJSON(dbFile); let senderNum = trx.jid.split('@')[0]; let msg = '';
-                    if(resData.status === 'Sukses') {
-                        msg = `✅ *STATUS: SUKSES*\n\n📦 Produk: ${trx.nama}\n📱 Tujuan: ${trx.tujuan}\n🔑 SN: ${resData.sn || '-'}`;
-                        if (db[senderNum] && db[senderNum].history && db[senderNum].history.length > 0) {
-                            db[senderNum].history[0].status = 'Sukses'; db[senderNum].history[0].sn = resData.sn || '-'; saveJSON(dbFile, db);
-                        }
-                    } else {
-                        if (db[senderNum]) { db[senderNum].saldo += trx.harga; if(db[senderNum].history && db[senderNum].history.length > 0) db[senderNum].history[0].status = 'Gagal'; saveJSON(dbFile, db); }
-                        msg = `❌ *STATUS: GAGAL*\n\n📦 Produk: ${trx.nama}\nAlasan: ${resData.message}\n_💰 Saldo dikembalikan._`;
-                    }
-                    delete trxs[ref]; saveJSON(trxFile, trxs);
-                    sock.sendMessage(trx.jid, { text: msg }).catch(e => {}); 
-                } else if (Date.now() - trx.tanggal > 24 * 60 * 60 * 1000) { delete trxs[ref]; saveJSON(trxFile, trxs); }
-            } catch (err) {}
-            await new Promise(r => setTimeout(r, 2000)); 
-        }
-    }, 15000); 
-
-    sock.ev.on('messages.upsert', async m => {
-        try {
-            const msg = m.messages[0]; if (!msg.message || msg.key.fromMe) return;
-            const from = msg.key.remoteJid; const senderJid = jidNormalizedUser(msg.key.participant || msg.key.remoteJid);
-            const sender = senderJid.split('@')[0]; const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
-            if (!body) return;
-
-            let db = loadJSON(dbFile); 
-            if (!db[sender]) { db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: senderJid, step: 'idle', trx_count:0, history:[]}; saveJSON(dbFile, db); }
-            let rawCommand = body.trim().toLowerCase().split(' ')[0];
-            if (['bot', 'menu', 'p'].includes(rawCommand)) {
-                let menuText = `👋 *${config.botName || "Digital Tendo Store"}*\n\nSilakan belanja lebih mudah di Aplikasi:\n🌐 http://${process.env.IP_ADDRESS || 'IP_VPS_ANDA'}:3000\n\n_(Atau balas 1 untuk Cek Saldo)_`;
-                return await sock.sendMessage(from, { text: menuText });
-            }
-            if (['1', 'saldo'].includes(rawCommand)) return await sock.sendMessage(from, { text: `💰 Saldo Anda: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` });
-        } catch (err) {}
-    });
-}
-
-if (require.main === module) {
-    app.listen(3000, '0.0.0.0', () => { console.log('\x1b[32m🌐 SERVER WEB AKTIF (PORT 3000).\x1b[0m'); });
-    startBot().catch(err => {});
-}
 EOF
 }
 
