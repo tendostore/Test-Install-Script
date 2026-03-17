@@ -167,8 +167,8 @@ EOF
         .checkbox-container { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 20px; font-size: 13px; font-weight: 600; color: #475569; cursor: pointer;}
         .checkbox-container input { width: 16px; height: 16px; margin: 0; padding: 0; cursor: pointer;}
         
-        .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;}
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s;}
+        .btn:disabled { opacity: 0.8; cursor: not-allowed; }
         .btn-outline { background: #ffffff; color: #0b2136; border: 1.5px solid #0b2136; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
         .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
 
@@ -680,14 +680,21 @@ EOF
             
             let data = await apiCall('/api/login', {email, password:pass});
             
-            btn.innerText = ori; btn.disabled = false;
-            
             if(data && data.success) {
+                btn.innerText = ori; btn.disabled = false;
                 if(rem) { localStorage.setItem('tendo_email', email); localStorage.setItem('tendo_pass', pass); }
                 currentUser = data.phone; userData = data.data;
                 fetchAllProducts(); showDashboard();
             } else {
-                alert(data && data.message ? data.message : "Gagal terhubung.");
+                let errorMsg = data && data.message ? data.message : "Gagal terhubung.";
+                btn.innerText = errorMsg; // TAMPILKAN ERROR DI TOMBOL
+                btn.style.backgroundColor = "#ef4444"; 
+                alert(errorMsg);
+                setTimeout(() => {
+                    btn.innerText = ori;
+                    btn.disabled = false;
+                    btn.style.backgroundColor = "#0b2136";
+                }, 3000);
             }
         }
 
@@ -705,12 +712,19 @@ EOF
             
             let data = await apiCall('/api/register', {username:user, email, phone, password:pass});
             
-            btn.innerText = ori; btn.disabled = false;
-            
             if(data && (data.success || data.bypass)) { 
+                btn.innerText = ori; btn.disabled = false;
                 tempRegPhone = phone; showScreen('otp-screen', null); 
             } else {
-                alert(data && data.message ? data.message : "Pendaftaran Gagal.");
+                let errorMsg = data && data.message ? data.message : "Pendaftaran Gagal.";
+                btn.innerText = errorMsg; // TAMPILKAN ERROR DI TOMBOL
+                btn.style.backgroundColor = "#ef4444"; 
+                alert(errorMsg);
+                setTimeout(() => {
+                    btn.innerText = ori;
+                    btn.disabled = false;
+                    btn.style.backgroundColor = "#0b2136";
+                }, 3000);
             }
         }
 
@@ -725,15 +739,22 @@ EOF
             
             let data = await apiCall('/api/verify-otp', {phone: tempRegPhone, otp});
             
-            btn.innerText = ori; btn.disabled = false;
-            
             if(data && data.success) {
+                btn.innerText = ori; btn.disabled = false;
                 alert('Pendaftaran Berhasil! Silakan Login.');
                 document.getElementById('log-email').value = document.getElementById('reg-email').value;
                 document.getElementById('log-pass').value = document.getElementById('reg-pass').value;
                 showScreen('login-screen', null);
             } else {
-                alert(data && data.message ? data.message : "Sistem sibuk, coba sesaat lagi.");
+                let errorMsg = data && data.message ? data.message : "Sistem sibuk, coba sesaat lagi.";
+                btn.innerText = errorMsg; // TAMPILKAN ERROR DI TOMBOL
+                btn.style.backgroundColor = "#ef4444"; 
+                alert(errorMsg);
+                setTimeout(() => {
+                    btn.innerText = ori;
+                    btn.disabled = false;
+                    btn.style.backgroundColor = "#0b2136";
+                }, 3000);
             }
         }
 
