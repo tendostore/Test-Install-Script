@@ -274,7 +274,7 @@ EOF
                 <input type="email" id="reg-email" placeholder="Alamat Email">
                 <input type="number" id="reg-phone" placeholder="Nomor WhatsApp">
                 <input type="password" id="reg-pass" placeholder="Buat Password">
-                <button class="btn" id="btn-register" onclick="requestOTP()">Kirim OTP WhatsApp</button>
+                <button class="btn" onclick="requestOTP()">Kirim OTP WhatsApp</button>
                 <button class="btn-outline" style="border:none;" onclick="showScreen('login-screen')">Kembali ke Login</button>
             </div>
         </div>
@@ -284,7 +284,7 @@ EOF
                 <h2 style="margin-top:0; font-size:18px;">Verifikasi WhatsApp</h2>
                 <p style="font-size:13px; color:#64748b; margin-bottom: 20px; font-weight: 600;">Kode OTP 4 digit telah dikirim ke WA.</p>
                 <input type="number" id="otp-code" placeholder="----" style="text-align:center; font-size:28px; letter-spacing: 12px; font-weight:bold; background:#f8fafc;">
-                <button class="btn" id="btn-verify" onclick="verifyOTP()">Verifikasi & Daftar</button>
+                <button class="btn" onclick="verifyOTP()">Verifikasi & Daftar</button>
                 <button class="btn-outline" style="border:none;" onclick="showScreen('register-screen')">Batal</button>
             </div>
         </div>
@@ -534,7 +534,7 @@ EOF
         // GLOBAL VARS
         let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
         let currentCategory = ""; let currentBrand = "";
-        let currentView = 'dashboard'; // dashboard, category, subcategory, products
+        let currentView = 'dashboard'; 
         let bannerInterval;
 
         // === API CALL KLASIK (ANTI-ERROR) ===
@@ -549,7 +549,7 @@ EOF
             return await res.json();
         }
 
-        // FUNGSI LOAD BANNER (SLIDER OTOMATIS 3 DETIK)
+        // FUNGSI LOAD BANNER
         async function loadBanners() {
             try {
                 let data = await apiCall('/api/banners');
@@ -564,7 +564,6 @@ EOF
                     slider.innerHTML = html;
                     container.classList.remove('hidden');
                     
-                    // Auto Scroll Logic
                     clearInterval(bannerInterval);
                     if(data.data.length > 1) {
                         bannerInterval = setInterval(() => {
@@ -649,7 +648,7 @@ EOF
             showScreen('dashboard-screen', 'nav-home'); 
             syncUserData(); 
             fetchAllProducts(); 
-            loadBanners(); // Memanggil fungsi banner otomatis
+            loadBanners();
         }
         function showHistory() { showScreen('history-screen', 'nav-history'); syncUserData(); }
         function showProfile() { showScreen('profile-screen', 'nav-profile'); syncUserData(); }
@@ -781,50 +780,38 @@ EOF
             btn.innerText = ori; btn.disabled = false;
         }
 
+        // ==========================================
+        // FITUR PENDAFTARAN DIAMBIL DARI INSTALL1
+        // ==========================================
         async function requestOTP() {
             let user = document.getElementById('reg-user').value.trim();
             let email = document.getElementById('reg-email').value.trim();
             let phone = document.getElementById('reg-phone').value.trim();
             let pass = document.getElementById('reg-pass').value.trim();
             if(!user || !email || !phone || !pass) return alert('Semua kolom wajib diisi!');
-            
-            let btn = document.getElementById('btn-register');
-            let ori = btn.innerText;
-            btn.innerText = "Mengirim..."; btn.disabled = true;
-            
+            let btn = document.querySelector('#register-screen .btn'); btn.innerText = "Mengirim...";
             try {
-                let data = await apiCall('/api/register', {username:user, email, phone, password:pass});
-                if(data && data.success) { 
-                    tempRegPhone = phone; showScreen('otp-screen', null); 
-                } else {
-                    alert(data && data.message ? data.message : "Pendaftaran Gagal.");
-                }
-            } catch(e) { alert('Kesalahan jaringan. Pastikan internet lancar.'); }
-            
-            btn.innerText = ori; btn.disabled = false;
+                let res = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:user, email, phone, password:pass}) });
+                let data = await res.json();
+                if(data.success) { tempRegPhone = phone; showScreen('otp-screen', null); }
+                else alert(data.message);
+            } catch(e) { alert('Error server.'); }
+            btn.innerText = "Kirim OTP WA";
         }
 
         async function verifyOTP() {
             let otp = document.getElementById('otp-code').value.trim();
             if(!otp) return alert('Masukkan OTP!');
-            
-            let btn = document.getElementById('btn-verify');
-            let ori = btn.innerText;
-            btn.innerText = "Memproses..."; btn.disabled = true;
-            
             try {
-                let data = await apiCall('/api/verify-otp', {phone: tempRegPhone, otp});
-                if(data && data.success) {
+                let res = await fetch('/api/verify-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: tempRegPhone, otp}) });
+                let data = await res.json();
+                if(data.success) {
                     alert('Pendaftaran Berhasil! Silakan Login.');
                     document.getElementById('log-email').value = document.getElementById('reg-email').value;
                     document.getElementById('log-pass').value = document.getElementById('reg-pass').value;
                     showScreen('login-screen', null);
-                } else {
-                    alert(data && data.message ? data.message : "Sistem sibuk, coba sesaat lagi.");
-                }
-            } catch(e) { alert('Kesalahan jaringan.'); }
-            
-            btn.innerText = ori; btn.disabled = false;
+                } else alert(data.message);
+            } catch(e) { alert('Error server.'); }
         }
 
         function openEditModal(type) {
@@ -907,7 +894,6 @@ EOF
                 if(allProducts[key].kategori !== cat) continue;
                 let b = allProducts[key].brand || 'Lainnya';
                 
-                // Jangan tampilkan 'Lainnya' di kategori Data, Game, dan Pulsa
                 if ((cat === 'Game' || cat === 'Data' || cat === 'Pulsa') && b === 'Lainnya') continue;
 
                 if(!brands.includes(b)) brands.push(b);
@@ -918,7 +904,6 @@ EOF
                 let gridHTML = '';
                 brands.forEach(b => {
                     let initial = b.substring(0,2).toUpperCase();
-                    // Jika kategori DATA, maka klik Brand akan memuat Sub-Kategori.
                     let clickAction = (cat === 'Data') ? `loadSubCategory('${cat}', '${b}')` : `loadProducts('${cat}', '${b}')`;
                     
                     gridHTML += `
@@ -953,8 +938,8 @@ EOF
             }
             
             if(subs.length > 0) {
-                let sortedSubs = subs.filter(s => s !== 'Umum' && s !== 'Paket Akrab').sort(); // Paket Akrab dihapus sesuai request
-                if(subs.includes('Umum')) sortedSubs.unshift('Umum'); // Umum selalu di atas
+                let sortedSubs = subs.filter(s => s !== 'Umum' && s !== 'Paket Akrab').sort(); 
+                if(subs.includes('Umum')) sortedSubs.unshift('Umum'); 
                 
                 let gridHTML = '';
                 sortedSubs.forEach(s => {
@@ -980,7 +965,7 @@ EOF
             currentBrand = brand;
             currentView = 'products';
             document.getElementById('cat-title-text').innerText = subCat ? subCat : brand;
-            document.getElementById('search-product').value = ''; // Reset pencarian saat buka
+            document.getElementById('search-product').value = ''; 
             
             let listHTML = '';
             for(let key in allProducts) {
@@ -1010,20 +995,19 @@ EOF
             showScreen('produk-screen', 'nav-home');
         }
 
-        // FUNGSI TOMBOL BACK SUPER PRESISI
         function goBackFromBrand() {
             if (currentView === 'subcategory') {
-                loadCategory(currentCategory); // Kembali ke list Brand
+                loadCategory(currentCategory); 
             } else {
-                showDashboard(); // Kembali ke Dashboard utama
+                showDashboard(); 
             }
         }
 
         function goBackFromProduct() {
             if (currentCategory === 'Data') {
-                loadSubCategory(currentCategory, currentBrand); // Kembali ke Sub-kategori Data
+                loadSubCategory(currentCategory, currentBrand); 
             } else {
-                loadCategory(currentCategory); // Kembali ke list Brand biasa
+                loadCategory(currentCategory); 
             }
         }
 
@@ -1193,49 +1177,47 @@ app.post('/api/login', (req, res) => {
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
+// ==========================================
+// BACKEND PENDAFTARAN DIAMBIL DARI INSTALL1
+// ==========================================
 app.post('/api/register', (req, res) => {
-    try {
-        let { username, email, password } = req.body;
-        let phone = normalizePhone(req.body.phone); 
-        if(!phone || phone.length < 9) return res.json({success: false, message: 'Nomor WA tidak valid!'});
-        
-        let db = loadJSON(dbFile);
-        let isEmailExist = Object.keys(db).some(k => db[k] && db[k].email === email);
-        if (isEmailExist) return res.json({success: false, message: 'Email terdaftar!'});
+    let { username, email, password } = req.body;
+    let phone = normalizePhone(req.body.phone);
+    if(phone.length < 9) return res.json({success: false, message: 'Nomor WA tidak valid!'});
 
-        let otp = Math.floor(1000 + Math.random() * 9000).toString();
-        tempOtpDB[phone] = { username, email, password, otp };
+    let db = loadJSON(dbFile);
+    if (Object.keys(db).find(k => db[k] && db[k].email === email)) return res.json({success: false, message: 'Email terdaftar!'});
 
-        res.json({success: true});
+    let otp = Math.floor(1000 + Math.random() * 9000).toString();
+    tempOtpDB[phone] = { username, email, password, otp };
 
-        setTimeout(() => {
-            try {
-                if (globalSock) {
-                    let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
-                    globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
-                }
-            } catch(e) {}
-        }, 100);
-
-    } catch(e) { 
-        if (!res.headersSent) res.json({success: false, message: 'Gagal memproses pendaftaran.'}); 
+    if (globalSock) {
+        let msg = `*🛡️ TENDO STORE SECURITY 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
+        globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
     }
+    res.json({success: true});
 });
 
 app.post('/api/verify-otp', (req, res) => {
-    try {
-        let otp = req.body.otp; let phone = normalizePhone(req.body.phone);
-        if(tempOtpDB[phone] && tempOtpDB[phone].otp === otp) {
-            let db = loadJSON(dbFile); let idPelanggan = 'TD-' + Math.floor(100000 + Math.random() * 900000); 
-            if(db[phone]) {
-                db[phone].username = tempOtpDB[phone].username; db[phone].email = tempOtpDB[phone].email; db[phone].password = tempOtpDB[phone].password;
-                if(!db[phone].id_pelanggan) db[phone].id_pelanggan = idPelanggan;
-            } else {
-                db[phone] = { id_pelanggan: idPelanggan, username: tempOtpDB[phone].username, email: tempOtpDB[phone].email, password: tempOtpDB[phone].password, saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [] };
-            }
-            saveJSON(dbFile, db); delete tempOtpDB[phone]; res.json({success: true});
-        } else res.json({success: false, message: 'Kode OTP Salah!'});
-    } catch(e) { res.json({success: false, message: 'Server error'}); }
+    let otp = req.body.otp;
+    let phone = normalizePhone(req.body.phone);
+
+    if(tempOtpDB[phone] && tempOtpDB[phone].otp === otp) {
+        let db = loadJSON(dbFile);
+        let idPelanggan = 'TD-' + Math.floor(100000 + Math.random() * 900000);
+
+        if(db[phone]) {
+            db[phone].username = tempOtpDB[phone].username;
+            db[phone].email = tempOtpDB[phone].email;
+            db[phone].password = tempOtpDB[phone].password;
+            if(!db[phone].id_pelanggan) db[phone].id_pelanggan = idPelanggan;
+        } else {
+            db[phone] = { id_pelanggan: idPelanggan, username: tempOtpDB[phone].username, email: tempOtpDB[phone].email, password: tempOtpDB[phone].password, saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [] };
+        }
+        saveJSON(dbFile, db);
+        delete tempOtpDB[phone];
+        res.json({success: true});
+    } else res.json({success: false, message: 'Kode OTP Salah!'});
 });
 
 app.post('/api/req-edit-otp', (req, res) => {
