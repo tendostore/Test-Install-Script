@@ -23,6 +23,7 @@ sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT > /dev/null 2>&1 || true
 # ==========================================
 # 1. BIKIN SHORTCUT 'BOT' DI VPS
 # ==========================================
+# Hapus sisa-sisa Auto-Start panel yang bikin VPS macet sebelumnya
 sed -i '/# Auto-start bot panel/d' ~/.bashrc
 sed -i '/if \[ -f \/usr\/bin\/bot \] && \[ -t 1 \]; then/d' ~/.bashrc
 sed -i '/\/usr\/bin\/bot/d' ~/.bashrc
@@ -144,6 +145,10 @@ EOF
         .prod-desc { font-size: 10px; color: #64748b; font-weight: 600; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;}
         .prod-price { color: #0b2136; font-weight: 900; font-size: 15px;}
 
+        /* SEARCH BAR */
+        .search-box { padding: 15px 20px 5px; position: sticky; top: 58px; z-index: 50; background: #f8fafc; }
+        .search-box input { margin-bottom: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+
         /* SIDEBAR */
         .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); z-index: 999; display: none; opacity: 0; transition: opacity 0.3s;}
         .sidebar { position: fixed; top:0; left:-300px; width: 280px; height: 100%; background: #ffffff; z-index: 1000; transition: left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 5px 0 15px rgba(0,0,0,0.1);}
@@ -198,10 +203,6 @@ EOF
         .screen-header { padding: 15px 20px; font-weight: 800; font-size: 18px; display: flex; align-items: center; gap: 15px; background: #ffffff; border-bottom: 1px solid #e2e8f0; position: sticky; top:0; z-index: 10; color: #0b2136;}
         .hidden { display: none !important; }
         .back-icon { cursor: pointer; fill: none; stroke: #0b2136; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
-
-        /* SEARCH BAR */
-        .search-box { padding: 15px 20px 0; position: sticky; top: 58px; z-index: 50; background: #f8fafc; }
-        .search-box input { margin-bottom: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body>
@@ -839,6 +840,10 @@ EOF
             for(let key in allProducts) {
                 if(allProducts[key].kategori !== cat) continue;
                 let b = allProducts[key].brand || 'Lainnya';
+                
+                // Jangan tampilkan 'Lainnya' di kategori Game
+                if (cat === 'Game' && b === 'Lainnya') continue;
+
                 if(!brands.includes(b)) brands.push(b);
             }
 
@@ -881,8 +886,14 @@ EOF
             }
             
             if(subs.length > 0) {
-                let sortedSubs = subs.filter(s => s !== 'Umum').sort();
-                if(subs.includes('Umum')) sortedSubs.unshift('Umum'); // Umum selalu di atas
+                let sortedSubs = subs.filter(s => s !== 'Umum' && s !== 'Paket Akrab').sort();
+                
+                // Khusus XL, Umum diganti Paket Akrab. Umum ditaruh di atas
+                if(subs.includes('Paket Akrab') || (brand === 'XL' && subs.includes('Umum'))) {
+                    sortedSubs.unshift('Paket Akrab');
+                } else if(subs.includes('Umum')) {
+                    sortedSubs.unshift('Umum');
+                }
                 
                 let gridHTML = '';
                 sortedSubs.forEach(s => {
@@ -913,7 +924,12 @@ EOF
             for(let key in allProducts) {
                 let p = allProducts[key];
                 if (p.kategori !== cat || (p.brand || 'Lainnya') !== brand) continue;
-                if (subCat && (p.sub_kategori || 'Umum') !== subCat) continue;
+                
+                if (subCat) {
+                    let pSub = p.sub_kategori || 'Umum';
+                    if (brand === 'XL' && pSub === 'Umum') pSub = 'Paket Akrab';
+                    if (pSub !== subCat) continue;
+                }
                 
                 let safeName = p.nama.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 let safeDesc = p.deskripsi ? p.deskripsi.replace(/'/g, "\\'").replace(/"/g, '&quot;') : 'Proses Otomatis 24 Jam';
@@ -997,9 +1013,6 @@ EOF
 # ==========================================
 generate_bot_script() {
     cat << 'EOF' > index.js
-process.on('uncaughtException', function (err) { console.error('Caught exception: ', err); });
-process.on('unhandledRejection', function (reason, p) { console.error('Unhandled Rejection at: Promise', p, 'reason:', reason); });
-
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const fs = require('fs');
 const pino = require('pino');
@@ -1110,16 +1123,11 @@ app.post('/api/register', (req, res) => {
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
         tempOtpDB[phone] = { username, email, password, otp };
 
+        if (globalSock) {
+            let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
+            globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
+        }
         res.json({success: true});
-
-        setTimeout(() => {
-            try {
-                if (globalSock) {
-                    let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
-                    globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
-                }
-            } catch(e) {}
-        }, 100);
     } catch(e) { 
         if (!res.headersSent) res.json({success: false, message: 'Gagal memproses pendaftaran.'}); 
     }
@@ -1148,16 +1156,10 @@ app.post('/api/req-edit-otp', (req, res) => {
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
         tempOtpDB[phone + '_edit'] = { type, newValue, otp };
         
+        if (globalSock) {
+            globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nKode OTP untuk mengubah data Anda adalah: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
+        }
         res.json({success: true});
-
-        setTimeout(() => {
-            try {
-                if (globalSock) {
-                    globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nKode OTP untuk mengubah data Anda adalah: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
-                }
-            } catch(e) {}
-        }, 100);
-
     } catch(e) { 
         if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); 
     }
@@ -1776,33 +1778,7 @@ menu_produk() {
 
                 echo -e "\n${C_MAG}--- EDIT PRODUK : $OLD_NAMA ---${C_RST}"
                 echo -e "${C_YELLOW}💡 Biarkan kosong (tekan Enter) jika Anda TIDAK INGIN mengubah datanya.${C_RST}"
-                echo -e "${C_CYAN}Kategori saat ini: $OLD_KAT | Provider: $OLD_BRAND${C_RST}"
-                echo "1. Pulsa | 2. Data | 3. Masa Aktif | 4. SMS Telp | 5. PLN | 6. E-Wallet | 7. Tagihan | 8. E-Toll | 9. Digital"
                 
-                read -p "Ubah Kategori? (Ketik angka 1-9) [Enter jika tidak]: " new_cat_idx
-                
-                new_brand_idx=""
-                if [ ! -z "$new_cat_idx" ]; then
-                    if [ "$new_cat_idx" == "1" ] || [ "$new_cat_idx" == "2" ] || [ "$new_cat_idx" == "3" ] || [ "$new_cat_idx" == "4" ]; then
-                        echo "1. Telkomsel | 2. XL | 3. Axis | 4. Indosat | 5. Tri | 6. Smartfren | 7. By.U"
-                        read -p "Pilih Provider Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "6" ]; then
-                        echo "1. Gopay | 2. Dana | 3. Shopee Pay | 4. OVO | 5. LinkAja"
-                        read -p "Pilih E-Wallet Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "7" ]; then
-                        echo "1. PLN Pasca | 2. BPJS | 3. PDAM | 4. Indihome"
-                        read -p "Pilih Tagihan Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "8" ]; then
-                        echo "1. Mandiri E-Money | 2. Brizzi | 3. TapCash"
-                        read -p "Pilih E-Toll Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "9" ]; then
-                        echo "1. Mobile Legends | 2. Free Fire | 3. PUBG | 4. Vidio | 5. Netflix"
-                        read -p "Pilih Digital Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "5" ]; then
-                        new_brand_idx="1"
-                    fi
-                fi
-
                 read -p "Kode Baru [$OLD_KODE]: " new_kode
                 read -p "Nama Baru [$OLD_NAMA]: " new_nama
                 read -p "Harga Baru [$OLD_HARGA]: " new_harga
@@ -1812,24 +1788,9 @@ menu_produk() {
                 export NEW_NAMA="$new_nama"
                 export NEW_HARGA="$new_harga"
                 export NEW_DESC="$new_desc"
-                export NEW_CAT_IDX="$new_cat_idx"
-                export NEW_BRAND_IDX="$new_brand_idx"
                 
                 node -e "
                     const fs = require('fs');
-                    const catMap = {'1':'Pulsa', '2':'Data', '3':'Masa Aktif', '4':'SMS Telp', '5':'PLN', '6':'E-Wallet', '7':'Tagihan', '8':'E-Toll', '9':'Digital'};
-                    const brandMap = {
-                        'Pulsa': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'Data': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'Masa Aktif': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'SMS Telp': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'E-Wallet': {'1':'Gopay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
-                        'Tagihan': {'1':'PLN Pasca', '2':'BPJS', '3':'PDAM', '4':'Indihome'},
-                        'E-Toll': {'1':'Mandiri E-Money', '2':'Brizzi', '3':'TapCash'},
-                        'Digital': {'1':'Mobile Legends', '2':'Free Fire', '3':'PUBG', '4':'Vidio', '5':'Netflix'},
-                        'PLN': {'1':'Token PLN'}
-                    };
-
                     let produk = JSON.parse(fs.readFileSync('produk.json'));
                     let oldKey = process.env.OLD_KODE;
                     let newKey = process.env.NEW_KODE.toUpperCase().replace(/\s+/g, '');
@@ -1842,16 +1803,6 @@ menu_produk() {
                         if (process.env.NEW_DESC.trim() === '-') delete item.deskripsi;
                         else item.deskripsi = process.env.NEW_DESC;
                     }
-                    
-                    if (process.env.NEW_CAT_IDX && process.env.NEW_CAT_IDX.trim() !== '') {
-                        let cName = catMap[process.env.NEW_CAT_IDX];
-                        if(cName) {
-                            item.kategori = cName;
-                            item.brand = (brandMap[cName] && brandMap[cName][process.env.NEW_BRAND_IDX]) ? brandMap[cName][process.env.NEW_BRAND_IDX] : (cName === 'PLN' ? 'Token PLN' : 'Lainnya');
-                        }
-                    }
-                    
-                    if(!item.brand) item.brand = 'Lainnya';
                     
                     if (oldKey !== newKey) {
                         produk[newKey] = item;
@@ -1993,33 +1944,40 @@ menu_produk() {
                                 
                                 if(isNaN(hargaAwal)) return;
 
-                                // ==============================================
-                                // LOGIKA KATEGORI (SUPER KETAT & ANTI NYASAR)
-                                // ==============================================
+                                // --- LOGIKA KATEGORI (SUPER KETAT) ---
                                 let kategori = 'Lainnya';
                                 let nLower = ' ' + nama.toLowerCase() + ' '; 
                                 let nUpper = nama.toUpperCase();
 
-                                let isVoucher = /\b(voucher|vcr|voc|gesek|spotify|google play|garena|unipin)\b/.test(nLower);
-                                let isData = /\b(gb|mb|data|kuota|internet|combo|xtra|flash|paket|omg|aigo|owsem|mini|max|bulk)\b/.test(nLower);
+                                let isVoucher = /\b(voucher|vcr|voc|spotify|google play|garena|unipin)\b/.test(nLower);
+                                let isDataKeyword = /\b(gb|mb|data|kuota|internet|combo|xtra|flash|paket|omg|aigo|owsem|bulk|gamesmax|gamemax|unlimited|maxstream)\b/.test(nLower);
                                 let isPerdana = /\b(perdana|aktivasi|kpk)\b/.test(nLower);
-                                let isEMoney = /\b(gopay|go-pay|ovo|dana|shopee|shopeepay|linkaja|link aja|isaku|brizzi|e-toll|etoll|e-money|mtix|grab|gojek|saldo)\b/.test(nLower);
-                                let isGame = /\b(free fire|ff|mobile legend|mobile legends|mlbb|ml|pubg|diamond|diamonds|uc)\b/.test(nLower);
+                                let isEMoney = /\b(gopay|go-pay|ovo|dana|shopee|shopeepay|linkaja|link aja|isaku|brizzi|e-toll|etoll|e-money|mtix|grab|gojek|saldo|maxim)\b/.test(nLower);
+                                let isGame = /\b(free fire|ff|mobile legend|mobile legends|mlbb|ml|pubg|diamond|diamonds|uc|cp|valorant|genshin)\b/.test(nLower);
                                 let isPLN = /\b(pln|token listrik|token pln)\b/.test(nLower);
-                                let isSmsTelp = /\b(sms|telpon|telepon|nelpon|voice|bicara)\b/.test(nLower);
                                 let isMasaAktif = /\b(masa aktif)\b/.test(nLower);
+                                let isSmsTelp = /\b(sms|telpon|telepon|nelpon|voice|bicara)\b/.test(nLower);
                                 let isPulsa = /\b(pulsa|promo|reguler|transfer|tp)\b/.test(nLower);
 
-                                if (isEMoney && !isData && !isVoucher && !isPerdana) kategori = 'E-Money';
-                                else if (isVoucher) kategori = 'Voucher';
-                                else if (isPerdana) kategori = 'Aktivasi Perdana';
-                                else if (isGame && !isData && !isPulsa) kategori = 'Game';
-                                else if (isPLN) kategori = 'PLN';
-                                else if (isMasaAktif) kategori = 'Masa Aktif';
-                                else if (isSmsTelp && !isData) kategori = 'Paket SMS & Telpon';
-                                else if (isData) kategori = 'Data';
-                                else if (isPulsa) kategori = 'Pulsa';
-                                else {
+                                if (isPerdana) {
+                                    kategori = 'Aktivasi Perdana';
+                                } else if (isVoucher) {
+                                    kategori = 'Voucher';
+                                } else if (isEMoney) {
+                                    kategori = 'E-Money';
+                                } else if (isGame && !isDataKeyword && !isPulsa) {
+                                    kategori = 'Game';
+                                } else if (isPLN) {
+                                    kategori = 'PLN';
+                                } else if (isMasaAktif) {
+                                    kategori = 'Masa Aktif';
+                                } else if (isSmsTelp && !isDataKeyword) {
+                                    kategori = 'Paket SMS & Telpon';
+                                } else if (isDataKeyword) {
+                                    kategori = 'Data';
+                                } else if (isPulsa) {
+                                    kategori = 'Pulsa';
+                                } else {
                                     if (/\b(TELKOMSEL|TSEL|AS|SIMPATI|XL|AXIS|INDOSAT|ISAT|IM3|TRI|THREE|BIMA|SMARTFREN|BY\.U|BYU)\b/.test(nUpper)) {
                                         kategori = 'Pulsa';
                                     } else {
@@ -2027,9 +1985,7 @@ menu_produk() {
                                     }
                                 }
 
-                                // ==============================================
-                                // LOGIKA BRAND PROVIDER (SUPER KETAT)
-                                // ==============================================
+                                // --- LOGIKA BRAND PROVIDER ---
                                 let brand = 'Lainnya';
                                 if (brandCol && row[brandCol]) {
                                     brand = row[brandCol].toString().trim();
@@ -2049,6 +2005,17 @@ menu_produk() {
                                     else if (kategori === 'PLN') {
                                         brand = 'PLN';
                                     }
+                                    else if (kategori === 'Voucher') {
+                                        if (/\b(telkomsel|tsel|as|simpati)\b/.test(nLower)) brand = 'Telkomsel';
+                                        else if (/\b(xl)\b/.test(nLower)) brand = 'XL';
+                                        else if (/\b(axis)\b/.test(nLower)) brand = 'Axis';
+                                        else if (/\b(indosat|isat|im3)\b/.test(nLower)) brand = 'Indosat';
+                                        else if (/\b(tri|three|bima)\b/.test(nLower)) brand = 'Tri';
+                                        else if (/\b(smartfren)\b/.test(nLower)) brand = 'Smartfren';
+                                        else if (/\b(by\.u|byu)\b/.test(nLower)) brand = 'By.U';
+                                        else if (/\b(google play)\b/.test(nLower)) brand = 'Google Play';
+                                        else if (/\b(spotify)\b/.test(nLower)) brand = 'Spotify';
+                                    }
                                     else {
                                         if (/\b(BY\.U|BYU)\b/.test(nUpper)) brand = 'By.U';
                                         else if (/\b(TELKOMSEL|TSEL|AS|SIMPATI)\b/.test(nUpper)) brand = 'Telkomsel';
@@ -2057,15 +2024,10 @@ menu_produk() {
                                         else if (/\b(INDOSAT|ISAT|IM3)\b/.test(nUpper)) brand = 'Indosat';
                                         else if (/\b(TRI|THREE|BIMA)\b/.test(nUpper)) brand = 'Tri';
                                         else if (/\b(SMARTFREN)\b/.test(nUpper)) brand = 'Smartfren';
-                                        else if (/\b(spotify)\b/.test(nLower)) brand = 'Spotify';
-                                        else if (/\b(google play)\b/.test(nLower)) brand = 'Google Play';
-                                        else brand = nama.split(' ')[0].toUpperCase(); 
                                     }
                                 }
 
-                                // ==============================================
-                                // LOGIKA SUB-KATEGORI (KHUSUS DATA)
-                                // ==============================================
+                                // --- LOGIKA SUB-KATEGORI (KHUSUS DATA) ---
                                 let subKategori = 'Umum';
                                 if (kategori === 'Data') {
                                     let subsMap = {
@@ -2074,7 +2036,7 @@ menu_produk() {
                                         'Axis': ['mini','bronet vidio','bronet','owsem','edu confrence','conference','edukasi','ekstra','youtube','sosmed','paket warnet','aigo ss','aigo unlimited','combo mabrur','mabrur','video','musik','apps games','games','viu','pure','drp games','obor'],
                                         'Smartfren': ['unlimited nonstop 5g','unlimited nonstop','unlimited harian 5g','unlimited','volume','youtube','connex evo','nonstop','chat','sosmed','games','kuota 5g','kuota','tiktok','nonton'],
                                         'Tri': ['mini','alwayson','getmore','mix','home','roaming','data transfer','happy play','happy 5g','happy','lokal','sahabat ojol','ibadah','addon','ramadan','hifi air'],
-                                        'XL': ['mini','umroh plus','combo umroh haji','internet umroh haji','umroh','hotrod special','hotrod','xtra combo flex','xtra combo plus','xtra combo gift','xtra combo vip plus','xtra combo mini','xtra combo weekend','xtra combo','combo lite','xtra kuota vidio','xtra kuota','conference','edukasi','xtra on','roaming','paket akrab','games','apps games','bonus harian','flexmax','flex mini','flex','east kalsul','ultra 5g+'],
+                                        'XL': ['mini','umroh plus','combo umroh haji','internet umroh haji','umroh','hotrod special','hotrod','xtra combo flex','xtra combo plus','xtra combo gift','xtra combo vip plus','xtra combo mini','xtra combo weekend','xtra combo','combo lite','xtra kuota vidio','xtra kuota','conference','edukasi','xtra on','roaming','paket akrab','akrab','games','apps games','bonus harian','flexmax','flex mini','flex','east kalsul','ultra 5g+'],
                                         'By.U': ['viu','tiktok','super kaget','kaget','mbps','topping ggwp','vidio','jajan']
                                     };
 
@@ -2086,6 +2048,10 @@ menu_produk() {
                                                 break;
                                             }
                                         }
+                                    }
+
+                                    if (brand === 'XL' && subKategori === 'Umum') {
+                                        subKategori = 'Paket Akrab';
                                     }
                                 }
 
@@ -2169,7 +2135,7 @@ while true; do
     echo ""
     echo -e "${C_MAG}▶ MANAJEMEN TOKO & SISTEM${C_RST}"
     echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo Member"
-    echo -e "  ${C_GREEN}[7]${C_RST}  🛒 Manajemen Produk & Harga (XLSX/CSV Import)"
+    echo -e "  ${C_GREEN}[7]${C_RST}  🛒 Manajemen Daftar Produk & Harga"
     echo -e "  ${C_GREEN}[8]${C_RST}  ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
     echo -e "  ${C_GREEN}[9]${C_RST}  💾 Backup & Restore Data Database"
     echo -e "  ${C_GREEN}[10]${C_RST} 🔌 Ganti API Digiflazz"
