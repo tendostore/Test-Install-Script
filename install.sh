@@ -23,7 +23,6 @@ sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT > /dev/null 2>&1 || true
 # ==========================================
 # 1. BIKIN SHORTCUT 'BOT' DI VPS
 # ==========================================
-# Hapus sisa-sisa Auto-Start panel yang bikin VPS macet sebelumnya
 sed -i '/# Auto-start bot panel/d' ~/.bashrc
 sed -i '/if \[ -f \/usr\/bin\/bot \] && \[ -t 1 \]; then/d' ~/.bashrc
 sed -i '/\/usr\/bin\/bot/d' ~/.bashrc
@@ -199,6 +198,10 @@ EOF
         .screen-header { padding: 15px 20px; font-weight: 800; font-size: 18px; display: flex; align-items: center; gap: 15px; background: #ffffff; border-bottom: 1px solid #e2e8f0; position: sticky; top:0; z-index: 10; color: #0b2136;}
         .hidden { display: none !important; }
         .back-icon { cursor: pointer; fill: none; stroke: #0b2136; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
+
+        /* SEARCH BAR */
+        .search-box { padding: 15px 20px 0; position: sticky; top: 58px; z-index: 50; background: #f8fafc; }
+        .search-box input { margin-bottom: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body>
@@ -335,7 +338,7 @@ EOF
 
         <div id="brand-screen" class="hidden">
             <div class="screen-header">
-                <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                <svg class="back-icon" onclick="goBackFromBrandScreen()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span id="brand-cat-title" style="text-transform: uppercase;">Kategori</span>
@@ -345,12 +348,15 @@ EOF
 
         <div id="produk-screen" class="hidden">
             <div class="screen-header">
-                <svg class="back-icon" onclick="goBackToBrands()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                <svg class="back-icon" onclick="goBackFromProducts()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span id="cat-title-text" style="text-transform: uppercase;">Katalog</span>
             </div>
-            <div id="product-list" style="padding-top: 15px;"></div>
+            <div class="search-box">
+                <input type="text" id="search-product" placeholder="🔍 Cari nama produk..." onkeyup="filterProducts()">
+            </div>
+            <div id="product-list" style="padding-top: 10px;"></div>
         </div>
 
         <div id="history-screen" class="hidden">
@@ -483,7 +489,6 @@ EOF
         </div>
     </div>
 
-    <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="YOUR_CLIENT_KEY_HERE"></script>
     <script>
         // PWA SETUP
         let deferredPrompt;
@@ -499,9 +504,9 @@ EOF
 
         // GLOBAL VARS
         let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
-        let currentCategory = ""; 
+        let currentCategory = ""; let currentBrand = "";
 
-        // === API WRAPPER STANDAR (KLASIK & CEPAT) ===
+        // === API CALL KLASIK ===
         async function apiCall(url, bodyData) {
             let options = {};
             if(bodyData) {
@@ -511,6 +516,20 @@ EOF
             }
             let res = await fetch(url, options);
             return await res.json();
+        }
+
+        // FITUR PENCARIAN PRODUK
+        function filterProducts() {
+            let input = document.getElementById('search-product').value.toLowerCase();
+            let items = document.querySelectorAll('#product-list .product-item');
+            items.forEach(item => {
+                let name = item.querySelector('.prod-name').innerText.toLowerCase();
+                if (name.includes(input)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
         }
 
         // UI HELPERS
@@ -735,7 +754,7 @@ EOF
                     document.getElementById('log-pass').value = document.getElementById('reg-pass').value;
                     showScreen('login-screen', null);
                 } else {
-                    alert(data && data.message ? data.message : "Sistem sibuk, coba sesaat lagi.");
+                    alert(data && data.message ? data.message : "Error server.");
                 }
             } catch(e) { alert('Kesalahan jaringan.'); }
             
@@ -807,8 +826,12 @@ EOF
             } catch(e){}
         }
 
+        // ==========================================
+        // SISTEM KATEGORI & SUB KATEGORI (DATA)
+        // ==========================================
         async function loadCategory(cat) {
             currentCategory = cat; 
+            currentBrand = "";
             await fetchAllProducts(); 
             document.getElementById('brand-cat-title').innerText = cat;
             
@@ -824,8 +847,11 @@ EOF
                 let gridHTML = '';
                 brands.forEach(b => {
                     let initial = b.substring(0,2).toUpperCase();
+                    // Jika kategori DATA, maka klik Brand akan memuat Sub-Kategori.
+                    let clickAction = (cat === 'Data') ? `loadSubCategory('${cat}', '${b}')` : `loadProducts('${cat}', '${b}')`;
+                    
                     gridHTML += `
-                    <div class="brand-row" onclick="loadProducts('${cat}', '${b}')">
+                    <div class="brand-row" onclick="${clickAction}">
                         <div class="b-logo">${initial}</div>
                         <div class="b-name">${b}</div>
                         <div style="margin-left:auto">
@@ -840,12 +866,55 @@ EOF
             }
         }
 
-        function loadProducts(cat, brand) {
-            document.getElementById('cat-title-text').innerText = brand;
+        function loadSubCategory(cat, brand) {
+            currentCategory = cat;
+            currentBrand = brand;
+            document.getElementById('brand-cat-title').innerText = brand + " (Paket)";
+            
+            let subs = [];
+            for(let key in allProducts) {
+                let p = allProducts[key];
+                if(p.kategori === cat && (p.brand || 'Lainnya') === brand) {
+                    let s = p.sub_kategori || 'Umum';
+                    if(!subs.includes(s)) subs.push(s);
+                }
+            }
+            
+            if(subs.length > 0) {
+                let sortedSubs = subs.filter(s => s !== 'Umum').sort();
+                if(subs.includes('Umum')) sortedSubs.unshift('Umum'); // Umum selalu di atas
+                
+                let gridHTML = '';
+                sortedSubs.forEach(s => {
+                    let initial = s.substring(0,2).toUpperCase();
+                    gridHTML += `
+                    <div class="brand-row" onclick="loadProducts('${cat}', '${brand}', '${s}')">
+                        <div class="b-logo">${initial}</div>
+                        <div class="b-name">${s}</div>
+                        <div style="margin-left:auto">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </div>
+                    </div>`;
+                });
+                document.getElementById('brand-list').innerHTML = gridHTML;
+                showScreen('brand-screen', 'nav-home');
+            } else {
+                alert('Belum ada paket untuk provider ini.');
+            }
+        }
+
+        function loadProducts(cat, brand, subCat = null) {
+            currentCategory = cat;
+            currentBrand = brand;
+            document.getElementById('cat-title-text').innerText = subCat ? subCat : brand;
+            document.getElementById('search-product').value = ''; // Reset pencarian saat buka
+            
             let listHTML = '';
             for(let key in allProducts) {
                 let p = allProducts[key];
                 if (p.kategori !== cat || (p.brand || 'Lainnya') !== brand) continue;
+                if (subCat && (p.sub_kategori || 'Umum') !== subCat) continue;
+                
                 let safeName = p.nama.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 let safeDesc = p.deskripsi ? p.deskripsi.replace(/'/g, "\\'").replace(/"/g, '&quot;') : 'Proses Otomatis 24 Jam';
                 let initial = brand.substring(0,2).toUpperCase();
@@ -864,9 +933,21 @@ EOF
             showScreen('produk-screen', 'nav-home');
         }
 
-        function goBackToBrands() {
-            if(currentCategory) loadCategory(currentCategory);
-            else showDashboard();
+        function goBackFromBrandScreen() {
+            let title = document.getElementById('brand-cat-title').innerText;
+            if(currentCategory === 'Data' && title.includes('(Paket)')) {
+                loadCategory(currentCategory); // Kembali ke list Brand
+            } else {
+                showDashboard(); // Kembali ke Dashboard utama
+            }
+        }
+
+        function goBackFromProducts() {
+            if(currentCategory === 'Data') {
+                loadSubCategory(currentCategory, currentBrand); // Kembali ke Sub-kategori Data
+            } else {
+                loadCategory(currentCategory); // Kembali ke list Brand biasa
+            }
         }
 
         function openOrderModal(sku, nama, harga, desc) {
@@ -916,6 +997,9 @@ EOF
 # ==========================================
 generate_bot_script() {
     cat << 'EOF' > index.js
+process.on('uncaughtException', function (err) { console.error('Caught exception: ', err); });
+process.on('unhandledRejection', function (reason, p) { console.error('Unhandled Rejection at: Promise', p, 'reason:', reason); });
+
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const fs = require('fs');
 const pino = require('pino');
@@ -1073,6 +1157,7 @@ app.post('/api/req-edit-otp', (req, res) => {
                 }
             } catch(e) {}
         }, 100);
+
     } catch(e) { 
         if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); 
     }
@@ -1691,7 +1776,33 @@ menu_produk() {
 
                 echo -e "\n${C_MAG}--- EDIT PRODUK : $OLD_NAMA ---${C_RST}"
                 echo -e "${C_YELLOW}💡 Biarkan kosong (tekan Enter) jika Anda TIDAK INGIN mengubah datanya.${C_RST}"
+                echo -e "${C_CYAN}Kategori saat ini: $OLD_KAT | Provider: $OLD_BRAND${C_RST}"
+                echo "1. Pulsa | 2. Data | 3. Masa Aktif | 4. SMS Telp | 5. PLN | 6. E-Wallet | 7. Tagihan | 8. E-Toll | 9. Digital"
                 
+                read -p "Ubah Kategori? (Ketik angka 1-9) [Enter jika tidak]: " new_cat_idx
+                
+                new_brand_idx=""
+                if [ ! -z "$new_cat_idx" ]; then
+                    if [ "$new_cat_idx" == "1" ] || [ "$new_cat_idx" == "2" ] || [ "$new_cat_idx" == "3" ] || [ "$new_cat_idx" == "4" ]; then
+                        echo "1. Telkomsel | 2. XL | 3. Axis | 4. Indosat | 5. Tri | 6. Smartfren | 7. By.U"
+                        read -p "Pilih Provider Baru: " new_brand_idx
+                    elif [ "$new_cat_idx" == "6" ]; then
+                        echo "1. Gopay | 2. Dana | 3. Shopee Pay | 4. OVO | 5. LinkAja"
+                        read -p "Pilih E-Wallet Baru: " new_brand_idx
+                    elif [ "$new_cat_idx" == "7" ]; then
+                        echo "1. PLN Pasca | 2. BPJS | 3. PDAM | 4. Indihome"
+                        read -p "Pilih Tagihan Baru: " new_brand_idx
+                    elif [ "$new_cat_idx" == "8" ]; then
+                        echo "1. Mandiri E-Money | 2. Brizzi | 3. TapCash"
+                        read -p "Pilih E-Toll Baru: " new_brand_idx
+                    elif [ "$new_cat_idx" == "9" ]; then
+                        echo "1. Mobile Legends | 2. Free Fire | 3. PUBG | 4. Vidio | 5. Netflix"
+                        read -p "Pilih Digital Baru: " new_brand_idx
+                    elif [ "$new_cat_idx" == "5" ]; then
+                        new_brand_idx="1"
+                    fi
+                fi
+
                 read -p "Kode Baru [$OLD_KODE]: " new_kode
                 read -p "Nama Baru [$OLD_NAMA]: " new_nama
                 read -p "Harga Baru [$OLD_HARGA]: " new_harga
@@ -1701,9 +1812,24 @@ menu_produk() {
                 export NEW_NAMA="$new_nama"
                 export NEW_HARGA="$new_harga"
                 export NEW_DESC="$new_desc"
+                export NEW_CAT_IDX="$new_cat_idx"
+                export NEW_BRAND_IDX="$new_brand_idx"
                 
                 node -e "
                     const fs = require('fs');
+                    const catMap = {'1':'Pulsa', '2':'Data', '3':'Masa Aktif', '4':'SMS Telp', '5':'PLN', '6':'E-Wallet', '7':'Tagihan', '8':'E-Toll', '9':'Digital'};
+                    const brandMap = {
+                        'Pulsa': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
+                        'Data': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
+                        'Masa Aktif': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
+                        'SMS Telp': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
+                        'E-Wallet': {'1':'Gopay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
+                        'Tagihan': {'1':'PLN Pasca', '2':'BPJS', '3':'PDAM', '4':'Indihome'},
+                        'E-Toll': {'1':'Mandiri E-Money', '2':'Brizzi', '3':'TapCash'},
+                        'Digital': {'1':'Mobile Legends', '2':'Free Fire', '3':'PUBG', '4':'Vidio', '5':'Netflix'},
+                        'PLN': {'1':'Token PLN'}
+                    };
+
                     let produk = JSON.parse(fs.readFileSync('produk.json'));
                     let oldKey = process.env.OLD_KODE;
                     let newKey = process.env.NEW_KODE.toUpperCase().replace(/\s+/g, '');
@@ -1716,6 +1842,16 @@ menu_produk() {
                         if (process.env.NEW_DESC.trim() === '-') delete item.deskripsi;
                         else item.deskripsi = process.env.NEW_DESC;
                     }
+                    
+                    if (process.env.NEW_CAT_IDX && process.env.NEW_CAT_IDX.trim() !== '') {
+                        let cName = catMap[process.env.NEW_CAT_IDX];
+                        if(cName) {
+                            item.kategori = cName;
+                            item.brand = (brandMap[cName] && brandMap[cName][process.env.NEW_BRAND_IDX]) ? brandMap[cName][process.env.NEW_BRAND_IDX] : (cName === 'PLN' ? 'Token PLN' : 'Lainnya');
+                        }
+                    }
+                    
+                    if(!item.brand) item.brand = 'Lainnya';
                     
                     if (oldKey !== newKey) {
                         produk[newKey] = item;
@@ -1857,47 +1993,43 @@ menu_produk() {
                                 
                                 if(isNaN(hargaAwal)) return;
 
-                                // --- LOGIKA KATEGORI (SUPER KETAT) ---
+                                // ==============================================
+                                // LOGIKA KATEGORI (SUPER KETAT & ANTI NYASAR)
+                                // ==============================================
                                 let kategori = 'Lainnya';
                                 let nLower = ' ' + nama.toLowerCase() + ' '; 
                                 let nUpper = nama.toUpperCase();
 
-                                if (/\b(gopay|go-pay|ovo|dana|shopee|shopeepay|linkaja|link aja|isaku|brizzi|e-toll|etoll|e-money|mtix|grab|gojek|saldo)\b/.test(nLower)) {
-                                    kategori = 'E-Money';
-                                }
-                                else if (/\b(free fire|ff|mobile legend|mobile legends|mlbb|ml|pubg|diamond|diamonds|uc|cp|garena|unipin|steam|valorant|aov|genshin|codm)\b/.test(nLower)) {
-                                    kategori = 'Game';
-                                }
-                                else if (/\b(pln|token listrik|token pln)\b/.test(nLower)) {
-                                    kategori = 'PLN';
-                                }
-                                else if (/\b(masa aktif)\b/.test(nLower)) {
-                                    kategori = 'Masa Aktif';
-                                }
-                                else if (/\b(perdana|aktivasi|kpk)\b/.test(nLower)) {
-                                    kategori = 'Aktivasi Perdana';
-                                }
-                                else if (/\b(sms|telpon|telepon|nelpon|voice|bicara)\b/.test(nLower) && !/\b(gb|mb|data|kuota|internet|combo|flash|omg|aigo|owsem)\b/.test(nLower)) {
-                                    kategori = 'Paket SMS & Telpon';
-                                }
-                                else if (/\b(gb|mb|data|kuota|internet|combo|xtra|flash|paket|omg|aigo|owsem|mini|max)\b/.test(nLower)) {
-                                    kategori = 'Data';
-                                }
-                                else if (/\b(voucher|vcr|voc|spotify|google play)\b/.test(nLower)) {
-                                    kategori = 'Voucher';
-                                }
-                                else if (/\b(pulsa|promo|reguler|transfer|tp)\b/.test(nLower)) {
-                                    kategori = 'Pulsa';
-                                }
+                                let isVoucher = /\b(voucher|vcr|voc|gesek|spotify|google play|garena|unipin)\b/.test(nLower);
+                                let isData = /\b(gb|mb|data|kuota|internet|combo|xtra|flash|paket|omg|aigo|owsem|mini|max|bulk)\b/.test(nLower);
+                                let isPerdana = /\b(perdana|aktivasi|kpk)\b/.test(nLower);
+                                let isEMoney = /\b(gopay|go-pay|ovo|dana|shopee|shopeepay|linkaja|link aja|isaku|brizzi|e-toll|etoll|e-money|mtix|grab|gojek|saldo)\b/.test(nLower);
+                                let isGame = /\b(free fire|ff|mobile legend|mobile legends|mlbb|ml|pubg|diamond|diamonds|uc)\b/.test(nLower);
+                                let isPLN = /\b(pln|token listrik|token pln)\b/.test(nLower);
+                                let isSmsTelp = /\b(sms|telpon|telepon|nelpon|voice|bicara)\b/.test(nLower);
+                                let isMasaAktif = /\b(masa aktif)\b/.test(nLower);
+                                let isPulsa = /\b(pulsa|promo|reguler|transfer|tp)\b/.test(nLower);
+
+                                if (isEMoney && !isData && !isVoucher && !isPerdana) kategori = 'E-Money';
+                                else if (isVoucher) kategori = 'Voucher';
+                                else if (isPerdana) kategori = 'Aktivasi Perdana';
+                                else if (isGame && !isData && !isPulsa) kategori = 'Game';
+                                else if (isPLN) kategori = 'PLN';
+                                else if (isMasaAktif) kategori = 'Masa Aktif';
+                                else if (isSmsTelp && !isData) kategori = 'Paket SMS & Telpon';
+                                else if (isData) kategori = 'Data';
+                                else if (isPulsa) kategori = 'Pulsa';
                                 else {
                                     if (/\b(TELKOMSEL|TSEL|AS|SIMPATI|XL|AXIS|INDOSAT|ISAT|IM3|TRI|THREE|BIMA|SMARTFREN|BY\.U|BYU)\b/.test(nUpper)) {
                                         kategori = 'Pulsa';
                                     } else {
-                                        kategori = 'Voucher';
+                                        kategori = 'Lainnya';
                                     }
                                 }
 
-                                // --- LOGIKA BRAND PROVIDER (SUPER KETAT) ---
+                                // ==============================================
+                                // LOGIKA BRAND PROVIDER (SUPER KETAT)
+                                // ==============================================
                                 let brand = 'Lainnya';
                                 if (brandCol && row[brandCol]) {
                                     brand = row[brandCol].toString().trim();
@@ -1908,13 +2040,11 @@ menu_produk() {
                                         else if (/\b(dana)\b/.test(nLower)) brand = 'Dana';
                                         else if (/\b(shopee|shopeepay)\b/.test(nLower)) brand = 'ShopeePay';
                                         else if (/\b(linkaja|link aja)\b/.test(nLower)) brand = 'LinkAja';
-                                        else brand = 'Lainnya';
                                     } 
                                     else if (kategori === 'Game') {
-                                        if (/\b(mobile legend|mobile legends|mlbb|ml|diamond|diamonds)\b/.test(nLower)) brand = 'Mobile Legends';
+                                        if (/\b(mobile legend|mobile legends|mlbb|ml)\b/.test(nLower)) brand = 'Mobile Legends';
                                         else if (/\b(free fire|ff)\b/.test(nLower)) brand = 'Free Fire';
                                         else if (/\b(pubg|uc)\b/.test(nLower)) brand = 'PUBG';
-                                        else brand = 'Lainnya';
                                     }
                                     else if (kategori === 'PLN') {
                                         brand = 'PLN';
@@ -1930,6 +2060,32 @@ menu_produk() {
                                         else if (/\b(spotify)\b/.test(nLower)) brand = 'Spotify';
                                         else if (/\b(google play)\b/.test(nLower)) brand = 'Google Play';
                                         else brand = nama.split(' ')[0].toUpperCase(); 
+                                    }
+                                }
+
+                                // ==============================================
+                                // LOGIKA SUB-KATEGORI (KHUSUS DATA)
+                                // ==============================================
+                                let subKategori = 'Umum';
+                                if (kategori === 'Data') {
+                                    let subsMap = {
+                                        'Telkomsel': ['bulk','flash revamp','flash','mini','apps kuota','maxstream','umroh haji','umroh','malam','combo sakti','gamesmax unlimited play','ketengan tiktok','gamesmax','musicmax','disney','omg','gigamax','unlimitedmax','orbit','internetmax','harian sepuasnya','harian','mingguan','bulanan','ketengan utama','roamax haji','roamax','combo','eksklusif','tiktok','super seru','dpi','enterprise+','serba lima ribu','magnet','ukm plus','belajar','terbaik untukmu','non puma','videomax'],
+                                        'Indosat': ['yellow gift','yellow','freedom combo gift','freedom combo','freedom harian','freedom internet gift','freedom internet 5g','freedom internet','freedom u gift','freedom u','freedom apps','ejbn','umroh haji combo','umroh haji internet','freedom max','gaspol','sachet','smb','ramadan','hifi air','freedom spesial','freedom play'],
+                                        'Axis': ['mini','bronet vidio','bronet','owsem','edu confrence','conference','edukasi','ekstra','youtube','sosmed','paket warnet','aigo ss','aigo unlimited','combo mabrur','mabrur','video','musik','apps games','games','viu','pure','drp games','obor'],
+                                        'Smartfren': ['unlimited nonstop 5g','unlimited nonstop','unlimited harian 5g','unlimited','volume','youtube','connex evo','nonstop','chat','sosmed','games','kuota 5g','kuota','tiktok','nonton'],
+                                        'Tri': ['mini','alwayson','getmore','mix','home','roaming','data transfer','happy play','happy 5g','happy','lokal','sahabat ojol','ibadah','addon','ramadan','hifi air'],
+                                        'XL': ['mini','umroh plus','combo umroh haji','internet umroh haji','umroh','hotrod special','hotrod','xtra combo flex','xtra combo plus','xtra combo gift','xtra combo vip plus','xtra combo mini','xtra combo weekend','xtra combo','combo lite','xtra kuota vidio','xtra kuota','conference','edukasi','xtra on','roaming','paket akrab','games','apps games','bonus harian','flexmax','flex mini','flex','east kalsul','ultra 5g+'],
+                                        'By.U': ['viu','tiktok','super kaget','kaget','mbps','topping ggwp','vidio','jajan']
+                                    };
+
+                                    let bList = subsMap[brand];
+                                    if (bList) {
+                                        for (let s of bList) {
+                                            if (nLower.includes(s.toLowerCase())) {
+                                                subKategori = s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                                                break;
+                                            }
+                                        }
                                     }
                                 }
 
@@ -1949,6 +2105,7 @@ menu_produk() {
                                     harga: hargaAwal + margin,
                                     kategori: kategori,
                                     brand: brand,
+                                    sub_kategori: subKategori,
                                     deskripsi: deskripsi
                                 };
                                 added++;
