@@ -501,6 +501,18 @@ EOF
         let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
         let currentCategory = ""; 
 
+        // === API WRAPPER STANDAR (KLASIK & CEPAT) ===
+        async function apiCall(url, bodyData) {
+            let options = {};
+            if(bodyData) {
+                options.method = 'POST';
+                options.headers = {'Content-Type': 'application/json'};
+                options.body = JSON.stringify(bodyData);
+            }
+            let res = await fetch(url, options);
+            return await res.json();
+        }
+
         // UI HELPERS
         function toggleSidebar() {
             const sb = document.getElementById('sidebar');
@@ -538,9 +550,8 @@ EOF
             let savedPass = localStorage.getItem('tendo_pass');
             if(savedEmail && savedPass) {
                 try {
-                    let res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:savedEmail, password:savedPass}) });
-                    let data = await res.json();
-                    if(data.success) {
+                    let data = await apiCall('/api/login', {email:savedEmail, password:savedPass});
+                    if(data && data.success) {
                         currentUser = data.phone; userData = data.data;
                         fetchAllProducts(); showDashboard();
                     } else { showScreen('login-screen', null); }
@@ -561,8 +572,7 @@ EOF
         async function showNotif() { 
             showScreen('notif-screen', 'nav-notif'); 
             try {
-                let res = await fetch('/api/notif');
-                let data = await res.json();
+                let data = await apiCall('/api/notif');
                 if(data && data.text) document.getElementById('notif-text').innerText = data.text;
                 else document.getElementById('notif-text').innerText = "Tidak ada pemberitahuan sistem saat ini.";
             } catch(e){}
@@ -578,9 +588,8 @@ EOF
             btn.innerText = "Memproses..."; btn.disabled = true;
             
             try {
-                let res = await fetch('/api/topup', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, nominal: nom}) });
-                let data = await res.json();
-                if(data.success) { window.location.href = data.url; } 
+                let data = await apiCall('/api/topup', {phone: currentUser, nominal: nom});
+                if(data && data.success) { window.location.href = data.url; } 
                 else { alert(data.message || "Gagal membuka pembayaran."); }
             } catch(e) { alert("Kesalahan server."); }
             
@@ -597,9 +606,8 @@ EOF
         async function syncUserData() {
             if(!currentUser) return;
             try {
-                let res = await fetch('/api/user/' + currentUser);
-                let data = await res.json();
-                if(data.success) {
+                let data = await apiCall('/api/user/' + currentUser);
+                if(data && data.success) {
                     userData = data.data; let u = userData;
                     document.getElementById('user-saldo').innerText = 'Rp ' + u.saldo.toLocaleString('id-ID');
                     document.getElementById('top-trx-badge').innerText = (u.trx_count || 0) + ' Trx';
@@ -675,14 +683,15 @@ EOF
             btn.innerText = "Memeriksa..."; btn.disabled = true;
             
             try {
-                let res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email, password:pass}) });
-                let data = await res.json();
-                if(data.success) {
+                let data = await apiCall('/api/login', {email, password:pass});
+                if(data && data.success) {
                     if(rem) { localStorage.setItem('tendo_email', email); localStorage.setItem('tendo_pass', pass); }
                     currentUser = data.phone; userData = data.data;
                     fetchAllProducts(); showDashboard();
-                } else alert(data.message);
-            } catch(e) { alert('Gagal terhubung.'); }
+                } else {
+                    alert(data && data.message ? data.message : "Gagal terhubung.");
+                }
+            } catch(e) { alert('Kesalahan jaringan.'); }
             
             btn.innerText = ori; btn.disabled = false;
         }
@@ -699,12 +708,11 @@ EOF
             btn.innerText = "Mengirim..."; btn.disabled = true;
             
             try {
-                let res = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:user, email, phone, password:pass}) });
-                let data = await res.json();
-                if(data.success) { 
+                let data = await apiCall('/api/register', {username:user, email, phone, password:pass});
+                if(data && data.success) { 
                     tempRegPhone = phone; showScreen('otp-screen', null); 
                 } else {
-                    alert(data.message);
+                    alert(data && data.message ? data.message : "Pendaftaran Gagal.");
                 }
             } catch(e) { alert('Kesalahan jaringan. Pastikan internet lancar.'); }
             
@@ -720,14 +728,15 @@ EOF
             btn.innerText = "Memproses..."; btn.disabled = true;
             
             try {
-                let res = await fetch('/api/verify-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: tempRegPhone, otp}) });
-                let data = await res.json();
-                if(data.success) {
+                let data = await apiCall('/api/verify-otp', {phone: tempRegPhone, otp});
+                if(data && data.success) {
                     alert('Pendaftaran Berhasil! Silakan Login.');
                     document.getElementById('log-email').value = document.getElementById('reg-email').value;
                     document.getElementById('log-pass').value = document.getElementById('reg-pass').value;
                     showScreen('login-screen', null);
-                } else alert(data.message);
+                } else {
+                    alert(data && data.message ? data.message : "Sistem sibuk, coba sesaat lagi.");
+                }
             } catch(e) { alert('Kesalahan jaringan.'); }
             
             btn.innerText = ori; btn.disabled = false;
@@ -756,12 +765,13 @@ EOF
             btn.innerText = "Mengirim..."; btn.disabled = true;
             
             try {
-                let res = await fetch('/api/req-edit-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, type: currentEditMode, newValue: val}) });
-                let data = await res.json();
-                if(data.success) {
+                let data = await apiCall('/api/req-edit-otp', {phone: currentUser, type: currentEditMode, newValue: val});
+                if(data && data.success) {
                     document.getElementById('edit-step-1').classList.add('hidden');
                     document.getElementById('edit-step-2').classList.remove('hidden');
-                } else alert(data.message);
+                } else {
+                    alert(data && data.message ? data.message : "Error server");
+                }
             } catch(e) { alert('Kesalahan jaringan.'); }
             
             btn.innerText = ori; btn.disabled = false;
@@ -776,14 +786,15 @@ EOF
             btn.innerText = "Memproses..."; btn.disabled = true;
             
             try {
-                let res = await fetch('/api/verify-edit-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, otp: otp}) });
-                let data = await res.json();
-                if(data.success) {
+                let data = await apiCall('/api/verify-edit-otp', {phone: currentUser, otp: otp});
+                if(data && data.success) {
                     alert("Berhasil diubah!");
                     closeEditModal();
                     if(currentEditMode === 'phone' || currentEditMode === 'password') { logout(); } 
                     else { syncUserData(); }
-                } else alert(data.message);
+                } else {
+                    alert(data && data.message ? data.message : "Error server");
+                }
             } catch(e) { alert('Kesalahan jaringan.'); }
             
             btn.innerText = ori; btn.disabled = false;
@@ -791,8 +802,7 @@ EOF
 
         async function fetchAllProducts() {
             try {
-                let res = await fetch('/api/produk');
-                let data = await res.json();
+                let data = await apiCall('/api/produk');
                 if(data) allProducts = data;
             } catch(e){}
         }
@@ -882,14 +892,15 @@ EOF
             btn.innerText = 'Proses...'; btn.disabled = true;
             
             try {
-                let res = await fetch('/api/order', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, sku: selectedSKU, tujuan: target}) });
-                let data = await res.json();
-                if(data.success) {
+                let data = await apiCall('/api/order', {phone: currentUser, sku: selectedSKU, tujuan: target});
+                if(data && data.success) {
                     alert('Pesanan Sukses Diproses!\nCek tab Riwayat Anda.');
                     closeOrderModal();
                     syncUserData();
                     showHistory();
-                } else alert('Gagal: ' + data.message);
+                } else {
+                    alert(data && data.message ? 'Gagal: ' + data.message : "Kesalahan server saat memproses order.");
+                }
             } catch(e) { alert('Kesalahan jaringan.'); }
             
             btn.innerText = ori; btn.disabled = false;
@@ -905,9 +916,6 @@ EOF
 # ==========================================
 generate_bot_script() {
     cat << 'EOF' > index.js
-process.on('uncaughtException', function (err) { console.error('Caught exception: ', err); });
-process.on('unhandledRejection', function (reason, p) { console.error('Unhandled Rejection at: Promise', p, 'reason:', reason); });
-
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const fs = require('fs');
 const pino = require('pino');
@@ -1018,11 +1026,16 @@ app.post('/api/register', (req, res) => {
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
         tempOtpDB[phone] = { username, email, password, otp };
 
-        if (globalSock) {
-            let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
-            globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
-        }
         res.json({success: true});
+
+        setTimeout(() => {
+            try {
+                if (globalSock) {
+                    let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
+                    globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
+                }
+            } catch(e) {}
+        }, 100);
     } catch(e) { 
         if (!res.headersSent) res.json({success: false, message: 'Gagal memproses pendaftaran.'}); 
     }
@@ -1051,10 +1064,15 @@ app.post('/api/req-edit-otp', (req, res) => {
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
         tempOtpDB[phone + '_edit'] = { type, newValue, otp };
         
-        if (globalSock) {
-            globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nKode OTP untuk mengubah data Anda adalah: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
-        }
         res.json({success: true});
+
+        setTimeout(() => {
+            try {
+                if (globalSock) {
+                    globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nKode OTP untuk mengubah data Anda adalah: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
+                }
+            } catch(e) {}
+        }, 100);
     } catch(e) { 
         if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); 
     }
@@ -1147,11 +1165,17 @@ app.post('/api/order', async (req, res) => {
         trxs[refId] = { jid: targetJid, sku: sku, tujuan: tujuan, harga: p.harga, nama: p.nama, tanggal: Date.now() };
         saveJSON(trxFile, trxs);
 
-        if (globalSock) {
-            let msgWa = `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
-            globalSock.sendMessage(targetJid, { text: msgWa }).catch(e=>{});
-        }
-        return res.json({success: true, saldo: db[targetKey].saldo});
+        res.json({success: true, saldo: db[targetKey].saldo});
+
+        setTimeout(() => {
+            try {
+                if (globalSock) {
+                    let msgWa = `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
+                    globalSock.sendMessage(targetJid, { text: msgWa }).catch(e=>{});
+                }
+            } catch(e){}
+        }, 100);
+
     } catch (error) { 
         if (!res.headersSent) return res.json({success: false, message: 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)'}); 
     }
@@ -1667,33 +1691,7 @@ menu_produk() {
 
                 echo -e "\n${C_MAG}--- EDIT PRODUK : $OLD_NAMA ---${C_RST}"
                 echo -e "${C_YELLOW}💡 Biarkan kosong (tekan Enter) jika Anda TIDAK INGIN mengubah datanya.${C_RST}"
-                echo -e "${C_CYAN}Kategori saat ini: $OLD_KAT | Provider: $OLD_BRAND${C_RST}"
-                echo "1. Pulsa | 2. Data | 3. Masa Aktif | 4. SMS Telp | 5. PLN | 6. E-Wallet | 7. Tagihan | 8. E-Toll | 9. Digital"
                 
-                read -p "Ubah Kategori? (Ketik angka 1-9) [Enter jika tidak]: " new_cat_idx
-                
-                new_brand_idx=""
-                if [ ! -z "$new_cat_idx" ]; then
-                    if [ "$new_cat_idx" == "1" ] || [ "$new_cat_idx" == "2" ] || [ "$new_cat_idx" == "3" ] || [ "$new_cat_idx" == "4" ]; then
-                        echo "1. Telkomsel | 2. XL | 3. Axis | 4. Indosat | 5. Tri | 6. Smartfren | 7. By.U"
-                        read -p "Pilih Provider Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "6" ]; then
-                        echo "1. Gopay | 2. Dana | 3. Shopee Pay | 4. OVO | 5. LinkAja"
-                        read -p "Pilih E-Wallet Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "7" ]; then
-                        echo "1. PLN Pasca | 2. BPJS | 3. PDAM | 4. Indihome"
-                        read -p "Pilih Tagihan Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "8" ]; then
-                        echo "1. Mandiri E-Money | 2. Brizzi | 3. TapCash"
-                        read -p "Pilih E-Toll Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "9" ]; then
-                        echo "1. Mobile Legends | 2. Free Fire | 3. PUBG | 4. Vidio | 5. Netflix"
-                        read -p "Pilih Digital Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "5" ]; then
-                        new_brand_idx="1"
-                    fi
-                fi
-
                 read -p "Kode Baru [$OLD_KODE]: " new_kode
                 read -p "Nama Baru [$OLD_NAMA]: " new_nama
                 read -p "Harga Baru [$OLD_HARGA]: " new_harga
@@ -1703,24 +1701,9 @@ menu_produk() {
                 export NEW_NAMA="$new_nama"
                 export NEW_HARGA="$new_harga"
                 export NEW_DESC="$new_desc"
-                export NEW_CAT_IDX="$new_cat_idx"
-                export NEW_BRAND_IDX="$new_brand_idx"
                 
                 node -e "
                     const fs = require('fs');
-                    const catMap = {'1':'Pulsa', '2':'Data', '3':'Masa Aktif', '4':'SMS Telp', '5':'PLN', '6':'E-Wallet', '7':'Tagihan', '8':'E-Toll', '9':'Digital'};
-                    const brandMap = {
-                        'Pulsa': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'Data': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'Masa Aktif': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'SMS Telp': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'E-Wallet': {'1':'Gopay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
-                        'Tagihan': {'1':'PLN Pasca', '2':'BPJS', '3':'PDAM', '4':'Indihome'},
-                        'E-Toll': {'1':'Mandiri E-Money', '2':'Brizzi', '3':'TapCash'},
-                        'Digital': {'1':'Mobile Legends', '2':'Free Fire', '3':'PUBG', '4':'Vidio', '5':'Netflix'},
-                        'PLN': {'1':'Token PLN'}
-                    };
-
                     let produk = JSON.parse(fs.readFileSync('produk.json'));
                     let oldKey = process.env.OLD_KODE;
                     let newKey = process.env.NEW_KODE.toUpperCase().replace(/\s+/g, '');
@@ -1733,16 +1716,6 @@ menu_produk() {
                         if (process.env.NEW_DESC.trim() === '-') delete item.deskripsi;
                         else item.deskripsi = process.env.NEW_DESC;
                     }
-                    
-                    if (process.env.NEW_CAT_IDX && process.env.NEW_CAT_IDX.trim() !== '') {
-                        let cName = catMap[process.env.NEW_CAT_IDX];
-                        if(cName) {
-                            item.kategori = cName;
-                            item.brand = (brandMap[cName] && brandMap[cName][process.env.NEW_BRAND_IDX]) ? brandMap[cName][process.env.NEW_BRAND_IDX] : (cName === 'PLN' ? 'Token PLN' : 'Lainnya');
-                        }
-                    }
-                    
-                    if(!item.brand) item.brand = 'Lainnya';
                     
                     if (oldKey !== newKey) {
                         produk[newKey] = item;
@@ -1889,72 +1862,73 @@ menu_produk() {
                                 let nLower = ' ' + nama.toLowerCase() + ' '; 
                                 let nUpper = nama.toUpperCase();
 
-                                if (nLower.match(/gopay|go-pay|ovo|dana|shopee|linkaja|link aja|isaku|brizzi|e-toll|e-money|mtix/)) {
+                                if (/\b(gopay|go-pay|ovo|dana|shopee|shopeepay|linkaja|link aja|isaku|brizzi|e-toll|etoll|e-money|mtix|grab|gojek|saldo)\b/.test(nLower)) {
                                     kategori = 'E-Money';
                                 }
-                                else if (nLower.match(/free fire| ff |mobile legend|mlbb|pubg/)) {
+                                else if (/\b(free fire|ff|mobile legend|mobile legends|mlbb|ml|pubg|diamond|diamonds|uc|cp|garena|unipin|steam|valorant|aov|genshin|codm)\b/.test(nLower)) {
                                     kategori = 'Game';
                                 }
-                                else if (nLower.match(/voucher|vcr|voc|spotify|google play|garena|unipin/)) {
-                                    kategori = 'Voucher';
-                                }
-                                else if (nLower.match(/pln|token listrik/)) {
+                                else if (/\b(pln|token listrik|token pln)\b/.test(nLower)) {
                                     kategori = 'PLN';
                                 }
-                                else if (nLower.match(/masa aktif/)) {
+                                else if (/\b(masa aktif)\b/.test(nLower)) {
                                     kategori = 'Masa Aktif';
                                 }
-                                else if (nLower.match(/perdana|aktivasi| kpk /)) {
+                                else if (/\b(perdana|aktivasi|kpk)\b/.test(nLower)) {
                                     kategori = 'Aktivasi Perdana';
                                 }
-                                // SMS/Telp tidak boleh ada unsur GB / Kuota Data
-                                else if (nLower.match(/ sms |telpon|telepon|nelpon|voice| bicara /) && !nLower.match(/ gb | mb |data|kuota|internet|combo|flash/)) {
+                                else if (/\b(sms|telpon|telepon|nelpon|voice|bicara)\b/.test(nLower) && !/\b(gb|mb|data|kuota|internet|combo|flash|omg|aigo|owsem)\b/.test(nLower)) {
                                     kategori = 'Paket SMS & Telpon';
                                 }
-                                else if (nLower.match(/ gb | mb |data|kuota|internet|combo|xtra|flash|paket| omg /)) {
+                                else if (/\b(gb|mb|data|kuota|internet|combo|xtra|flash|paket|omg|aigo|owsem|mini|max)\b/.test(nLower)) {
                                     kategori = 'Data';
                                 }
-                                else if (nLower.match(/pulsa|promo|reguler|transfer/)) {
+                                else if (/\b(voucher|vcr|voc|spotify|google play)\b/.test(nLower)) {
+                                    kategori = 'Voucher';
+                                }
+                                else if (/\b(pulsa|promo|reguler|transfer|tp)\b/.test(nLower)) {
                                     kategori = 'Pulsa';
                                 }
                                 else {
-                                    if(nUpper.includes('TELKOMSEL') || nUpper.includes('XL') || nUpper.includes('AXIS') || nUpper.includes('INDOSAT') || nUpper.includes('TRI') || nUpper.includes('SMARTFREN') || nUpper.includes('BY.U')) {
+                                    if (/\b(TELKOMSEL|TSEL|AS|SIMPATI|XL|AXIS|INDOSAT|ISAT|IM3|TRI|THREE|BIMA|SMARTFREN|BY\.U|BYU)\b/.test(nUpper)) {
                                         kategori = 'Pulsa';
                                     } else {
                                         kategori = 'Voucher';
                                     }
                                 }
 
+                                // --- LOGIKA BRAND PROVIDER (SUPER KETAT) ---
                                 let brand = 'Lainnya';
-                                
-                                if (kategori === 'E-Money') {
-                                    if (nLower.includes('gopay') || nLower.includes('go-pay')) brand = 'Gopay';
-                                    else if (nLower.includes('ovo')) brand = 'OVO';
-                                    else if (nLower.includes('dana')) brand = 'Dana';
-                                    else if (nLower.includes('shopee')) brand = 'ShopeePay';
-                                    else if (nLower.includes('linkaja') || nLower.includes('link aja')) brand = 'LinkAja';
-                                } 
-                                else if (kategori === 'Game') {
-                                    if (nLower.includes('mobile legend') || nLower.includes('mlbb')) brand = 'Mobile Legends';
-                                    else if (nLower.includes('free fire') || nLower.includes(' ff ')) brand = 'Free Fire';
-                                    else if (nLower.includes('pubg')) brand = 'PUBG';
-                                }
-                                else if (kategori === 'PLN') {
-                                    brand = 'PLN';
-                                }
-                                else {
-                                    if(brandCol && row[brandCol]) {
-                                        brand = row[brandCol].toString().trim();
-                                    } else {
-                                        if(nUpper.includes('BY.U') || nUpper.includes('BYU')) brand = 'By.U';
-                                        else if(nUpper.includes('TELKOMSEL') || nUpper.includes('TSEL') || nUpper.includes('AS ') || nUpper.includes('SIMPATI')) brand = 'Telkomsel';
-                                        else if(nUpper.includes('XL')) brand = 'XL';
-                                        else if(nUpper.includes('AXIS')) brand = 'Axis';
-                                        else if(nUpper.includes('INDOSAT') || nUpper.includes('ISAT') || nUpper.includes('IM3')) brand = 'Indosat';
-                                        else if(nUpper.includes('TRI') || nUpper.includes('THREE') || nUpper.includes(' BIMA ')) brand = 'Tri';
-                                        else if(nUpper.includes('SMARTFREN')) brand = 'Smartfren';
-                                        else if(nLower.includes('spotify')) brand = 'Spotify';
-                                        else if(nLower.includes('google play')) brand = 'Google Play';
+                                if (brandCol && row[brandCol]) {
+                                    brand = row[brandCol].toString().trim();
+                                } else {
+                                    if (kategori === 'E-Money') {
+                                        if (/\b(gopay|go-pay|gojek)\b/.test(nLower)) brand = 'Gopay';
+                                        else if (/\b(ovo)\b/.test(nLower)) brand = 'OVO';
+                                        else if (/\b(dana)\b/.test(nLower)) brand = 'Dana';
+                                        else if (/\b(shopee|shopeepay)\b/.test(nLower)) brand = 'ShopeePay';
+                                        else if (/\b(linkaja|link aja)\b/.test(nLower)) brand = 'LinkAja';
+                                        else brand = 'Lainnya';
+                                    } 
+                                    else if (kategori === 'Game') {
+                                        if (/\b(mobile legend|mobile legends|mlbb|ml|diamond|diamonds)\b/.test(nLower)) brand = 'Mobile Legends';
+                                        else if (/\b(free fire|ff)\b/.test(nLower)) brand = 'Free Fire';
+                                        else if (/\b(pubg|uc)\b/.test(nLower)) brand = 'PUBG';
+                                        else brand = 'Lainnya';
+                                    }
+                                    else if (kategori === 'PLN') {
+                                        brand = 'PLN';
+                                    }
+                                    else {
+                                        if (/\b(BY\.U|BYU)\b/.test(nUpper)) brand = 'By.U';
+                                        else if (/\b(TELKOMSEL|TSEL|AS|SIMPATI)\b/.test(nUpper)) brand = 'Telkomsel';
+                                        else if (/\b(XL)\b/.test(nUpper)) brand = 'XL';
+                                        else if (/\b(AXIS)\b/.test(nUpper)) brand = 'Axis';
+                                        else if (/\b(INDOSAT|ISAT|IM3)\b/.test(nUpper)) brand = 'Indosat';
+                                        else if (/\b(TRI|THREE|BIMA)\b/.test(nUpper)) brand = 'Tri';
+                                        else if (/\b(SMARTFREN)\b/.test(nUpper)) brand = 'Smartfren';
+                                        else if (/\b(spotify)\b/.test(nLower)) brand = 'Spotify';
+                                        else if (/\b(google play)\b/.test(nLower)) brand = 'Google Play';
                                         else brand = nama.split(' ')[0].toUpperCase(); 
                                     }
                                 }
@@ -2038,7 +2012,7 @@ while true; do
     echo ""
     echo -e "${C_MAG}▶ MANAJEMEN TOKO & SISTEM${C_RST}"
     echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo Member"
-    echo -e "  ${C_GREEN}[7]${C_RST}  🛒 Manajemen Daftar Produk & Harga"
+    echo -e "  ${C_GREEN}[7]${C_RST}  🛒 Manajemen Produk & Harga (XLSX/CSV Import)"
     echo -e "  ${C_GREEN}[8]${C_RST}  ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
     echo -e "  ${C_GREEN}[9]${C_RST}  💾 Backup & Restore Data Database"
     echo -e "  ${C_GREEN}[10]${C_RST} 🔌 Ganti API Digiflazz"
