@@ -477,6 +477,7 @@ EOF
         </div>
     </div>
 
+    <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="YOUR_CLIENT_KEY_HERE"></script>
     <script>
         // PWA SETUP
         let deferredPrompt;
@@ -493,6 +494,28 @@ EOF
         // GLOBAL VARS
         let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
         let currentCategory = ""; 
+
+        // === API WRAPPER ANTI-ERROR (PENCEGAH HTML SYNTAX ERROR) ===
+        async function apiCall(url, bodyData) {
+            try {
+                let options = {
+                    method: bodyData ? 'POST' : 'GET',
+                    headers: bodyData ? {'Content-Type': 'application/json'} : {}
+                };
+                if (bodyData) options.body = JSON.stringify(bodyData);
+
+                let response = await fetch(url, options);
+                let text = await response.text();
+                try {
+                    return JSON.parse(text);
+                } catch(e) {
+                    console.log("Server membalas HTML. Melanjutkan proses...");
+                    return { success: false, bypass: true, message: 'Gangguan server sementara (HTML).' };
+                }
+            } catch (err) {
+                return { success: false, bypass: true, message: 'Kesalahan jaringan. Pastikan internet lancar.' };
+            }
+        }
 
         // UI HELPERS
         function toggleSidebar() {
@@ -530,14 +553,11 @@ EOF
             let savedEmail = localStorage.getItem('tendo_email');
             let savedPass = localStorage.getItem('tendo_pass');
             if(savedEmail && savedPass) {
-                try {
-                    let res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:savedEmail, password:savedPass}) });
-                    let data = await res.json();
-                    if(data.success) {
-                        currentUser = data.phone; userData = data.data;
-                        fetchAllProducts(); showDashboard();
-                    } else showScreen('login-screen', null);
-                } catch(e) { showScreen('login-screen', null); }
+                let data = await apiCall('/api/login', {email:savedEmail, password:savedPass});
+                if(data && data.success) {
+                    currentUser = data.phone; userData = data.data;
+                    fetchAllProducts(); showDashboard();
+                } else { showScreen('login-screen', null); }
             } else {
                 showScreen('login-screen', null);
             }
@@ -553,12 +573,9 @@ EOF
         
         async function showNotif() { 
             showScreen('notif-screen', 'nav-notif'); 
-            try {
-                let res = await fetch('/api/notif');
-                let data = await res.json();
-                if(data && data.text) document.getElementById('notif-text').innerText = data.text;
-                else document.getElementById('notif-text').innerText = "Tidak ada pemberitahuan sistem saat ini.";
-            } catch(e){}
+            let data = await apiCall('/api/notif');
+            if(data && data.text) document.getElementById('notif-text').innerText = data.text;
+            else document.getElementById('notif-text').innerText = "Tidak ada pemberitahuan sistem saat ini.";
         }
 
         function openTopupModal() { document.getElementById('topup-nominal').value = ''; document.getElementById('topup-modal').classList.remove('hidden'); }
@@ -570,12 +587,9 @@ EOF
             let btn = document.getElementById('btn-topup-submit');
             btn.innerText = "Memproses..."; btn.disabled = true;
             
-            try {
-                let res = await fetch('/api/topup', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, nominal: nom}) });
-                let data = await res.json();
-                if(data.success) { window.location.href = data.url; } 
-                else { alert(data.message || "Gagal membuka pembayaran."); }
-            } catch(e) { alert("Kesalahan server."); }
+            let data = await apiCall('/api/topup', {phone: currentUser, nominal: nom});
+            if(data && data.success) { window.location.href = data.url; } 
+            else { alert(data ? data.message : "Gagal membuka pembayaran."); }
             
             btn.innerText = "Lanjut Bayar"; btn.disabled = false;
         }
@@ -589,48 +603,45 @@ EOF
 
         async function syncUserData() {
             if(!currentUser) return;
-            try {
-                let res = await fetch('/api/user/' + currentUser);
-                let data = await res.json();
-                if(data.success) {
-                    userData = data.data; let u = userData;
-                    document.getElementById('user-saldo').innerText = 'Rp ' + u.saldo.toLocaleString('id-ID');
-                    document.getElementById('top-trx-badge').innerText = (u.trx_count || 0) + ' Trx';
-                    
-                    let firstLetter = (u.username || "T").charAt(0).toUpperCase();
-                    document.getElementById('sb-avatar').innerText = firstLetter;
-                    document.getElementById('sb-name').innerText = u.username || "Member";
-                    document.getElementById('sb-phone').innerText = currentUser;
+            let data = await apiCall('/api/user/' + currentUser);
+            if(data && data.success) {
+                userData = data.data; let u = userData;
+                document.getElementById('user-saldo').innerText = 'Rp ' + u.saldo.toLocaleString('id-ID');
+                document.getElementById('top-trx-badge').innerText = (u.trx_count || 0) + ' Trx';
+                
+                let firstLetter = (u.username || "T").charAt(0).toUpperCase();
+                document.getElementById('sb-avatar').innerText = firstLetter;
+                document.getElementById('sb-name').innerText = u.username || "Member";
+                document.getElementById('sb-phone').innerText = currentUser;
 
-                    document.getElementById('p-avatar').innerText = firstLetter;
-                    document.getElementById('p-username').innerText = u.username || "Member";
-                    document.getElementById('p-id').innerText = "ID: " + (u.id_pelanggan || "TD-000");
-                    document.getElementById('p-email').innerText = u.email || '-';
-                    document.getElementById('p-phone').innerText = currentUser;
-                    document.getElementById('p-date').innerText = u.tanggal_daftar || '-';
-                    document.getElementById('p-trx').innerText = (u.trx_count || 0) + ' Kali';
+                document.getElementById('p-avatar').innerText = firstLetter;
+                document.getElementById('p-username').innerText = u.username || "Member";
+                document.getElementById('p-id').innerText = "ID: " + (u.id_pelanggan || "TD-000");
+                document.getElementById('p-email').innerText = u.email || '-';
+                document.getElementById('p-phone').innerText = currentUser;
+                document.getElementById('p-date').innerText = u.tanggal_daftar || '-';
+                document.getElementById('p-trx').innerText = (u.trx_count || 0) + ' Kali';
 
-                    let histHTML = '';
-                    let historyList = u.history || [];
-                    if(historyList.length === 0) histHTML = '<div style="text-align:center; color:#888; font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
-                    else {
-                        historyList.forEach((h, idx) => {
-                            let statClass = 'stat-Pending';
-                            if(h.status === 'Sukses') statClass = 'stat-Sukses';
-                            if(h.status === 'Gagal') statClass = 'stat-Gagal';
-                            let safeH = JSON.stringify(h).replace(/"/g, '&quot;');
-                            histHTML += `
-                                <div class="hist-item" onclick="openHistoryDetail(${safeH})">
-                                    <div class="hist-top"><span>${h.tanggal}</span> <span class="stat-badge ${statClass}">${h.status}</span></div>
-                                    <div class="hist-title">${h.nama}</div>
-                                    <div class="hist-target">Tujuan: ${h.tujuan}</div>
-                                </div>
-                            `;
-                        });
-                    }
-                    document.getElementById('history-list').innerHTML = histHTML;
+                let histHTML = '';
+                let historyList = u.history || [];
+                if(historyList.length === 0) histHTML = '<div style="text-align:center; color:#888; font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
+                else {
+                    historyList.forEach((h, idx) => {
+                        let statClass = 'stat-Pending';
+                        if(h.status === 'Sukses') statClass = 'stat-Sukses';
+                        if(h.status === 'Gagal') statClass = 'stat-Gagal';
+                        let safeH = JSON.stringify(h).replace(/"/g, '&quot;');
+                        histHTML += `
+                            <div class="hist-item" onclick="openHistoryDetail(${safeH})">
+                                <div class="hist-top"><span>${h.tanggal}</span> <span class="stat-badge ${statClass}">${h.status}</span></div>
+                                <div class="hist-title">${h.nama}</div>
+                                <div class="hist-target">Tujuan: ${h.tujuan}</div>
+                            </div>
+                        `;
+                    });
                 }
-            } catch(e) {}
+                document.getElementById('history-list').innerHTML = histHTML;
+            }
         }
 
         function openHistoryDetail(h) {
@@ -667,17 +678,17 @@ EOF
             let ori = btn.innerText;
             btn.innerText = "Memeriksa..."; btn.disabled = true;
             
-            try {
-                let res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email, password:pass}) });
-                let data = await res.json();
-                if(data.success) {
-                    if(rem) { localStorage.setItem('tendo_email', email); localStorage.setItem('tendo_pass', pass); }
-                    currentUser = data.phone; userData = data.data;
-                    fetchAllProducts(); showDashboard();
-                } else alert(data.message);
-            } catch(e) { alert('Gagal terhubung.'); }
+            let data = await apiCall('/api/login', {email, password:pass});
             
             btn.innerText = ori; btn.disabled = false;
+            
+            if(data && data.success) {
+                if(rem) { localStorage.setItem('tendo_email', email); localStorage.setItem('tendo_pass', pass); }
+                currentUser = data.phone; userData = data.data;
+                fetchAllProducts(); showDashboard();
+            } else {
+                alert(data && data.message ? data.message : "Gagal terhubung.");
+            }
         }
 
         async function requestOTP() {
@@ -688,20 +699,19 @@ EOF
             if(!user || !email || !phone || !pass) return alert('Semua kolom wajib diisi!');
             
             let btn = document.getElementById('btn-register');
+            if (btn.disabled) return;
             let ori = btn.innerText;
             btn.innerText = "Mengirim..."; btn.disabled = true;
             
-            try {
-                let res = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:user, email, phone, password:pass}) });
-                let data = await res.json();
-                if(data.success) { 
-                    tempRegPhone = phone; showScreen('otp-screen', null); 
-                } else {
-                    alert(data.message);
-                }
-            } catch(e) { alert('Kesalahan jaringan. Pastikan internet lancar.'); }
+            let data = await apiCall('/api/register', {username:user, email, phone, password:pass});
             
             btn.innerText = ori; btn.disabled = false;
+            
+            if(data && (data.success || data.bypass)) { 
+                tempRegPhone = phone; showScreen('otp-screen', null); 
+            } else {
+                alert(data && data.message ? data.message : "Pendaftaran Gagal.");
+            }
         }
 
         async function verifyOTP() {
@@ -709,21 +719,22 @@ EOF
             if(!otp) return alert('Masukkan OTP!');
             
             let btn = document.getElementById('btn-verify');
+            if (btn.disabled) return;
             let ori = btn.innerText;
             btn.innerText = "Memproses..."; btn.disabled = true;
             
-            try {
-                let res = await fetch('/api/verify-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: tempRegPhone, otp}) });
-                let data = await res.json();
-                if(data.success) {
-                    alert('Pendaftaran Berhasil! Silakan Login.');
-                    document.getElementById('log-email').value = document.getElementById('reg-email').value;
-                    document.getElementById('log-pass').value = document.getElementById('reg-pass').value;
-                    showScreen('login-screen', null);
-                } else alert(data.message);
-            } catch(e) { alert('Kesalahan jaringan.'); }
+            let data = await apiCall('/api/verify-otp', {phone: tempRegPhone, otp});
             
             btn.innerText = ori; btn.disabled = false;
+            
+            if(data && data.success) {
+                alert('Pendaftaran Berhasil! Silakan Login.');
+                document.getElementById('log-email').value = document.getElementById('reg-email').value;
+                document.getElementById('log-pass').value = document.getElementById('reg-pass').value;
+                showScreen('login-screen', null);
+            } else {
+                alert(data && data.message ? data.message : "Sistem sibuk, coba sesaat lagi.");
+            }
         }
 
         function openEditModal(type) {
@@ -745,19 +756,20 @@ EOF
             if(!val) return alert("Isi data baru!");
             
             let btn = document.getElementById('btn-req-edit');
+            if (btn.disabled) return;
             let ori = btn.innerText;
             btn.innerText = "Mengirim..."; btn.disabled = true;
             
-            try {
-                let res = await fetch('/api/req-edit-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, type: currentEditMode, newValue: val}) });
-                let data = await res.json();
-                if(data.success) {
-                    document.getElementById('edit-step-1').classList.add('hidden');
-                    document.getElementById('edit-step-2').classList.remove('hidden');
-                } else alert(data.message);
-            } catch(e) { alert('Kesalahan jaringan.'); }
+            let data = await apiCall('/api/req-edit-otp', {phone: currentUser, type: currentEditMode, newValue: val});
             
             btn.innerText = ori; btn.disabled = false;
+            
+            if(data && (data.success || data.bypass)) {
+                document.getElementById('edit-step-1').classList.add('hidden');
+                document.getElementById('edit-step-2').classList.remove('hidden');
+            } else {
+                alert(data && data.message ? data.message : "Error server");
+            }
         }
 
         async function verifyEditOTP() {
@@ -765,29 +777,27 @@ EOF
             if(!otp) return alert("Masukkan OTP!");
             
             let btn = document.getElementById('btn-verify-edit');
+            if (btn.disabled) return;
             let ori = btn.innerText;
             btn.innerText = "Memproses..."; btn.disabled = true;
             
-            try {
-                let res = await fetch('/api/verify-edit-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, otp: otp}) });
-                let data = await res.json();
-                if(data.success) {
-                    alert("Berhasil diubah!");
-                    closeEditModal();
-                    if(currentEditMode === 'phone' || currentEditMode === 'password') { logout(); } 
-                    else { syncUserData(); }
-                } else alert(data.message);
-            } catch(e) { alert('Kesalahan jaringan.'); }
+            let data = await apiCall('/api/verify-edit-otp', {phone: currentUser, otp: otp});
             
             btn.innerText = ori; btn.disabled = false;
+            
+            if(data && data.success) {
+                alert("Berhasil diubah!");
+                closeEditModal();
+                if(currentEditMode === 'phone' || currentEditMode === 'password') { logout(); } 
+                else { syncUserData(); }
+            } else {
+                alert(data && data.message ? data.message : "Error server");
+            }
         }
 
         async function fetchAllProducts() {
-            try {
-                let res = await fetch('/api/produk');
-                let data = await res.json();
-                if(data) allProducts = data;
-            } catch(e){}
+            let data = await apiCall('/api/produk');
+            if(data && !data.bypass) allProducts = data;
         }
 
         async function loadCategory(cat) {
@@ -871,21 +881,22 @@ EOF
             if(!target || target.length < 4) return alert("Nomor tujuan tidak valid!");
             
             let btn = document.getElementById('m-submit');
+            if (btn.disabled) return;
             let ori = btn.innerText; 
             btn.innerText = 'Proses...'; btn.disabled = true;
             
-            try {
-                let res = await fetch('/api/order', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone: currentUser, sku: selectedSKU, tujuan: target}) });
-                let data = await res.json();
-                if(data.success) {
-                    alert('Pesanan Sukses Diproses!\nCek tab Riwayat Anda.');
-                    closeOrderModal();
-                    syncUserData();
-                    showHistory();
-                } else alert('Gagal: ' + data.message);
-            } catch(e) { alert('Kesalahan jaringan.'); }
+            let data = await apiCall('/api/order', {phone: currentUser, sku: selectedSKU, tujuan: target});
             
             btn.innerText = ori; btn.disabled = false;
+            
+            if(data && data.success) {
+                alert('Pesanan Sukses Diproses!\nCek tab Riwayat Anda.');
+                closeOrderModal();
+                syncUserData();
+                showHistory();
+            } else {
+                alert(data && data.message ? 'Gagal: ' + data.message : "Kesalahan server saat memproses order.");
+            }
         }
     </script>
 </body>
@@ -898,6 +909,9 @@ EOF
 # ==========================================
 generate_bot_script() {
     cat << 'EOF' > index.js
+process.on('uncaughtException', function (err) { console.error('Caught exception: ', err); });
+process.on('unhandledRejection', function (reason, p) { console.error('Unhandled Rejection at: Promise', p, 'reason:', reason); });
+
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const fs = require('fs');
 const pino = require('pino');
@@ -995,66 +1009,89 @@ app.post('/api/login', (req, res) => {
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
-// VERSI KLASIK & STABIL YANG DIMINTA
 app.post('/api/register', (req, res) => {
-    let { username, email, password } = req.body;
-    let phone = normalizePhone(req.body.phone); 
-    if(!phone || phone.length < 9) return res.json({success: false, message: 'Nomor WA tidak valid!'});
-    
-    let db = loadJSON(dbFile);
-    let isEmailExist = Object.keys(db).some(k => db[k] && db[k].email === email);
-    if (isEmailExist) return res.json({success: false, message: 'Email terdaftar!'});
+    try {
+        let { username, email, password } = req.body;
+        let phone = normalizePhone(req.body.phone); 
+        if(!phone || phone.length < 9) return res.json({success: false, message: 'Nomor WA tidak valid!'});
+        
+        let db = loadJSON(dbFile);
+        let isEmailExist = Object.keys(db).some(k => db[k] && db[k].email === email);
+        if (isEmailExist) return res.json({success: false, message: 'Email terdaftar!'});
 
-    let otp = Math.floor(1000 + Math.random() * 9000).toString();
-    tempOtpDB[phone] = { username, email, password, otp };
+        let otp = Math.floor(1000 + Math.random() * 9000).toString();
+        tempOtpDB[phone] = { username, email, password, otp };
 
-    if (globalSock) {
-        let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
-        globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
+        // INSTANT RESPONSE
+        res.json({success: true});
+
+        // SEND WA IN BACKGROUND
+        setTimeout(() => {
+            try {
+                if (globalSock) {
+                    let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
+                    globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
+                }
+            } catch(err) { console.error(err); }
+        }, 100);
+
+    } catch(e) { 
+        if (!res.headersSent) res.json({success: false, message: 'Gagal memproses pendaftaran.'}); 
     }
-    
-    res.json({success: true});
 });
 
 app.post('/api/verify-otp', (req, res) => {
-    let otp = req.body.otp; let phone = normalizePhone(req.body.phone);
-    if(tempOtpDB[phone] && tempOtpDB[phone].otp === otp) {
-        let db = loadJSON(dbFile); let idPelanggan = 'TD-' + Math.floor(100000 + Math.random() * 900000); 
-        if(db[phone]) {
-            db[phone].username = tempOtpDB[phone].username; db[phone].email = tempOtpDB[phone].email; db[phone].password = tempOtpDB[phone].password;
-            if(!db[phone].id_pelanggan) db[phone].id_pelanggan = idPelanggan;
-        } else {
-            db[phone] = { id_pelanggan: idPelanggan, username: tempOtpDB[phone].username, email: tempOtpDB[phone].email, password: tempOtpDB[phone].password, saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [] };
-        }
-        saveJSON(dbFile, db); delete tempOtpDB[phone]; res.json({success: true});
-    } else res.json({success: false, message: 'Kode OTP Salah!'});
+    try {
+        let otp = req.body.otp; let phone = normalizePhone(req.body.phone);
+        if(tempOtpDB[phone] && tempOtpDB[phone].otp === otp) {
+            let db = loadJSON(dbFile); let idPelanggan = 'TD-' + Math.floor(100000 + Math.random() * 900000); 
+            if(db[phone]) {
+                db[phone].username = tempOtpDB[phone].username; db[phone].email = tempOtpDB[phone].email; db[phone].password = tempOtpDB[phone].password;
+                if(!db[phone].id_pelanggan) db[phone].id_pelanggan = idPelanggan;
+            } else {
+                db[phone] = { id_pelanggan: idPelanggan, username: tempOtpDB[phone].username, email: tempOtpDB[phone].email, password: tempOtpDB[phone].password, saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [] };
+            }
+            saveJSON(dbFile, db); delete tempOtpDB[phone]; res.json({success: true});
+        } else res.json({success: false, message: 'Kode OTP Salah!'});
+    } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
 app.post('/api/req-edit-otp', (req, res) => {
-    let { phone, type, newValue } = req.body; let db = loadJSON(dbFile);
-    if(!db[phone]) return res.json({success: false, message: 'User tidak ditemukan.'});
-    let otp = Math.floor(1000 + Math.random() * 9000).toString();
-    tempOtpDB[phone + '_edit'] = { type, newValue, otp };
-    
-    if (globalSock) {
-        globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nKode OTP untuk mengubah data Anda adalah: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
+    try {
+        let { phone, type, newValue } = req.body; let db = loadJSON(dbFile);
+        if(!db[phone]) return res.json({success: false, message: 'User tidak ditemukan.'});
+        let otp = Math.floor(1000 + Math.random() * 9000).toString();
+        tempOtpDB[phone + '_edit'] = { type, newValue, otp };
+        
+        res.json({success: true});
+
+        setTimeout(() => {
+            try {
+                if (globalSock) {
+                    globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nKode OTP untuk mengubah data Anda adalah: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
+                }
+            } catch(e){}
+        }, 100);
+
+    } catch(e) { 
+        if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); 
     }
-    
-    res.json({success: true});
 });
 
 app.post('/api/verify-edit-otp', (req, res) => {
-    let { phone, otp } = req.body; let db = loadJSON(dbFile); let session = tempOtpDB[phone + '_edit'];
-    if(session && session.otp === otp) {
-        if(session.type === 'email') db[phone].email = session.newValue;
-        if(session.type === 'password') db[phone].password = session.newValue;
-        if(session.type === 'phone') {
-            let newPhone = normalizePhone(session.newValue);
-            if(db[newPhone]) return res.json({success: false, message: 'Nomor sudah dipakai akun lain.'});
-            db[newPhone] = db[phone]; db[newPhone].jid = newPhone + '@s.whatsapp.net'; delete db[phone];
-        }
-        saveJSON(dbFile, db); delete tempOtpDB[phone + '_edit']; res.json({success: true});
-    } else res.json({success: false, message: 'OTP Salah!'});
+    try {
+        let { phone, otp } = req.body; let db = loadJSON(dbFile); let session = tempOtpDB[phone + '_edit'];
+        if(session && session.otp === otp) {
+            if(session.type === 'email') db[phone].email = session.newValue;
+            if(session.type === 'password') db[phone].password = session.newValue;
+            if(session.type === 'phone') {
+                let newPhone = normalizePhone(session.newValue);
+                if(db[newPhone]) return res.json({success: false, message: 'Nomor sudah dipakai akun lain.'});
+                db[newPhone] = db[phone]; db[newPhone].jid = newPhone + '@s.whatsapp.net'; delete db[phone];
+            }
+            saveJSON(dbFile, db); delete tempOtpDB[phone + '_edit']; res.json({success: true});
+        } else res.json({success: false, message: 'OTP Salah!'});
+    } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
 app.post('/api/topup', async (req, res) => {
@@ -1128,14 +1165,19 @@ app.post('/api/order', async (req, res) => {
         trxs[refId] = { jid: targetJid, sku: sku, tujuan: tujuan, harga: p.harga, nama: p.nama, tanggal: Date.now() };
         saveJSON(trxFile, trxs);
 
-        if (globalSock) {
-            let msgWa = `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
-            globalSock.sendMessage(targetJid, { text: msgWa }).catch(e=>{});
-        }
-        
-        return res.json({success: true, saldo: db[targetKey].saldo});
+        res.json({success: true, saldo: db[targetKey].saldo});
+
+        setTimeout(() => {
+            try {
+                if (globalSock) {
+                    let msgWa = `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
+                    globalSock.sendMessage(targetJid, { text: msgWa }).catch(e=>{});
+                }
+            } catch(e){}
+        }, 100);
+
     } catch (error) { 
-        return res.json({success: false, message: 'Gagal diproses Digiflazz (Nomor Salah/Server Down/Harga Berubah)'}); 
+        if (!res.headersSent) return res.json({success: false, message: 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)'}); 
     }
 });
 
@@ -1649,33 +1691,7 @@ menu_produk() {
 
                 echo -e "\n${C_MAG}--- EDIT PRODUK : $OLD_NAMA ---${C_RST}"
                 echo -e "${C_YELLOW}💡 Biarkan kosong (tekan Enter) jika Anda TIDAK INGIN mengubah datanya.${C_RST}"
-                echo -e "${C_CYAN}Kategori saat ini: $OLD_KAT | Provider: $OLD_BRAND${C_RST}"
-                echo "1. Pulsa | 2. Data | 3. Masa Aktif | 4. SMS Telp | 5. PLN | 6. E-Wallet | 7. Tagihan | 8. E-Toll | 9. Digital"
                 
-                read -p "Ubah Kategori? (Ketik angka 1-9) [Enter jika tidak]: " new_cat_idx
-                
-                new_brand_idx=""
-                if [ ! -z "$new_cat_idx" ]; then
-                    if [ "$new_cat_idx" == "1" ] || [ "$new_cat_idx" == "2" ] || [ "$new_cat_idx" == "3" ] || [ "$new_cat_idx" == "4" ]; then
-                        echo "1. Telkomsel | 2. XL | 3. Axis | 4. Indosat | 5. Tri | 6. Smartfren | 7. By.U"
-                        read -p "Pilih Provider Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "6" ]; then
-                        echo "1. Gopay | 2. Dana | 3. Shopee Pay | 4. OVO | 5. LinkAja"
-                        read -p "Pilih E-Wallet Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "7" ]; then
-                        echo "1. PLN Pasca | 2. BPJS | 3. PDAM | 4. Indihome"
-                        read -p "Pilih Tagihan Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "8" ]; then
-                        echo "1. Mandiri E-Money | 2. Brizzi | 3. TapCash"
-                        read -p "Pilih E-Toll Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "9" ]; then
-                        echo "1. Mobile Legends | 2. Free Fire | 3. PUBG | 4. Vidio | 5. Netflix"
-                        read -p "Pilih Digital Baru: " new_brand_idx
-                    elif [ "$new_cat_idx" == "5" ]; then
-                        new_brand_idx="1"
-                    fi
-                fi
-
                 read -p "Kode Baru [$OLD_KODE]: " new_kode
                 read -p "Nama Baru [$OLD_NAMA]: " new_nama
                 read -p "Harga Baru [$OLD_HARGA]: " new_harga
@@ -1685,24 +1701,9 @@ menu_produk() {
                 export NEW_NAMA="$new_nama"
                 export NEW_HARGA="$new_harga"
                 export NEW_DESC="$new_desc"
-                export NEW_CAT_IDX="$new_cat_idx"
-                export NEW_BRAND_IDX="$new_brand_idx"
                 
                 node -e "
                     const fs = require('fs');
-                    const catMap = {'1':'Pulsa', '2':'Data', '3':'Masa Aktif', '4':'SMS Telp', '5':'PLN', '6':'E-Wallet', '7':'Tagihan', '8':'E-Toll', '9':'Digital'};
-                    const brandMap = {
-                        'Pulsa': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'Data': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'Masa Aktif': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'SMS Telp': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'E-Wallet': {'1':'Gopay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
-                        'Tagihan': {'1':'PLN Pasca', '2':'BPJS', '3':'PDAM', '4':'Indihome'},
-                        'E-Toll': {'1':'Mandiri E-Money', '2':'Brizzi', '3':'TapCash'},
-                        'Digital': {'1':'Mobile Legends', '2':'Free Fire', '3':'PUBG', '4':'Vidio', '5':'Netflix'},
-                        'PLN': {'1':'Token PLN'}
-                    };
-
                     let produk = JSON.parse(fs.readFileSync('produk.json'));
                     let oldKey = process.env.OLD_KODE;
                     let newKey = process.env.NEW_KODE.toUpperCase().replace(/\s+/g, '');
@@ -1715,16 +1716,6 @@ menu_produk() {
                         if (process.env.NEW_DESC.trim() === '-') delete item.deskripsi;
                         else item.deskripsi = process.env.NEW_DESC;
                     }
-                    
-                    if (process.env.NEW_CAT_IDX && process.env.NEW_CAT_IDX.trim() !== '') {
-                        let cName = catMap[process.env.NEW_CAT_IDX];
-                        if(cName) {
-                            item.kategori = cName;
-                            item.brand = (brandMap[cName] && brandMap[cName][process.env.NEW_BRAND_IDX]) ? brandMap[cName][process.env.NEW_BRAND_IDX] : (cName === 'PLN' ? 'Token PLN' : 'Lainnya');
-                        }
-                    }
-                    
-                    if(!item.brand) item.brand = 'Lainnya';
                     
                     if (oldKey !== newKey) {
                         produk[newKey] = item;
@@ -2019,7 +2010,7 @@ while true; do
     echo ""
     echo -e "${C_MAG}▶ MANAJEMEN TOKO & SISTEM${C_RST}"
     echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo Member"
-    echo -e "  ${C_GREEN}[7]${C_RST}  🛒 Manajemen Daftar Produk & Harga"
+    echo -e "  ${C_GREEN}[7]${C_RST}  🛒 Manajemen Produk & Harga (XLSX/CSV Import)"
     echo -e "  ${C_GREEN}[8]${C_RST}  ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
     echo -e "  ${C_GREEN}[9]${C_RST}  💾 Backup & Restore Data Database"
     echo -e "  ${C_GREEN}[10]${C_RST} 🔌 Ganti API Digiflazz"
