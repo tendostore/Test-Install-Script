@@ -23,7 +23,6 @@ sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT > /dev/null 2>&1 || true
 # ==========================================
 # 1. BIKIN SHORTCUT 'BOT' DI VPS
 # ==========================================
-# Hapus sisa-sisa Auto-Start panel yang bikin VPS macet sebelumnya
 sed -i '/# Auto-start bot panel/d' ~/.bashrc
 sed -i '/if \[ -f \/usr\/bin\/bot \] && \[ -t 1 \]; then/d' ~/.bashrc
 sed -i '/\/usr\/bin\/bot/d' ~/.bashrc
@@ -42,7 +41,7 @@ fi
 # 2. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI
 # ==========================================
 generate_web_app() {
-    # Buat folder public dan folder banner secara otomatis
+    mkdir -p public
     mkdir -p public/baner1 public/baner2 public/baner3 public/baner4 public/baner5
 
     cat << 'EOF' > public/manifest.json
@@ -99,14 +98,22 @@ EOF
         .banner::before { content: ''; position: absolute; bottom: -40px; left: -20px; right: -20px; height: 120px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.05); pointer-events: none; }
         .banner::after { content: ''; position: absolute; top: -50px; right: -30px; width: 150px; height: 150px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.05); pointer-events: none; }
         .saldo-title { font-size: 12px; font-weight: normal; opacity: 0.8; margin-bottom: 5px;}
-        .saldo-amount { font-size: 34px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 15px;}
+        .saldo-amount { font-size: 34px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 20px;}
         .btn-topup-dash { 
             background: #ffffff; color: #0b2136; border: none; 
-            padding: 8px 25px; border-radius: 20px; font-weight: 900; font-size: 12px; 
-            cursor: pointer; display: inline-block; position: relative; z-index: 2;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.2s;
+            padding: 10px 25px; border-radius: 25px; font-weight: 900; font-size: 12px; 
+            cursor: pointer; display: inline-flex; align-items: center; justify-content: center; position: relative; z-index: 2;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.2s; flex: 1;
         }
         .btn-topup-dash:active { transform: scale(0.95); }
+        .btn-bantuan { background: #f1f5f9; color: #0f172a; }
+
+        /* SLIDER BANNER */
+        .banner-slider-container { margin: 25px 20px 0; border-radius: 16px; overflow: hidden; position: relative; background: #fff; box-shadow: 0 4px 10px rgba(226,232,240,0.5);}
+        .banner-slider { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .banner-slider::-webkit-scrollbar { display: none; }
+        .banner-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; justify-content: center; align-items: center; }
+        .banner-slide img { width: 100%; height: auto; object-fit: cover; aspect-ratio: 21/9; display: block;}
 
         /* GRID MENU (9 Kategori) */
         .grid-title { margin: 25px 20px 15px; font-weight: 800; color: #1e293b; font-size: 16px;}
@@ -118,16 +125,9 @@ EOF
             transition: transform 0.2s, border-color 0.2s;
         }
         .grid-box:active { transform: scale(0.95); border-color: #0b2136; }
-        .grid-icon-wrap { width: 40px; height: 40px; margin-bottom: 10px; display: flex; justify-content: center; align-items: center;}
-        .grid-icon-wrap svg { width: 100%; height: 100%; stroke-width: 1.5; fill: none; }
+        .grid-icon-wrap { width: 42px; height: 42px; margin-bottom: 10px; display: flex; justify-content: center; align-items: center;}
+        .grid-icon-wrap svg { width: 100%; height: 100%; }
         .grid-text { font-size: 10px; color: #0b2136; font-weight: 800; line-height: 1.3; text-transform: uppercase;}
-
-        /* SLIDER BANNER */
-        .banner-slider-container { margin: 25px 20px 0; border-radius: 16px; overflow: hidden; position: relative; background: #fff; box-shadow: 0 4px 10px rgba(226,232,240,0.5);}
-        .banner-slider { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-        .banner-slider::-webkit-scrollbar { display: none; }
-        .banner-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; justify-content: center; align-items: center; }
-        .banner-slide img { width: 100%; height: auto; object-fit: cover; aspect-ratio: 21/9; display: block;}
 
         /* BRAND LIST (VERTICAL) */
         .brand-list { display: flex; flex-direction: column; padding: 15px 20px; gap: 12px; }
@@ -294,64 +294,79 @@ EOF
                 <div class="banner" id="home-banner">
                     <div class="saldo-title">Sisa Saldo Anda</div>
                     <div class="saldo-amount" id="user-saldo">Rp 0</div>
-                    <button class="btn-topup-dash" onclick="openTopupModal()">ISI SALDO</button>
-                </div>
-            </div>
-
-            <div class="grid-title">Layanan Produk</div>
-            <div class="grid-container">
-                <div class="grid-box" onclick="loadCategory('Pulsa')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg></div>
-                    <div class="grid-text">PULSA</div>
-                </div>
-                <div class="grid-box" onclick="loadCategory('Data')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#DCFCE7" stroke="#16A34A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></div>
-                    <div class="grid-text">DATA</div>
-                </div>
-                <div class="grid-box" onclick="loadCategory('Game')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" ry="2"></rect><path d="M6 12h4"></path><path d="M8 10v4"></path><line x1="15" y1="13" x2="15.01" y2="13"></line><line x1="18" y1="11" x2="18.01" y2="11"></line></svg></div>
-                    <div class="grid-text">GAME</div>
-                </div>
-                <div class="grid-box" onclick="loadCategory('Voucher')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#FEF3C7" stroke="#D97706" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" ry="2"></rect><path d="M2 12a2 2 0 0 1 2-2V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 1 2 2 2 2 0 0 1-2 2v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 1-2-2z"></path></svg></div>
-                    <div class="grid-text">VOUCHER</div>
-                </div>
-                <div class="grid-box" onclick="loadCategory('E-Money')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#E0E7FF" stroke="#4F46E5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg></div>
-                    <div class="grid-text">E-MONEY</div>
-                </div>
-                <div class="grid-box" onclick="loadCategory('PLN')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#FEF08A" stroke="#CA8A04" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></div>
-                    <div class="grid-text">PLN</div>
-                </div>
-                <div class="grid-box" onclick="loadCategory('Paket SMS & Telpon')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#EDE9FE" stroke="#7C3AED" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg></div>
-                    <div class="grid-text">SMS & TELP</div>
-                </div>
-                <div class="grid-box" onclick="loadCategory('Masa Aktif')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#FEE2E2" stroke="#DC2626" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>
-                    <div class="grid-text">MASA AKTIF</div>
-                </div>
-                <div class="grid-box" onclick="loadCategory('Aktivasi Perdana')">
-                    <div class="grid-icon-wrap"><svg viewBox="0 0 24 24" fill="#D1FAE5" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg></div>
-                    <div class="grid-text">PERDANA</div>
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button class="btn-topup-dash" onclick="openTopupModal()">ISI SALDO</button>
+                        <button class="btn-topup-dash btn-bantuan" onclick="contactAdmin()">BANTUAN</button>
+                    </div>
                 </div>
             </div>
 
             <div id="banner-slider-container" class="banner-slider-container hidden">
                 <div id="banner-slider" class="banner-slider"></div>
             </div>
-            
-            <div style="padding: 20px; margin: 30px 20px; background: #ffffff; border-radius: 16px; text-align: center; border: 1px dashed #cbd5e1;" id="install-banner" class="hidden">
-                <strong style="color:#0b2136; font-size:14px;">Aplikasi Digital Tendo Store</strong><br>
-                <span style="font-size:12px; color:#64748b; font-weight: 600;">Pasang di layar utama HP Anda untuk akses cepat!</span><br>
-                <button class="btn" style="margin-top:15px; padding: 10px 30px; font-size:12px; width:auto; border-radius:20px;" id="install-btn">Install Sekarang</button>
+
+            <div class="grid-title">Layanan Produk</div>
+            <div class="grid-container">
+                <div class="grid-box" onclick="loadCategory('Pulsa')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="#bfdbfe" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="3" ry="3"></rect><path d="M12 18h.01" stroke-width="3"></path><path d="M9 6h6"></path></svg>
+                    </div>
+                    <div class="grid-text">PULSA</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('Data')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="#bbf7d0" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"></path><path d="M2 12h20"></path><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                    </div>
+                    <div class="grid-text">DATA</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('Game')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="#fbcfe8" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="4" ry="4"></rect><path d="M6 12h4"></path><path d="M8 10v4"></path><path d="M15 13h.01" stroke-width="3"></path><path d="M18 11h.01" stroke-width="3"></path></svg>
+                    </div>
+                    <div class="grid-text">GAME</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('Voucher')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="#fde68a" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4V6z"></path><path d="M9 11h6"></path><path d="M9 15h6"></path></svg>
+                    </div>
+                    <div class="grid-text">VOUCHER</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('E-Money')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="#c7d2fe" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><path d="M2 10h20"></path><path d="M6 15h.01" stroke-width="3"></path></svg>
+                    </div>
+                    <div class="grid-text">E-MONEY</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('PLN')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="#fef08a" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+                    </div>
+                    <div class="grid-text">PLN</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('Paket SMS & Telpon')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="#ddd6fe" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M8 10h.01" stroke-width="3"></path><path d="M12 10h.01" stroke-width="3"></path><path d="M16 10h.01" stroke-width="3"></path></svg>
+                    </div>
+                    <div class="grid-text">SMS & TELP</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('Masa Aktif')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="#fecaca" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path><path d="M12 14h.01" stroke-width="3"></path></svg>
+                    </div>
+                    <div class="grid-text">MASA AKTIF</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('Aktivasi Perdana')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="#a7f3d0" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M14 2l6 6"></path><path d="M8 12h8"></path><path d="M8 16h6"></path></svg>
+                    </div>
+                    <div class="grid-text">PERDANA</div>
+                </div>
             </div>
         </div>
 
         <div id="brand-screen" class="hidden">
             <div class="screen-header">
-                <svg class="back-icon" onclick="goBackFromBrandScreen()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                <svg class="back-icon" onclick="goBackFromBrand()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span id="brand-cat-title" style="text-transform: uppercase;">Kategori</span>
@@ -361,7 +376,7 @@ EOF
 
         <div id="produk-screen" class="hidden">
             <div class="screen-header">
-                <svg class="back-icon" onclick="goBackFromProducts()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                <svg class="back-icon" onclick="goBackFromProduct()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span id="cat-title-text" style="text-transform: uppercase;">Katalog</span>
@@ -519,6 +534,7 @@ EOF
         // GLOBAL VARS
         let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
         let currentCategory = ""; let currentBrand = "";
+        let currentView = 'dashboard'; // dashboard, category, subcategory, products
         let bannerInterval;
 
         // === API CALL KLASIK (ANTI-ERROR) ===
@@ -533,7 +549,7 @@ EOF
             return await res.json();
         }
 
-        // FUNGSI LOAD BANNER (SLIDER OTOMATIS)
+        // FUNGSI LOAD BANNER (SLIDER OTOMATIS 3 DETIK)
         async function loadBanners() {
             try {
                 let data = await apiCall('/api/banners');
@@ -557,7 +573,7 @@ EOF
                             } else {
                                 slider.scrollBy({ left: slider.clientWidth, behavior: 'smooth' });
                             }
-                        }, 4000);
+                        }, 3000);
                     }
                 } else {
                     container.classList.add('hidden');
@@ -629,6 +645,7 @@ EOF
         }
 
         function showDashboard() { 
+            currentView = 'dashboard';
             showScreen('dashboard-screen', 'nav-home'); 
             syncUserData(); 
             fetchAllProducts(); 
@@ -875,9 +892,13 @@ EOF
             } catch(e){}
         }
 
+        // ==========================================
+        // SISTEM KATEGORI & SUB KATEGORI (DATA)
+        // ==========================================
         async function loadCategory(cat) {
             currentCategory = cat; 
             currentBrand = "";
+            currentView = 'category';
             await fetchAllProducts(); 
             document.getElementById('brand-cat-title').innerText = cat;
             
@@ -919,6 +940,7 @@ EOF
         function loadSubCategory(cat, brand) {
             currentCategory = cat;
             currentBrand = brand;
+            currentView = 'subcategory';
             document.getElementById('brand-cat-title').innerText = brand + " (Paket)";
             
             let subs = [];
@@ -931,14 +953,8 @@ EOF
             }
             
             if(subs.length > 0) {
-                let sortedSubs = subs.filter(s => s !== 'Umum' && s !== 'Akrab').sort();
-                
-                // Khusus XL
-                if(subs.includes('Akrab') || (brand === 'XL' && subs.includes('Umum'))) {
-                    sortedSubs.unshift('Akrab');
-                } else if(subs.includes('Umum')) {
-                    sortedSubs.unshift('Umum');
-                }
+                let sortedSubs = subs.filter(s => s !== 'Umum' && s !== 'Paket Akrab').sort(); // Paket Akrab dihapus sesuai request
+                if(subs.includes('Umum')) sortedSubs.unshift('Umum'); // Umum selalu di atas
                 
                 let gridHTML = '';
                 sortedSubs.forEach(s => {
@@ -962,6 +978,7 @@ EOF
         function loadProducts(cat, brand, subCat = null) {
             currentCategory = cat;
             currentBrand = brand;
+            currentView = 'products';
             document.getElementById('cat-title-text').innerText = subCat ? subCat : brand;
             document.getElementById('search-product').value = ''; // Reset pencarian saat buka
             
@@ -972,7 +989,6 @@ EOF
                 
                 if (subCat) {
                     let pSub = p.sub_kategori || 'Umum';
-                    if (brand === 'XL' && pSub === 'Umum') pSub = 'Akrab';
                     if (pSub !== subCat) continue;
                 }
                 
@@ -994,17 +1010,17 @@ EOF
             showScreen('produk-screen', 'nav-home');
         }
 
-        function goBackFromBrandScreen() {
-            let title = document.getElementById('brand-cat-title').innerText;
-            if(currentCategory === 'Data' && title.includes('(Paket)')) {
+        // FUNGSI TOMBOL BACK SUPER PRESISI
+        function goBackFromBrand() {
+            if (currentView === 'subcategory') {
                 loadCategory(currentCategory); // Kembali ke list Brand
             } else {
                 showDashboard(); // Kembali ke Dashboard utama
             }
         }
 
-        function goBackFromProducts() {
-            if(currentCategory === 'Data') {
+        function goBackFromProduct() {
+            if (currentCategory === 'Data') {
                 loadSubCategory(currentCategory, currentBrand); // Kembali ke Sub-kategori Data
             } else {
                 loadCategory(currentCategory); // Kembali ke list Brand biasa
@@ -1058,6 +1074,9 @@ EOF
 # ==========================================
 generate_bot_script() {
     cat << 'EOF' > index.js
+process.on('uncaughtException', function (err) { console.error('Caught exception: ', err); });
+process.on('unhandledRejection', function (reason, p) { console.error('Unhandled Rejection at: Promise', p, 'reason:', reason); });
+
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const fs = require('fs');
 const pino = require('pino');
@@ -1195,7 +1214,7 @@ app.post('/api/register', (req, res) => {
                     let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
                     globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
                 }
-            } catch(err) { console.error(err); }
+            } catch(e) {}
         }, 100);
 
     } catch(e) { 
@@ -1786,7 +1805,7 @@ menu_produk() {
                         'Data': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
                         'Paket SMS & Telpon': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
                         'Masa Aktif': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'E-Money': {'1':'Gopay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
+                        'E-Money': {'1':'Go Pay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
                         'Game': {'1':'Mobile Legends', '2':'Free Fire', '3':'PUBG'}
                     };
                     
@@ -1901,7 +1920,7 @@ menu_produk() {
                         'Data': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
                         'Masa Aktif': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
                         'SMS Telp': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'E-Wallet': {'1':'Gopay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
+                        'E-Wallet': {'1':'Go Pay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
                         'Tagihan': {'1':'PLN Pasca', '2':'BPJS', '3':'PDAM', '4':'Indihome'},
                         'E-Toll': {'1':'Mandiri E-Money', '2':'Brizzi', '3':'TapCash'},
                         'Digital': {'1':'Mobile Legends', '2':'Free Fire', '3':'PUBG', '4':'Vidio', '5':'Netflix'},
@@ -2078,9 +2097,7 @@ menu_produk() {
                                 
                                 if(isNaN(hargaAwal)) return;
 
-                                // ==============================================
-                                // LOGIKA KATEGORI (SUPER KETAT & ANTI NYASAR)
-                                // ==============================================
+                                // --- LOGIKA KATEGORI (SUPER KETAT & ANTI NYASAR) ---
                                 let kategori = 'Lainnya';
                                 let nLower = ' ' + nama.toLowerCase() + ' '; 
                                 let nUpper = nama.toUpperCase();
@@ -2088,8 +2105,8 @@ menu_produk() {
                                 let isVoucher = /\b(voucher|vcr|voc|gesek|spotify|google play|garena|unipin)\b/.test(nLower);
                                 let isDataKeyword = /\b(gb|mb|data|kuota|internet|combo|xtra|flash|paket|omg|aigo|owsem|bulk|gamesmax|gamemax|unlimited|maxstream)\b/.test(nLower);
                                 let isPerdana = /\b(perdana|aktivasi|kpk)\b/.test(nLower);
-                                let isEMoney = /\b(gopay|go-pay|ovo|dana|shopee|shopeepay|linkaja|link aja|isaku|brizzi|e-toll|etoll|e-money|mtix|grab|gojek|saldo|maxim)\b/.test(nLower);
-                                let isGame = /\b(free fire|ff|mobile legend|mobile legends|mlbb|ml|pubg|diamond|diamonds|uc|cp|valorant|genshin)\b/.test(nLower);
+                                let isEMoney = /\b(gopay|go-pay|go pay|ovo|dana|shopee|shopeepay|linkaja|link aja|isaku|brizzi|e-toll|etoll|e-money|mtix|grab|gojek|saldo|maxim)\b/.test(nLower);
+                                let isGame = /\b(free fire|free fier|ff|mobile legend|mobile legends|mlbb|ml|pubg|diamond|diamonds|uc|cp|valorant|genshin)\b/.test(nLower);
                                 let isPLN = /\b(pln|token listrik|token pln)\b/.test(nLower);
                                 let isMasaAktif = /\b(masa aktif)\b/.test(nLower);
                                 let isSmsTelp = /\b(sms|telpon|telepon|nelpon|voice|bicara)\b/.test(nLower);
@@ -2099,7 +2116,7 @@ menu_produk() {
                                     kategori = 'Aktivasi Perdana';
                                 } else if (isVoucher) {
                                     kategori = 'Voucher';
-                                } else if (isEMoney) {
+                                } else if (isEMoney && !isDataKeyword) {
                                     kategori = 'E-Money';
                                 } else if (isGame && !isDataKeyword && !isPulsa) {
                                     kategori = 'Game';
@@ -2121,52 +2138,42 @@ menu_produk() {
                                     }
                                 }
 
-                                // ==============================================
-                                // LOGIKA BRAND PROVIDER (SUPER KETAT)
-                                // ==============================================
+                                // --- LOGIKA BRAND PROVIDER ---
                                 let brand = 'Lainnya';
                                 if (brandCol && row[brandCol]) {
                                     brand = row[brandCol].toString().trim();
-                                } else {
-                                    if (kategori === 'E-Money') {
-                                        if (/\b(gopay|go-pay|gojek)\b/.test(nLower)) brand = 'Gopay';
-                                        else if (/\b(ovo)\b/.test(nLower)) brand = 'OVO';
-                                        else if (/\b(dana)\b/.test(nLower)) brand = 'Dana';
-                                        else if (/\b(shopee|shopeepay)\b/.test(nLower)) brand = 'ShopeePay';
-                                        else if (/\b(linkaja|link aja)\b/.test(nLower)) brand = 'LinkAja';
-                                        else brand = 'Lainnya';
-                                    } 
-                                    else if (kategori === 'Game') {
-                                        if (/\b(mobile legend|mobile legends|mlbb|ml|diamond|diamonds)\b/.test(nLower)) brand = 'Mobile Legends';
-                                        else if (/\b(free fire|ff)\b/.test(nLower)) brand = 'Free Fire';
-                                        else if (/\b(pubg|uc)\b/.test(nLower)) brand = 'PUBG';
-                                        else brand = 'Lainnya';
-                                    }
-                                    else if (kategori === 'PLN') {
-                                        brand = 'PLN';
-                                    }
-                                    else if (kategori === 'Voucher') {
-                                        if (/\b(telkomsel|tsel|as|simpati)\b/.test(nLower)) brand = 'Telkomsel';
-                                        else if (/\b(xl)\b/.test(nLower)) brand = 'XL';
-                                        else if (/\b(axis)\b/.test(nLower)) brand = 'Axis';
-                                        else if (/\b(indosat|isat|im3)\b/.test(nLower)) brand = 'Indosat';
-                                        else if (/\b(tri|three|bima)\b/.test(nLower)) brand = 'Tri';
-                                        else if (/\b(smartfren)\b/.test(nLower)) brand = 'Smartfren';
-                                        else if (/\b(by\.u|byu)\b/.test(nLower)) brand = 'By.U';
-                                        else if (/\b(google play)\b/.test(nLower)) brand = 'Google Play';
-                                        else if (/\b(spotify)\b/.test(nLower)) brand = 'Spotify';
-                                        else brand = 'Tri'; // Semua sisa voucher masuk Tri
-                                    }
-                                    else {
-                                        if (/\b(BY\.U|BYU)\b/.test(nUpper)) brand = 'By.U';
-                                        else if (/\b(TELKOMSEL|TSEL|AS|SIMPATI)\b/.test(nUpper)) brand = 'Telkomsel';
-                                        else if (/\b(XL)\b/.test(nUpper)) brand = 'XL';
-                                        else if (/\b(AXIS)\b/.test(nUpper)) brand = 'Axis';
-                                        else if (/\b(INDOSAT|ISAT|IM3)\b/.test(nUpper)) brand = 'Indosat';
-                                        else if (/\b(TRI|THREE|BIMA)\b/.test(nUpper)) brand = 'Tri';
-                                        else if (/\b(SMARTFREN)\b/.test(nUpper)) brand = 'Smartfren';
-                                        else brand = nama.split(' ')[0].toUpperCase(); 
-                                    }
+                                } 
+                                
+                                // OVERRIDE BRAND JIKA NYASAR
+                                if (kategori === 'Data' || kategori === 'Pulsa' || kategori === 'Paket SMS & Telpon' || kategori === 'Masa Aktif') {
+                                    if (/\b(TELKOMSEL|TSEL|AS |SIMPATI)\b/.test(nUpper)) brand = 'Telkomsel';
+                                    else if (/\b(XL)\b/.test(nUpper)) brand = 'XL';
+                                    else if (/\b(AXIS)\b/.test(nUpper)) brand = 'Axis';
+                                    else if (/\b(INDOSAT|ISAT|IM3)\b/.test(nUpper)) brand = 'Indosat';
+                                    else if (/\b(TRI|THREE|BIMA)\b/.test(nUpper)) brand = 'Tri';
+                                    else if (/\b(SMARTFREN)\b/.test(nUpper)) brand = 'Smartfren';
+                                    else if (/\b(BY\.U|BYU)\b/.test(nUpper)) brand = 'By.U';
+                                }
+                                else if (kategori === 'E-Money') {
+                                    if (/\b(gopay|go-pay|go pay|gojek)\b/.test(nLower)) brand = 'Go Pay';
+                                    else if (/\b(ovo)\b/.test(nLower)) brand = 'OVO';
+                                    else if (/\b(dana)\b/.test(nLower)) brand = 'Dana';
+                                    else if (/\b(shopee|shopeepay)\b/.test(nLower)) brand = 'ShopeePay';
+                                    else if (/\b(linkaja|link aja)\b/.test(nLower)) brand = 'LinkAja';
+                                    else brand = 'Lainnya';
+                                } 
+                                else if (kategori === 'Game') {
+                                    if (/\b(mobile legend|mobile legends|mlbb|ml|diamond|diamonds)\b/.test(nLower)) brand = 'Mobile Legends';
+                                    else if (/\b(free fire|free fier|ff)\b/.test(nLower)) brand = 'Free Fire';
+                                    else if (/\b(pubg|uc)\b/.test(nLower)) brand = 'PUBG';
+                                }
+                                else if (kategori === 'PLN') {
+                                    brand = 'PLN';
+                                }
+                                else if (kategori === 'Voucher') {
+                                    if (/\b(spotify)\b/.test(nLower)) brand = 'Spotify';
+                                    else if (/\b(google play)\b/.test(nLower)) brand = 'Google Play';
+                                    else brand = 'Tri';
                                 }
 
                                 // --- LOGIKA SUB-KATEGORI (KHUSUS DATA) ---
@@ -2178,7 +2185,7 @@ menu_produk() {
                                         'Axis': ['mini','bronet vidio','bronet','owsem','edu confrence','conference','edukasi','ekstra','youtube','sosmed','paket warnet','aigo ss','aigo unlimited','combo mabrur','mabrur','video','musik','apps games','games','viu','pure','drp games','obor'],
                                         'Smartfren': ['unlimited nonstop 5g','unlimited nonstop','unlimited harian 5g','unlimited','volume','youtube','connex evo','nonstop','chat','sosmed','games','kuota 5g','kuota','tiktok','nonton'],
                                         'Tri': ['mini','alwayson','getmore','mix','home','roaming','data transfer','happy play','happy 5g','happy','lokal','sahabat ojol','ibadah','addon','ramadan','hifi air'],
-                                        'XL': ['mini','umroh plus','combo umroh haji','internet umroh haji','umroh','hotrod special','hotrod','xtra combo flex','xtra combo plus','xtra combo gift','xtra combo vip plus','xtra combo mini','xtra combo weekend','xtra combo','combo lite','xtra kuota vidio','xtra kuota','conference','edukasi','xtra on','roaming','paket akrab','games','apps games','bonus harian','flexmax','flex mini','flex','east kalsul','ultra 5g+'],
+                                        'XL': ['mini','umroh plus','combo umroh haji','internet umroh haji','umroh','hotrod special','hotrod','xtra combo flex','xtra combo plus','xtra combo gift','xtra combo vip plus','xtra combo mini','xtra combo weekend','xtra combo','combo lite','xtra kuota vidio','xtra kuota','conference','edukasi','xtra on','roaming','akrab','games','apps games','bonus harian','flexmax','flex mini','flex','east kalsul','ultra 5g+'],
                                         'By.U': ['viu','tiktok','super kaget','kaget','mbps','topping ggwp','vidio','jajan']
                                     };
 
@@ -2190,11 +2197,6 @@ menu_produk() {
                                                 break;
                                             }
                                         }
-                                    }
-
-                                    // Hilangkan tulisan "Paket"
-                                    if (brand === 'XL' && subKategori === 'Umum') {
-                                        subKategori = 'Akrab';
                                     }
                                 }
 
@@ -2278,7 +2280,7 @@ while true; do
     echo ""
     echo -e "${C_MAG}▶ MANAJEMEN TOKO & SISTEM${C_RST}"
     echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo Member"
-    echo -e "  ${C_GREEN}[7]${C_RST}  🛒 Manajemen Produk & Harga (XLSX/CSV Import)"
+    echo -e "  ${C_GREEN}[7]${C_RST}  🛒 Manajemen Daftar Produk & Harga"
     echo -e "  ${C_GREEN}[8]${C_RST}  ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
     echo -e "  ${C_GREEN}[9]${C_RST}  💾 Backup & Restore Data Database"
     echo -e "  ${C_GREEN}[10]${C_RST} 🔌 Ganti API Digiflazz"
