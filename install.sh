@@ -52,7 +52,7 @@ generate_web_app() {
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f1f5f9",
-  "theme_color": "#0b1727",
+  "theme_color": "#ffffff",
   "orientation": "portrait",
   "icons": [{"src": "https://cdn-icons-png.flaticon.com/512/3144/3144456.png", "sizes": "512x512", "type": "image/png"}]
 }
@@ -72,58 +72,54 @@ EOF
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Digital Tendo Store</title>
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#0b1727">
+    <meta name="theme-color" content="#ffffff">
     <style>
-        /* TEMA UI PERSIS REFERENSI GAMBAR (DARK GLASS CARD) */
+        /* TEMA UI PERSIS REFERENSI GAMBAR 3 */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #e2e8f0; color: #1e293b; margin: 0; display: flex; justify-content: center; }
         #app { width: 100%; max-width: 480px; background: #f1f5f9; min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 80px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.05);}
         
-        /* TOP BAR (NAVY BLUE ELEGANT) */
-        .top-bar { background: #0b1727; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; border-bottom: none;}
+        /* TOP BAR BERSAHABAT (PUTIH) */
+        .top-bar { background: #ffffff; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; border-bottom: none;}
         .menu-btn { cursor: pointer; background: none; border: none; padding: 0; display: flex; align-items: center; justify-content: center;}
-        .menu-btn svg { width: 26px; height: 26px; stroke: #ffffff; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
+        .menu-btn svg { width: 26px; height: 26px; stroke: #0b1727; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
         
-        /* LOGO & TITLE: PUTIH AGAR KONTRAS */
+        /* LOGO 'TD' (Sesuai Gambar 2) & TITLE: BIRU GELAP */
         .brand-title-wrapper { display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; margin: 0 10px; }
-        .brand-title { font-size: 15px; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;}
-        .brand-logo-svg { width: 24px; height: 24px; }
+        .brand-title { font-size: 15px; font-weight: 900; color: #0b1727; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;}
+        .brand-logo-svg { width: 26px; height: 26px; }
         
         /* TRX BADGE */
-        .trx-badge { font-size: 11px; background: rgba(255,255,255,0.1); color: #ffffff; padding: 5px 10px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid rgba(255,255,255,0.2); transition: transform 0.2s; white-space: nowrap;}
+        .trx-badge { font-size: 11px; background: #f8fafc; color: #0b1727; padding: 5px 10px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid #cbd5e1; transition: transform 0.2s; white-space: nowrap;}
         .trx-badge:active { transform: scale(0.95); }
 
-        /* BANNER SALDO KOTAK (DARK GLASSMORPHISM) */
-        .banner-container { background: linear-gradient(180deg, #0b1727 0%, #0b1727 50%, #f1f5f9 50%, #f1f5f9 100%); padding: 10px 20px 20px;}
+        /* BANNER SALDO KOTAK (Mirip Referensi Gambar 3 - Gelap + Garis Grid) */
+        .banner-container { background: #f1f5f9; padding: 20px 20px 10px;}
         .banner { 
-            background: rgba(15, 23, 42, 0.95); 
-            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-            border-radius: 24px; padding: 30px 20px 25px; 
+            background-color: #0f172a; 
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-50,100 C100,-50 200,250 450,50' fill='none' stroke='rgba(255,255,255,0.05)' stroke-width='1.5'/%3E%3Cpath d='M-50,150 C150,0 250,300 450,100' fill='none' stroke='rgba(255,255,255,0.04)' stroke-width='1.5'/%3E%3C/svg%3E");
+            background-size: cover;
+            border-radius: 20px; padding: 30px 20px 25px; 
             color: #ffffff; text-align: center; position: relative; overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+            box-shadow: 0 10px 25px rgba(15,23,42,0.1);
         }
-        /* Motif Grid Jaring Transparan di Belakang */
+        /* Garis Grid Kotak-Kotak */
         .banner::before { 
-            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; 
-            background: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); 
-            background-size: 30px 30px; transform: rotate(15deg); pointer-events: none; 
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px); 
+            background-size: 35px 35px; pointer-events: none; 
         }
-        /* Ornamen Lingkaran Transparan */
-        .banner::after { 
-            content: ''; position: absolute; top: 10px; right: -20px; width: 120px; height: 120px; 
-            border-radius: 50%; border: 1px solid rgba(255,255,255,0.05); pointer-events: none; 
-        }
+        
         .saldo-title { font-size: 12px; font-weight: 500; opacity: 0.8; margin-bottom: 5px; position: relative; z-index: 2;}
         .saldo-amount { font-size: 36px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 20px; position: relative; z-index: 2;}
         
         .action-buttons { display: flex; justify-content: center; gap: 15px; position: relative; z-index: 2; }
         .btn-topup-dash, .btn-help-dash { 
-            background: rgba(255,255,255,0.05); color: #ffffff; border: 1.5px solid rgba(255,255,255,0.3); 
+            background: transparent; color: #ffffff; border: 1.5px solid #ffffff; 
             padding: 10px 20px; border-radius: 25px; font-weight: 800; font-size: 11px; 
             cursor: pointer; display: flex; align-items: center; justify-content: center; flex: 1; max-width: 140px;
             transition: background 0.2s, color 0.2s; text-transform: uppercase; letter-spacing: 0.5px;
         }
-        .btn-topup-dash:active, .btn-help-dash:active { background: #ffffff; color: #0f172a; }
+        .btn-topup-dash:active, .btn-help-dash:active { background: rgba(255,255,255,0.2); }
 
         /* SLIDER BANNER (Di Bawah Saldo, Di Atas Menu) */
         .banner-slider-container { margin: 10px 20px 25px; border-radius: 16px; overflow: hidden; position: relative; background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.03);}
@@ -150,37 +146,37 @@ EOF
         /* BRAND LIST (VERTICAL) */
         .brand-list { display: flex; flex-direction: column; padding: 15px 20px; gap: 12px; }
         .brand-row { background: #ffffff; padding: 15px; border-radius: 14px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s, border-color 0.2s;}
-        .brand-row:active { transform: scale(0.98); border-color: #0b2136;}
-        .b-logo { width: 45px; height: 45px; background: #f1f5f9; color: #0b2136; border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; border: 1px solid #e2e8f0; flex-shrink: 0;}
+        .brand-row:active { transform: scale(0.98); border-color: #0b1727;}
+        .b-logo { width: 45px; height: 45px; background: #f1f5f9; color: #0b1727; border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; border: 1px solid #e2e8f0; flex-shrink: 0;}
         .b-name { font-size: 14px; font-weight: 800; color: #1e293b; flex: 1;}
 
-        /* BOTTOM NAV */
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 480px; background: #ffffff; display: flex; justify-content: space-around; padding: 12px 0 8px; border-top: 1px solid #e2e8f0; box-shadow: 0 -2px 10px rgba(0,0,0,0.02); z-index: 90;}
-        .nav-item { text-align: center; color: #94a3b8; font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700; transition: color 0.3s;}
+        /* BOTTOM NAV (GELAP) */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 480px; background: #0b1727; display: flex; justify-content: space-around; padding: 12px 0 8px; border-top: 1px solid #1e293b; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 90;}
+        .nav-item { text-align: center; color: #64748b; font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700; transition: color 0.3s;}
         .nav-icon { margin-bottom: 4px; display: flex; justify-content: center; align-items: center;}
         .nav-icon svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
-        .nav-item.active { color: #0b2136;}
+        .nav-item.active { color: #ffffff;}
 
         /* PRODUCT LIST STYLE */
         .product-item { background: #ffffff; padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); cursor: pointer; transition: 0.2s;}
-        .product-item:active { transform: scale(0.98); border-color: #0b2136;}
-        .prod-logo { width: 45px; height: 45px; background: #f8fafc; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; color: #0b2136; font-size: 14px; border: 1px solid #e2e8f0; flex-shrink: 0;}
+        .product-item:active { transform: scale(0.98); border-color: #0b1727;}
+        .prod-logo { width: 45px; height: 45px; background: #f8fafc; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; color: #0b1727; font-size: 14px; border: 1px solid #e2e8f0; flex-shrink: 0;}
         .prod-info { flex: 1; min-width: 0; }
-        .prod-name { font-weight: 800; font-size: 13px; color: #0b2136; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; word-wrap: break-word;}
+        .prod-name { font-weight: 800; font-size: 13px; color: #0b1727; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; word-wrap: break-word;}
         .badge-open { background: #e0f2fe; color: #0284c7; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800; border: 1px solid #bae6fd; flex-shrink: 0; margin-left: 8px;}
         .prod-desc { font-size: 10px; color: #64748b; font-weight: 600; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;}
-        .prod-price { color: #0b2136; font-weight: 900; font-size: 15px;}
+        .prod-price { color: #0b1727; font-weight: 900; font-size: 15px;}
 
         /* SEARCH BAR */
         .search-box { padding: 15px 20px 5px; position: sticky; top: 58px; z-index: 50; background: #f1f5f9; }
-        .search-box input { margin-bottom: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.02); border-radius: 12px; padding: 12px 15px; border: 1px solid #cbd5e1; outline: none; width: 100%; box-sizing: border-box; font-weight: bold; color: #0b2136;}
+        .search-box input { margin-bottom: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.02); border-radius: 12px; padding: 12px 15px; border: 1px solid #cbd5e1; outline: none; width: 100%; box-sizing: border-box; font-weight: bold; color: #0b1727;}
 
         /* SIDEBAR */
         .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); z-index: 999; display: none; opacity: 0; transition: opacity 0.3s;}
         .sidebar { position: fixed; top:0; left:-300px; width: 280px; height: 100%; background: #ffffff; z-index: 1000; transition: left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 5px 0 15px rgba(0,0,0,0.1);}
         .sidebar.open { left: 0; }
-        .sidebar-header { padding: 30px 20px; text-align: center; border-bottom: 1px solid #f1f5f9; background: #0f172a; color: #ffffff;}
-        .sidebar-avatar { width: 70px; height: 70px; background: #ffffff; border-radius: 50%; margin: 0 auto 10px auto; display: flex; justify-content: center; align-items: center; color: #0b2136; font-size: 30px; font-weight: bold;}
+        .sidebar-header { padding: 30px 20px; text-align: center; border-bottom: 1px solid #f1f5f9; background: #0b1727; color: #ffffff;}
+        .sidebar-avatar { width: 70px; height: 70px; background: #ffffff; border-radius: 50%; margin: 0 auto 10px auto; display: flex; justify-content: center; align-items: center; color: #0b1727; font-size: 30px; font-weight: bold;}
         .sidebar-name { font-weight: bold; font-size: 16px; color: #ffffff;}
         .sidebar-phone { font-size: 12px; color: #cbd5e1;}
         .sidebar-menu { padding: 10px 0; flex: 1;}
@@ -191,44 +187,44 @@ EOF
         /* FORMS & COMPONENTS */
         .container { padding: 20px; }
         .card { background: #ffffff; padding: 25px 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(0,0,0,0.02);}
-        input { width: 100%; padding: 15px; margin-bottom: 12px; border: 1px solid #cbd5e1; border-radius: 12px; box-sizing: border-box; font-size: 14px; outline: none; background: #f8fafc; color: #0b2136; font-weight: 600; transition: border-color 0.2s;}
-        input:focus { border-color: #0b2136; background: #ffffff;}
+        input { width: 100%; padding: 15px; margin-bottom: 12px; border: 1px solid #cbd5e1; border-radius: 12px; box-sizing: border-box; font-size: 14px; outline: none; background: #f8fafc; color: #0b1727; font-weight: 600; transition: border-color 0.2s;}
+        input:focus { border-color: #0b1727; background: #ffffff;}
         
         .checkbox-container { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 20px; font-size: 13px; font-weight: 600; color: #475569; cursor: pointer;}
         .checkbox-container input { width: 16px; height: 16px; margin: 0; padding: 0; cursor: pointer;}
         
-        .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;}
+        .btn { background: #0b1727; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;}
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-outline { background: #ffffff; color: #0b2136; border: 1.5px solid #0b2136; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
+        .btn-outline { background: #ffffff; color: #0b1727; border: 1.5px solid #0b1727; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
         .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
 
         /* PROFILE & MODAL */
-        .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
-        .prof-avatar { width: 80px; height: 80px; background: #ffffff; color: #0b2136; border-radius: 50%; font-size: 40px; display: flex; justify-content: center; align-items: center; margin: 0 auto 10px auto; font-weight: bold;}
+        .prof-header { background: #0b1727; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
+        .prof-avatar { width: 80px; height: 80px; background: #ffffff; color: #0b1727; border-radius: 50%; font-size: 40px; display: flex; justify-content: center; align-items: center; margin: 0 auto 10px auto; font-weight: bold;}
         .prof-box { background: #ffffff; margin: -20px 20px 20px; border-radius: 16px; padding: 20px; position: relative; z-index: 10; border: 1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.03);}
         .prof-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed #e2e8f0; font-size: 13px;}
         .prof-label { color: #64748b; font-weight: 600;}
-        .prof-val { color: #0b2136; font-weight: 900; text-align: right;}
-        .prof-action-btn { background: #f8fafc; color: #0b2136; border: 1px solid #e2e8f0; padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px;}
+        .prof-val { color: #0b1727; font-weight: 900; text-align: right;}
+        .prof-action-btn { background: #f8fafc; color: #0b1727; border: 1px solid #e2e8f0; padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px;}
         .prof-action-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
 
         .hist-item { background: #ffffff; padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer;}
         .hist-item:active { transform: scale(0.98); }
         .hist-top { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-bottom: 5px; font-weight: 700;}
-        .hist-title { font-weight: 800; font-size: 14px; color: #0b2136; margin-bottom: 3px;}
+        .hist-title { font-weight: 800; font-size: 14px; color: #0b1727; margin-bottom: 3px;}
         .hist-target { font-size: 12px; color: #475569; font-weight: 600;}
         .stat-badge { padding: 4px 10px; border-radius: 8px; font-weight: bold; font-size: 10px;}
         .stat-Sukses { background: #dcfce7; color: #166534; } 
         .stat-Pending { background: #ffedd5; color: #c2410c; } 
         .stat-Gagal { background: #fee2e2; color: #b91c1c; text-decoration: line-through; }
 
-        .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15, 23, 42, 0.85); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
+        .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
         .modal-box { background: #ffffff; width: 100%; max-width: 340px; border-radius: 20px; padding: 25px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;}
         .modal-btns { display: flex; gap: 10px; margin-top: 15px;}
         
-        .screen-header { padding: 15px 20px; font-weight: 800; font-size: 18px; display: flex; align-items: center; gap: 15px; background: #ffffff; border-bottom: 1px solid #e2e8f0; position: sticky; top:0; z-index: 10; color: #0b2136;}
+        .screen-header { padding: 15px 20px; font-weight: 800; font-size: 18px; display: flex; align-items: center; gap: 15px; background: #ffffff; border-bottom: 1px solid #e2e8f0; position: sticky; top:0; z-index: 10; color: #0b1727;}
         .hidden { display: none !important; }
-        .back-icon { cursor: pointer; fill: none; stroke: #0b2136; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
+        .back-icon { cursor: pointer; fill: none; stroke: #0b1727; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
     </style>
 </head>
 <body>
@@ -239,9 +235,9 @@ EOF
             </button>
             <div class="brand-title-wrapper">
                 <svg class="brand-logo-svg" viewBox="0 0 24 24" fill="none">
-                    <path d="M7 8h8a4 4 0 0 1 0 8H10" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M10 8v8" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
-                    <path d="M5 12h4" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+                    <path d="M3 6h10" stroke="#0b1727" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M8 6v12" stroke="#0b1727" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M12 6h3a6 6 0 0 1 0 12h-3" stroke="#0b1727" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
                 <div class="brand-title">DIGITAL TENDO STORE</div>
             </div>
@@ -276,7 +272,7 @@ EOF
 
         <div id="login-screen" class="container">
             <div style="text-align:center; margin: 40px 0;">
-                <h1 style="color:#0b2136; margin:0; font-weight:900; font-size: 28px;">Digital Tendo Store</h1>
+                <h1 style="color:#0b1727; margin:0; font-weight:900; font-size: 28px;">Digital Tendo Store</h1>
                 <p style="color:#64748b; font-size:13px; margin-top:5px; font-weight: 600;">Solusi Pembayaran Digital</p>
             </div>
             <div class="card">
@@ -433,7 +429,7 @@ EOF
             </div>
             
             <div style="padding: 20px; margin: 30px 20px; background: #ffffff; border-radius: 16px; text-align: center; border: 1px dashed #cbd5e1;" id="install-banner" class="hidden">
-                <strong style="color:#0b2136; font-size:14px;">Aplikasi Digital Tendo Store</strong><br>
+                <strong style="color:#0b1727; font-size:14px;">Aplikasi Digital Tendo Store</strong><br>
                 <span style="font-size:12px; color:#64748b; font-weight: 600;">Pasang di layar utama HP Anda untuk akses cepat!</span><br>
                 <button class="btn" style="margin-top:15px; padding: 10px 30px; font-size:12px; width:auto; border-radius:20px;" id="install-btn">Install Sekarang</button>
             </div>
@@ -505,8 +501,8 @@ EOF
                 <span>Pemberitahuan</span>
             </div>
             <div class="container">
-                <div class="card" style="border-left: 4px solid #0b2136;">
-                    <h3 style="margin-top:0; color: #0b2136; font-size:15px;">📢 Info Terbaru</h3>
+                <div class="card" style="border-left: 4px solid #0b1727;">
+                    <h3 style="margin-top:0; color: #0b1727; font-size:15px;">📢 Info Terbaru</h3>
                     <p id="notif-text" style="color: #555; line-height: 1.6; font-size:13px; white-space: pre-wrap; font-weight: 500;">Memuat...</p>
                 </div>
             </div>
@@ -533,7 +529,7 @@ EOF
                 <div style="background:#f9f9f9; padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid #eee; text-align: left;">
                     <strong id="m-name" style="font-size:14px; color:#2c3e50; line-height:1.4; display:block; margin-bottom:5px;">Produk</strong>
                     <div id="m-desc" style="font-size:11px; color:#64748b; margin-bottom:10px; line-height: 1.4;">Deskripsi Produk</div>
-                    <span style="color:#0b2136; font-weight:900; font-size: 20px;" id="m-price">Rp 0</span>
+                    <span style="color:#0b1727; font-weight:900; font-size: 20px;" id="m-price">Rp 0</span>
                 </div>
                 <input type="text" id="m-target" placeholder="Masukkan Nomor/ID Tujuan" style="text-align:center; font-size: 16px; font-weight: bold;">
                 <div class="modal-btns">
@@ -2551,15 +2547,9 @@ EOF
             sudo nginx -t && sudo systemctl restart nginx
 
             echo -e "${C_CYAN}>> Meminta Sertifikat SSL HTTPS ke Let's Encrypt...${C_RST}"
-            
-            # SCRIPT PERBAIKAN: Menangani error gagal verifikasi Certbot!
-            if sudo certbot --nginx -d $domain_name --non-interactive --agree-tos -m $ssl_email --redirect; then
-                echo -e "\n${C_GREEN}✅ Berhasil! Website Digital Tendo Store Anda sekarang bisa diakses dan sudah diamankan di: https://$domain_name ${C_RST}"
-            else
-                echo -e "\n${C_RED}❌ GAGAL MEMASANG SSL HTTPS! Server Certbot gagal melakukan verifikasi domain Anda.${C_RST}"
-                echo -e "${C_YELLOW}💡 Solusi: Pastikan A Record sudah benar, Cloudflare Proxy (awan orange) dimatikan sementara, lalu coba lagi nanti.${C_RST}"
-            fi
-            
+            sudo certbot --nginx -d $domain_name --non-interactive --agree-tos -m $ssl_email --redirect
+
+            echo -e "\n${C_GREEN}✅ Berhasil! Website Digital Tendo Store Anda sekarang bisa diakses dan sudah diamankan di: https://$domain_name ${C_RST}"
             read -p "Tekan Enter untuk kembali..."
             ;;
         0) echo -e "${C_GREEN}Keluar dari panel. Sampai jumpa! 👋${C_RST}"; exit 0 ;;
