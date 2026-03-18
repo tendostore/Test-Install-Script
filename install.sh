@@ -74,76 +74,90 @@ EOF
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ffffff">
     <style>
-        /* TEMA PREMIUM PERSIS REFERENSI GAMBAR */
+        /* TEMA PREMIUM PERSIS REFERENSI GAMBAR 2 */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #e2e8f0; color: #1e293b; margin: 0; display: flex; justify-content: center; }
-        #app { width: 100%; max-width: 480px; background: #eef2f6; min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 80px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.05);}
+        #app { width: 100%; max-width: 480px; background: #f1f5f9; min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 80px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.05);}
         
-        /* TOP BAR BERSAHABAT (PUTIH) */
-        .top-bar { background: #ffffff; color: #0b2136; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #e2e8f0;}
+        /* TOP BAR BERSAHABAT (PUTIH SOLID) */
+        /* Border-bottom dihapus agar menyatu sempurna dengan banner-container */
+        .top-bar { background: #ffffff; color: #0b2136; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100;}
         .menu-btn { cursor: pointer; background: none; border: none; padding: 0; margin-right: 15px; display: flex; align-items: center; justify-content: center;}
         .menu-btn svg { width: 28px; height: 28px; stroke: #0b2136; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
         
-        .brand-title { font-size: 16px; font-weight: 800; flex: 1; text-align: left; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.2px; color: #1e293b;}
-        .brand-logo-svg { width: 24px; height: 24px; }
+        .brand-title { font-size: 15px; font-weight: 900; flex: 1; text-align: left; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.5px;}
+        .brand-logo-svg { width: 22px; height: 22px; }
         
         /* TRX BADGE */
-        .trx-badge { font-size: 11px; background: #e2e8f0; color: #1e293b; padding: 6px 12px; border-radius: 20px; font-weight: 800; cursor: pointer; border: none; transition: transform 0.2s;}
-        .trx-badge:active { transform: scale(0.95); background: #cbd5e1; }
+        .trx-badge { font-size: 11px; background: #f1f5f9; color: #0b2136; padding: 5px 12px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid #cbd5e1; transition: transform 0.2s;}
+        .trx-badge:active { transform: scale(0.95); }
 
-        /* BANNER SALDO KOTAK (Mirip Referensi Gambar) */
-        .banner-container { padding: 15px 15px 10px;}
+        /* DEGRADASI & LENGKUNGAN BACKGROUND PUTIH (Sesuai area merah) */
+        .banner-container { 
+            background: #ffffff; 
+            padding: 5px 20px 25px; 
+            border-bottom-left-radius: 30px; 
+            border-bottom-right-radius: 30px; 
+            box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.08); /* Efek degradasi/bayangan */
+            position: relative;
+            z-index: 10;
+        }
+
+        /* KOTAK SALDO HITAM */
         .banner { 
-            background: #171d2b; 
-            border-radius: 20px; padding: 25px 20px; 
+            background: linear-gradient(135deg, #111827 0%, #0f172a 100%); 
+            border-radius: 20px; padding: 30px 20px 25px; 
             color: #ffffff; text-align: center; position: relative; overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 20px rgba(15,23,42,0.15);
         }
-        /* Motif Grid Jaring Transparan di Belakang */
+        /* Motif Garis Topografi / Jaring */
         .banner::before { 
-            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            background-image: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px); 
-            background-size: 40px 40px; pointer-events: none; opacity: 0.8;
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; 
+            background: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px); 
+            background-size: 30px 30px; transform: rotate(15deg); pointer-events: none; 
         }
-        .saldo-title { font-size: 12px; font-weight: 500; opacity: 0.8; margin-bottom: 5px; position: relative; z-index: 2; color: #cbd5e1;}
-        .saldo-amount { font-size: 34px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 25px; position: relative; z-index: 2; color: #ffffff;}
+        .banner::after { 
+            content: ''; position: absolute; top: 10px; right: -20px; width: 120px; height: 120px; 
+            border-radius: 50%; border: 1px solid rgba(255,255,255,0.05); pointer-events: none; 
+        }
+        .saldo-title { font-size: 12px; font-weight: 500; opacity: 0.9; margin-bottom: 5px; position: relative; z-index: 2;}
+        .saldo-amount { font-size: 36px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 20px; position: relative; z-index: 2;}
         
         .action-buttons { display: flex; justify-content: center; gap: 15px; position: relative; z-index: 2; }
         .btn-topup-dash, .btn-help-dash { 
-            background: transparent; color: #ffffff; border: 1.5px solid rgba(255,255,255,0.8); 
-            padding: 12px 20px; border-radius: 50px; font-weight: 700; font-size: 11px; 
+            background: transparent; color: #ffffff; border: 1px solid rgba(255,255,255,0.8); 
+            padding: 10px 20px; border-radius: 25px; font-weight: 800; font-size: 11px; 
             cursor: pointer; display: flex; align-items: center; justify-content: center; flex: 1; max-width: 140px;
             transition: background 0.2s, color 0.2s; text-transform: uppercase; letter-spacing: 0.5px;
         }
-        .btn-topup-dash:active, .btn-help-dash:active { background: rgba(255,255,255,0.1); }
+        .btn-topup-dash:active, .btn-help-dash:active { background: #ffffff; color: #0f172a; }
 
-        /* SLIDER BANNER (Di Bawah Saldo, Di Atas Menu) */
-        .banner-slider-container { margin: 10px 15px 20px; border-radius: 16px; overflow: hidden; position: relative; background: transparent; box-shadow: none;}
-        .banner-slider { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; border-radius: 16px; }
+        /* SLIDER BANNER (Margin disesuaikan agar tidak menabrak bayangan degradasi) */
+        .banner-slider-container { margin: 20px 20px 0px; border-radius: 16px; overflow: hidden; position: relative; background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.03);}
+        .banner-slider { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         .banner-slider::-webkit-scrollbar { display: none; }
         .banner-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; justify-content: center; align-items: center; }
-        .banner-slide img { width: 100%; height: auto; object-fit: cover; aspect-ratio: 21/9; display: block; border-radius: 16px;}
+        .banner-slide img { width: 100%; height: auto; object-fit: cover; aspect-ratio: 21/9; display: block;}
 
         /* GRID MENU (Layanan Produk) */
-        .grid-title { margin: 5px 20px 15px; font-weight: 800; color: #334155; font-size: 15px;}
-        .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 0 15px;}
+        .grid-title { margin: 25px 20px 15px; font-weight: 800; color: #1e293b; font-size: 15px;}
+        .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 0 20px;}
         .grid-box { 
-            background: #ffffff; border-radius: 16px; padding: 18px 5px; 
+            background: #f8fafc; border-radius: 16px; padding: 18px 5px; 
             text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-            border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+            border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             transition: transform 0.2s, background 0.2s;
         }
-        .grid-box:active { transform: scale(0.95); background: #f8fafc; }
+        .grid-box:active { transform: scale(0.95); background: #e2e8f0; }
         
-        .grid-icon-wrap { width: 48px; height: 48px; margin-bottom: 10px; display: flex; justify-content: center; align-items: center;}
-        .grid-icon-wrap svg { width: 36px; height: 36px; }
+        .grid-icon-wrap { width: 42px; height: 42px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center;}
         
-        .grid-text { font-size: 10px; color: #1e293b; font-weight: 800; line-height: 1.2; text-transform: uppercase;}
+        .grid-text { font-size: 10px; color: #0f172a; font-weight: 800; line-height: 1.3; text-transform: uppercase; letter-spacing: -0.2px;}
 
         /* BRAND LIST (VERTICAL) */
         .brand-list { display: flex; flex-direction: column; padding: 15px 20px; gap: 12px; }
         .brand-row { background: #ffffff; padding: 15px; border-radius: 14px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s, border-color 0.2s;}
         .brand-row:active { transform: scale(0.98); border-color: #0b2136;}
-        .b-logo { width: 45px; height: 45px; background: #eef2f6; color: #0b2136; border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; border: 1px solid #e2e8f0; flex-shrink: 0;}
+        .b-logo { width: 45px; height: 45px; background: #f1f5f9; color: #0b2136; border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; border: 1px solid #e2e8f0; flex-shrink: 0;}
         .b-name { font-size: 14px; font-weight: 800; color: #1e293b; flex: 1;}
 
         /* BOTTOM NAV */
@@ -151,7 +165,7 @@ EOF
         .nav-item { text-align: center; color: #94a3b8; font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700; transition: color 0.3s;}
         .nav-icon { margin-bottom: 4px; display: flex; justify-content: center; align-items: center;}
         .nav-icon svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
-        .nav-item.active { color: #1e293b;}
+        .nav-item.active { color: #0b2136;}
 
         /* PRODUCT LIST STYLE */
         .product-item { background: #ffffff; padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); cursor: pointer; transition: 0.2s;}
@@ -164,7 +178,7 @@ EOF
         .prod-price { color: #0b2136; font-weight: 900; font-size: 15px;}
 
         /* SEARCH BAR */
-        .search-box { padding: 15px 20px 5px; position: sticky; top: 58px; z-index: 50; background: #eef2f6; }
+        .search-box { padding: 15px 20px 5px; position: sticky; top: 58px; z-index: 50; background: #f1f5f9; }
         .search-box input { margin-bottom: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.02); border-radius: 12px; padding: 12px 15px; border: 1px solid #cbd5e1; outline: none; width: 100%; box-sizing: border-box; font-weight: bold; color: #0b2136;}
 
         /* SIDEBAR */
@@ -189,13 +203,13 @@ EOF
         .checkbox-container { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 20px; font-size: 13px; font-weight: 600; color: #475569; cursor: pointer;}
         .checkbox-container input { width: 16px; height: 16px; margin: 0; padding: 0; cursor: pointer;}
         
-        .btn { background: #171d2b; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;}
+        .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;}
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-outline { background: #ffffff; color: #171d2b; border: 1.5px solid #171d2b; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
+        .btn-outline { background: #ffffff; color: #0b2136; border: 1.5px solid #0b2136; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
         .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
 
         /* PROFILE & MODAL */
-        .prof-header { background: #171d2b; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
+        .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
         .prof-avatar { width: 80px; height: 80px; background: #ffffff; color: #0b2136; border-radius: 50%; font-size: 40px; display: flex; justify-content: center; align-items: center; margin: 0 auto 10px auto; font-weight: bold;}
         .prof-box { background: #ffffff; margin: -20px 20px 20px; border-radius: 16px; padding: 20px; position: relative; z-index: 10; border: 1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.03);}
         .prof-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed #e2e8f0; font-size: 13px;}
@@ -230,14 +244,25 @@ EOF
                 <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
             <div class="brand-title" id="top-title">
-                <svg class="brand-logo-svg" viewBox="0 0 24 24" fill="none">
-                    <path d="M4 6h10c3.31 0 6 2.69 6 6s-2.69 6-6 6H4V6z" stroke="#0b2136" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M4 6h6v12" stroke="#0b2136" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M9 6L5 10" stroke="#0b2136" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <svg class="brand-logo-svg" viewBox="0 0 24 24" fill="none" stroke="#0b2136" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 6h10" />
+                    <path d="M8 6v14" />
+                    <path d="M8 6h5a7 7 0 0 1 0 14H8" />
                 </svg>
                 DIGITAL TENDO STORE
             </div>
             <div class="trx-badge" id="top-trx-badge" onclick="showHistory()">0 Trx</div>
+        </div>
+
+        <div class="banner-container" id="banner-container-wrap">
+            <div class="banner" id="home-banner">
+                <div class="saldo-title">Sisa Saldo Anda</div>
+                <div class="saldo-amount" id="user-saldo">Rp 0</div>
+                <div class="action-buttons">
+                    <button class="btn-topup-dash" onclick="openTopupModal()">ISI SALDO</button>
+                    <button class="btn-help-dash" onclick="contactAdmin()">BANTUAN</button>
+                </div>
+            </div>
         </div>
 
         <div class="sidebar-overlay" id="sb-overlay" onclick="toggleSidebar()"></div>
@@ -307,17 +332,6 @@ EOF
         </div>
 
         <div id="dashboard-screen" class="hidden">
-            <div class="banner-container">
-                <div class="banner" id="home-banner">
-                    <div class="saldo-title">Sisa Saldo Anda</div>
-                    <div class="saldo-amount" id="user-saldo">Rp 0</div>
-                    <div class="action-buttons">
-                        <button class="btn-topup-dash" onclick="openTopupModal()">ISI SALDO</button>
-                        <button class="btn-help-dash" onclick="contactAdmin()">BANTUAN</button>
-                    </div>
-                </div>
-            </div>
-
             <div id="banner-slider-container" class="banner-slider-container hidden">
                 <div id="banner-slider" class="banner-slider"></div>
             </div>
@@ -326,10 +340,9 @@ EOF
             <div class="grid-container">
                 <div class="grid-box" onclick="loadCategory('Pulsa')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#a5b4fc" stroke="#1e293b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+                        <svg viewBox="0 0 24 24" fill="#93C5FD" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
                             <rect x="5" y="2" width="14" height="20" rx="3"></rect>
-                            <circle cx="12" cy="18" r="1.5" fill="#1e293b" stroke="none"></circle>
-                            <line x1="9" y1="5" x2="15" y2="5"></line>
+                            <path d="M12 18h.01" stroke-width="3"></path>
                         </svg>
                     </div>
                     <div class="grid-text">PULSA</div>
@@ -337,10 +350,9 @@ EOF
                 
                 <div class="grid-box" onclick="loadCategory('Data')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#86efac" stroke="#1e293b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+                        <svg viewBox="0 0 24 24" fill="#86EFAC" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
                             <circle cx="12" cy="12" r="10"></circle>
-                            <ellipse cx="12" cy="12" rx="4" ry="10"></ellipse>
-                            <line x1="2" y1="12" x2="22" y2="12"></line>
+                            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
                         </svg>
                     </div>
                     <div class="grid-text">DATA</div>
@@ -348,12 +360,12 @@ EOF
 
                 <div class="grid-box" onclick="loadCategory('Game')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#fca5a5" stroke="#1e293b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
-                            <rect x="2" y="6" width="20" height="12" rx="5"></rect>
+                        <svg viewBox="0 0 24 24" fill="#FCA5A5" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
+                            <rect x="2" y="6" width="20" height="12" rx="4"></rect>
                             <line x1="6" y1="12" x2="10" y2="12"></line>
                             <line x1="8" y1="10" x2="8" y2="14"></line>
-                            <circle cx="15" cy="13" r="1.5" fill="#1e293b" stroke="none"></circle>
-                            <circle cx="18" cy="11" r="1.5" fill="#1e293b" stroke="none"></circle>
+                            <line x1="15" y1="13" x2="15.01" y2="13"></line>
+                            <line x1="18" y1="11" x2="18.01" y2="11"></line>
                         </svg>
                     </div>
                     <div class="grid-text">GAME</div>
@@ -361,11 +373,10 @@ EOF
                 
                 <div class="grid-box" onclick="loadCategory('Voucher')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#fde047" stroke="#1e293b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+                        <svg viewBox="0 0 24 24" fill="#FDE047" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
                             <rect x="2" y="6" width="20" height="12" rx="2"></rect>
-                            <circle cx="2" cy="12" r="2.5" fill="#f1f5f9" stroke="#1e293b"></circle>
-                            <circle cx="22" cy="12" r="2.5" fill="#f1f5f9" stroke="#1e293b"></circle>
-                            <line x1="7" y1="12" x2="17" y2="12" stroke-dasharray="2 2"></line>
+                            <circle cx="2" cy="12" r="2.5" fill="#f8fafc" stroke="#1e293b"></circle>
+                            <circle cx="22" cy="12" r="2.5" fill="#f8fafc" stroke="#1e293b"></circle>
                         </svg>
                     </div>
                     <div class="grid-text">VOUCHER</div>
@@ -373,10 +384,9 @@ EOF
                 
                 <div class="grid-box" onclick="loadCategory('E-Money')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#c4b5fd" stroke="#1e293b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
-                            <path d="M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6z"></path>
-                            <path d="M17 10h4v4h-4z" fill="#f1f5f9"></path>
-                            <circle cx="19" cy="12" r="1" fill="#1e293b" stroke="none"></circle>
+                        <svg viewBox="0 0 24 24" fill="#C4B5FD" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
+                            <rect x="3" y="6" width="18" height="13" rx="2"></rect>
+                            <path d="M16 10h5v4h-5z" fill="#FDE047"></path>
                         </svg>
                     </div>
                     <div class="grid-text">E-WALLET</div>
@@ -384,8 +394,8 @@ EOF
                 
                 <div class="grid-box" onclick="loadCategory('PLN')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#fef08a" stroke="#1e293b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
-                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        <svg viewBox="0 0 24 24" fill="#FDE047" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
                         </svg>
                     </div>
                     <div class="grid-text">PLN</div>
@@ -393,7 +403,7 @@ EOF
 
                 <div class="grid-box" onclick="loadCategory('Paket SMS & Telpon')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#f9a8d4" stroke="#1e293b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+                        <svg viewBox="0 0 24 24" fill="#F9A8D4" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
                             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
                         </svg>
                     </div>
@@ -402,13 +412,13 @@ EOF
                 
                 <div class="grid-box" onclick="loadCategory('Masa Aktif')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#fdba74" stroke="#1e293b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+                        <svg viewBox="0 0 24 24" fill="#FDBA74" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
                             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                             <line x1="16" y1="2" x2="16" y2="6"></line>
                             <line x1="8" y1="2" x2="8" y2="6"></line>
                             <line x1="3" y1="10" x2="21" y2="10"></line>
-                            <circle cx="8" cy="15" r="1.5" fill="#1e293b" stroke="none"></circle>
                             <circle cx="12" cy="15" r="1.5" fill="#1e293b" stroke="none"></circle>
+                            <circle cx="8" cy="15" r="1.5" fill="#1e293b" stroke="none"></circle>
                             <circle cx="16" cy="15" r="1.5" fill="#1e293b" stroke="none"></circle>
                         </svg>
                     </div>
@@ -417,9 +427,9 @@ EOF
                 
                 <div class="grid-box" onclick="loadCategory('Aktivasi Perdana')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#99f6e4" stroke="#1e293b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+                        <svg viewBox="0 0 24 24" fill="#99F6E4" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
                             <path d="M4 4h12l4 4v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path>
-                            <rect x="8" y="12" width="8" height="6" fill="#f8fafc" stroke="#1e293b"></rect>
+                            <rect x="8" y="12" width="8" height="6" rx="1" fill="#FDE047" stroke="#1e293b"></rect>
                             <line x1="12" y1="12" x2="12" y2="18"></line>
                         </svg>
                     </div>
@@ -509,16 +519,16 @@ EOF
 
         <div class="bottom-nav" id="main-bottom-nav">
             <div class="nav-item active" id="nav-home" onclick="showDashboard()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></span>HOME
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></span>HOME
             </div>
             <div class="nav-item" id="nav-history" onclick="showHistory()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span>RIWAYAT
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span>RIWAYAT
             </div>
             <div class="nav-item" id="nav-notif" onclick="showNotif()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>INFO
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>INFO
             </div>
             <div class="nav-item" id="nav-profile" onclick="showProfile()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>PROFIL
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>PROFIL
             </div>
         </div>
 
@@ -690,9 +700,15 @@ EOF
             if(id === 'login-screen' || id === 'register-screen' || id === 'otp-screen') {
                 document.getElementById('home-topbar').classList.add('hidden');
                 document.getElementById('main-bottom-nav').classList.add('hidden');
+                document.getElementById('banner-container-wrap').classList.add('hidden');
             } else {
                 document.getElementById('home-topbar').classList.remove('hidden');
                 document.getElementById('main-bottom-nav').classList.remove('hidden');
+                if(id === 'dashboard-screen') {
+                    document.getElementById('banner-container-wrap').classList.remove('hidden');
+                } else {
+                    document.getElementById('banner-container-wrap').classList.add('hidden');
+                }
             }
             if(navId) updateNav(navId);
         }
