@@ -107,7 +107,8 @@ EOF
 
         /* TEMA PREMIUM CSS */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #cbd5e1; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
-        #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 80px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
+        /* padding-bottom diperbesar jadi 110px untuk nav mengambang */
+        #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 110px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
         
         /* TOP BAR TENGAH & TEBAL */
         .top-bar { background: var(--topbar-bg); color: var(--text-main); padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: background 0.3s;}
@@ -192,11 +193,27 @@ EOF
         .b-logo { width: 45px; height: 45px; background: var(--bg-main); color: var(--text-main); border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border-color); flex-shrink: 0;}
         .b-name { font-size: 14px; font-weight: 800; flex: 1;}
 
-        /* BOTTOM NAV GELAP */
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 480px; background: var(--nav-bg); display: flex; justify-content: space-around; padding: 12px 0 8px; box-shadow: 0 -4px 20px rgba(0,0,0,0.1); z-index: 90; transition: background 0.3s;}
+        /* BOTTOM NAV MENGAMBANG (FLOATING PILL) */
+        .bottom-nav { 
+            position: fixed; 
+            bottom: 20px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 40px); /* Margin 20px di kiri dan kanan */
+            max-width: 400px; 
+            background: var(--nav-bg); 
+            display: flex; 
+            justify-content: space-around; 
+            padding: 10px 5px; 
+            border-radius: 50px; /* Bentuk kapsul / bulat panjang */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25); 
+            z-index: 90; 
+            transition: background 0.3s;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
         .nav-item { text-align: center; color: var(--nav-text); font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700; transition: color 0.3s;}
-        .nav-icon { margin-bottom: 4px; display: flex; justify-content: center; align-items: center;}
-        .nav-icon svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
+        .nav-icon { margin-bottom: 2px; display: flex; justify-content: center; align-items: center;}
+        .nav-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
         .nav-item.active { color: var(--nav-active);}
 
         /* PRODUCT LIST STYLE */
@@ -605,7 +622,7 @@ EOF
                     <button class="btn-outline" style="margin-top:0;" onclick="closeTopupModal()">Batal</button>
                     <button class="btn" id="btn-topup-submit" onclick="sendTopup()">Bayar QRIS</button>
                 </div>
-                <button class="btn-outline" style="margin-top:10px; width:100%; border-color: #0ea5e9; color: #0ea5e9;" onclick="contactAdmin()">Topup Manual (Hubungi Admin)</button>
+                <button class="btn-outline" style="margin-top:10px; width:100%; border-color: #0ea5e9; color: #0ea5e9;" onclick="manualTopupWA()">Topup Manual (Hubungi Admin)</button>
             </div>
         </div>
         
@@ -838,6 +855,13 @@ EOF
             } catch(e) { alert("Kesalahan server."); }
             
             btn.innerText = "Bayar QRIS"; btn.disabled = false;
+        }
+
+        function manualTopupWA() {
+            let email = userData.email || "-";
+            let phone = currentUser || "-";
+            let pesan = `Halo Admin Digital Tendo Store,%0A%0ASaya ingin melakukan *Topup Saldo Manual*.%0A%0A📧 Email Akun: *${email}*%0A📱 Nomor WA: *${phone}*%0A%0AMohon info panduan pembayaran/rekeningnya. Terima kasih.`;
+            window.open(`https://wa.me/6282224460678?text=${pesan}`, '_blank');
         }
 
         function logout() {
