@@ -51,8 +51,8 @@ generate_web_app() {
   "short_name": "Digital Tendo Store",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f1f5f9",
-  "theme_color": "#ffffff",
+  "background_color": "#ebf0f5",
+  "theme_color": "#f8fafc",
   "orientation": "portrait",
   "icons": [{"src": "https://cdn-icons-png.flaticon.com/512/3144/3144456.png", "sizes": "512x512", "type": "image/png"}]
 }
@@ -76,18 +76,18 @@ EOF
     <style>
         /* VARIABEL TEMA GELAP / TERANG */
         :root {
-            --bg-main: #f1f5f9;
-            --bg-card: #ffffff;
+            --bg-main: #e9eef5; /* Background diredupkan dari #f1f5f9 */
+            --bg-card: #f4f7f9; /* Putih diredupkan (tidak terlalu cerah) */
             --text-main: #0b2136;
             --text-muted: #64748b;
-            --border-color: #e2e8f0;
-            --grid-bg: #f8fafc;
-            --grid-shadow: inset 2px 2px 6px rgba(0,0,0,0.05), inset -2px -2px 6px rgba(255,255,255,1);
+            --border-color: #d1d9e2;
+            --grid-bg: #f4f7f9;
+            --grid-shadow: inset 3px 3px 7px rgba(0,0,0,0.06), inset -3px -3px 7px rgba(255,255,255,0.6); /* Inner shadow kotak dalam */
             --grid-border: 1px solid transparent;
             --nav-bg: #0f172a;
             --nav-text: #64748b;
             --nav-active: #38bdf8;
-            --topbar-bg: #ffffff;
+            --topbar-bg: #f4f7f9;
         }
 
         .dark-mode {
@@ -97,7 +97,7 @@ EOF
             --text-muted: #94a3b8;
             --border-color: #334155;
             --grid-bg: #1e293b;
-            --grid-shadow: inset 2px 2px 8px rgba(0,0,0,0.5), inset -2px -2px 8px rgba(255,255,255,0.05);
+            --grid-shadow: inset 3px 3px 8px rgba(0,0,0,0.4), inset -3px -3px 8px rgba(255,255,255,0.04);
             --grid-border: 1px solid #334155;
             --nav-bg: #0b1120;
             --nav-text: #475569;
@@ -106,8 +106,8 @@ EOF
         }
 
         /* TEMA PREMIUM CSS */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #e2e8f0; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
-        #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 80px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.05); transition: background 0.3s;}
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #cbd5e1; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
+        #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 80px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
         
         /* TOP BAR TENGAH & TEBAL */
         .top-bar { background: var(--topbar-bg); color: var(--text-main); padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: background 0.3s;}
@@ -164,7 +164,7 @@ EOF
         .banner-slide img { width: 100%; height: auto; object-fit: cover; aspect-ratio: 21/9; display: block;}
 
         /* GRID MENU (INNER SHADOW) */
-        .grid-title { margin: 25px 20px 15px; font-weight: 800; color: var(--text-main); font-size: 15px;}
+        .grid-title { margin: 25px 20px 15px; font-weight: 900; color: var(--text-main); font-size: 15px;}
         .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 0 20px;}
         .grid-box { 
             background: var(--grid-bg); border-radius: 16px; padding: 18px 5px; 
@@ -179,9 +179,9 @@ EOF
 
         /* STATISTIK GLOBAL */
         .stats-container { margin: 25px 20px; padding: 15px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02);}
-        .stats-title { font-size: 14px; font-weight: 800; color: var(--text-main); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;}
+        .stats-title { font-size: 14px; font-weight: 900; color: var(--text-main); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;}
         .stats-grid { display: flex; justify-content: space-between; gap: 10px;}
-        .stat-box { flex: 1; padding: 10px 5px; background: var(--bg-main); border-radius: 12px; border: 1px solid var(--border-color);}
+        .stat-box { flex: 1; padding: 10px 5px; background: var(--bg-main); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--grid-shadow);}
         .stat-val { font-size: 18px; font-weight: 900; color: #0ea5e9; margin-bottom: 5px;}
         .stat-lbl { font-size: 9px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;}
 
@@ -355,7 +355,7 @@ EOF
             <div class="card" style="text-align:center;">
                 <h2 style="margin-top:0; font-size:18px;">Verifikasi WhatsApp</h2>
                 <p style="font-size:13px; color:var(--text-muted); margin-bottom: 20px; font-weight: 600;">Kode OTP 4 digit telah dikirim ke WA.</p>
-                <input type="number" id="otp-code" placeholder="----" style="text-align:center; font-size:28px; letter-spacing: 12px; font-weight:bold;">
+                <input type="number" id="otp-code" placeholder="----" style="text-align:center; font-size:28px; letter-spacing: 12px; font-weight:bold;" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
                 <button class="btn" id="btn-verify" onclick="verifyOTP()">Verifikasi & Daftar</button>
                 <button class="btn-outline" style="border:none;" onclick="showScreen('register-screen')">Batal</button>
             </div>
@@ -599,12 +599,13 @@ EOF
         <div id="topup-modal" class="modal-overlay hidden">
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Isi Saldo Otomatis</h3>
-                <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">Mendukung QRIS, E-Wallet, dan Virtual Account.</p>
+                <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">Mendukung khusus <b>QRIS</b> (Biaya admin 0.7% ditanggung pelanggan).<br>Gunakan manual untuk metode lainnya.</p>
                 <input type="number" id="topup-nominal" placeholder="Nominal (Min. 10000)" style="text-align:center; font-size:18px; font-weight:bold;">
                 <div class="modal-btns">
                     <button class="btn-outline" style="margin-top:0;" onclick="closeTopupModal()">Batal</button>
-                    <button class="btn" id="btn-topup-submit" onclick="sendTopup()">Lanjut Bayar</button>
+                    <button class="btn" id="btn-topup-submit" onclick="sendTopup()">Bayar QRIS</button>
                 </div>
+                <button class="btn-outline" style="margin-top:10px; width:100%; border-color: #0ea5e9; color: #0ea5e9;" onclick="contactAdmin()">Topup Manual (Hubungi Admin)</button>
             </div>
         </div>
         
@@ -635,7 +636,7 @@ EOF
                 </div>
                 <div id="edit-step-2" class="hidden">
                     <p style="font-size:12px; color:var(--text-muted); font-weight: bold;">OTP telah dikirim ke WA Anda.</p>
-                    <input type="number" id="edit-otp-input" placeholder="----" style="letter-spacing:12px; text-align:center; font-size:24px; background:var(--bg-main);">
+                    <input type="number" id="edit-otp-input" placeholder="----" style="letter-spacing:12px; text-align:center; font-size:24px; background:var(--bg-main);" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
                     <div class="modal-btns">
                         <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
                         <button class="btn" id="btn-verify-edit" onclick="verifyEditOTP()">Simpan</button>
@@ -836,7 +837,7 @@ EOF
                 else { alert(data.message || "Gagal membuka pembayaran."); }
             } catch(e) { alert("Kesalahan server."); }
             
-            btn.innerText = "Lanjut Bayar"; btn.disabled = false;
+            btn.innerText = "Bayar QRIS"; btn.disabled = false;
         }
 
         function logout() {
@@ -1340,14 +1341,22 @@ app.post('/api/webhook/midtrans', (req, res) => {
         if(hash !== signature_key) return res.status(403).send("Invalid Signature");
         
         if(transaction_status === 'capture' || transaction_status === 'settlement') {
-            let phone = order_id.split('-')[1]; 
+            let parts = order_id.split('-');
+            let phone = parts[1]; 
+            let nominalAsli = parseInt(parts[2]); // Membaca nominal asli dari Order ID
+            let amountGross = parseInt(gross_amount);
+            
             let db = loadJSON(dbFile);
             if(db[phone]) {
-                let amount = parseInt(gross_amount);
-                db[phone].saldo += amount;
+                db[phone].saldo += nominalAsli;
                 saveJSON(dbFile, db);
                 if(globalSock) {
-                    globalSock.sendMessage(db[phone].jid, {text: `✅ *TOPUP OTOMATIS BERHASIL*\n\nNominal: Rp ${amount.toLocaleString('id-ID')}\nSaldo Sekarang: Rp ${db[phone].saldo.toLocaleString('id-ID')}`}).catch(()=>{});
+                    let textWa = `✅ *TOPUP OTOMATIS BERHASIL*\n\n` +
+                                 `Nominal Topup: Rp ${nominalAsli.toLocaleString('id-ID')}\n` +
+                                 `Biaya Admin (QRIS): Rp ${(amountGross - nominalAsli).toLocaleString('id-ID')}\n` +
+                                 `Total Bayar: Rp ${amountGross.toLocaleString('id-ID')}\n` +
+                                 `Saldo Sekarang: Rp ${db[phone].saldo.toLocaleString('id-ID')}`;
+                    globalSock.sendMessage(db[phone].jid, {text: textWa}).catch(()=>{});
                 }
             }
         }
@@ -1468,6 +1477,10 @@ app.post('/api/topup', async (req, res) => {
         let db = loadJSON(dbFile);
         if(!db[phone]) return res.json({success: false, message: "User tidak ditemukan."});
         
+        let nominalAsli = parseInt(nominal);
+        let adminFee = Math.ceil(nominalAsli * 0.007);
+        let totalPay = nominalAsli + adminFee;
+
         let snap = new midtransClient.Snap({
             isProduction : config.midtransProd || false,
             serverKey : config.midtransServerKey,
@@ -1476,14 +1489,17 @@ app.post('/api/topup', async (req, res) => {
 
         let parameter = {
             "transaction_details": {
-                "order_id": "TOPUP-" + phone + "-" + Date.now(),
-                "gross_amount": nominal
+                // Menyisipkan nominal asli di order_id agar bisa dibaca webhook
+                "order_id": "TOPUP-" + phone + "-" + nominalAsli + "-" + Date.now(),
+                "gross_amount": totalPay
             },
             "customer_details": {
                 "first_name": db[phone].username,
                 "email": db[phone].email || "user@email.com",
                 "phone": phone
-            }
+            },
+            // Hanya aktifkan QRIS
+            "enabled_payments": ["qris", "gopay", "shopeepay", "other_qris"]
         };
 
         let transaction = await snap.createTransaction(parameter);
