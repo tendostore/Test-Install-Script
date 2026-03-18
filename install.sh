@@ -52,7 +52,7 @@ generate_web_app() {
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f1f5f9",
-  "theme_color": "#ffffff",
+  "theme_color": "#0b1727",
   "orientation": "portrait",
   "icons": [{"src": "https://cdn-icons-png.flaticon.com/512/3144/3144456.png", "sizes": "512x512", "type": "image/png"}]
 }
@@ -72,33 +72,35 @@ EOF
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Digital Tendo Store</title>
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#0b1727">
     <style>
-        /* TEMA UI PERSIS REFERENSI GAMBAR 2 */
+        /* TEMA UI PERSIS REFERENSI GAMBAR (DARK GLASS CARD) */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #e2e8f0; color: #1e293b; margin: 0; display: flex; justify-content: center; }
         #app { width: 100%; max-width: 480px; background: #f1f5f9; min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 80px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.05);}
         
-        /* TOP BAR BERSAHABAT (PUTIH) */
-        .top-bar { background: #ffffff; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #e2e8f0;}
+        /* TOP BAR (NAVY BLUE ELEGANT) */
+        .top-bar { background: #0b1727; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; border-bottom: none;}
         .menu-btn { cursor: pointer; background: none; border: none; padding: 0; display: flex; align-items: center; justify-content: center;}
-        .menu-btn svg { width: 26px; height: 26px; stroke: #1e293b; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
+        .menu-btn svg { width: 26px; height: 26px; stroke: #ffffff; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
         
-        /* LOGO & TITLE: UNGU AGAK KETUAAN (#4c1d95) */
+        /* LOGO & TITLE: PUTIH AGAR KONTRAS */
         .brand-title-wrapper { display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; margin: 0 10px; }
-        .brand-title { font-size: 15px; font-weight: 900; color: #4c1d95; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;}
+        .brand-title { font-size: 15px; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;}
         .brand-logo-svg { width: 24px; height: 24px; }
         
         /* TRX BADGE */
-        .trx-badge { font-size: 11px; background: #f8fafc; color: #1e293b; padding: 5px 10px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid #cbd5e1; transition: transform 0.2s; white-space: nowrap;}
+        .trx-badge { font-size: 11px; background: rgba(255,255,255,0.1); color: #ffffff; padding: 5px 10px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid rgba(255,255,255,0.2); transition: transform 0.2s; white-space: nowrap;}
         .trx-badge:active { transform: scale(0.95); }
 
-        /* BANNER SALDO KOTAK (Mirip Referensi Gambar 2) */
-        .banner-container { background: #f1f5f9; padding: 20px 20px 10px;}
+        /* BANNER SALDO KOTAK (DARK GLASSMORPHISM) */
+        .banner-container { background: linear-gradient(180deg, #0b1727 0%, #0b1727 50%, #f1f5f9 50%, #f1f5f9 100%); padding: 10px 20px 20px;}
         .banner { 
-            background: linear-gradient(135deg, #111827 0%, #0f172a 100%); 
-            border-radius: 20px; padding: 30px 20px 25px; 
+            background: rgba(15, 23, 42, 0.95); 
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border-radius: 24px; padding: 30px 20px 25px; 
             color: #ffffff; text-align: center; position: relative; overflow: hidden;
-            box-shadow: 0 8px 20px rgba(15,23,42,0.15);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
         }
         /* Motif Grid Jaring Transparan di Belakang */
         .banner::before { 
@@ -111,12 +113,12 @@ EOF
             content: ''; position: absolute; top: 10px; right: -20px; width: 120px; height: 120px; 
             border-radius: 50%; border: 1px solid rgba(255,255,255,0.05); pointer-events: none; 
         }
-        .saldo-title { font-size: 12px; font-weight: 500; opacity: 0.9; margin-bottom: 5px; position: relative; z-index: 2;}
+        .saldo-title { font-size: 12px; font-weight: 500; opacity: 0.8; margin-bottom: 5px; position: relative; z-index: 2;}
         .saldo-amount { font-size: 36px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 20px; position: relative; z-index: 2;}
         
         .action-buttons { display: flex; justify-content: center; gap: 15px; position: relative; z-index: 2; }
         .btn-topup-dash, .btn-help-dash { 
-            background: transparent; color: #ffffff; border: 1.5px solid rgba(255,255,255,0.8); 
+            background: rgba(255,255,255,0.05); color: #ffffff; border: 1.5px solid rgba(255,255,255,0.3); 
             padding: 10px 20px; border-radius: 25px; font-weight: 800; font-size: 11px; 
             cursor: pointer; display: flex; align-items: center; justify-content: center; flex: 1; max-width: 140px;
             transition: background 0.2s, color 0.2s; text-transform: uppercase; letter-spacing: 0.5px;
@@ -142,7 +144,6 @@ EOF
         .grid-box:active { transform: scale(0.95); background: #e2e8f0; }
         
         .grid-icon-wrap { width: 44px; height: 44px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center;}
-        /* Ikon SVG akan dikendalikan langsung oleh atribut di masing-masing div */
         
         .grid-text { font-size: 10px; color: #0f172a; font-weight: 800; line-height: 1.3; text-transform: uppercase; letter-spacing: -0.2px;}
 
@@ -221,7 +222,7 @@ EOF
         .stat-Pending { background: #ffedd5; color: #c2410c; } 
         .stat-Gagal { background: #fee2e2; color: #b91c1c; text-decoration: line-through; }
 
-        .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
+        .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15, 23, 42, 0.85); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
         .modal-box { background: #ffffff; width: 100%; max-width: 340px; border-radius: 20px; padding: 25px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;}
         .modal-btns { display: flex; gap: 10px; margin-top: 15px;}
         
@@ -238,9 +239,9 @@ EOF
             </button>
             <div class="brand-title-wrapper">
                 <svg class="brand-logo-svg" viewBox="0 0 24 24" fill="none">
-                    <path d="M7 8h8a4 4 0 0 1 0 8H10" stroke="#4c1d95" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M10 8v8" stroke="#4c1d95" stroke-width="3" stroke-linecap="round"/>
-                    <path d="M5 12h4" stroke="#4c1d95" stroke-width="3" stroke-linecap="round"/>
+                    <path d="M7 8h8a4 4 0 0 1 0 8H10" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M10 8v8" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+                    <path d="M5 12h4" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
                 </svg>
                 <div class="brand-title">DIGITAL TENDO STORE</div>
             </div>
@@ -2550,9 +2551,15 @@ EOF
             sudo nginx -t && sudo systemctl restart nginx
 
             echo -e "${C_CYAN}>> Meminta Sertifikat SSL HTTPS ke Let's Encrypt...${C_RST}"
-            sudo certbot --nginx -d $domain_name --non-interactive --agree-tos -m $ssl_email --redirect
-
-            echo -e "\n${C_GREEN}✅ Berhasil! Website Digital Tendo Store Anda sekarang bisa diakses dan sudah diamankan di: https://$domain_name ${C_RST}"
+            
+            # SCRIPT PERBAIKAN: Menangani error gagal verifikasi Certbot!
+            if sudo certbot --nginx -d $domain_name --non-interactive --agree-tos -m $ssl_email --redirect; then
+                echo -e "\n${C_GREEN}✅ Berhasil! Website Digital Tendo Store Anda sekarang bisa diakses dan sudah diamankan di: https://$domain_name ${C_RST}"
+            else
+                echo -e "\n${C_RED}❌ GAGAL MEMASANG SSL HTTPS! Server Certbot gagal melakukan verifikasi domain Anda.${C_RST}"
+                echo -e "${C_YELLOW}💡 Solusi: Pastikan A Record sudah benar, Cloudflare Proxy (awan orange) dimatikan sementara, lalu coba lagi nanti.${C_RST}"
+            fi
+            
             read -p "Tekan Enter untuk kembali..."
             ;;
         0) echo -e "${C_GREEN}Keluar dari panel. Sampai jumpa! 👋${C_RST}"; exit 0 ;;
