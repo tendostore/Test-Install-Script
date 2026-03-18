@@ -100,13 +100,23 @@ EOF
         .banner::after { content: ''; position: absolute; top: -50px; right: -30px; width: 150px; height: 150px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.05); pointer-events: none; }
         .saldo-title { font-size: 12px; font-weight: normal; opacity: 0.8; margin-bottom: 5px;}
         .saldo-amount { font-size: 34px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 15px;}
-        .btn-topup-dash { 
-            background: #ffffff; color: #0b2136; border: none; 
-            padding: 8px 25px; border-radius: 20px; font-weight: 900; font-size: 12px; 
-            cursor: pointer; display: inline-block; position: relative; z-index: 2;
+        
+        .action-buttons { display: flex; justify-content: center; gap: 10px; position: relative; z-index: 2; margin-top: 15px;}
+        .btn-topup-dash, .btn-help-dash { 
+            border: none; padding: 10px 20px; border-radius: 20px; font-weight: 900; font-size: 12px; 
+            cursor: pointer; display: flex; align-items: center; justify-content: center; flex: 1; max-width: 140px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.2s;
         }
-        .btn-topup-dash:active { transform: scale(0.95); }
+        .btn-topup-dash { background: #ffffff; color: #0b2136; }
+        .btn-help-dash { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
+        .btn-topup-dash:active, .btn-help-dash:active { transform: scale(0.95); }
+
+        /* SLIDER BANNER (Di Bawah Saldo, Di Atas Menu) */
+        .banner-slider-container { margin: 20px 20px 0; border-radius: 16px; overflow: hidden; position: relative; background: #fff; box-shadow: 0 4px 10px rgba(226,232,240,0.5);}
+        .banner-slider { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .banner-slider::-webkit-scrollbar { display: none; }
+        .banner-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; justify-content: center; align-items: center; }
+        .banner-slide img { width: 100%; height: auto; object-fit: cover; aspect-ratio: 21/9; display: block;}
 
         /* GRID MENU (9 Kategori) */
         .grid-title { margin: 25px 20px 15px; font-weight: 800; color: #1e293b; font-size: 16px;}
@@ -118,16 +128,9 @@ EOF
             transition: transform 0.2s, border-color 0.2s;
         }
         .grid-box:active { transform: scale(0.95); border-color: #0b2136; }
-        .grid-icon-wrap { width: 40px; height: 40px; margin-bottom: 10px; display: flex; justify-content: center; align-items: center;}
-        .grid-icon-wrap svg { width: 100%; height: 100%; stroke-width: 1.5; fill: none; }
+        .grid-icon-wrap { width: 44px; height: 44px; margin-bottom: 10px; display: flex; justify-content: center; align-items: center;}
+        .grid-icon-wrap svg { width: 100%; height: 100%; }
         .grid-text { font-size: 10px; color: #0b2136; font-weight: 800; line-height: 1.3; text-transform: uppercase;}
-
-        /* SLIDER BANNER */
-        .banner-slider-container { margin: 25px 20px 0; border-radius: 16px; overflow: hidden; position: relative; background: #fff; box-shadow: 0 4px 10px rgba(226,232,240,0.5);}
-        .banner-slider { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-        .banner-slider::-webkit-scrollbar { display: none; }
-        .banner-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; justify-content: center; align-items: center; }
-        .banner-slide img { width: 100%; height: auto; object-fit: cover; aspect-ratio: 21/9; display: block;}
 
         /* BRAND LIST (VERTICAL) */
         .brand-list { display: flex; flex-direction: column; padding: 15px 20px; gap: 12px; }
@@ -294,19 +297,24 @@ EOF
                 <div class="banner" id="home-banner">
                     <div class="saldo-title">Sisa Saldo Anda</div>
                     <div class="saldo-amount" id="user-saldo">Rp 0</div>
-                    <button class="btn-topup-dash" onclick="openTopupModal()">ISI SALDO</button>
+                    <div class="action-buttons">
+                        <button class="btn-topup-dash" onclick="openTopupModal()">ISI SALDO</button>
+                        <button class="btn-help-dash" onclick="contactAdmin()">BANTUAN</button>
+                    </div>
                 </div>
+            </div>
+
+            <div id="banner-slider-container" class="banner-slider-container hidden">
+                <div id="banner-slider" class="banner-slider"></div>
             </div>
 
             <div class="grid-title">Layanan Produk</div>
             <div class="grid-container">
                 <div class="grid-box" onclick="loadCategory('Pulsa')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24">
-                            <rect x="5" y="2" width="11" height="18" rx="2" fill="#93C5FD"></rect>
-                            <path d="M8 16h5" stroke="#0f172a"></path>
-                            <circle cx="16" cy="16" r="6" fill="#FDE047"></circle>
-                            <path d="M16 13v6M14 16h4" stroke="#0f172a"></path>
+                        <svg viewBox="0 0 24 24" fill="#93C5FD" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="5" y="2" width="14" height="20" rx="3"></rect>
+                            <path d="M12 18h.01" stroke-width="3"></path>
                         </svg>
                     </div>
                     <div class="grid-text">PULSA</div>
@@ -314,80 +322,92 @@ EOF
                 
                 <div class="grid-box" onclick="loadCategory('Data')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24">
-                            <rect x="4" y="4" width="11" height="15" rx="2" fill="#93C5FD"></rect>
-                            <circle cx="16" cy="14" r="6" fill="#86EFAC"></circle>
-                            <path d="M10 14h12M16 8v12" stroke="#0f172a"></path>
+                        <svg viewBox="0 0 24 24" fill="#86EFAC" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <ellipse cx="12" cy="12" rx="4" ry="10"></ellipse>
+                            <line x1="2" y1="12" x2="22" y2="12"></line>
                         </svg>
                     </div>
                     <div class="grid-text">DATA</div>
                 </div>
-                
-                <div class="grid-box" onclick="loadCategory('Masa Aktif')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24">
-                            <rect x="4" y="4" width="14" height="14" rx="2" fill="#ffffff"></rect>
-                            <path d="M4 8h14v-2a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2z" fill="#FCA5A5"></path>
-                            <line x1="7" y1="2" x2="7" y2="5"></line>
-                            <line x1="15" y1="2" x2="15" y2="5"></line>
-                            <circle cx="17" cy="16" r="6" fill="#93C5FD"></circle>
-                            <polyline points="17 13 17 16 19 18"></polyline>
-                        </svg>
-                    </div>
-                    <div class="grid-text">MASA AKTIF</div>
-                </div>
-                
-                <div class="grid-box" onclick="loadCategory('Paket SMS & Telpon')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" fill="#86EFAC"></path>
-                            <rect x="13" y="2" width="8" height="6" rx="1" fill="#93C5FD"></rect>
-                            <circle cx="15" cy="5" r="0.5" fill="#0f172a" stroke="none"></circle>
-                            <circle cx="17" cy="5" r="0.5" fill="#0f172a" stroke="none"></circle>
-                            <circle cx="19" cy="5" r="0.5" fill="#0f172a" stroke="none"></circle>
-                        </svg>
-                    </div>
-                    <div class="grid-text">SMS TELP</div>
-                </div>
 
-                <div class="grid-box" onclick="loadCategory('PLN')">
+                <div class="grid-box" onclick="loadCategory('Game')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24">
-                            <circle cx="10" cy="12" r="8" fill="#FDE047"></circle>
-                            <path d="M11 3L4 13h5l-2 8 9-11H11l2-7z" fill="#93C5FD"></path>
+                        <svg viewBox="0 0 24 24" fill="#FCA5A5" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="6" width="20" height="12" rx="4"></rect>
+                            <line x1="6" y1="12" x2="10" y2="12"></line>
+                            <line x1="8" y1="10" x2="8" y2="14"></line>
+                            <line x1="15" y1="13" x2="15.01" y2="13" stroke-width="3"></line>
+                            <line x1="18" y1="11" x2="18.01" y2="11" stroke-width="3"></line>
                         </svg>
                     </div>
-                    <div class="grid-text">PLN</div>
-                </div>
-                
-                <div class="grid-box" onclick="loadCategory('E-Money')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24">
-                            <rect x="2" y="6" width="18" height="12" rx="2" fill="#93C5FD"></rect>
-                            <path d="M16 10h6v4h-6z" fill="#86EFAC"></path>
-                            <circle cx="19" cy="12" r="1" fill="#0f172a" stroke="none"></circle>
-                            <path d="M6 6v-2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2" fill="#FCA5A5"></path>
-                        </svg>
-                    </div>
-                    <div class="grid-text">E-WALLET</div>
+                    <div class="grid-text">GAME</div>
                 </div>
                 
                 <div class="grid-box" onclick="loadCategory('Voucher')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M2 9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4V9z" fill="#FDE047"></path>
-                            <circle cx="16" cy="12" r="3" fill="#86EFAC"></circle>
-                            <line x1="9" y1="7" x2="9" y2="17" stroke-dasharray="2 2"></line>
+                        <svg viewBox="0 0 24 24" fill="#FDE047" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                            <circle cx="2" cy="12" r="2" fill="#f8fafc"></circle>
+                            <circle cx="22" cy="12" r="2" fill="#f8fafc"></circle>
+                            <line x1="8" y1="12" x2="16" y2="12" stroke-dasharray="2 2"></line>
                         </svg>
                     </div>
                     <div class="grid-text">VOUCHER</div>
                 </div>
                 
+                <div class="grid-box" onclick="loadCategory('E-Money')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="#A78BFA" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path>
+                            <path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path>
+                            <path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z" fill="#FDE047"></path>
+                        </svg>
+                    </div>
+                    <div class="grid-text">E-WALLET</div>
+                </div>
+                
+                <div class="grid-box" onclick="loadCategory('PLN')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="#FDE047" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                        </svg>
+                    </div>
+                    <div class="grid-text">PLN</div>
+                </div>
+
+                <div class="grid-box" onclick="loadCategory('Paket SMS & Telpon')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="#F9A8D4" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                        </svg>
+                    </div>
+                    <div class="grid-text">SMS TELP</div>
+                </div>
+                
+                <div class="grid-box" onclick="loadCategory('Masa Aktif')">
+                    <div class="grid-icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="#FDBA74" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                            <path d="M8 14h.01"></path>
+                            <path d="M12 14h.01"></path>
+                            <path d="M16 14h.01"></path>
+                            <path d="M8 18h.01"></path>
+                            <path d="M12 18h.01"></path>
+                            <path d="M16 18h.01"></path>
+                        </svg>
+                    </div>
+                    <div class="grid-text">MASA AKTIF</div>
+                </div>
+                
                 <div class="grid-box" onclick="loadCategory('Aktivasi Perdana')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M4 6l6-4h10v20H4V6z" fill="#D8B4FE"></path>
-                            <rect x="8" y="10" width="8" height="8" fill="#FDE047"></rect>
+                        <svg viewBox="0 0 24 24" fill="#99F6E4" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 4h12l4 4v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path>
+                            <rect x="8" y="10" width="8" height="8" rx="1" fill="#FDE047"></rect>
                             <line x1="8" y1="14" x2="16" y2="14"></line>
                             <line x1="12" y1="10" x2="12" y2="18"></line>
                         </svg>
@@ -395,22 +415,6 @@ EOF
                     <div class="grid-text">PERDANA</div>
                 </div>
 
-                <div class="grid-box" onclick="loadCategory('Game')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24">
-                            <rect x="2" y="6" width="20" height="12" rx="4" fill="#93C5FD"></rect>
-                            <path d="M6 12h4M8 10v4"></path>
-                            <circle cx="15" cy="13" r="1.5" fill="#FCA5A5" stroke="none"></circle>
-                            <circle cx="18" cy="11" r="1.5" fill="#FDE047" stroke="none"></circle>
-                        </svg>
-                    </div>
-                    <div class="grid-text">GAME</div>
-                </div>
-
-            </div>
-
-            <div id="banner-slider-container" class="banner-slider-container hidden">
-                <div id="banner-slider" class="banner-slider"></div>
             </div>
             
             <div style="padding: 20px; margin: 30px 20px; background: #ffffff; border-radius: 16px; text-align: center; border: 1px dashed #cbd5e1;" id="install-banner" class="hidden">
@@ -619,7 +623,7 @@ EOF
                     slider.innerHTML = html;
                     container.classList.remove('hidden');
                     
-                    // Auto Scroll Logic
+                    // Auto Scroll Logic (Bergeser otomatis setiap 3 detik)
                     clearInterval(bannerInterval);
                     if(data.data.length > 1) {
                         bannerInterval = setInterval(() => {
@@ -628,7 +632,7 @@ EOF
                             } else {
                                 slider.scrollBy({ left: slider.clientWidth, behavior: 'smooth' });
                             }
-                        }, 4000);
+                        }, 3000);
                     }
                 } else {
                     container.classList.add('hidden');
@@ -1865,7 +1869,7 @@ menu_produk() {
                         'Data': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
                         'Paket SMS & Telpon': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
                         'Masa Aktif': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'E-Money': {'1':'Gopay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
+                        'E-Money': {'1':'Go Pay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
                         'Game': {'1':'Mobile Legends', '2':'Free Fire', '3':'PUBG'}
                     };
                     
@@ -1944,7 +1948,7 @@ menu_produk() {
                         echo "1. Telkomsel | 2. XL | 3. Axis | 4. Indosat | 5. Tri | 6. Smartfren | 7. By.U"
                         read -p "Pilih Provider Baru: " new_brand_idx
                     elif [ "$new_cat_idx" == "6" ]; then
-                        echo "1. Gopay | 2. Dana | 3. Shopee Pay | 4. OVO | 5. LinkAja"
+                        echo "1. Go Pay | 2. Dana | 3. Shopee Pay | 4. OVO | 5. LinkAja"
                         read -p "Pilih E-Wallet Baru: " new_brand_idx
                     elif [ "$new_cat_idx" == "7" ]; then
                         echo "1. PLN Pasca | 2. BPJS | 3. PDAM | 4. Indihome"
@@ -1980,7 +1984,7 @@ menu_produk() {
                         'Data': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
                         'Masa Aktif': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
                         'SMS Telp': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
-                        'E-Wallet': {'1':'Gopay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
+                        'E-Wallet': {'1':'Go Pay', '2':'Dana', '3':'Shopee Pay', '4':'OVO', '5':'LinkAja'},
                         'Tagihan': {'1':'PLN Pasca', '2':'BPJS', '3':'PDAM', '4':'Indihome'},
                         'E-Toll': {'1':'Mandiri E-Money', '2':'Brizzi', '3':'TapCash'},
                         'Digital': {'1':'Mobile Legends', '2':'Free Fire', '3':'PUBG', '4':'Vidio', '5':'Netflix'},
@@ -2167,7 +2171,7 @@ menu_produk() {
                                 let isVoucher = /\b(voucher|vcr|voc|gesek|spotify|google play|garena|unipin)\b/.test(nLower);
                                 let isDataKeyword = /\b(gb|mb|data|kuota|internet|combo|xtra|flash|paket|omg|aigo|owsem|bulk|gamesmax|gamemax|unlimited|maxstream)\b/.test(nLower);
                                 let isPerdana = /\b(perdana|aktivasi|kpk)\b/.test(nLower);
-                                let isEMoney = /\b(gopay|go-pay|ovo|dana|shopee|shopeepay|linkaja|link aja|isaku|brizzi|e-toll|etoll|e-money|mtix|grab|gojek|saldo|maxim)\b/.test(nLower);
+                                let isEMoney = /\b(gopay|go-pay|go pay|ovo|dana|shopee|shopeepay|linkaja|link aja|isaku|brizzi|e-toll|etoll|e-money|mtix|grab|gojek|saldo|maxim)\b/.test(nLower);
                                 let isGame = /\b(free fire|ff|mobile legend|mobile legends|mlbb|ml|pubg|diamond|diamonds|uc|cp|valorant|genshin)\b/.test(nLower);
                                 let isPLN = /\b(pln|token listrik|token pln)\b/.test(nLower);
                                 let isMasaAktif = /\b(masa aktif)\b/.test(nLower);
@@ -2208,7 +2212,7 @@ menu_produk() {
                                     brand = row[brandCol].toString().trim();
                                 } else {
                                     if (kategori === 'E-Money') {
-                                        if (/\b(gopay|go-pay|gojek)\b/.test(nLower)) brand = 'Gopay';
+                                        if (/\b(gopay|go-pay|go pay|gojek)\b/.test(nLower)) brand = 'Go Pay';
                                         else if (/\b(ovo)\b/.test(nLower)) brand = 'OVO';
                                         else if (/\b(dana)\b/.test(nLower)) brand = 'Dana';
                                         else if (/\b(shopee|shopeepay)\b/.test(nLower)) brand = 'ShopeePay';
@@ -2216,8 +2220,8 @@ menu_produk() {
                                         else brand = 'Lainnya';
                                     } 
                                     else if (kategori === 'Game') {
-                                        if (/\b(mobile legend|mobile legends|mlbb|ml|diamond|diamonds)\b/.test(nLower)) brand = 'Mobile Legends';
-                                        else if (/\b(free fire|ff)\b/.test(nLower)) brand = 'Free Fire';
+                                        if (/\b(free fire|ff)\b/.test(nLower)) brand = 'Free Fire';
+                                        else if (/\b(mobile legend|mobile legends|mlbb|ml)\b/.test(nLower)) brand = 'Mobile Legends';
                                         else if (/\b(pubg|uc)\b/.test(nLower)) brand = 'PUBG';
                                         else brand = 'Lainnya';
                                     }
