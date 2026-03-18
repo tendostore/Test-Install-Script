@@ -74,23 +74,25 @@ EOF
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ffffff">
     <style>
-        /* TEMA PREMIUM PERSIS REFERENSI GAMBAR 2 */
+        /* TEMA UI PERSIS REFERENSI GAMBAR 2 */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #e2e8f0; color: #1e293b; margin: 0; display: flex; justify-content: center; }
         #app { width: 100%; max-width: 480px; background: #f1f5f9; min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 80px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.05);}
         
         /* TOP BAR BERSAHABAT (PUTIH) */
-        .top-bar { background: #ffffff; color: #0b2136; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #e2e8f0;}
-        .menu-btn { cursor: pointer; background: none; border: none; padding: 0; margin-right: 15px; display: flex; align-items: center; justify-content: center;}
-        .menu-btn svg { width: 28px; height: 28px; stroke: #0b2136; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
+        .top-bar { background: #ffffff; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #e2e8f0;}
+        .menu-btn { cursor: pointer; background: none; border: none; padding: 0; display: flex; align-items: center; justify-content: center;}
+        .menu-btn svg { width: 26px; height: 26px; stroke: #1e293b; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
         
-        .brand-title { font-size: 15px; font-weight: 900; flex: 1; text-align: left; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.5px;}
-        .brand-logo-svg { width: 22px; height: 22px; }
+        /* LOGO & TITLE: UNGU AGAK KETUAAN (#4c1d95) */
+        .brand-title-wrapper { display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; margin: 0 10px; }
+        .brand-title { font-size: 15px; font-weight: 900; color: #4c1d95; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;}
+        .brand-logo-svg { width: 24px; height: 24px; }
         
         /* TRX BADGE */
-        .trx-badge { font-size: 11px; background: #f1f5f9; color: #0b2136; padding: 5px 12px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid #cbd5e1; transition: transform 0.2s;}
+        .trx-badge { font-size: 11px; background: #f8fafc; color: #1e293b; padding: 5px 10px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid #cbd5e1; transition: transform 0.2s; white-space: nowrap;}
         .trx-badge:active { transform: scale(0.95); }
 
-        /* BANNER SALDO KOTAK (Mirip Referensi) */
+        /* BANNER SALDO KOTAK (Mirip Referensi Gambar 2) */
         .banner-container { background: #f1f5f9; padding: 20px 20px 10px;}
         .banner { 
             background: linear-gradient(135deg, #111827 0%, #0f172a 100%); 
@@ -101,10 +103,10 @@ EOF
         /* Motif Grid Jaring Transparan di Belakang */
         .banner::before { 
             content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; 
-            background: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px); 
+            background: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); 
             background-size: 30px 30px; transform: rotate(15deg); pointer-events: none; 
         }
-        /* Ornamen Lingkaran */
+        /* Ornamen Lingkaran Transparan */
         .banner::after { 
             content: ''; position: absolute; top: 10px; right: -20px; width: 120px; height: 120px; 
             border-radius: 50%; border: 1px solid rgba(255,255,255,0.05); pointer-events: none; 
@@ -114,7 +116,7 @@ EOF
         
         .action-buttons { display: flex; justify-content: center; gap: 15px; position: relative; z-index: 2; }
         .btn-topup-dash, .btn-help-dash { 
-            background: transparent; color: #ffffff; border: 1px solid rgba(255,255,255,0.8); 
+            background: transparent; color: #ffffff; border: 1.5px solid rgba(255,255,255,0.8); 
             padding: 10px 20px; border-radius: 25px; font-weight: 800; font-size: 11px; 
             cursor: pointer; display: flex; align-items: center; justify-content: center; flex: 1; max-width: 140px;
             transition: background 0.2s, color 0.2s; text-transform: uppercase; letter-spacing: 0.5px;
@@ -134,13 +136,13 @@ EOF
         .grid-box { 
             background: #f8fafc; border-radius: 16px; padding: 18px 5px; 
             text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-            border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.02);
             transition: transform 0.2s, background 0.2s;
         }
         .grid-box:active { transform: scale(0.95); background: #e2e8f0; }
         
-        .grid-icon-wrap { width: 42px; height: 42px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center;}
-        /* Ikon SVG akan dikendalikan langsung oleh masing-masing div */
+        .grid-icon-wrap { width: 44px; height: 44px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center;}
+        /* Ikon SVG akan dikendalikan langsung oleh atribut di masing-masing div */
         
         .grid-text { font-size: 10px; color: #0f172a; font-weight: 800; line-height: 1.3; text-transform: uppercase; letter-spacing: -0.2px;}
 
@@ -234,11 +236,13 @@ EOF
             <button class="menu-btn" onclick="toggleSidebar()">
                 <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
-            <div class="brand-title" id="top-title">
-                <svg class="brand-logo-svg" viewBox="0 0 24 24" fill="none" stroke="#0b2136" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <div class="brand-title-wrapper">
+                <svg class="brand-logo-svg" viewBox="0 0 24 24" fill="none">
+                    <path d="M7 8h8a4 4 0 0 1 0 8H10" stroke="#4c1d95" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M10 8v8" stroke="#4c1d95" stroke-width="3" stroke-linecap="round"/>
+                    <path d="M5 12h4" stroke="#4c1d95" stroke-width="3" stroke-linecap="round"/>
                 </svg>
-                DIGITAL TENDO STORE
+                <div class="brand-title">DIGITAL TENDO STORE</div>
             </div>
             <div class="trx-badge" id="top-trx-badge" onclick="showHistory()">0 Trx</div>
         </div>
@@ -252,16 +256,16 @@ EOF
             </div>
             <div class="sidebar-menu">
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); showProfile()">
-                    <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Profil Akun
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Profil Akun
                 </a>
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); showHistory()">
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Transaksi Saya
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Transaksi Saya
                 </a>
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); showNotif()">
-                    <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> Pemberitahuan
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> Pemberitahuan
                 </a>
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); contactAdmin()">
-                    <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Hubungi Admin
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Hubungi Admin
                 </a>
             </div>
             <div style="padding: 20px;">
@@ -327,11 +331,12 @@ EOF
 
             <div class="grid-title">Layanan Produk</div>
             <div class="grid-container">
+                
                 <div class="grid-box" onclick="loadCategory('Pulsa')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#93C5FD" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <rect x="5" y="2" width="14" height="20" rx="3"></rect>
-                            <path d="M12 18h.01" stroke-width="3"></path>
+                        <svg viewBox="0 0 24 24" stroke="#1e293b" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="6" y="3" width="12" height="18" rx="2" ry="2" fill="#bfdbfe" stroke-width="2.5"></rect>
+                            <path d="M12 17v.01" stroke="#1e293b" stroke-width="3"></path>
                         </svg>
                     </div>
                     <div class="grid-text">PULSA</div>
@@ -339,9 +344,10 @@ EOF
                 
                 <div class="grid-box" onclick="loadCategory('Data')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#86EFAC" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        <svg viewBox="0 0 24 24" stroke="#1e293b" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="9" fill="#bbf7d0" stroke-width="2.5"></circle>
+                            <ellipse cx="12" cy="12" rx="4" ry="9" fill="none" stroke-width="2.5"></ellipse>
+                            <line x1="3" y1="12" x2="21" y2="12" stroke-width="2.5"></line>
                         </svg>
                     </div>
                     <div class="grid-text">DATA</div>
@@ -349,12 +355,11 @@ EOF
 
                 <div class="grid-box" onclick="loadCategory('Game')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#FCA5A5" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <rect x="2" y="6" width="20" height="12" rx="4"></rect>
-                            <line x1="6" y1="12" x2="10" y2="12"></line>
-                            <line x1="8" y1="10" x2="8" y2="14"></line>
-                            <line x1="15" y1="13" x2="15.01" y2="13"></line>
-                            <line x1="18" y1="11" x2="18.01" y2="11"></line>
+                        <svg viewBox="0 0 24 24" stroke="#1e293b" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="6" width="20" height="12" rx="5" fill="#fecaca" stroke-width="2.5"></rect>
+                            <circle cx="16" cy="10" r="1.5" fill="#1e293b" stroke="none"></circle>
+                            <circle cx="18" cy="14" r="1.5" fill="#1e293b" stroke="none"></circle>
+                            <path d="M6 12h4M8 10v4" stroke-width="2.5"></path>
                         </svg>
                     </div>
                     <div class="grid-text">GAME</div>
@@ -362,10 +367,9 @@ EOF
                 
                 <div class="grid-box" onclick="loadCategory('Voucher')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#FDE047" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <rect x="2" y="6" width="20" height="12" rx="2"></rect>
-                            <circle cx="2" cy="12" r="2.5" fill="#f8fafc" stroke="#1e293b"></circle>
-                            <circle cx="22" cy="12" r="2.5" fill="#f8fafc" stroke="#1e293b"></circle>
+                        <svg viewBox="0 0 24 24" stroke="#1e293b" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 7h16a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4V9a2 2 0 0 1 2-2z" fill="#fef08a" stroke-width="2.5"></path>
+                            <circle cx="12" cy="12" r="2" fill="#1e293b" stroke="none"></circle>
                         </svg>
                     </div>
                     <div class="grid-text">VOUCHER</div>
@@ -373,9 +377,10 @@ EOF
                 
                 <div class="grid-box" onclick="loadCategory('E-Money')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#C4B5FD" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <rect x="3" y="6" width="18" height="13" rx="2"></rect>
-                            <path d="M16 10h5v4h-5z" fill="#FDE047"></path>
+                        <svg viewBox="0 0 24 24" stroke="#1e293b" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="5" width="18" height="14" rx="2" fill="#ddd6fe" stroke-width="2.5"></rect>
+                            <path d="M16 10h5v4h-5z" fill="#fef08a" stroke-width="2.5"></path>
+                            <circle cx="18" cy="12" r="1" fill="#1e293b" stroke="none"></circle>
                         </svg>
                     </div>
                     <div class="grid-text">E-WALLET</div>
@@ -383,8 +388,8 @@ EOF
                 
                 <div class="grid-box" onclick="loadCategory('PLN')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#FDE047" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                        <svg viewBox="0 0 24 24" stroke="#1e293b" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="#fef08a" stroke-width="2.5"></path>
                         </svg>
                     </div>
                     <div class="grid-text">PLN</div>
@@ -392,8 +397,8 @@ EOF
 
                 <div class="grid-box" onclick="loadCategory('Paket SMS & Telpon')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#F9A8D4" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                        <svg viewBox="0 0 24 24" stroke="#1e293b" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" fill="#fbcfe8" stroke-width="2.5"></path>
                         </svg>
                     </div>
                     <div class="grid-text">SMS TELP</div>
@@ -401,14 +406,13 @@ EOF
                 
                 <div class="grid-box" onclick="loadCategory('Masa Aktif')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#FDBA74" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="16" y1="2" x2="16" y2="6"></line>
-                            <line x1="8" y1="2" x2="8" y2="6"></line>
-                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                            <circle cx="12" cy="15" r="1.5" fill="#1e293b" stroke="none"></circle>
-                            <circle cx="8" cy="15" r="1.5" fill="#1e293b" stroke="none"></circle>
-                            <circle cx="16" cy="15" r="1.5" fill="#1e293b" stroke="none"></circle>
+                        <svg viewBox="0 0 24 24" stroke="#1e293b" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" fill="#fed7aa" stroke-width="2.5"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6" stroke-width="2.5"></line>
+                            <line x1="8" y1="2" x2="8" y2="6" stroke-width="2.5"></line>
+                            <line x1="3" y1="10" x2="21" y2="10" stroke-width="2.5"></line>
+                            <circle cx="9" cy="15" r="1.5" fill="#1e293b" stroke="none"></circle>
+                            <circle cx="15" cy="15" r="1.5" fill="#1e293b" stroke="none"></circle>
                         </svg>
                     </div>
                     <div class="grid-text">MASA AKTIF</div>
@@ -416,14 +420,15 @@ EOF
                 
                 <div class="grid-box" onclick="loadCategory('Aktivasi Perdana')">
                     <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#99F6E4" stroke="#1e293b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <path d="M4 4h12l4 4v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path>
-                            <rect x="8" y="12" width="8" height="6" rx="1" fill="#FDE047" stroke="#1e293b"></rect>
-                            <line x1="12" y1="12" x2="12" y2="18"></line>
+                        <svg viewBox="0 0 24 24" stroke="#1e293b" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M5 4h10l4 4v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="#ccfbf1" stroke-width="2.5"></path>
+                            <rect x="9" y="12" width="6" height="6" rx="1" fill="#fef08a" stroke-width="2.5"></rect>
+                            <line x1="9" y1="15" x2="15" y2="15" stroke-width="2.5"></line>
                         </svg>
                     </div>
                     <div class="grid-text">PERDANA</div>
                 </div>
+
             </div>
             
             <div style="padding: 20px; margin: 30px 20px; background: #ffffff; border-radius: 16px; text-align: center; border: 1px dashed #cbd5e1;" id="install-banner" class="hidden">
@@ -508,16 +513,16 @@ EOF
 
         <div class="bottom-nav" id="main-bottom-nav">
             <div class="nav-item active" id="nav-home" onclick="showDashboard()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></span>HOME
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></span>HOME
             </div>
             <div class="nav-item" id="nav-history" onclick="showHistory()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span>RIWAYAT
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span>RIWAYAT
             </div>
             <div class="nav-item" id="nav-notif" onclick="showNotif()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>INFO
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>INFO
             </div>
             <div class="nav-item" id="nav-profile" onclick="showProfile()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>PROFIL
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>PROFIL
             </div>
         </div>
 
@@ -632,7 +637,7 @@ EOF
                     slider.innerHTML = html;
                     container.classList.remove('hidden');
                     
-                    // Auto Scroll Logic
+                    // Auto Scroll Logic (Bergeser otomatis setiap 3 detik)
                     clearInterval(bannerInterval);
                     if(data.data.length > 1) {
                         bannerInterval = setInterval(() => {
@@ -967,7 +972,7 @@ EOF
             
             let brands = [];
 
-            // MEMBUAT BRAND MUNCUL PERMANEN (Persis seperti request sebelumnya)
+            // MEMBUAT BRAND MUNCUL PERMANEN
             if(cat === 'Game') brands = ['Free Fire', 'Mobile Legends', 'PUBG'];
             if(cat === 'E-Money') brands = ['Dana', 'Go Pay', 'LinkAja', 'OVO', 'ShopeePay'];
             if(cat === 'Pulsa' || cat === 'Data' || cat === 'Masa Aktif' || cat === 'Paket SMS & Telpon') {
