@@ -76,13 +76,13 @@ EOF
     <style>
         /* VARIABEL TEMA GELAP / TERANG */
         :root {
-            --bg-main: #e9eef5; /* Background diredupkan dari #f1f5f9 */
-            --bg-card: #f4f7f9; /* Putih diredupkan (tidak terlalu cerah) */
+            --bg-main: #e9eef5; 
+            --bg-card: #f4f7f9; 
             --text-main: #0b2136;
             --text-muted: #64748b;
             --border-color: #d1d9e2;
             --grid-bg: #f4f7f9;
-            --grid-shadow: inset 3px 3px 7px rgba(0,0,0,0.06), inset -3px -3px 7px rgba(255,255,255,0.6); /* Inner shadow kotak dalam */
+            --grid-shadow: inset 3px 3px 7px rgba(0,0,0,0.06), inset -3px -3px 7px rgba(255,255,255,0.6); 
             --grid-border: 1px solid transparent;
             --nav-bg: #0f172a;
             --nav-text: #64748b;
@@ -107,10 +107,9 @@ EOF
 
         /* TEMA PREMIUM CSS */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #cbd5e1; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
-        /* padding-bottom diperbesar jadi 110px untuk nav mengambang */
         #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 110px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
         
-        /* TOP BAR TENGAH & TEBAL */
+        /* TOP BAR */
         .top-bar { background: var(--topbar-bg); color: var(--text-main); padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: background 0.3s;}
         .menu-btn { cursor: pointer; background: none; border: none; padding: 0; margin-right: 15px; display: flex; align-items: center; justify-content: center; z-index: 2;}
         .menu-btn svg { width: 28px; height: 28px; stroke: var(--text-main); fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
@@ -133,7 +132,7 @@ EOF
             transition: background 0.3s;
         }
 
-        /* BANNER SALDO (GARIS BERGELOMBANG) */
+        /* BANNER SALDO */
         .banner { 
             background: linear-gradient(135deg, #111827 0%, #0f172a 100%); 
             border-radius: 20px; padding: 30px 20px 25px; 
@@ -164,7 +163,7 @@ EOF
         .banner-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; justify-content: center; align-items: center; }
         .banner-slide img { width: 100%; height: auto; object-fit: cover; aspect-ratio: 21/9; display: block;}
 
-        /* GRID MENU (INNER SHADOW) */
+        /* GRID MENU */
         .grid-title { margin: 25px 20px 15px; font-weight: 900; color: var(--text-main); font-size: 15px;}
         .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 0 20px;}
         .grid-box { 
@@ -193,19 +192,19 @@ EOF
         .b-logo { width: 45px; height: 45px; background: var(--bg-main); color: var(--text-main); border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border-color); flex-shrink: 0;}
         .b-name { font-size: 14px; font-weight: 800; flex: 1;}
 
-        /* BOTTOM NAV MENGAMBANG (FLOATING PILL) */
+        /* BOTTOM NAV MENGAMBANG */
         .bottom-nav { 
             position: fixed; 
             bottom: 20px; 
             left: 50%;
             transform: translateX(-50%);
-            width: calc(100% - 40px); /* Margin 20px di kiri dan kanan */
+            width: calc(100% - 40px); 
             max-width: 400px; 
             background: var(--nav-bg); 
             display: flex; 
             justify-content: space-around; 
             padding: 10px 5px; 
-            border-radius: 50px; /* Bentuk kapsul / bulat panjang */
+            border-radius: 50px; 
             box-shadow: 0 10px 30px rgba(0,0,0,0.25); 
             z-index: 90; 
             transition: background 0.3s;
@@ -351,6 +350,7 @@ EOF
                     <input type="checkbox" id="rem-login"> Tetap masuk
                 </label>
                 <button class="btn" id="btn-login" onclick="login()">Login Sekarang</button>
+                <a href="#" onclick="showScreen('forgot-screen')" style="display:block; text-align:center; font-size:13px; font-weight:600; color:var(--text-muted); margin-top:15px; text-decoration:none;">Lupa Password?</a>
                 <button class="btn-outline" onclick="showScreen('register-screen')">Buat Akun Baru</button>
             </div>
         </div>
@@ -375,6 +375,27 @@ EOF
                 <input type="number" id="otp-code" placeholder="----" style="text-align:center; font-size:28px; letter-spacing: 12px; font-weight:bold;" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
                 <button class="btn" id="btn-verify" onclick="verifyOTP()">Verifikasi & Daftar</button>
                 <button class="btn-outline" style="border:none;" onclick="showScreen('register-screen')">Batal</button>
+            </div>
+        </div>
+        
+        <div id="forgot-screen" class="container hidden">
+            <div class="card">
+                <h2 style="margin-top:0; text-align:center; font-size:18px;">Lupa Password</h2>
+                <p style="font-size:12px; color:var(--text-muted); text-align: center; margin-bottom: 20px; font-weight: 600;">Reset password melalui OTP WhatsApp</p>
+                
+                <div id="forgot-step-1">
+                    <input type="number" id="forgot-phone" placeholder="Nomor WhatsApp (08/62)">
+                    <button class="btn" id="btn-req-forgot" onclick="reqForgotOTP()">Kirim OTP WhatsApp</button>
+                    <button class="btn-outline" style="border:none;" onclick="showScreen('login-screen')">Kembali ke Login</button>
+                </div>
+                
+                <div id="forgot-step-2" class="hidden">
+                    <p style="font-size:12px; color:var(--text-muted); text-align: center; font-weight: bold;">OTP dikirim ke WA Anda.</p>
+                    <input type="number" id="forgot-otp" placeholder="----" style="text-align:center; font-size:28px; letter-spacing: 12px; font-weight:bold;" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
+                    <input type="text" id="forgot-new-pass" placeholder="Buat Password Baru">
+                    <button class="btn" id="btn-verify-forgot" onclick="verifyForgotOTP()">Simpan Password</button>
+                    <button class="btn-outline" style="border:none;" onclick="showScreen('login-screen')">Batal</button>
+                </div>
             </div>
         </div>
 
@@ -678,7 +699,7 @@ EOF
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 
         // GLOBAL VARS
-        let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
+        let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let tempForgotPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
         let currentCategory = ""; let currentBrand = "";
         let bannerInterval;
 
@@ -783,12 +804,12 @@ EOF
         }
 
         function showScreen(id, navId) {
-            ['login-screen', 'register-screen', 'otp-screen', 'dashboard-screen', 'brand-screen', 'produk-screen', 'history-screen', 'profile-screen', 'notif-screen'].forEach(s => {
+            ['login-screen', 'register-screen', 'otp-screen', 'forgot-screen', 'dashboard-screen', 'brand-screen', 'produk-screen', 'history-screen', 'profile-screen', 'notif-screen'].forEach(s => {
                 document.getElementById(s).classList.add('hidden');
             });
             document.getElementById(id).classList.remove('hidden');
             
-            if(id === 'login-screen' || id === 'register-screen' || id === 'otp-screen') {
+            if(id === 'login-screen' || id === 'register-screen' || id === 'otp-screen' || id === 'forgot-screen') {
                 document.getElementById('home-topbar').classList.add('hidden');
                 document.getElementById('main-bottom-nav').classList.add('hidden');
                 document.getElementById('banner-container-wrap').classList.add('hidden');
@@ -1004,6 +1025,54 @@ EOF
                     showScreen('login-screen', null);
                 } else {
                     alert(data && data.message ? data.message : "Sistem sibuk, coba sesaat lagi.");
+                }
+            } catch(e) { alert('Kesalahan jaringan.'); }
+            
+            btn.innerText = ori; btn.disabled = false;
+        }
+
+        // FUNGSI LUPA PASSWORD
+        async function reqForgotOTP() {
+            let phone = document.getElementById('forgot-phone').value.trim();
+            if(!phone) return alert('Masukkan Nomor WhatsApp!');
+            
+            let btn = document.getElementById('btn-req-forgot');
+            let ori = btn.innerText; btn.innerText = "Mengirim..."; btn.disabled = true;
+            
+            try {
+                let data = await apiCall('/api/req-forgot-otp', {phone});
+                if(data && data.success) {
+                    tempForgotPhone = phone;
+                    document.getElementById('forgot-step-1').classList.add('hidden');
+                    document.getElementById('forgot-step-2').classList.remove('hidden');
+                } else {
+                    alert(data && data.message ? data.message : "Nomor tidak terdaftar.");
+                }
+            } catch(e) { alert('Kesalahan jaringan.'); }
+            
+            btn.innerText = ori; btn.disabled = false;
+        }
+
+        async function verifyForgotOTP() {
+            let otp = document.getElementById('forgot-otp').value.trim();
+            let newPass = document.getElementById('forgot-new-pass').value.trim();
+            if(!otp || !newPass) return alert('Isi OTP dan Password Baru!');
+            
+            let btn = document.getElementById('btn-verify-forgot');
+            let ori = btn.innerText; btn.innerText = "Memproses..."; btn.disabled = true;
+            
+            try {
+                let data = await apiCall('/api/verify-forgot-otp', {phone: tempForgotPhone, otp, newPass});
+                if(data && data.success) {
+                    alert('Password berhasil diubah! Silakan login dengan password baru.');
+                    showScreen('login-screen', null);
+                    document.getElementById('forgot-step-1').classList.remove('hidden');
+                    document.getElementById('forgot-step-2').classList.add('hidden');
+                    document.getElementById('forgot-phone').value = '';
+                    document.getElementById('forgot-otp').value = '';
+                    document.getElementById('forgot-new-pass').value = '';
+                } else {
+                    alert(data && data.message ? data.message : "Sistem error.");
                 }
             } catch(e) { alert('Kesalahan jaringan.'); }
             
@@ -1489,6 +1558,52 @@ app.post('/api/verify-edit-otp', (req, res) => {
             }
             saveJSON(dbFile, db); delete tempOtpDB[phone + '_edit']; res.json({success: true});
         } else res.json({success: false, message: 'OTP Salah!'});
+    } catch(e) { res.json({success: false, message: 'Server error'}); }
+});
+
+// API LUPA PASSWORD
+app.post('/api/req-forgot-otp', (req, res) => {
+    try {
+        let phone = normalizePhone(req.body.phone);
+        let db = loadJSON(dbFile);
+        if(!db[phone]) return res.json({success: false, message: 'Nomor WA tidak terdaftar!'});
+        
+        let otp = Math.floor(1000 + Math.random() * 9000).toString();
+        tempOtpDB[phone + '_forgot'] = { otp };
+        
+        res.json({success: true});
+
+        setTimeout(() => {
+            try {
+                if (globalSock) {
+                    let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nPermintaan Reset Password.\nKode OTP Anda: *${otp}*\n\n_⚠️ Jika Anda tidak merasa memintanya, abaikan pesan ini!_`;
+                    globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
+                }
+            } catch(err) { console.error(err); }
+        }, 100);
+
+    } catch(e) { 
+        if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); 
+    }
+});
+
+app.post('/api/verify-forgot-otp', (req, res) => {
+    try {
+        let phone = normalizePhone(req.body.phone);
+        let { otp, newPass } = req.body;
+        let db = loadJSON(dbFile);
+        
+        let session = tempOtpDB[phone + '_forgot'];
+        if(session && session.otp === otp) {
+            if(db[phone]) {
+                db[phone].password = newPass;
+                saveJSON(dbFile, db);
+            }
+            delete tempOtpDB[phone + '_forgot']; 
+            res.json({success: true});
+        } else {
+            res.json({success: false, message: 'Kode OTP Salah!'});
+        }
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
