@@ -42,8 +42,8 @@ fi
 # 2. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI
 # ==========================================
 generate_web_app() {
-    # Buat folder public dan folder banner secara otomatis
-    mkdir -p public/baner1 public/baner2 public/baner3 public/baner4 public/baner5
+    # Buat folder public, banner, dan folder info_images secara otomatis
+    mkdir -p public/baner1 public/baner2 public/baner3 public/baner4 public/baner5 public/info_images
 
     cat << 'EOF' > public/manifest.json
 {
@@ -135,7 +135,7 @@ EOF
         /* BANNER SALDO */
         .banner { 
             background: linear-gradient(135deg, #111827 0%, #0f172a 100%); 
-            border-radius: 20px; padding: 30px 20px 25px; 
+            border-radius: 20px; padding: 25px 15px; 
             color: #ffffff; text-align: center; position: relative; overflow: hidden;
             box-shadow: 0 8px 20px rgba(15,23,42,0.15);
         }
@@ -145,7 +145,7 @@ EOF
             pointer-events: none; 
         }
         .saldo-title { font-size: 12px; font-weight: 500; opacity: 0.9; margin-bottom: 5px; position: relative; z-index: 2;}
-        .saldo-amount { font-size: 36px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 20px; position: relative; z-index: 2;}
+        .saldo-amount { font-size: 34px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 20px; position: relative; z-index: 2;}
         
         .action-buttons { display: flex; justify-content: center; gap: 10px; position: relative; z-index: 2; }
         .btn-topup-dash, .btn-history-dash, .btn-help-dash { 
@@ -320,7 +320,7 @@ EOF
             <div class="brand-title" id="top-title">
                 DIGITAL TENDO STORE
             </div>
-            <div class="trx-badge" id="top-trx-badge" onclick="showHistory()">0 Trx</div>
+            <div class="trx-badge" id="top-trx-badge" onclick="showHistory('All')">0 Trx</div>
         </div>
 
         <div class="banner-container" id="banner-container-wrap">
@@ -329,7 +329,7 @@ EOF
                 <div class="saldo-amount" id="user-saldo">Rp 0</div>
                 <div class="action-buttons">
                     <button class="btn-topup-dash" onclick="openTopupModal()">ISI SALDO</button>
-                    <button class="btn-history-dash" onclick="showHistory()">RIWAYAT</button>
+                    <button class="btn-history-dash" onclick="showHistory('Topup')">RIWAYAT</button>
                     <button class="btn-help-dash" onclick="contactAdmin()">BANTUAN</button>
                 </div>
             </div>
@@ -346,7 +346,7 @@ EOF
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); showProfile()">
                     <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Profil Akun
                 </a>
-                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showHistory()">
+                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showHistory('All')">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Transaksi Saya
                 </a>
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); showNotif()">
@@ -585,7 +585,7 @@ EOF
                 <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
-                <span style="text-transform: uppercase;">Riwayat Transaksi</span>
+                <span style="text-transform: uppercase;" id="history-title-text">Riwayat Transaksi</span>
             </div>
             <div id="history-list" style="padding-top:10px;"></div>
         </div>
@@ -622,11 +622,8 @@ EOF
                 </svg>
                 <span>Pemberitahuan</span>
             </div>
-            <div class="container">
-                <div class="card" style="border-left: 4px solid #0ea5e9;">
-                    <h3 style="margin-top:0; color: var(--text-main); font-size:15px;">📢 Info Terbaru</h3>
-                    <p id="notif-text" style="color: var(--text-muted); line-height: 1.6; font-size:13px; white-space: pre-wrap; font-weight: 500;">Memuat...</p>
-                </div>
+            <div class="container" id="notif-list">
+                <div style="text-align:center; color:var(--text-muted); padding:30px; font-size:13px; font-weight:bold;">Memuat info...</div>
             </div>
         </div>
 
@@ -634,7 +631,7 @@ EOF
             <div class="nav-item active" id="nav-home" onclick="showDashboard()">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></span>HOME
             </div>
-            <div class="nav-item" id="nav-history" onclick="showHistory()">
+            <div class="nav-item" id="nav-history" onclick="showHistory('All')">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span>RIWAYAT
             </div>
             <div class="nav-item" id="nav-notif" onclick="showNotif()">
@@ -689,6 +686,17 @@ EOF
                 <button class="btn-outline" style="margin-top:10px; width:100%; border-color: #0ea5e9; color: #0ea5e9;" onclick="manualTopupWA()">Topup Manual (Hubungi Admin)</button>
             </div>
         </div>
+
+        <div id="topup-success-modal" class="modal-overlay hidden">
+            <div class="modal-box" style="text-align:center;">
+                <div style="width:60px; height:60px; background:#dcfce7; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
+                    <svg viewBox="0 0 24 24" width="35" height="35" stroke="#166534" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </div>
+                <h3 style="margin-top:0; font-size:20px; color:#166534;">Berhasil Dibuat!</h3>
+                <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">Silakan bayar menggunakan barcode QRIS yang akan ditampilkan di Riwayat.</p>
+                <button class="btn" style="width:100%;" onclick="closeTopupSuccessModal()">Oke, Lanjut Bayar</button>
+            </div>
+        </div>
         
         <div id="history-detail-modal" class="modal-overlay hidden">
             <div class="modal-box">
@@ -716,7 +724,6 @@ EOF
         </div>
     </div>
 
-    <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="YOUR_CLIENT_KEY_HERE"></script>
     <script>
         // PWA SETUP
         let deferredPrompt;
@@ -732,7 +739,7 @@ EOF
 
         // GLOBAL VARS
         let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let tempForgotPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
-        let currentCategory = ""; let currentBrand = "";
+        let currentCategory = ""; let currentBrand = ""; let currentHistoryFilter = 'All';
         let bannerInterval;
 
         // CEK THEME DARI LOKAL (Dark Mode Toggle)
@@ -911,15 +918,40 @@ EOF
             loadBanners();
             fetchGlobalStats();
         }
-        function showHistory() { showScreen('history-screen', 'nav-history'); syncUserData(); }
+        
+        function showHistory(filter = 'All') { 
+            currentHistoryFilter = filter;
+            if(filter === 'Topup') {
+                document.getElementById('history-title-text').innerText = 'Riwayat Topup';
+            } else {
+                document.getElementById('history-title-text').innerText = 'Semua Riwayat';
+            }
+            showScreen('history-screen', 'nav-history'); 
+            syncUserData(); 
+        }
+        
         function showProfile() { showScreen('profile-screen', 'nav-profile'); syncUserData(); }
         
         async function showNotif() { 
             showScreen('notif-screen', 'nav-notif'); 
             try {
                 let data = await apiCall('/api/notif');
-                if(data && data.text) document.getElementById('notif-text').innerText = data.text;
-                else document.getElementById('notif-text').innerText = "Tidak ada pemberitahuan sistem saat ini.";
+                let html = '';
+                if(data && Array.isArray(data) && data.length > 0) {
+                    data.forEach(n => {
+                        let imgTag = n.image ? `<img src="/info_images/${n.image}" style="width:100%; border-radius:8px; margin-bottom:10px; display:block;">` : '';
+                        html += `
+                        <div class="card" style="border-left: 4px solid #0ea5e9; margin-bottom:15px; padding:15px;">
+                            <div style="font-size:10px; color:var(--text-muted); margin-bottom:5px; font-weight:700;">${n.date}</div>
+                            <h3 style="margin-top:0; color: var(--text-main); font-size:15px; margin-bottom:10px;">📢 Info Terbaru</h3>
+                            ${imgTag}
+                            <p style="color: var(--text-muted); line-height: 1.6; font-size:13px; white-space: pre-wrap; font-weight: 500; margin:0;">${n.text}</p>
+                        </div>`;
+                    });
+                } else {
+                    html = '<div style="text-align:center; color:var(--text-muted); padding:30px; font-size:13px; font-weight:bold;">Tidak ada pemberitahuan sistem saat ini.</div>';
+                }
+                document.getElementById('notif-list').innerHTML = html;
             } catch(e){}
         }
 
@@ -936,16 +968,7 @@ EOF
                 let data = await apiCall('/api/topup', {phone: currentUser, nominal: nom});
                 if(data && data.success) { 
                     closeTopupModal();
-                    alert("Order berhasil dibuat! Silakan bayar pada halaman Riwayat Transaksi.");
-                    await syncUserData(); 
-                    
-                    showHistory();
-                    if(userData.history && userData.history.length > 0) {
-                        let latest = userData.history[0];
-                        if(latest.type === 'Topup' && latest.status === 'Pending') {
-                            openHistoryDetail(latest);
-                        }
-                    }
+                    document.getElementById('topup-success-modal').classList.remove('hidden');
                 } 
                 else { alert(data.message || "Gagal memuat QRIS. Pastikan Admin sudah mengatur API GoPay."); }
             } catch(e) { alert("Kesalahan server."); }
@@ -953,9 +976,14 @@ EOF
             btn.innerText = "Buat QRIS"; btn.disabled = false;
         }
 
-        function closeQrisModal() {
-            document.getElementById('qris-modal').classList.add('hidden');
-            alert("Sistem sedang mengecek pembayaran Anda. Saldo akan otomatis bertambah 1-3 menit setelah transfer berhasil.");
+        async function closeTopupSuccessModal() {
+            document.getElementById('topup-success-modal').classList.add('hidden');
+            await syncUserData(); 
+            showHistory('Topup');
+            if(userData.history && userData.history.length > 0) {
+                let latest = userData.history.find(h => h.type === 'Topup' && h.status === 'Pending');
+                if(latest) openHistoryDetail(latest);
+            }
         }
 
         function manualTopupWA() {
@@ -997,6 +1025,11 @@ EOF
 
                     let histHTML = '';
                     let historyList = u.history || [];
+                    
+                    if (currentHistoryFilter !== 'All') {
+                        historyList = historyList.filter(h => h.type === currentHistoryFilter);
+                    }
+
                     if(historyList.length === 0) histHTML = '<div style="text-align:center; color:var(--text-muted); font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
                     else {
                         historyList.forEach((h, idx) => {
@@ -1005,7 +1038,7 @@ EOF
                             if(h.status === 'Gagal') statClass = 'stat-Gagal';
                             let safeH = JSON.stringify(h).replace(/"/g, '&quot;');
                             histHTML += `
-                                <div class="hist-item" onclick="openHistoryDetail(${safeH})">
+                                <div class="hist-item" onclick='openHistoryDetail(${safeH})'>
                                     <div class="hist-top"><span>${h.tanggal}</span> <span class="stat-badge ${statClass}">${h.status}</span></div>
                                     <div class="hist-title">${h.nama}</div>
                                     <div class="hist-target">Tujuan: ${h.tujuan}</div>
@@ -1400,7 +1433,7 @@ EOF
         function closeOrderModal() { document.getElementById('order-modal').classList.add('hidden'); }
         function closeOrderSuccessModal() { 
             document.getElementById('order-success-modal').classList.add('hidden'); 
-            showHistory();
+            showHistory('All');
         }
 
         async function processOrder() {
@@ -1462,7 +1495,7 @@ const configFile = './config.json';
 const dbFile = './database.json';
 const produkFile = './produk.json';
 const trxFile = './trx.json';
-const notifFile = './web_notif.txt';
+const notifFile = './web_notif.json';
 const japriFile = './japri.txt';
 const globalStatsFile = './global_stats.json';
 const topupFile = './topup.json';
@@ -1472,6 +1505,7 @@ const loadJSON = (file) => {
         return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
     } catch(e) {
         console.error(`Error loading ${file}:`, e);
+        if (file === notifFile) return [];
         return {};
     }
 };
@@ -1491,6 +1525,7 @@ if (!fs.existsSync(produkFile)) saveJSON(produkFile, {});
 if (!fs.existsSync(trxFile)) saveJSON(trxFile, {});
 if (!fs.existsSync(globalStatsFile)) saveJSON(globalStatsFile, {});
 if (!fs.existsSync(topupFile)) saveJSON(topupFile, {});
+if (!fs.existsSync(notifFile)) saveJSON(notifFile, []);
 
 let globalSock = null;
 let tempOtpDB = {}; 
@@ -1544,7 +1579,15 @@ app.get('/api/stats', (req, res) => {
 
 // API ROUTER
 app.get('/api/produk', (req, res) => { res.json(loadJSON(produkFile)); });
-app.get('/api/notif', (req, res) => { let txt = fs.existsSync(notifFile) ? fs.readFileSync(notifFile, 'utf8') : ''; res.json({text: txt}); });
+app.get('/api/notif', (req, res) => { 
+    try {
+        let notifs = loadJSON(notifFile);
+        if(!Array.isArray(notifs)) notifs = [];
+        res.json(notifs); 
+    } catch(e) {
+        res.json([]);
+    }
+});
 
 app.get('/api/user/:phone', (req, res) => {
     try {
@@ -1801,7 +1844,7 @@ app.post('/api/order', async (req, res) => {
 function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
-    exec(`rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json 2>/dev/null`, (err) => {
+    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json ssl_backup.tar.gz 2>/dev/null`, (err) => {
         if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
     });
 }
@@ -1977,7 +2020,7 @@ async function startBot() {
                 let menuText = `👋 *${config.botName || "Digital Tendo Store"}*\n\nSilakan belanja lebih mudah di Aplikasi:\n🌐 http://${process.env.IP_ADDRESS || 'IP_VPS_ANDA'}:3000\n\n_(Atau balas 1 untuk Cek Saldo)_`;
                 return await sock.sendMessage(from, { text: menuText });
             }
-            if (['1', 'saldo'].includes(rawCommand)) return await sock.sendMessage(from, { text: `💰 Saldo Anda: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` });
+            if (['1', 'saldo'].includes(rawCommand)) return await sendMessage(from, { text: `💰 Saldo Anda: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` });
         } catch (err) {}
     });
 }
@@ -2141,15 +2184,19 @@ menu_backup() {
                 echo -e "\n${C_MAG}⏳ Sedang memproses arsip backup...${C_RST}"
                 if ! command -v zip &> /dev/null; then sudo apt install zip -y > /dev/null 2>&1; fi
                 rm -f backup.zip
-                zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json 2>/dev/null
-                echo -e "${C_GREEN}✅ File backup.zip berhasil dikompresi!${C_RST}"
+                # Backup SSL Let's Encrypt jika ada
+                if [ -d "/etc/letsencrypt" ]; then
+                    sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null
+                fi
+                zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json ssl_backup.tar.gz 2>/dev/null
+                echo -e "${C_GREEN}✅ File backup.zip (termasuk SSL) berhasil dikompresi!${C_RST}"
                 node -e "
                     const fs = require('fs');
                     const { exec } = require('child_process');
                     let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
                     if(config.teleToken && config.teleChatId) {
                         console.log('\x1b[36m⏳ Sedang mengirim ke Telegram...\x1b[0m');
-                        let cmd = \`curl -s -F chat_id=\"\${config.teleChatId}\" -F document=@\"backup.zip\" -F caption=\"📦 Manual Backup Data\" https://api.telegram.org/bot\${config.teleToken}/sendDocument\`;
+                        let cmd = \`curl -s -F chat_id=\"\${config.teleChatId}\" -F document=@\"backup.zip\" -F caption=\"📦 Manual Backup Data + SSL\" https://api.telegram.org/bot\${config.teleToken}/sendDocument\`;
                         exec(cmd, (err) => {
                             if(err) console.log('\x1b[31m❌ Gagal mengirim ke Telegram.\x1b[0m');
                             else console.log('\x1b[32m✅ File Backup berhasil mendarat di Telegram!\x1b[0m');
@@ -2170,6 +2217,10 @@ menu_backup() {
                         if [ -f "restore.zip" ]; then
                             if ! command -v unzip &> /dev/null; then sudo apt install unzip -y > /dev/null 2>&1; fi
                             unzip -o restore.zip > /dev/null 2>&1
+                            if [ -f "ssl_backup.tar.gz" ]; then
+                                sudo tar -xzf ssl_backup.tar.gz -C / 2>/dev/null
+                                echo -e "${C_GREEN}✅ Sertifikat SSL berhasil direstore!${C_RST}"
+                            fi
                             rm restore.zip
                             npm install > /dev/null 2>&1
                             echo -e "\n${C_GREEN}${C_BOLD}✅ RESTORE BERHASIL SEPENUHNYA!${C_RST}"
@@ -2220,7 +2271,7 @@ menu_member() {
                     
                     if(!target) {
                         target = normPhone || input;
-                        db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: target + '@s.whatsapp.net', trx_count: 0, history: [] };
+                        db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: target + '@s.whatsapp.net', trx_count: 0, history: [] };
                     }
                     db[target].saldo += parseInt('$jumlah');
                     fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
@@ -2923,11 +2974,28 @@ while true; do
             ;;
         13)
             echo -e "\n${C_MAG}--- PENGUMUMAN WEBSITE APLIKASI ---${C_RST}"
-            echo -e "Pesan ini akan muncul di menu Notifikasi Aplikasi Pelanggan."
-            read -p "Ketik Pengumuman Web: " web_notif
-            if [ ! -z "$web_notif" ]; then
-                echo -e "$web_notif" > web_notif.txt
-                echo -e "\n${C_GREEN}✅ Pengumuman Aplikasi Web berhasil diupdate!${C_RST}"
+            echo -e "Anda bisa mengupload gambar (opsional) ke folder: ${C_CYAN}public/info_images/${C_RST} di VPS Anda terlebih dahulu."
+            echo -e "Sistem menyimpan hingga 10 pengumuman terbaru (Otomatis hapus yang lama).\n"
+            read -p "Ketik Pesan Pengumuman: " web_notif_msg
+            read -p "Nama File Gambar (contoh: promo.jpg) / Tekan Enter jika teks saja: " web_notif_img
+            
+            if [ ! -z "$web_notif_msg" ]; then
+                export TMP_MSG="$web_notif_msg"
+                export TMP_IMG="$web_notif_img"
+                node -e "
+                    const fs = require('fs');
+                    let file = 'web_notif.json';
+                    let notifs = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : [];
+                    let newNotif = {
+                        date: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric' }),
+                        text: process.env.TMP_MSG,
+                        image: process.env.TMP_IMG || ''
+                    };
+                    notifs.unshift(newNotif);
+                    if(notifs.length > 10) notifs.pop();
+                    fs.writeFileSync(file, JSON.stringify(notifs, null, 2));
+                "
+                echo -e "\n${C_GREEN}✅ Pengumuman Aplikasi Web berhasil ditambahkan!${C_RST}"
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
@@ -3039,7 +3107,8 @@ EOF
             sudo nginx -t && sudo systemctl restart nginx
 
             echo -e "${C_CYAN}>> Meminta Sertifikat SSL HTTPS ke Let's Encrypt...${C_RST}"
-            sudo certbot --nginx -d $domain_name --non-interactive --agree-tos -m $ssl_email --redirect
+            # Ditambahkan opsi --keep-until-expiring untuk mencegah rate limit Let's Encrypt
+            sudo certbot --nginx -d $domain_name --non-interactive --agree-tos -m $ssl_email --redirect --keep-until-expiring
 
             echo -e "\n${C_GREEN}✅ Berhasil! Website Digital Tendo Store Anda sekarang bisa diakses dan sudah diamankan di: https://$domain_name ${C_RST}"
             read -p "Tekan Enter untuk kembali..."
