@@ -135,7 +135,7 @@ EOF
         /* BANNER SALDO */
         .banner { 
             background: linear-gradient(135deg, #111827 0%, #0f172a 100%); 
-            border-radius: 20px; padding: 30px 20px 25px; 
+            border-radius: 20px; padding: 25px 15px; 
             color: #ffffff; text-align: center; position: relative; overflow: hidden;
             box-shadow: 0 8px 20px rgba(15,23,42,0.15);
         }
@@ -145,16 +145,16 @@ EOF
             pointer-events: none; 
         }
         .saldo-title { font-size: 12px; font-weight: 500; opacity: 0.9; margin-bottom: 5px; position: relative; z-index: 2;}
-        .saldo-amount { font-size: 36px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 20px; position: relative; z-index: 2;}
+        .saldo-amount { font-size: 34px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 20px; position: relative; z-index: 2;}
         
-        .action-buttons { display: flex; justify-content: center; gap: 15px; position: relative; z-index: 2; }
-        .btn-topup-dash, .btn-help-dash { 
+        .action-buttons { display: flex; justify-content: center; gap: 10px; position: relative; z-index: 2; }
+        .btn-topup-dash, .btn-history-dash, .btn-help-dash { 
             background: transparent; color: #ffffff; border: 1px solid rgba(255,255,255,0.8); 
-            padding: 10px 20px; border-radius: 25px; font-weight: 800; font-size: 11px; 
-            cursor: pointer; display: flex; align-items: center; justify-content: center; flex: 1; max-width: 140px;
+            padding: 8px 12px; border-radius: 25px; font-weight: 800; font-size: 10px; 
+            cursor: pointer; display: flex; align-items: center; justify-content: center; flex: 1; max-width: 110px;
             transition: background 0.2s, color 0.2s; text-transform: uppercase; letter-spacing: 0.5px;
         }
-        .btn-topup-dash:active, .btn-help-dash:active { background: #ffffff; color: #0f172a; }
+        .btn-topup-dash:active, .btn-history-dash:active, .btn-help-dash:active { background: #ffffff; color: #0f172a; }
 
         /* SLIDER BANNER */
         .banner-slider-container { margin: 20px 20px 0px; border-radius: 16px; overflow: hidden; position: relative; background: var(--bg-card); box-shadow: 0 4px 10px rgba(0,0,0,0.03);}
@@ -329,6 +329,7 @@ EOF
                 <div class="saldo-amount" id="user-saldo">Rp 0</div>
                 <div class="action-buttons">
                     <button class="btn-topup-dash" onclick="openTopupModal()">ISI SALDO</button>
+                    <button class="btn-history-dash" onclick="showHistory()">RIWAYAT</button>
                     <button class="btn-help-dash" onclick="contactAdmin()">BANTUAN</button>
                 </div>
             </div>
@@ -663,7 +664,7 @@ EOF
         <div id="topup-modal" class="modal-overlay hidden">
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Isi Saldo Otomatis</h3>
-                <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">Mendukung khusus <b>QRIS</b> (Tanpa biaya admin). Nominal akan ditambah 3 kode unik.<br>Saldo masuk utuh sesuai nominal transfer.</p>
+                <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">Mendukung khusus <b>QRIS</b> (Tanpa biaya admin). Nominal akan ditambah 2 kode unik.<br>Saldo masuk utuh sesuai nominal transfer.</p>
                 <input type="number" id="topup-nominal" placeholder="Nominal (Min. 10000)" style="text-align:center; font-size:18px; font-weight:bold;">
                 <div class="modal-btns">
                     <button class="btn-outline" style="margin-top:0;" onclick="closeTopupModal()">Batal</button>
@@ -672,30 +673,23 @@ EOF
                 <button class="btn-outline" style="margin-top:10px; width:100%; border-color: #0ea5e9; color: #0ea5e9;" onclick="manualTopupWA()">Topup Manual (Hubungi Admin)</button>
             </div>
         </div>
-
-        <div id="qris-modal" class="modal-overlay hidden">
-            <div class="modal-box">
-                <h3 style="margin-top:0; font-size:18px;">Pembayaran QRIS</h3>
-                <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Scan QRIS di bawah dengan e-Wallet / m-Banking.</p>
-                <img id="qris-img-src" src="" style="width:100%; max-width:250px; border-radius:12px; border:1px solid var(--border-color); margin-bottom:15px;">
-                <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; text-align: center; border: 1px solid var(--border-color);">
-                    <div style="font-size:12px; color:var(--text-muted); font-weight:bold;">Transfer TEPAT SEBESAR:</div>
-                    <div style="font-size:24px; font-weight:900; color:#0ea5e9; margin: 5px 0;" id="qris-exact-amount">Rp 0</div>
-                    <div style="font-size:11px; color:#ef4444; font-weight:bold; line-height:1.4;">⚠️ Nominal harus persis hingga 3 digit terakhir agar saldo masuk otomatis!</div>
-                </div>
-                <div class="modal-btns">
-                    <button class="btn" style="width:100%;" onclick="closeQrisModal()">Selesai / Tutup</button>
-                </div>
-            </div>
-        </div>
         
         <div id="history-detail-modal" class="modal-overlay hidden">
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Detail Transaksi</h3>
+                
+                <div id="hd-qris-box" class="hidden" style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; text-align: center; border: 1px solid var(--border-color);">
+                    <p style="font-size:12px; color:var(--text-main); margin-top:0; margin-bottom:10px; font-weight:bold;">Segera bayar dengan QRIS ini:</p>
+                    <img id="hd-qris-img" src="" style="width:100%; max-width:200px; border-radius:12px; border:1px solid var(--border-color); margin-bottom:10px; background:#fff;">
+                    <div style="font-size:11px; color:var(--text-muted); font-weight:bold;">Transfer TEPAT SEBESAR:</div>
+                    <div style="font-size:24px; font-weight:900; color:#0ea5e9; margin: 5px 0;" id="hd-qris-amount">Rp 0</div>
+                    <div style="font-size:11px; color:#ef4444; font-weight:bold; line-height:1.4;">Batas Waktu: 10 Menit!<br>Harus persis agar otomatis masuk.</div>
+                </div>
+
                 <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left; font-size:13px; line-height: 1.6;">
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Waktu</span><strong id="hd-time"></strong></div>
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Status</span><strong id="hd-status"></strong></div>
-                    <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Produk</span><strong id="hd-name"></strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Layanan</span><strong id="hd-name"></strong></div>
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Tujuan</span><strong id="hd-target"></strong></div>
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">SN/Ref</span><strong id="hd-sn" style="word-break:break-all;"></strong></div>
                 </div>
@@ -946,19 +940,22 @@ EOF
                 let data = await apiCall('/api/topup', {phone: currentUser, nominal: nom});
                 if(data && data.success) { 
                     closeTopupModal();
-                    document.getElementById('qris-img-src').src = data.qris_url;
-                    document.getElementById('qris-exact-amount').innerText = "Rp " + data.total_pay.toLocaleString('id-ID');
-                    document.getElementById('qris-modal').classList.remove('hidden');
+                    alert("Order berhasil dibuat! Silakan bayar pada halaman Riwayat Transaksi.");
+                    await syncUserData(); // Perbarui data history dari server
+                    
+                    // Buka tab history, dan langsung buka detail QRIS topup terakhir
+                    showHistory();
+                    if(userData.history && userData.history.length > 0) {
+                        let latest = userData.history[0];
+                        if(latest.type === 'Topup' && latest.status === 'Pending') {
+                            openHistoryDetail(latest);
+                        }
+                    }
                 } 
-                else { alert(data.message || "Gagal memuat QRIS."); }
+                else { alert(data.message || "Gagal memuat QRIS. Pastikan Admin sudah mengatur API GoPay."); }
             } catch(e) { alert("Kesalahan server."); }
             
             btn.innerText = "Buat QRIS"; btn.disabled = false;
-        }
-
-        function closeQrisModal() {
-            document.getElementById('qris-modal').classList.add('hidden');
-            alert("Sistem sedang mengecek pembayaran Anda. Saldo akan otomatis bertambah 1-3 menit setelah transfer berhasil.");
         }
 
         function manualTopupWA() {
@@ -1029,8 +1026,23 @@ EOF
             document.getElementById('hd-target').innerText = h.tujuan;
             document.getElementById('hd-sn').innerText = h.sn || '-';
             
+            let qrisBox = document.getElementById('hd-qris-box');
+            if(h.type === 'Topup' && h.status === 'Pending') {
+                if(Date.now() < h.expired_at) {
+                    document.getElementById('hd-qris-img').src = h.qris_url;
+                    document.getElementById('hd-qris-amount').innerText = 'Rp ' + h.amount.toLocaleString('id-ID');
+                    qrisBox.classList.remove('hidden');
+                } else {
+                    qrisBox.classList.add('hidden');
+                    document.getElementById('hd-status').innerText = 'Gagal (Kedaluwarsa)';
+                }
+            } else {
+                qrisBox.classList.add('hidden');
+            }
+            
             document.getElementById('history-detail-modal').classList.remove('hidden');
         }
+        
         function closeHistoryModal() { document.getElementById('history-detail-modal').classList.add('hidden'); }
         
         function contactAdmin() {
@@ -1041,7 +1053,7 @@ EOF
         function complainAdmin() {
             let h = currentHistoryItem;
             if(!h) { contactAdmin(); return; }
-            let pesan = `Halo Admin Digital Tendo Store,%0A%0ASaya ingin komplain/tanya transaksi ini:%0A%0A📦 Produk: *${h.nama}*%0A📱 Tujuan: *${h.tujuan}*%0A🕒 Waktu: *${h.tanggal}*%0A⚙️ Status: *${h.status}*%0A🔑 SN/Ref: *${h.sn || '-'}*%0A%0AMohon bantuannya dicek. Terima kasih.`;
+            let pesan = `Halo Admin Digital Tendo Store,%0A%0ASaya ingin komplain/tanya transaksi ini:%0A%0A📦 Layanan: *${h.nama}*%0A📱 Tujuan: *${h.tujuan}*%0A🕒 Waktu: *${h.tanggal}*%0A⚙️ Status: *${h.status}*%0A🔑 SN/Ref: *${h.sn || '-'}*%0A%0AMohon bantuannya dicek. Terima kasih.`;
             window.open(`https://wa.me/6282224460678?text=${pesan}`, '_blank');
         }
 
@@ -1423,7 +1435,6 @@ const bodyParser = require('body-parser');
 const { exec } = require('child_process');
 const axios = require('axios'); 
 const crypto = require('crypto'); 
-const midtransClient = require('midtrans-client');
 
 const app = express();
 app.use(bodyParser.json());
@@ -1448,13 +1459,9 @@ const loadJSON = (file) => {
 };
 const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
 
-// AUTO-INJECT GOPAY CREDENTIALS FROM USER PROMPT
 let configAwal = loadJSON(configFile);
 configAwal.botName = configAwal.botName || "Digital Tendo Store";
 configAwal.botNumber = configAwal.botNumber || "";
-configAwal.gopayToken = configAwal.gopayToken || "eyJhbGciOiJkaXIiLCJjdHkiOiJKV1QiLCJlbmMiOiJBMTI4R0NNIiwidHlwIjoiSldUIiwiemlwIjoiREVGIn0..VIQQ-T-biEeLHfw0.A2-r35syEmO_3WI_dsbDM06rN61YEqtJjL4Cl8IMvlLd4qZfsED3U1e7mQQvOnkbaSG1JvFKxEHQTZFNR6sKJ7Vm-j_5BQwc3XyRUN7C67EpayMGoqlgOxQ-FbFAP1LIL3PVrPpX8tq9Kb2cfUHxo4T2YQhdbN-F-xxFqkZE3MniVJ6bKv2j3ENpJ74WV0YO1EQ9inBGsL3LskNp--fkxlDpTP3VEAtJT8VeOXmF0TWkHK1PYvY7iR1BuWncqtPpPao1kYm3Jf9CF48lMPI3MT3kmOdkuWCkzTd71jCza8xnFt37itC36_qB14H0zC3mhLtxgFPQR0VzlVylqcfLYtblVIrgtKvRwFTK2SFCQnlYWJ2DcaXSqL7aie66HmWAl4G3jwqhKumJNTnwfWgJ7MpZA2PiIxLkli8p_5PARbyyhdpZCUPX1r_nJGCy5GmqT6QoSbafu2ps7gpjGbPY4iBa03KEIV-55g3lqbRsJsWSg6FgrPgM7i2o8NsZNQNAd5ZgMI4BCs5AAECXtfBgUL9ZN8OBHbMTeuapsx2wseCZd8I7r3JsAAp-Y70OxVraB-LHCiczAuwpYO8gcr_XGjh_wuicoS7lp8rIxKGNCWEiHR0dhY1FduSqAVE3Ced01A_QRMY4cnFJAHFAUbwFCH17Oy8FDqhPMmLG3hdxJZBqiyCi6v4U9GXBjcckkpVtZ1mg6yN8Mpfe_Le6nt4zGABwZHFeESojkW0YJQJaMzRcUoiUZF88zTnXmT93ZQ-T9my6J3cEGkTSl0J_WT7q2T_BYWFBPqrrv61OggbbnkK1UE2HiI481WmudS4VUuX857SLMxRunFcH0E_FybDd0n1vqvcFjs-osoK5yymM3p2mZT7_gGkR3cm-Jy0r1SCm-28ZY5mK7EA3N9l88yHv0R0dqyXETT3j0wa9N3YbViAre2dku_OgKjGh8ICnjTKhI5VlxIop42k0uFQg_QBECeY65xpmY6qbHFESoC4ii5IxODVyGqM6xVnHFRULSl66-ir-I3111D-l0PgnyUe7mbf3ewffLi6vdGW_e2Pd3jooP_u91Q_du2tqRWUsO3oeNTbJcfer0LRoB06ecsqRHUzCHKuG7XociDXLOifvdYJGwmrItjFGWTIlqSpYs45MZWYe07WEvftwhemXUzEPNtTCecq7kavGOcWDPx0PZJ_VP8Z6y1ocZ64ZnLNp_Zdq2ESU7ATWOaLi6HXavIKecvOo2QFFN4Jrs5HP46IHdp7uqX0mFtBqwMDOSOCmjfgLDsjUltHxCLuYWtGn1SUsTuzE0sqhELrh1CVYReiBk9FFFcXs4qlXpbjPb3FVWIX8TzdN6dQd9RfrMtN71pe69WocXAlE9uRNWY3p07ayKUm7Z1p6GSq0hlH_aPsHlNrVUvupwgg45XHlod6T6_Ki2Lq3pUesSGxMPD-zmPB9N90B-xcqYSBg_LoCU1_gWDxiNlggHWD65hMlxcJolRxV4reLwGn06rbadydyByuz3aC-gbxXYtF7CO9pOkYGms2hAhp6CBOQhmWe3cip3rx_hVNBZYbOgkAvfgaWD3h22v25FVmV9xsecPaA_nLWPvcZLYHcPZzmsOhxpecQaAJDn3uAdi6uu7aUqk7ljq1TIpbafbru3pnOf0TEgElgqXlTUUCKPxYdeQaGSpjM7NGjlBsLyrcRZa74VZ-g1mpCCX3Qxf8l8Mn0PSJHkS1AahS6u1Nqr0dVRyx1ikg6t_F8gCTCE3IF-zRTGJZITwOir0RI0coZUQ1xH7eZ0Rb-oAXDPxf00nFMoYpijiL1QdyKA3yc0RiMcw7nISGoYn8_BWbG7YvjlxVPAdjWaIKen1pXRFf0VC2OinEvATRPP2E31HkJWwJ_jLDTheWqf6kc3oqBAvX3Ch88z-jSuUF2zjzH0F4pWSE6oE2fKstonIdD.Ehu4BT1zjv_MGr1eUh-G8g";
-configAwal.gopayMerchantId = configAwal.gopayMerchantId || "G881528152";
-configAwal.qrisUrl = configAwal.qrisUrl || "https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg";
 saveJSON(configFile, configAwal);
 
 if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
@@ -1674,17 +1681,36 @@ app.post('/api/topup', async (req, res) => {
         if(!db[phone]) return res.json({success: false, message: "User tidak ditemukan."});
         
         let nominalAsli = parseInt(nominal);
-        // Menambahkan 3 digit unik untuk validasi otomatis
-        let uniqueCode = Math.floor(Math.random() * 899) + 100;
+        // Menambahkan 2 digit unik (1-99) untuk validasi otomatis
+        let uniqueCode = Math.floor(Math.random() * 99) + 1;
         let totalPay = nominalAsli + uniqueCode;
 
         let topups = loadJSON(topupFile);
         let trxId = "TP-" + Date.now();
+        let expiredAt = Date.now() + 10 * 60 * 1000; // 10 Menit
+
         // Saldo yang ditambahkan FULL sesuai yang ditransfer
-        topups[trxId] = { phone, amount_to_pay: totalPay, saldo_to_add: totalPay, status: 'pending', timestamp: Date.now() };
+        topups[trxId] = { phone, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, status: 'pending', timestamp: Date.now(), expired_at: expiredAt };
         saveJSON(topupFile, topups);
 
-        res.json({success: true, qris_url: config.qrisUrl, total_pay: totalPay, nominal_asli: nominalAsli});
+        // Rekam ke Riwayat User
+        db[phone].history = db[phone].history || [];
+        db[phone].history.unshift({ 
+            ts: Date.now(), 
+            tanggal: new Date().toLocaleString('id-ID'), 
+            type: 'Topup',
+            nama: 'Topup Saldo QRIS', 
+            tujuan: 'Sistem Pembayaran', 
+            status: 'Pending', 
+            sn: trxId, 
+            amount: totalPay,
+            qris_url: config.qrisUrl,
+            expired_at: expiredAt
+        });
+        if(db[phone].history.length > 20) db[phone].history.pop();
+        saveJSON(dbFile, db);
+
+        res.json({success: true});
     } catch(e) {
         res.json({success: false, message: "Gagal memproses QRIS."});
     }
@@ -1718,7 +1744,6 @@ app.post('/api/order', async (req, res) => {
         
         db[targetKey].saldo -= p.harga; db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
         db[targetKey].history = db[targetKey].history || [];
-        // Merekam timestamp waktu (ts) agar riwayat bisa di hapus setelah 30 hari otomatis
         db[targetKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleString('id-ID'), nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-' });
         if(db[targetKey].history.length > 20) db[targetKey].history.pop();
         saveJSON(dbFile, db);
@@ -1728,7 +1753,6 @@ app.post('/api/order', async (req, res) => {
         trxs[refId] = { jid: targetJid, sku: sku, tujuan: tujuan, harga: p.harga, nama: p.nama, tanggal: Date.now() };
         saveJSON(trxFile, trxs);
 
-        // Jika Sukses Langsung, update Statistik Global
         if (statusOrder === 'Sukses') {
             let gStats = loadJSON(globalStatsFile);
             let dateKey = new Date().toISOString().split('T')[0];
@@ -1797,31 +1821,57 @@ async function startBot() {
             let txs = gopayRes.data.data || gopayRes.data || [];
             if(!Array.isArray(txs)) return;
 
-            // Ekstrak nominal transaksi masuk
-            let txAmounts = txs.map(t => parseInt(t.amount || t.nominal || t.gross_amount || t.total || t.value || 0));
+            // Ekstrak semua angka nominal yang ada di respons API GoPay dengan aman
+            let txAmounts = [];
+            JSON.stringify(txs, (key, value) => {
+                if (['amount', 'gross_amount', 'nominal', 'total', 'value'].includes(key)) {
+                    let v = parseInt(value);
+                    if (!isNaN(v)) txAmounts.push(v);
+                }
+                return value;
+            });
 
             let db = loadJSON(dbFile);
-            let changed = false;
+            let changedTp = false;
+            let changedDb = false;
 
             for(let key of pendingKeys) {
                 let req = topups[key];
-                if(txAmounts.includes(req.amount_to_pay)) {
-                    req.status = 'sukses';
-                    changed = true;
+                
+                // 1. Cek apakah Topup sudah kadaluarsa (lewat 10 menit)
+                if (Date.now() > req.expired_at) {
+                    req.status = 'gagal';
+                    changedTp = true;
                     if(db[req.phone]) {
-                        db[req.phone].saldo += req.saldo_to_add; // Menambahkan FULL nominal + kode unik
-                        saveJSON(dbFile, db);
+                        let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
+                        if(hist && hist.status === 'Pending') {
+                            hist.status = 'Gagal';
+                            changedDb = true;
+                        }
+                    }
+                } 
+                // 2. Cek apakah nominal unik muncul di riwayat mutasi GoPay
+                else if(txAmounts.includes(req.amount_to_pay)) {
+                    req.status = 'sukses';
+                    changedTp = true;
+                    if(db[req.phone]) {
+                        db[req.phone].saldo += req.saldo_to_add; 
+                        
+                        let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
+                        if(hist && hist.status === 'Pending') {
+                            hist.status = 'Sukses';
+                        }
+                        changedDb = true;
+                        
                         if(globalSock) {
                             let msg = `✅ *TOPUP QRIS BERHASIL*\n\nTotal Transfer: Rp ${req.amount_to_pay.toLocaleString('id-ID')}\nSaldo Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\nSaldo Sekarang: Rp ${db[req.phone].saldo.toLocaleString('id-ID')}`;
                             globalSock.sendMessage(db[req.phone].jid, {text: msg}).catch(()=>{});
                         }
                     }
-                } else if (Date.now() - req.timestamp > 24 * 60 * 60 * 1000) {
-                    req.status = 'gagal'; // expired setelah 24 jam
-                    changed = true;
                 }
             }
-            if(changed) saveJSON(topupFile, topups);
+            if(changedTp) saveJSON(topupFile, topups);
+            if(changedDb) saveJSON(dbFile, db);
         } catch(e) {}
     }, 30000); 
 
@@ -1874,7 +1924,6 @@ async function startBot() {
                             db[senderNum].history[0].status = 'Sukses'; db[senderNum].history[0].sn = resData.sn || '-'; saveJSON(dbFile, db);
                         }
                         
-                        // Update Global Stats
                         let gStats = loadJSON(globalStatsFile);
                         let dateKey = new Date().toISOString().split('T')[0];
                         gStats[dateKey] = (gStats[dateKey] || 0) + 1;
@@ -1971,8 +2020,8 @@ install_dependencies() {
     rm -rf node_modules package-lock.json
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    echo -ne "${C_MAG}>> Mengunduh modul (Baileys, Midtrans, XLSX, dll)...${C_RST}"
-    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser midtrans-client xlsx > /dev/null 2>&1 &
+    echo -ne "${C_MAG}>> Mengunduh modul (Baileys, XLSX, dll)...${C_RST}"
+    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser xlsx > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
