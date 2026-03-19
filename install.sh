@@ -661,32 +661,32 @@ EOF
             </div>
         </div>
 
+        <div id="order-success-modal" class="modal-overlay hidden">
+            <div class="modal-box" style="text-align:center;">
+                <div style="width:60px; height:60px; background:#dcfce7; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
+                    <svg viewBox="0 0 24 24" width="35" height="35" stroke="#166534" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </div>
+                <h3 style="margin-top:0; font-size:20px; color:#166534;">Pesanan Berhasil!</h3>
+                <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">Pesanan Anda sedang diproses oleh sistem.</p>
+                <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; text-align: left; font-size:13px; line-height: 1.6; border: 1px dashed var(--border-color);">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Produk</span><strong id="os-name" style="text-align:right; max-width:60%;"></strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Tujuan</span><strong id="os-target" style="text-align:right;"></strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Harga</span><strong id="os-price" style="color:#0ea5e9;"></strong></div>
+                </div>
+                <button class="btn" style="width:100%;" onclick="closeOrderSuccessModal()">Selesai & Cek Riwayat</button>
+            </div>
+        </div>
+
         <div id="topup-modal" class="modal-overlay hidden">
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Isi Saldo Otomatis</h3>
-                <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">Mendukung khusus <b>QRIS</b> (Tanpa biaya admin). Nominal akan ditambah 2 kode unik.<br>Saldo masuk utuh sesuai nominal transfer.</p>
+                <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">Mendukung khusus <b>QRIS</b> (Tanpa biaya admin). Nominal akan ditambah kode unik.<br>Saldo masuk utuh sesuai nominal transfer.</p>
                 <input type="number" id="topup-nominal" placeholder="Nominal (Min. 10000)" style="text-align:center; font-size:18px; font-weight:bold;">
                 <div class="modal-btns">
                     <button class="btn-outline" style="margin-top:0;" onclick="closeTopupModal()">Batal</button>
                     <button class="btn" id="btn-topup-submit" onclick="generateQris()">Buat QRIS</button>
                 </div>
                 <button class="btn-outline" style="margin-top:10px; width:100%; border-color: #0ea5e9; color: #0ea5e9;" onclick="manualTopupWA()">Topup Manual (Hubungi Admin)</button>
-            </div>
-        </div>
-
-        <div id="qris-modal" class="modal-overlay hidden">
-            <div class="modal-box">
-                <h3 style="margin-top:0; font-size:18px;">Pembayaran QRIS</h3>
-                <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Scan QRIS di bawah dengan e-Wallet / m-Banking.</p>
-                <img id="qris-img-src" src="" style="width:100%; max-width:250px; border-radius:12px; border:1px solid var(--border-color); margin-bottom:15px;">
-                <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; text-align: center; border: 1px solid var(--border-color);">
-                    <div style="font-size:12px; color:var(--text-muted); font-weight:bold;">Transfer TEPAT SEBESAR:</div>
-                    <div style="font-size:24px; font-weight:900; color:#0ea5e9; margin: 5px 0;" id="qris-exact-amount">Rp 0</div>
-                    <div style="font-size:11px; color:#ef4444; font-weight:bold; line-height:1.4;">⚠️ Nominal harus persis hingga 3 digit terakhir agar saldo masuk otomatis!</div>
-                </div>
-                <div class="modal-btns">
-                    <button class="btn" style="width:100%;" onclick="closeQrisModal()">Selesai / Tutup</button>
-                </div>
             </div>
         </div>
         
@@ -705,33 +705,13 @@ EOF
                 <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left; font-size:13px; line-height: 1.6;">
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Waktu</span><strong id="hd-time"></strong></div>
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Status</span><strong id="hd-status"></strong></div>
-                    <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Layanan</span><strong id="hd-name"></strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Layanan</span><strong id="hd-name" style="text-align:right; max-width:60%;"></strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Nominal</span><strong id="hd-amount"></strong></div>
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Tujuan</span><strong id="hd-target"></strong></div>
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">SN/Ref</span><strong id="hd-sn" style="word-break:break-all;"></strong></div>
                 </div>
-                <button class="btn-danger" id="hd-complain-btn" onclick="complainAdmin()" style="margin-bottom: 15px;">Hubungi Admin</button>
+                <button class="btn-danger hidden" id="hd-complain-btn" onclick="complainAdmin()" style="margin-bottom: 15px;">Hubungi Admin (Komplain)</button>
                 <button class="btn-outline" style="margin-top:0;" onclick="closeHistoryModal()">Tutup</button>
-            </div>
-        </div>
-
-        <div id="edit-modal" class="modal-overlay hidden">
-            <div class="modal-box">
-                <h3 style="margin-top:0; font-size:18px;" id="edit-title">Ubah Data</h3>
-                <div id="edit-step-1">
-                    <input type="text" id="edit-input" placeholder="Masukkan data baru">
-                    <div class="modal-btns">
-                        <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
-                        <button class="btn" id="btn-req-edit" onclick="reqEditOTP()">Kirim OTP</button>
-                    </div>
-                </div>
-                <div id="edit-step-2" class="hidden">
-                    <p style="font-size:12px; color:var(--text-muted); font-weight: bold;">OTP telah dikirim ke WA Anda.</p>
-                    <input type="number" id="edit-otp-input" placeholder="----" style="letter-spacing:12px; text-align:center; font-size:24px; background:var(--bg-main);" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
-                    <div class="modal-btns">
-                        <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
-                        <button class="btn" id="btn-verify-edit" onclick="verifyEditOTP()">Simpan</button>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -1043,8 +1023,17 @@ EOF
             document.getElementById('hd-time').innerText = h.tanggal;
             document.getElementById('hd-status').innerText = h.status;
             document.getElementById('hd-name').innerText = h.nama;
+            document.getElementById('hd-amount').innerText = h.amount ? 'Rp ' + h.amount.toLocaleString('id-ID') : '-';
             document.getElementById('hd-target').innerText = h.tujuan;
             document.getElementById('hd-sn').innerText = h.sn || '-';
+            
+            // Logika menampilkan tombol hubungi admin
+            let btnComplain = document.getElementById('hd-complain-btn');
+            if(h.status === 'Pending' || h.status === 'Gagal') {
+                btnComplain.classList.remove('hidden');
+            } else {
+                btnComplain.classList.add('hidden');
+            }
             
             let qrisBox = document.getElementById('hd-qris-box');
             if(h.type === 'Topup' && h.status === 'Pending') {
@@ -1409,6 +1398,10 @@ EOF
             document.getElementById('order-modal').classList.remove('hidden');
         }
         function closeOrderModal() { document.getElementById('order-modal').classList.add('hidden'); }
+        function closeOrderSuccessModal() { 
+            document.getElementById('order-success-modal').classList.add('hidden'); 
+            showHistory();
+        }
 
         async function processOrder() {
             if(!currentUser) {
@@ -1425,10 +1418,14 @@ EOF
             try {
                 let data = await apiCall('/api/order', {phone: currentUser, sku: selectedSKU, tujuan: target});
                 if(data && data.success) {
-                    alert('Pesanan Sukses Diproses!\nCek tab Riwayat Anda.');
                     closeOrderModal();
                     syncUserData();
-                    showHistory();
+                    
+                    // Tampilkan Modal Notifikasi Cantik
+                    document.getElementById('os-name').innerText = document.getElementById('m-name').innerText;
+                    document.getElementById('os-target').innerText = target;
+                    document.getElementById('os-price').innerText = document.getElementById('m-price').innerText;
+                    document.getElementById('order-success-modal').classList.remove('hidden');
                 } else {
                     alert(data && data.message ? 'Gagal: ' + data.message : "Kesalahan server saat memproses order.");
                 }
@@ -1447,6 +1444,7 @@ EOF
 # ==========================================
 generate_bot_script() {
     cat << 'EOF' > index.js
+process.env.TZ = 'Asia/Jakarta';
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const fs = require('fs');
 const pino = require('pino');
@@ -1603,7 +1601,7 @@ app.post('/api/verify-otp', (req, res) => {
                 db[phone].username = tempOtpDB[phone].username; db[phone].email = tempOtpDB[phone].email; db[phone].password = tempOtpDB[phone].password;
                 if(!db[phone].id_pelanggan) db[phone].id_pelanggan = idPelanggan;
             } else {
-                db[phone] = { id_pelanggan: idPelanggan, username: tempOtpDB[phone].username, email: tempOtpDB[phone].email, password: tempOtpDB[phone].password, saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [] };
+                db[phone] = { id_pelanggan: idPelanggan, username: tempOtpDB[phone].username, email: tempOtpDB[phone].email, password: tempOtpDB[phone].password, saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [] };
             }
             saveJSON(dbFile, db); delete tempOtpDB[phone]; res.json({success: true});
         } else res.json({success: false, message: 'Kode OTP Salah!'});
@@ -1721,7 +1719,7 @@ app.post('/api/topup', async (req, res) => {
         db[phone].history = db[phone].history || [];
         db[phone].history.unshift({ 
             ts: Date.now(), 
-            tanggal: new Date().toLocaleString('id-ID'), 
+            tanggal: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }), 
             type: 'Topup',
             nama: 'Topup Saldo QRIS', 
             tujuan: 'Sistem Pembayaran', 
@@ -1768,7 +1766,7 @@ app.post('/api/order', async (req, res) => {
         
         db[targetKey].saldo -= p.harga; db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
         db[targetKey].history = db[targetKey].history || [];
-        db[targetKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleString('id-ID'), nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-' });
+        db[targetKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }), type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: p.harga });
         if(db[targetKey].history.length > 20) db[targetKey].history.pop();
         saveJSON(dbFile, db);
         
@@ -1779,7 +1777,7 @@ app.post('/api/order', async (req, res) => {
 
         if (statusOrder === 'Sukses') {
             let gStats = loadJSON(globalStatsFile);
-            let dateKey = new Date().toISOString().split('T')[0];
+            let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
             gStats[dateKey] = (gStats[dateKey] || 0) + 1;
             saveJSON(globalStatsFile, gStats);
         }
@@ -1949,7 +1947,7 @@ async function startBot() {
                         
                         // Update Global Stats
                         let gStats = loadJSON(globalStatsFile);
-                        let dateKey = new Date().toISOString().split('T')[0];
+                        let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
                         gStats[dateKey] = (gStats[dateKey] || 0) + 1;
                         saveJSON(globalStatsFile, gStats);
                         
@@ -1973,7 +1971,7 @@ async function startBot() {
             if (!body) return;
 
             let db = loadJSON(dbFile); 
-            if (!db[sender]) { db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID'), jid: senderJid, step: 'idle', trx_count:0, history:[]}; saveJSON(dbFile, db); }
+            if (!db[sender]) { db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: senderJid, step: 'idle', trx_count:0, history:[]}; saveJSON(dbFile, db); }
             let rawCommand = body.trim().toLowerCase().split(' ')[0];
             if (['bot', 'menu', 'p'].includes(rawCommand)) {
                 let menuText = `👋 *${config.botName || "Digital Tendo Store"}*\n\nSilakan belanja lebih mudah di Aplikasi:\n🌐 http://${process.env.IP_ADDRESS || 'IP_VPS_ANDA'}:3000\n\n_(Atau balas 1 untuk Cek Saldo)_`;
@@ -2016,6 +2014,10 @@ install_dependencies() {
         done
         printf "      \b\b\b\b\b\b"
     }
+
+    echo -ne "${C_MAG}>> Mengatur zona waktu (Asia/Jakarta)...${C_RST}"
+    sudo timedatectl set-timezone Asia/Jakarta > /dev/null 2>&1 || sudo ln -sf /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
 
     echo -ne "${C_MAG}>> Mengupdate repositori sistem...${C_RST}"
     (sudo -E apt-get update > /dev/null 2>&1 && sudo -E apt-get upgrade -y > /dev/null 2>&1) &
