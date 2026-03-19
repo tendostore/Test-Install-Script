@@ -794,6 +794,12 @@ EOF
                 <div id="hd-qris-box" class="hidden" style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; text-align: center; border: 1px solid var(--border-color);">
                     <p style="font-size:12px; color:var(--text-main); margin-top:0; margin-bottom:10px; font-weight:bold;">Segera bayar dengan QRIS ini:</p>
                     <img id="hd-qris-img" src="" style="width:100%; max-width:200px; border-radius:12px; border:1px solid var(--border-color); margin-bottom:10px; background:#fff;">
+                    
+                    <button class="btn-outline" style="width:100%; max-width:200px; padding:8px; margin: 0 auto 10px; font-size:11px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="downloadQRIS()">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Download QRIS
+                    </button>
+
                     <div style="font-size:11px; color:var(--text-muted); font-weight:bold;">Transfer TEPAT SEBESAR:</div>
                     <div style="font-size:24px; font-weight:900; color:#0ea5e9; margin: 5px 0;" id="hd-qris-amount">Rp 0</div>
                     <div style="font-size:11px; color:#ef4444; font-weight:bold; line-height:1.4;">Batas Waktu: 10 Menit!<br>Harus persis agar otomatis masuk.</div>
@@ -811,30 +817,8 @@ EOF
                 <button class="btn-outline" style="margin-top:0;" onclick="closeHistoryModal()">Tutup</button>
             </div>
         </div>
-
-        <div id="edit-modal" class="modal-overlay hidden">
-            <div class="modal-box">
-                <h3 style="margin-top:0; font-size:18px;" id="edit-title">Ubah Data</h3>
-                <div id="edit-step-1">
-                    <input type="text" id="edit-input" placeholder="Masukkan data baru">
-                    <div class="modal-btns">
-                        <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
-                        <button class="btn" id="btn-req-edit" onclick="reqEditOTP()">Kirim OTP</button>
-                    </div>
-                </div>
-                <div id="edit-step-2" class="hidden">
-                    <p style="font-size:12px; color:var(--text-muted); font-weight: bold;">OTP telah dikirim ke WA Anda.</p>
-                    <input type="number" id="edit-otp-input" placeholder="----" style="letter-spacing:12px; text-align:center; font-size:24px; background:var(--bg-main);" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
-                    <div class="modal-btns">
-                        <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
-                        <button class="btn" id="btn-verify-edit" onclick="verifyEditOTP()">Simpan</button>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
-    <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="YOUR_CLIENT_KEY_HERE"></script>
     <script>
         // PWA SETUP
         let deferredPrompt;
@@ -1114,6 +1098,32 @@ EOF
             if(userData.history && userData.history.length > 0) {
                 let latest = userData.history.find(h => h.type === 'Topup' && h.status === 'Pending');
                 if(latest) openHistoryDetail(latest);
+            }
+        }
+
+        async function downloadQRIS() {
+            let imgUrl = document.getElementById('hd-qris-img').src;
+            if(!imgUrl) return;
+            try {
+                let response = await fetch(imgUrl, { mode: 'cors' });
+                let blob = await response.blob();
+                let url = window.URL.createObjectURL(blob);
+                let a = document.createElement('a');
+                a.href = url;
+                a.download = 'QRIS_Topup_' + Date.now() + '.jpg';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch(e) {
+                // Fallback jika API membatasi CORS (Download manual tab baru)
+                let a = document.createElement('a');
+                a.href = imgUrl;
+                a.target = '_blank';
+                a.download = 'QRIS_Topup.jpg';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
             }
         }
 
