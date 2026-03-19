@@ -58,7 +58,6 @@ generate_web_app() {
 }
 EOF
 
-    # PERBAIKAN BUG CACHE SERVICE WORKER AGAR TIDAK LOADING TERUS
     cat << 'EOF' > public/sw.js
 self.addEventListener('install', (e) => { self.skipWaiting(); });
 self.addEventListener('activate', (e) => { 
@@ -273,7 +272,6 @@ EOF
         /* PROFILE & MODAL */
         .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
         
-        /* PEMBARUAN FOTO PROFIL LEBIH KEREN */
         .prof-avatar-wrap {
             width: 86px; height: 86px;
             background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
@@ -1398,7 +1396,7 @@ EOF
             
             if(type === 'email') { document.getElementById('edit-title').innerText = "Ganti Email"; inp.type="email"; inp.placeholder="Email baru"; inp.value = userData.email;}
             if(type === 'phone') { document.getElementById('edit-title').innerText = "Ganti Nomor WA"; inp.type="number"; inp.placeholder="Nomor WA baru (08/62)"; inp.value = currentUser;}
-            if(type === 'password') { document.getElementById('edit-title').innerText = "Ganti Password"; inp.type="text"; inp.placeholder="Password baru"; inp.value = userData.password;}
+            if(type === 'password') { document.getElementById('edit-title').innerText = "Ganti Password"; inp.type="text"; inp.placeholder="Password baru"; inp.value = "";}
             document.getElementById('edit-modal').classList.remove('hidden');
         }
         
@@ -1661,6 +1659,7 @@ const axios = require('axios');
 const crypto = require('crypto'); 
 
 const app = express();
+app.disable('x-powered-by'); // Keamanan tambahan
 app.use(bodyParser.json());
 app.use(express.static('public')); 
 
@@ -1684,6 +1683,9 @@ const loadJSON = (file) => {
 };
 const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
 
+// Fungsi Hashing Password
+const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
+
 // AUTO-INJECT GOPAY CREDENTIALS FROM USER PROMPT
 let configAwal = loadJSON(configFile);
 configAwal.botName = configAwal.botName || "Digital Tendo Store";
@@ -1702,6 +1704,7 @@ if (!fs.existsSync(notifFile)) saveJSON(notifFile, []);
 
 let globalSock = null;
 let tempOtpDB = {}; 
+let otpCooldown = {}; // Anti spam OTP
 
 function normalizePhone(phoneStr) {
     if(!phoneStr) return '';
@@ -1765,7 +1768,11 @@ app.get('/api/notif', (req, res) => {
 app.get('/api/user/:phone', (req, res) => {
     try {
         let db = loadJSON(dbFile); let p = req.params.phone;
-        if(db[p]) res.json({success: true, data: db[p]});
+        if(db[p]) {
+            let safeData = { ...db[p] };
+            delete safeData.password; // Mencegah password (hash) bocor ke frontend
+            res.json({success: true, data: safeData});
+        }
         else res.json({success: false});
     } catch(e) { res.json({success: false}); }
 });
@@ -1773,8 +1780,26 @@ app.get('/api/user/:phone', (req, res) => {
 app.post('/api/login', (req, res) => {
     try {
         let { email, password } = req.body; let db = loadJSON(dbFile);
-        let userPhone = Object.keys(db).find(k => db[k] && db[k].email === email && db[k].password === password);
-        if (userPhone) res.json({success: true, data: db[userPhone], phone: userPhone});
+        let hashedInput = hashPassword(password);
+        
+        let userPhone = Object.keys(db).find(k => {
+            if (!db[k] || db[k].email !== email) return false;
+            // Migrasi otomatis password lama (plain text) ke Hashed
+            if (db[k].password === password) {
+                db[k].password = hashedInput;
+                saveJSON(dbFile, db);
+                return true;
+            }
+            // Cocokkan dengan password yang sudah di-hash
+            if (db[k].password === hashedInput) return true;
+            return false;
+        });
+
+        if (userPhone) {
+            let safeData = { ...db[userPhone] };
+            delete safeData.password;
+            res.json({success: true, data: safeData, phone: userPhone});
+        }
         else res.json({success: false, message: 'Email atau Password salah!'});
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
@@ -1785,12 +1810,19 @@ app.post('/api/register', (req, res) => {
         let phone = normalizePhone(req.body.phone); 
         if(!phone || phone.length < 9) return res.json({success: false, message: 'Nomor WA tidak valid!'});
         
+        // Anti Spam
+        if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) {
+            return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
+        }
+        otpCooldown[phone] = Date.now();
+        
         let db = loadJSON(dbFile);
         let isEmailExist = Object.keys(db).some(k => db[k] && db[k].email === email);
         if (isEmailExist) return res.json({success: false, message: 'Email terdaftar!'});
 
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
-        tempOtpDB[phone] = { username, email, password, otp };
+        // Simpan password dalam bentuk hash saat register
+        tempOtpDB[phone] = { username, email, password: hashPassword(password), otp };
 
         res.json({success: true});
 
@@ -1828,7 +1860,17 @@ app.post('/api/req-edit-otp', (req, res) => {
     try {
         let { phone, type, newValue } = req.body; let db = loadJSON(dbFile);
         if(!db[phone]) return res.json({success: false, message: 'User tidak ditemukan.'});
+        
+        // Anti Spam
+        if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) {
+            return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
+        }
+        otpCooldown[phone] = Date.now();
+
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
+        // Hash password jika yang diganti adalah password
+        if (type === 'password') newValue = hashPassword(newValue);
+        
         tempOtpDB[phone + '_edit'] = { type, newValue, otp };
         
         res.json({success: true});
@@ -1869,6 +1911,12 @@ app.post('/api/req-forgot-otp', (req, res) => {
         let db = loadJSON(dbFile);
         if(!db[phone]) return res.json({success: false, message: 'Nomor WA tidak terdaftar!'});
         
+        // Anti Spam
+        if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) {
+            return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
+        }
+        otpCooldown[phone] = Date.now();
+
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
         tempOtpDB[phone + '_forgot'] = { otp };
         
@@ -1897,7 +1945,7 @@ app.post('/api/verify-forgot-otp', (req, res) => {
         let session = tempOtpDB[phone + '_forgot'];
         if(session && session.otp === otp) {
             if(db[phone]) {
-                db[phone].password = newPass;
+                db[phone].password = hashPassword(newPass);
                 saveJSON(dbFile, db);
             }
             delete tempOtpDB[phone + '_forgot']; 
@@ -1919,7 +1967,6 @@ app.post('/api/topup', async (req, res) => {
         if(!db[phone]) return res.json({success: false, message: "User tidak ditemukan."});
         
         let nominalAsli = parseInt(nominal);
-        // Menambahkan 2 digit unik (1-99) untuk validasi otomatis
         let uniqueCode = Math.floor(Math.random() * 99) + 1;
         let totalPay = nominalAsli + uniqueCode;
 
@@ -1927,7 +1974,6 @@ app.post('/api/topup', async (req, res) => {
         let trxId = "TP-" + Date.now();
         let expiredAt = Date.now() + 10 * 60 * 1000; // 10 Menit
 
-        // Saldo yang ditambahkan FULL sesuai yang ditransfer
         topups[trxId] = { phone, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, status: 'pending', timestamp: Date.now(), expired_at: expiredAt };
         saveJSON(topupFile, topups);
 
@@ -1935,7 +1981,7 @@ app.post('/api/topup', async (req, res) => {
         db[phone].history = db[phone].history || [];
         db[phone].history.unshift({ 
             ts: Date.now(), 
-            tanggal: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }), 
+            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
             type: 'Topup',
             nama: 'Topup Saldo QRIS', 
             tujuan: 'Sistem Pembayaran', 
@@ -1982,7 +2028,7 @@ app.post('/api/order', async (req, res) => {
         
         db[targetKey].saldo -= p.harga; db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
         db[targetKey].history = db[targetKey].history || [];
-        db[targetKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }), type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: p.harga });
+        db[targetKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: p.harga });
         if(db[targetKey].history.length > 20) db[targetKey].history.pop();
         saveJSON(dbFile, db);
         
@@ -3263,6 +3309,10 @@ while true; do
 server {
     listen 80;
     server_name $domain_name;
+
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-XSS-Protection "1; mode=block";
+    add_header X-Content-Type-Options "nosniff";
 
     location / {
         proxy_pass http://localhost:3000;
