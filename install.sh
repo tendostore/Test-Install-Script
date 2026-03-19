@@ -135,7 +135,7 @@ EOF
         /* BANNER SALDO */
         .banner { 
             background: linear-gradient(135deg, #111827 0%, #0f172a 100%); 
-            border-radius: 20px; padding: 25px 15px; 
+            border-radius: 20px; padding: 30px 20px 25px; 
             color: #ffffff; text-align: center; position: relative; overflow: hidden;
             box-shadow: 0 8px 20px rgba(15,23,42,0.15);
         }
@@ -145,7 +145,7 @@ EOF
             pointer-events: none; 
         }
         .saldo-title { font-size: 12px; font-weight: 500; opacity: 0.9; margin-bottom: 5px; position: relative; z-index: 2;}
-        .saldo-amount { font-size: 34px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 20px; position: relative; z-index: 2;}
+        .saldo-amount { font-size: 36px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 20px; position: relative; z-index: 2;}
         
         .action-buttons { display: flex; justify-content: center; gap: 10px; position: relative; z-index: 2; }
         .btn-topup-dash, .btn-history-dash, .btn-help-dash { 
@@ -306,6 +306,77 @@ EOF
         .provider-toast.show {
             opacity: 1;
             top: 40px;
+        }
+
+        /* DESKTOP RESPONSIVENESS */
+        @media screen and (min-width: 768px) {
+            body { 
+                padding: 30px 0; 
+                background-color: var(--border-color); 
+            }
+            #app {
+                max-width: 800px;
+                border-radius: 36px;
+                min-height: calc(100vh - 60px);
+                box-shadow: 0 25px 60px rgba(0,0,0,0.15);
+                padding-bottom: 130px;
+            }
+            .top-bar {
+                border-top-left-radius: 36px;
+                border-top-right-radius: 36px;
+                padding: 20px 30px;
+            }
+            .banner-container { padding: 10px 30px 30px; }
+            .banner { padding: 40px 30px 35px; }
+            .saldo-amount { font-size: 42px; }
+            
+            .bottom-nav {
+                max-width: 740px;
+                bottom: 50px;
+                padding: 15px 10px;
+                border-radius: 60px;
+            }
+            .nav-item .nav-icon svg { width: 26px; height: 26px; }
+            
+            .grid-container { 
+                grid-template-columns: repeat(4, 1fr); 
+                padding: 0 30px; 
+                gap: 20px; 
+            }
+            .stats-container { margin: 30px; }
+            .banner-slider-container { margin: 20px 30px 0px; }
+            
+            #product-list, #brand-list, #history-list {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+                padding: 10px 30px 30px !important;
+            }
+            .product-item, .brand-row, .hist-item { margin: 0 !important; }
+            
+            #notif-list {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+                padding: 30px !important;
+            }
+            #notif-list .card { margin-bottom: 0 !important; }
+            
+            #login-screen .card, #register-screen .card, #otp-screen .card, #forgot-screen .card {
+                max-width: 450px;
+                margin: 0 auto;
+                padding: 40px;
+            }
+            .sidebar { width: 340px; }
+        }
+
+        @media screen and (min-width: 1024px) {
+            #app { max-width: 1024px; }
+            .bottom-nav { max-width: 964px; }
+            .grid-container { grid-template-columns: repeat(5, 1fr); }
+            #product-list, #brand-list, #history-list, #notif-list {
+                grid-template-columns: repeat(3, 1fr);
+            }
         }
     </style>
 </head>
@@ -724,6 +795,7 @@ EOF
         </div>
     </div>
 
+    <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="YOUR_CLIENT_KEY_HERE"></script>
     <script>
         // PWA SETUP
         let deferredPrompt;
@@ -2020,7 +2092,7 @@ async function startBot() {
                 let menuText = `👋 *${config.botName || "Digital Tendo Store"}*\n\nSilakan belanja lebih mudah di Aplikasi:\n🌐 http://${process.env.IP_ADDRESS || 'IP_VPS_ANDA'}:3000\n\n_(Atau balas 1 untuk Cek Saldo)_`;
                 return await sock.sendMessage(from, { text: menuText });
             }
-            if (['1', 'saldo'].includes(rawCommand)) return await sendMessage(from, { text: `💰 Saldo Anda: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` });
+            if (['1', 'saldo'].includes(rawCommand)) return await sock.sendMessage(from, { text: `💰 Saldo Anda: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` });
         } catch (err) {}
     });
 }
