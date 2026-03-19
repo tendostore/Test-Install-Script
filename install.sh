@@ -113,9 +113,9 @@ EOF
             --topbar-bg: #1e293b;
         }
 
-        /* TEMA PREMIUM CSS */
+        /* TEMA PREMIUM CSS (DENGAN PERBAIKAN SPACING BAWAH AGAR TOMBOL BISA DIKLIK) */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #cbd5e1; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
-        #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 130px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
+        #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 160px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
         
         /* TOP BAR */
         .top-bar { background: var(--topbar-bg); color: var(--text-main); padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: background 0.3s;}
@@ -291,7 +291,8 @@ EOF
         .prof-label { color: var(--text-muted); font-weight: 600;}
         .prof-val { font-weight: 900; text-align: right;}
         
-        .prof-action-btn { background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px; transition: transform 0.2s; position: relative; z-index: 20;}
+        /* FIX: z-index ditinggikan dan ditambahkan pointer jelas */
+        .prof-action-btn { background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px; transition: transform 0.2s; position: relative; z-index: 50;}
         .prof-action-btn:active { transform: scale(0.98); }
         .prof-action-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
 
@@ -709,7 +710,7 @@ EOF
                 <div class="prof-row"><span class="prof-label">Total Transaksi</span><span class="prof-val" id="p-trx">0 Kali</span></div>
             </div>
             
-            <div style="padding: 0 20px 120px 20px; position: relative;">
+            <div style="padding: 0 20px; margin-bottom: 150px; position: relative; z-index: 10;">
                 <h3 style="font-size:14px; color:var(--text-muted); margin-bottom:15px;">PENGATURAN</h3>
                 <button class="prof-action-btn" onclick="openEditModal('email')"><svg viewBox="0 0 24 24" width="20" stroke="currentColor"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg> Ubah Email</button>
                 <button class="prof-action-btn" onclick="openEditModal('phone')"><svg viewBox="0 0 24 24" width="20" stroke="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Ubah Nomor WA</button>
@@ -728,7 +729,7 @@ EOF
                 </svg>
                 <span>Pemberitahuan</span>
             </div>
-            <div class="container" id="notif-list">
+            <div class="container" id="notif-list" style="margin-bottom: 120px;">
                 <div style="text-align:center; color:var(--text-muted); padding:30px; font-size:13px; font-weight:bold;">Memuat info...</div>
             </div>
         </div>
@@ -1967,6 +1968,7 @@ app.post('/api/topup', async (req, res) => {
         if(!db[phone]) return res.json({success: false, message: "User tidak ditemukan."});
         
         let nominalAsli = parseInt(nominal);
+        // Menambahkan 2 digit unik (1-99) untuk validasi otomatis
         let uniqueCode = Math.floor(Math.random() * 99) + 1;
         let totalPay = nominalAsli + uniqueCode;
 
@@ -1974,6 +1976,7 @@ app.post('/api/topup', async (req, res) => {
         let trxId = "TP-" + Date.now();
         let expiredAt = Date.now() + 10 * 60 * 1000; // 10 Menit
 
+        // Saldo yang ditambahkan FULL sesuai yang ditransfer
         topups[trxId] = { phone, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, status: 'pending', timestamp: Date.now(), expired_at: expiredAt };
         saveJSON(topupFile, topups);
 
