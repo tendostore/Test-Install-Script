@@ -107,7 +107,7 @@ EOF
 
         /* TEMA PREMIUM CSS */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #cbd5e1; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
-        #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 110px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
+        #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 130px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
         
         /* TOP BAR */
         .top-bar { background: var(--topbar-bg); color: var(--text-main); padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: background 0.3s;}
@@ -206,7 +206,7 @@ EOF
             padding: 10px 5px; 
             border-radius: 50px; 
             box-shadow: 0 10px 30px rgba(0,0,0,0.25); 
-            z-index: 90; 
+            z-index: 900; 
             transition: background 0.3s;
             border: 1px solid rgba(255,255,255,0.05);
         }
@@ -229,9 +229,14 @@ EOF
         .search-box { padding: 15px 20px 5px; position: sticky; top: 58px; z-index: 50; background: var(--bg-main); transition: background 0.3s; }
         .search-box input { margin-bottom: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.02); border-radius: 12px; padding: 12px 15px; width: 100%; box-sizing: border-box; font-weight: bold;}
 
+        /* TABS RIWAYAT TRANSAKSI & TOPUP */
+        .history-tabs { display: flex; background: var(--bg-card); border-bottom: 1px solid var(--border-color); position: sticky; top: 58px; z-index: 50; }
+        .hist-tab { flex: 1; text-align: center; padding: 15px 0; font-size: 13px; font-weight: 800; cursor: pointer; color: var(--text-muted); border-bottom: 3px solid transparent; transition: all 0.2s; text-transform: uppercase;}
+        .hist-tab.active { color: var(--nav-active); border-bottom-color: var(--nav-active); }
+
         /* SIDEBAR */
-        .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); z-index: 999; display: none; opacity: 0; transition: opacity 0.3s;}
-        .sidebar { position: fixed; top:0; left:-300px; width: 280px; height: 100%; background: var(--bg-card); z-index: 1000; transition: left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 5px 0 15px rgba(0,0,0,0.3);}
+        .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); z-index: 1001; display: none; opacity: 0; transition: opacity 0.3s;}
+        .sidebar { position: fixed; top:0; left:-300px; width: 280px; height: 100%; background: var(--bg-card); z-index: 1002; transition: left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 5px 0 15px rgba(0,0,0,0.3);}
         .sidebar.open { left: 0; }
         .sidebar-header { padding: 30px 20px; text-align: center; border-bottom: 1px solid var(--border-color); background: #0f172a; color: #ffffff;}
         .sidebar-avatar { width: 70px; height: 70px; background: #ffffff; border-radius: 50%; margin: 0 auto 10px auto; display: flex; justify-content: center; align-items: center; color: #0b2136; font-size: 30px; font-weight: bold;}
@@ -259,7 +264,6 @@ EOF
         /* PROFILE & MODAL */
         .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
         
-        /* PEMBARUAN FOTO PROFIL LEBIH KEREN */
         .prof-avatar-wrap {
             width: 86px; height: 86px;
             background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
@@ -278,7 +282,8 @@ EOF
         .prof-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed var(--border-color); font-size: 13px;}
         .prof-label { color: var(--text-muted); font-weight: 600;}
         .prof-val { font-weight: 900; text-align: right;}
-        .prof-action-btn { background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px; transition: transform 0.2s;}
+        
+        .prof-action-btn { background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px; transition: transform 0.2s; position: relative; z-index: 20;}
         .prof-action-btn:active { transform: scale(0.98); }
         .prof-action-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
 
@@ -407,7 +412,7 @@ EOF
             <div class="brand-title" id="top-title">
                 DIGITAL TENDO STORE
             </div>
-            <div class="trx-badge" id="top-trx-badge" onclick="showHistory('All')">0 Trx</div>
+            <div class="trx-badge" id="top-trx-badge" onclick="showHistory('Order')">0 Trx</div>
         </div>
 
         <div class="banner-container" id="banner-container-wrap">
@@ -433,7 +438,7 @@ EOF
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); showProfile()">
                     <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Profil Akun
                 </a>
-                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showHistory('All')">
+                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showHistory('Order')">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Transaksi Saya
                 </a>
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); showNotif()">
@@ -674,6 +679,10 @@ EOF
                 </svg>
                 <span style="text-transform: uppercase;" id="history-title-text">Riwayat Transaksi</span>
             </div>
+            <div class="history-tabs">
+                <div class="hist-tab active" id="tab-hist-order" onclick="showHistory('Order')">Produk</div>
+                <div class="hist-tab" id="tab-hist-topup" onclick="showHistory('Topup')">Topup Saldo</div>
+            </div>
             <div id="history-list" style="padding-top:10px;"></div>
         </div>
 
@@ -692,7 +701,7 @@ EOF
                 <div class="prof-row"><span class="prof-label">Total Transaksi</span><span class="prof-val" id="p-trx">0 Kali</span></div>
             </div>
             
-            <div style="padding: 0 20px 40px 20px; position: relative; z-index: 50;">
+            <div style="padding: 0 20px 120px 20px; position: relative;">
                 <h3 style="font-size:14px; color:var(--text-muted); margin-bottom:15px;">PENGATURAN</h3>
                 <button class="prof-action-btn" onclick="openEditModal('email')"><svg viewBox="0 0 24 24" width="20" stroke="currentColor"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg> Ubah Email</button>
                 <button class="prof-action-btn" onclick="openEditModal('phone')"><svg viewBox="0 0 24 24" width="20" stroke="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Ubah Nomor WA</button>
@@ -720,7 +729,7 @@ EOF
             <div class="nav-item active" id="nav-home" onclick="showDashboard()">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></span>HOME
             </div>
-            <div class="nav-item" id="nav-history" onclick="showHistory('All')">
+            <div class="nav-item" id="nav-history" onclick="showHistory('Order')">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span>RIWAYAT
             </div>
             <div class="nav-item" id="nav-notif" onclick="showNotif()">
@@ -817,8 +826,30 @@ EOF
                 <button class="btn-outline" style="margin-top:0;" onclick="closeHistoryModal()">Tutup</button>
             </div>
         </div>
+
+        <div id="edit-modal" class="modal-overlay hidden">
+            <div class="modal-box">
+                <h3 style="margin-top:0; font-size:18px;" id="edit-title">Ubah Data</h3>
+                <div id="edit-step-1">
+                    <input type="text" id="edit-input" placeholder="Masukkan data baru">
+                    <div class="modal-btns">
+                        <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
+                        <button class="btn" id="btn-req-edit" onclick="reqEditOTP()">Kirim OTP</button>
+                    </div>
+                </div>
+                <div id="edit-step-2" class="hidden">
+                    <p style="font-size:12px; color:var(--text-muted); font-weight: bold;">OTP telah dikirim ke WA Anda.</p>
+                    <input type="number" id="edit-otp-input" placeholder="----" style="letter-spacing:12px; text-align:center; font-size:24px; background:var(--bg-main);" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
+                    <div class="modal-btns">
+                        <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
+                        <button class="btn" id="btn-verify-edit" onclick="verifyEditOTP()">Simpan</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
+    <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="YOUR_CLIENT_KEY_HERE"></script>
     <script>
         // PWA SETUP
         let deferredPrompt;
@@ -1013,7 +1044,7 @@ EOF
                         // LOGIKA AUTO-RESTORE TAB SEBELUMNYA
                         let lastTab = localStorage.getItem('tendo_last_tab') || 'dashboard-screen';
                         if (lastTab === 'history-screen') {
-                            let savedFilter = localStorage.getItem('tendo_history_filter') || 'All';
+                            let savedFilter = localStorage.getItem('tendo_history_filter') || 'Order';
                             showHistory(savedFilter);
                         }
                         else if (lastTab === 'profile-screen') showProfile();
@@ -1032,14 +1063,20 @@ EOF
             syncUserData(); 
         }
         
-        function showHistory(filter = 'All') { 
+        function showHistory(filter = 'Order') { 
             currentHistoryFilter = filter;
             localStorage.setItem('tendo_history_filter', filter); // Simpan status filter
 
+            // Update style tabs
+            document.getElementById('tab-hist-order').classList.remove('active');
+            document.getElementById('tab-hist-topup').classList.remove('active');
+            
             if(filter === 'Topup') {
+                document.getElementById('tab-hist-topup').classList.add('active');
                 document.getElementById('history-title-text').innerText = 'Riwayat Topup';
             } else {
-                document.getElementById('history-title-text').innerText = 'Semua Riwayat';
+                document.getElementById('tab-hist-order').classList.add('active');
+                document.getElementById('history-title-text').innerText = 'Riwayat Transaksi';
             }
             showScreen('history-screen', 'nav-history'); 
             syncUserData(); 
@@ -1170,9 +1207,12 @@ EOF
                     let histHTML = '';
                     let historyList = u.history || [];
                     
-                    if (currentHistoryFilter !== 'All') {
-                        historyList = historyList.filter(h => h.type === currentHistoryFilter);
-                    }
+                    // Filter Logika Berdasarkan Tipe
+                    historyList = historyList.filter(h => {
+                        let type = h.type || 'Order';
+                        if (currentHistoryFilter === 'Topup') return type === 'Topup';
+                        return type === 'Order';
+                    });
 
                     if(historyList.length === 0) histHTML = '<div style="text-align:center; color:var(--text-muted); font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
                     else {
@@ -1577,7 +1617,7 @@ EOF
         function closeOrderModal() { document.getElementById('order-modal').classList.add('hidden'); }
         function closeOrderSuccessModal() { 
             document.getElementById('order-success-modal').classList.add('hidden'); 
-            showHistory('All');
+            showHistory('Order');
         }
 
         async function processOrder() {
