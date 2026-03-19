@@ -58,9 +58,15 @@ generate_web_app() {
 }
 EOF
 
+    # PERBAIKAN BUG CACHE SERVICE WORKER AGAR TIDAK LOADING TERUS
     cat << 'EOF' > public/sw.js
 self.addEventListener('install', (e) => { self.skipWaiting(); });
-self.addEventListener('activate', (e) => { self.clients.claim(); });
+self.addEventListener('activate', (e) => { 
+    e.waitUntil(caches.keys().then((keyList) => {
+        return Promise.all(keyList.map((key) => caches.delete(key)));
+    }));
+    self.clients.claim(); 
+});
 self.addEventListener('fetch', (e) => { });
 EOF
 
@@ -70,6 +76,9 @@ EOF
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Digital Tendo Store</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ffffff">
@@ -264,6 +273,7 @@ EOF
         /* PROFILE & MODAL */
         .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
         
+        /* PEMBARUAN FOTO PROFIL LEBIH KEREN */
         .prof-avatar-wrap {
             width: 86px; height: 86px;
             background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
@@ -824,27 +834,6 @@ EOF
                 </div>
                 <button class="btn-danger hidden" id="hd-complain-btn" onclick="complainAdmin()" style="margin-bottom: 15px;">Hubungi Admin (Komplain)</button>
                 <button class="btn-outline" style="margin-top:0;" onclick="closeHistoryModal()">Tutup</button>
-            </div>
-        </div>
-
-        <div id="edit-modal" class="modal-overlay hidden">
-            <div class="modal-box">
-                <h3 style="margin-top:0; font-size:18px;" id="edit-title">Ubah Data</h3>
-                <div id="edit-step-1">
-                    <input type="text" id="edit-input" placeholder="Masukkan data baru">
-                    <div class="modal-btns">
-                        <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
-                        <button class="btn" id="btn-req-edit" onclick="reqEditOTP()">Kirim OTP</button>
-                    </div>
-                </div>
-                <div id="edit-step-2" class="hidden">
-                    <p style="font-size:12px; color:var(--text-muted); font-weight: bold;">OTP telah dikirim ke WA Anda.</p>
-                    <input type="number" id="edit-otp-input" placeholder="----" style="letter-spacing:12px; text-align:center; font-size:24px; background:var(--bg-main);" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
-                    <div class="modal-btns">
-                        <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
-                        <button class="btn" id="btn-verify-edit" onclick="verifyEditOTP()">Simpan</button>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -3281,6 +3270,12 @@ server {
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 90;
+        proxy_connect_timeout 90;
+        proxy_send_timeout 90;
         proxy_cache_bypass \$http_upgrade;
     }
 }
