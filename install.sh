@@ -135,7 +135,7 @@ EOF
         /* BANNER SALDO */
         .banner { 
             background: linear-gradient(135deg, #111827 0%, #0f172a 100%); 
-            border-radius: 20px; padding: 25px 15px; 
+            border-radius: 20px; padding: 30px 20px 25px; 
             color: #ffffff; text-align: center; position: relative; overflow: hidden;
             box-shadow: 0 8px 20px rgba(15,23,42,0.15);
         }
@@ -145,7 +145,7 @@ EOF
             pointer-events: none; 
         }
         .saldo-title { font-size: 12px; font-weight: 500; opacity: 0.9; margin-bottom: 5px; position: relative; z-index: 2;}
-        .saldo-amount { font-size: 34px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 20px; position: relative; z-index: 2;}
+        .saldo-amount { font-size: 36px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 20px; position: relative; z-index: 2;}
         
         .action-buttons { display: flex; justify-content: center; gap: 10px; position: relative; z-index: 2; }
         .btn-topup-dash, .btn-history-dash, .btn-help-dash { 
@@ -673,6 +673,22 @@ EOF
                 <button class="btn-outline" style="margin-top:10px; width:100%; border-color: #0ea5e9; color: #0ea5e9;" onclick="manualTopupWA()">Topup Manual (Hubungi Admin)</button>
             </div>
         </div>
+
+        <div id="qris-modal" class="modal-overlay hidden">
+            <div class="modal-box">
+                <h3 style="margin-top:0; font-size:18px;">Pembayaran QRIS</h3>
+                <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Scan QRIS di bawah dengan e-Wallet / m-Banking.</p>
+                <img id="qris-img-src" src="" style="width:100%; max-width:250px; border-radius:12px; border:1px solid var(--border-color); margin-bottom:15px;">
+                <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; text-align: center; border: 1px solid var(--border-color);">
+                    <div style="font-size:12px; color:var(--text-muted); font-weight:bold;">Transfer TEPAT SEBESAR:</div>
+                    <div style="font-size:24px; font-weight:900; color:#0ea5e9; margin: 5px 0;" id="qris-exact-amount">Rp 0</div>
+                    <div style="font-size:11px; color:#ef4444; font-weight:bold; line-height:1.4;">⚠️ Nominal harus persis hingga 3 digit terakhir agar saldo masuk otomatis!</div>
+                </div>
+                <div class="modal-btns">
+                    <button class="btn" style="width:100%;" onclick="closeQrisModal()">Selesai / Tutup</button>
+                </div>
+            </div>
+        </div>
         
         <div id="history-detail-modal" class="modal-overlay hidden">
             <div class="modal-box">
@@ -941,9 +957,8 @@ EOF
                 if(data && data.success) { 
                     closeTopupModal();
                     alert("Order berhasil dibuat! Silakan bayar pada halaman Riwayat Transaksi.");
-                    await syncUserData(); // Perbarui data history dari server
+                    await syncUserData(); 
                     
-                    // Buka tab history, dan langsung buka detail QRIS topup terakhir
                     showHistory();
                     if(userData.history && userData.history.length > 0) {
                         let latest = userData.history[0];
@@ -956,6 +971,11 @@ EOF
             } catch(e) { alert("Kesalahan server."); }
             
             btn.innerText = "Buat QRIS"; btn.disabled = false;
+        }
+
+        function closeQrisModal() {
+            document.getElementById('qris-modal').classList.add('hidden');
+            alert("Sistem sedang mengecek pembayaran Anda. Saldo akan otomatis bertambah 1-3 menit setelah transfer berhasil.");
         }
 
         function manualTopupWA() {
@@ -1459,9 +1479,13 @@ const loadJSON = (file) => {
 };
 const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
 
+// AUTO-INJECT GOPAY CREDENTIALS FROM USER PROMPT
 let configAwal = loadJSON(configFile);
 configAwal.botName = configAwal.botName || "Digital Tendo Store";
 configAwal.botNumber = configAwal.botNumber || "";
+configAwal.gopayToken = configAwal.gopayToken || "eyJhbGciOiJkaXIiLCJjdHkiOiJKV1QiLCJlbmMiOiJBMTI4R0NNIiwidHlwIjoiSldUIiwiemlwIjoiREVGIn0..VIQQ-T-biEeLHfw0.A2-r35syEmO_3WI_dsbDM06rN61YEqtJjL4Cl8IMvlLd4qZfsED3U1e7mQQvOnkbaSG1JvFKxEHQTZFNR6sKJ7Vm-j_5BQwc3XyRUN7C67EpayMGoqlgOxQ-FbFAP1LIL3PVrPpX8tq9Kb2cfUHxo4T2YQhdbN-F-xxFqkZE3MniVJ6bKv2j3ENpJ74WV0YO1EQ9inBGsL3LskNp--fkxlDpTP3VEAtJT8VeOXmF0TWkHK1PYvY7iR1BuWncqtPpPao1kYm3Jf9CF48lMPI3MT3kmOdkuWCkzTd71jCza8xnFt37itC36_qB14H0zC3mhLtxgFPQR0VzlVylqcfLYtblVIrgtKvRwFTK2SFCQnlYWJ2DcaXSqL7aie66HmWAl4G3jwqhKumJNTnwfWgJ7MpZA2PiIxLkli8p_5PARbyyhdpZCUPX1r_nJGCy5GmqT6QoSbafu2ps7gpjGbPY4iBa03KEIV-55g3lqbRsJsWSg6FgrPgM7i2o8NsZNQNAd5ZgMI4BCs5AAECXtfBgUL9ZN8OBHbMTeuapsx2wseCZd8I7r3JsAAp-Y70OxVraB-LHCiczAuwpYO8gcr_XGjh_wuicoS7lp8rIxKGNCWEiHR0dhY1FduSqAVE3Ced01A_QRMY4cnFJAHFAUbwFCH17Oy8FDqhPMmLG3hdxJZBqiyCi6v4U9GXBjcckkpVtZ1mg6yN8Mpfe_Le6nt4zGABwZHFeESojkW0YJQJaMzRcUoiUZF88zTnXmT93ZQ-T9my6J3cEGkTSl0J_WT7q2T_BYWFBPqrrv61OggbbnkK1UE2HiI481WmudS4VUuX857SLMxRunFcH0E_FybDd0n1vqvcFjs-osoK5yymM3p2mZT7_gGkR3cm-Jy0r1SCm-28ZY5mK7EA3N9l88yHv0R0dqyXETT3j0wa9N3YbViAre2dku_OgKjGh8ICnjTKhI5VlxIop42k0uFQg_QBECeY65xpmY6qbHFESoC4ii5IxODVyGqM6xVnHFRULSl66-ir-I3111D-l0PgnyUe7mbf3ewffLi6vdGW_e2Pd3jooP_u91Q_du2tqRWUsO3oeNTbJcfer0LRoB06ecsqRHUzCHKuG7XociDXLOifvdYJGwmrItjFGWTIlqSpYs45MZWYe07WEvftwhemXUzEPNtTCecq7kavGOcWDPx0PZJ_VP8Z6y1ocZ64ZnLNp_Zdq2ESU7ATWOaLi6HXavIKecvOo2QFFN4Jrs5HP46IHdp7uqX0mFtBqwMDOSOCmjfgLDsjUltHxCLuYWtGn1SUsTuzE0sqhELrh1CVYReiBk9FFFcXs4qlXpbjPb3FVWIX8TzdN6dQd9RfrMtN71pe69WocXAlE9uRNWY3p07ayKUm7Z1p6GSq0hlH_aPsHlNrVUvupwgg45XHlod6T6_Ki2Lq3pUesSGxMPD-zmPB9N90B-xcqYSBg_LoCU1_gWDxiNlggHWD65hMlxcJolRxV4reLwGn06rbadydyByuz3aC-gbxXYtF7CO9pOkYGms2hAhp6CBOQhmWe3cip3rx_hVNBZYbOgkAvfgaWD3h22v25FVmV9xsecPaA_nLWPvcZLYHcPZzmsOhxpecQaAJDn3uAdi6uu7aUqk7ljq1TIpbafbru3pnOf0TEgElgqXlTUUCKPxYdeQaGSpjM7NGjlBsLyrcRZa74VZ-g1mpCCX3Qxf8l8Mn0PSJHkS1AahS6u1Nqr0dVRyx1ikg6t_F8gCTCE3IF-zRTGJZITwOir0RI0coZUQ1xH7eZ0Rb-oAXDPxf00nFMoYpijiL1QdyKA3yc0RiMcw7nISGoYn8_BWbG7YvjlxVPAdjWaIKen1pXRFf0VC2OinEvATRPP2E31HkJWwJ_jLDTheWqf6kc3oqBAvX3Ch88z-jSuUF2zjzH0F4pWSE6oE2fKstonIdD.Ehu4BT1zjv_MGr1eUh-G8g";
+configAwal.gopayMerchantId = configAwal.gopayMerchantId || "G881528152";
+configAwal.qrisUrl = configAwal.qrisUrl || "https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg";
 saveJSON(configFile, configAwal);
 
 if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
@@ -1818,18 +1842,8 @@ async function startBot() {
                 { headers: { 'Authorization': 'Bearer ' + cfg.gopayToken, 'Content-Type': 'application/json' } }
             );
 
-            let txs = gopayRes.data.data || gopayRes.data || [];
-            if(!Array.isArray(txs)) return;
-
-            // Ekstrak semua angka nominal yang ada di respons API GoPay dengan aman
-            let txAmounts = [];
-            JSON.stringify(txs, (key, value) => {
-                if (['amount', 'gross_amount', 'nominal', 'total', 'value'].includes(key)) {
-                    let v = parseInt(value);
-                    if (!isNaN(v)) txAmounts.push(v);
-                }
-                return value;
-            });
+            // Ubah seluruh respons API ke string untuk pencarian yang sangat akurat dan tahan error
+            let responseStr = JSON.stringify(gopayRes.data);
 
             let db = loadJSON(dbFile);
             let changedTp = false;
@@ -1850,22 +1864,31 @@ async function startBot() {
                         }
                     }
                 } 
-                // 2. Cek apakah nominal unik muncul di riwayat mutasi GoPay
-                else if(txAmounts.includes(req.amount_to_pay)) {
-                    req.status = 'sukses';
-                    changedTp = true;
-                    if(db[req.phone]) {
-                        db[req.phone].saldo += req.saldo_to_add; 
-                        
-                        let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
-                        if(hist && hist.status === 'Pending') {
-                            hist.status = 'Sukses';
-                        }
-                        changedDb = true;
-                        
-                        if(globalSock) {
-                            let msg = `✅ *TOPUP QRIS BERHASIL*\n\nTotal Transfer: Rp ${req.amount_to_pay.toLocaleString('id-ID')}\nSaldo Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\nSaldo Sekarang: Rp ${db[req.phone].saldo.toLocaleString('id-ID')}`;
-                            globalSock.sendMessage(db[req.phone].jid, {text: msg}).catch(()=>{});
+                // 2. Cek apakah nominal unik muncul di JSON response (Format angka, string, atau desimal .00)
+                else {
+                    let amountStr = req.amount_to_pay.toString();
+                    // Pencarian pintar: mengecek format "10011", :10011, "10011.00", :10011.00 di dalam respons
+                    let isFound = responseStr.includes(`"${amountStr}"`) ||
+                                  responseStr.includes(`:${amountStr}`) ||
+                                  responseStr.includes(`"${amountStr}.00"`) ||
+                                  responseStr.includes(`:${amountStr}.00`);
+
+                    if(isFound) {
+                        req.status = 'sukses';
+                        changedTp = true;
+                        if(db[req.phone]) {
+                            db[req.phone].saldo += req.saldo_to_add; 
+                            
+                            let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
+                            if(hist && hist.status === 'Pending') {
+                                hist.status = 'Sukses';
+                            }
+                            changedDb = true;
+                            
+                            if(globalSock) {
+                                let msg = `✅ *TOPUP QRIS BERHASIL*\n\nTotal Transfer: Rp ${req.amount_to_pay.toLocaleString('id-ID')}\nSaldo Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\nSaldo Sekarang: Rp ${db[req.phone].saldo.toLocaleString('id-ID')}`;
+                                globalSock.sendMessage(db[req.phone].jid, {text: msg}).catch(()=>{});
+                            }
                         }
                     }
                 }
@@ -1924,6 +1947,7 @@ async function startBot() {
                             db[senderNum].history[0].status = 'Sukses'; db[senderNum].history[0].sn = resData.sn || '-'; saveJSON(dbFile, db);
                         }
                         
+                        // Update Global Stats
                         let gStats = loadJSON(globalStatsFile);
                         let dateKey = new Date().toISOString().split('T')[0];
                         gStats[dateKey] = (gStats[dateKey] || 0) + 1;
