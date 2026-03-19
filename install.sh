@@ -135,7 +135,7 @@ EOF
         /* BANNER SALDO */
         .banner { 
             background: linear-gradient(135deg, #111827 0%, #0f172a 100%); 
-            border-radius: 20px; padding: 30px 20px 25px; 
+            border-radius: 20px; padding: 25px 15px; 
             color: #ffffff; text-align: center; position: relative; overflow: hidden;
             box-shadow: 0 8px 20px rgba(15,23,42,0.15);
         }
@@ -145,7 +145,7 @@ EOF
             pointer-events: none; 
         }
         .saldo-title { font-size: 12px; font-weight: 500; opacity: 0.9; margin-bottom: 5px; position: relative; z-index: 2;}
-        .saldo-amount { font-size: 36px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 20px; position: relative; z-index: 2;}
+        .saldo-amount { font-size: 34px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 20px; position: relative; z-index: 2;}
         
         .action-buttons { display: flex; justify-content: center; gap: 10px; position: relative; z-index: 2; }
         .btn-topup-dash, .btn-history-dash, .btn-help-dash { 
@@ -258,12 +258,28 @@ EOF
 
         /* PROFILE & MODAL */
         .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
-        .prof-avatar { width: 80px; height: 80px; background: #ffffff; color: #0b2136; border-radius: 50%; font-size: 40px; display: flex; justify-content: center; align-items: center; margin: 0 auto 10px auto; font-weight: bold;}
+        
+        /* PEMBARUAN FOTO PROFIL LEBIH KEREN */
+        .prof-avatar-wrap {
+            width: 86px; height: 86px;
+            background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+            border-radius: 50%;
+            padding: 4px;
+            margin: 0 auto 15px auto;
+            box-shadow: 0 10px 25px rgba(14, 165, 233, 0.4);
+        }
+        .prof-avatar {
+            width: 100%; height: 100%;
+            background: #ffffff; color: #0f172a;
+            border-radius: 50%; font-size: 38px; display: flex; justify-content: center; align-items: center; font-weight: 900;
+        }
+
         .prof-box { background: var(--bg-card); color: var(--text-main); margin: -20px 20px 20px; border-radius: 16px; padding: 20px; position: relative; z-index: 10; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.03);}
         .prof-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed var(--border-color); font-size: 13px;}
         .prof-label { color: var(--text-muted); font-weight: 600;}
         .prof-val { font-weight: 900; text-align: right;}
-        .prof-action-btn { background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px;}
+        .prof-action-btn { background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px; transition: transform 0.2s;}
+        .prof-action-btn:active { transform: scale(0.98); }
         .prof-action-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
 
         .hist-item { background: var(--bg-card); color: var(--text-main); padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer;}
@@ -663,7 +679,9 @@ EOF
 
         <div id="profile-screen" class="hidden">
             <div class="prof-header">
-                <div class="prof-avatar" id="p-avatar">T</div>
+                <div class="prof-avatar-wrap">
+                    <div class="prof-avatar" id="p-avatar">T</div>
+                </div>
                 <h2 style="margin:0 0 5px 0; font-size: 20px;" id="p-username">Username</h2>
                 <div style="font-size:13px; font-weight: bold; color: rgba(255,255,255,0.8);" id="p-id">ID: TD-000000</div>
             </div>
@@ -674,7 +692,7 @@ EOF
                 <div class="prof-row"><span class="prof-label">Total Transaksi</span><span class="prof-val" id="p-trx">0 Kali</span></div>
             </div>
             
-            <div style="padding: 0 20px;">
+            <div style="padding: 0 20px 40px 20px; position: relative; z-index: 50;">
                 <h3 style="font-size:14px; color:var(--text-muted); margin-bottom:15px;">PENGATURAN</h3>
                 <button class="prof-action-btn" onclick="openEditModal('email')"><svg viewBox="0 0 24 24" width="20" stroke="currentColor"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg> Ubah Email</button>
                 <button class="prof-action-btn" onclick="openEditModal('phone')"><svg viewBox="0 0 24 24" width="20" stroke="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Ubah Nomor WA</button>
@@ -791,6 +809,27 @@ EOF
                 </div>
                 <button class="btn-danger hidden" id="hd-complain-btn" onclick="complainAdmin()" style="margin-bottom: 15px;">Hubungi Admin (Komplain)</button>
                 <button class="btn-outline" style="margin-top:0;" onclick="closeHistoryModal()">Tutup</button>
+            </div>
+        </div>
+
+        <div id="edit-modal" class="modal-overlay hidden">
+            <div class="modal-box">
+                <h3 style="margin-top:0; font-size:18px;" id="edit-title">Ubah Data</h3>
+                <div id="edit-step-1">
+                    <input type="text" id="edit-input" placeholder="Masukkan data baru">
+                    <div class="modal-btns">
+                        <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
+                        <button class="btn" id="btn-req-edit" onclick="reqEditOTP()">Kirim OTP</button>
+                    </div>
+                </div>
+                <div id="edit-step-2" class="hidden">
+                    <p style="font-size:12px; color:var(--text-muted); font-weight: bold;">OTP telah dikirim ke WA Anda.</p>
+                    <input type="number" id="edit-otp-input" placeholder="----" style="letter-spacing:12px; text-align:center; font-size:24px; background:var(--bg-main);" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
+                    <div class="modal-btns">
+                        <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
+                        <button class="btn" id="btn-verify-edit" onclick="verifyEditOTP()">Simpan</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -951,6 +990,15 @@ EOF
             });
             document.getElementById(id).classList.remove('hidden');
             
+            // SIMPAN TAB TERAKHIR KE LOCAL STORAGE UNTUK PERSISTENSI SAAT RELOAD
+            if (['dashboard-screen', 'history-screen', 'notif-screen', 'profile-screen'].includes(id)) {
+                localStorage.setItem('tendo_last_tab', id);
+            }
+            if (navId) {
+                localStorage.setItem('tendo_last_nav', navId);
+                updateNav(navId);
+            }
+            
             if(id === 'login-screen' || id === 'register-screen' || id === 'otp-screen' || id === 'forgot-screen') {
                 document.getElementById('home-topbar').classList.add('hidden');
                 document.getElementById('main-bottom-nav').classList.add('hidden');
@@ -964,7 +1012,6 @@ EOF
                     document.getElementById('banner-container-wrap').classList.add('hidden');
                 }
             }
-            if(navId) updateNav(navId);
         }
 
         window.onload = async () => {
@@ -975,7 +1022,20 @@ EOF
                     let data = await apiCall('/api/login', {email:savedEmail, password:savedPass});
                     if(data && data.success) {
                         currentUser = data.phone; userData = data.data;
-                        fetchAllProducts(); showDashboard();
+                        fetchAllProducts();
+                        fetchGlobalStats();
+                        loadBanners();
+                        
+                        // LOGIKA AUTO-RESTORE TAB SEBELUMNYA
+                        let lastTab = localStorage.getItem('tendo_last_tab') || 'dashboard-screen';
+                        if (lastTab === 'history-screen') {
+                            let savedFilter = localStorage.getItem('tendo_history_filter') || 'All';
+                            showHistory(savedFilter);
+                        }
+                        else if (lastTab === 'profile-screen') showProfile();
+                        else if (lastTab === 'notif-screen') showNotif();
+                        else showDashboard();
+
                     } else { showScreen('login-screen', null); }
                 } catch(e) { showScreen('login-screen', null); }
             } else {
@@ -986,13 +1046,12 @@ EOF
         function showDashboard() { 
             showScreen('dashboard-screen', 'nav-home'); 
             syncUserData(); 
-            fetchAllProducts(); 
-            loadBanners();
-            fetchGlobalStats();
         }
         
         function showHistory(filter = 'All') { 
             currentHistoryFilter = filter;
+            localStorage.setItem('tendo_history_filter', filter); // Simpan status filter
+
             if(filter === 'Topup') {
                 document.getElementById('history-title-text').innerText = 'Riwayat Topup';
             } else {
@@ -1069,6 +1128,9 @@ EOF
         function logout() {
             currentUser = ""; userData = {}; 
             localStorage.removeItem('tendo_email'); localStorage.removeItem('tendo_pass');
+            localStorage.removeItem('tendo_last_tab');
+            localStorage.removeItem('tendo_last_nav');
+            localStorage.removeItem('tendo_history_filter');
             toggleSidebar(); showScreen('login-screen', null);
             document.getElementById('log-pass').value = '';
         }
