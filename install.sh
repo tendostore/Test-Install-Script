@@ -113,9 +113,9 @@ EOF
             --topbar-bg: #1e293b;
         }
 
-        /* TEMA PREMIUM CSS (DENGAN PERBAIKAN SPACING BAWAH AGAR TOMBOL BISA DIKLIK) */
+        /* TEMA PREMIUM CSS */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #cbd5e1; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
-        #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 160px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
+        #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 140px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
         
         /* TOP BAR */
         .top-bar { background: var(--topbar-bg); color: var(--text-main); padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: background 0.3s;}
@@ -291,8 +291,31 @@ EOF
         .prof-label { color: var(--text-muted); font-weight: 600;}
         .prof-val { font-weight: 900; text-align: right;}
         
-        /* FIX: z-index ditinggikan dan ditambahkan pointer jelas */
-        .prof-action-btn { background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px; transition: transform 0.2s; position: relative; z-index: 50;}
+        .prof-actions-container {
+            padding: 0 20px;
+            margin-bottom: 150px; 
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .prof-action-btn { 
+            background: var(--bg-main); 
+            color: var(--text-main); 
+            border: 1px solid var(--border-color); 
+            padding: 15px; 
+            width: 100%; 
+            border-radius: 12px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            font-size: 13px; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            transition: transform 0.2s; 
+        }
         .prof-action-btn:active { transform: scale(0.98); }
         .prof-action-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
 
@@ -710,13 +733,13 @@ EOF
                 <div class="prof-row"><span class="prof-label">Total Transaksi</span><span class="prof-val" id="p-trx">0 Kali</span></div>
             </div>
             
-            <div style="padding: 0 20px; margin-bottom: 150px; position: relative; z-index: 10;">
-                <h3 style="font-size:14px; color:var(--text-muted); margin-bottom:15px;">PENGATURAN</h3>
-                <button class="prof-action-btn" onclick="openEditModal('email')"><svg viewBox="0 0 24 24" width="20" stroke="currentColor"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg> Ubah Email</button>
-                <button class="prof-action-btn" onclick="openEditModal('phone')"><svg viewBox="0 0 24 24" width="20" stroke="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Ubah Nomor WA</button>
-                <button class="prof-action-btn" onclick="openEditModal('password')"><svg viewBox="0 0 24 24" width="20" stroke="currentColor"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Ubah Password</button>
+            <div class="prof-actions-container">
+                <h3 style="font-size:14px; color:var(--text-muted); margin-bottom:5px;">PENGATURAN</h3>
+                <button class="prof-action-btn" onclick="window.openEditModal('email')"><svg viewBox="0 0 24 24" width="20" stroke="currentColor"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg> Ubah Email</button>
+                <button class="prof-action-btn" onclick="window.openEditModal('phone')"><svg viewBox="0 0 24 24" width="20" stroke="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Ubah Nomor WA</button>
+                <button class="prof-action-btn" onclick="window.openEditModal('password')"><svg viewBox="0 0 24 24" width="20" stroke="currentColor"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Ubah Password</button>
                 
-                <button class="prof-action-btn" onclick="contactAdmin()" style="border-color: #bae6fd; color: #0ea5e9; margin-top: 15px;">
+                <button class="prof-action-btn" onclick="contactAdmin()" style="border-color: #bae6fd; color: #0ea5e9; margin-top: 5px;">
                     <svg viewBox="0 0 24 24" width="20" stroke="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Hubungi Admin
                 </button>
             </div>
@@ -833,6 +856,27 @@ EOF
                 </div>
                 <button class="btn-danger hidden" id="hd-complain-btn" onclick="complainAdmin()" style="margin-bottom: 15px;">Hubungi Admin (Komplain)</button>
                 <button class="btn-outline" style="margin-top:0;" onclick="closeHistoryModal()">Tutup</button>
+            </div>
+        </div>
+
+        <div id="edit-modal" class="modal-overlay hidden">
+            <div class="modal-box">
+                <h3 style="margin-top:0; font-size:18px;" id="edit-title">Ubah Data</h3>
+                <div id="edit-step-1">
+                    <input type="text" id="edit-input" placeholder="Masukkan data baru">
+                    <div class="modal-btns">
+                        <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
+                        <button class="btn" id="btn-req-edit" onclick="reqEditOTP()">Kirim OTP</button>
+                    </div>
+                </div>
+                <div id="edit-step-2" class="hidden">
+                    <p style="font-size:12px; color:var(--text-muted); font-weight: bold;">OTP telah dikirim ke WA Anda.</p>
+                    <input type="number" id="edit-otp-input" placeholder="----" style="letter-spacing:12px; text-align:center; font-size:24px; background:var(--bg-main);" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
+                    <div class="modal-btns">
+                        <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
+                        <button class="btn" id="btn-verify-edit" onclick="verifyEditOTP()">Simpan</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1389,17 +1433,32 @@ EOF
             btn.innerText = ori; btn.disabled = false;
         }
 
-        function openEditModal(type) {
+        window.openEditModal = function(type) {
             currentEditMode = type;
             let inp = document.getElementById('edit-input');
             document.getElementById('edit-step-1').classList.remove('hidden');
             document.getElementById('edit-step-2').classList.add('hidden');
             
-            if(type === 'email') { document.getElementById('edit-title').innerText = "Ganti Email"; inp.type="email"; inp.placeholder="Email baru"; inp.value = userData.email;}
-            if(type === 'phone') { document.getElementById('edit-title').innerText = "Ganti Nomor WA"; inp.type="number"; inp.placeholder="Nomor WA baru (08/62)"; inp.value = currentUser;}
-            if(type === 'password') { document.getElementById('edit-title').innerText = "Ganti Password"; inp.type="text"; inp.placeholder="Password baru"; inp.value = "";}
+            if(type === 'email') { 
+                document.getElementById('edit-title').innerText = "Ganti Email"; 
+                inp.type="email"; 
+                inp.placeholder="Email baru"; 
+                inp.value = (userData && userData.email) ? userData.email : "";
+            }
+            if(type === 'phone') { 
+                document.getElementById('edit-title').innerText = "Ganti Nomor WA"; 
+                inp.type="number"; 
+                inp.placeholder="Nomor WA baru (08/62)"; 
+                inp.value = currentUser ? currentUser : "";
+            }
+            if(type === 'password') { 
+                document.getElementById('edit-title').innerText = "Ganti Password"; 
+                inp.type="text"; 
+                inp.placeholder="Password baru"; 
+                inp.value = "";
+            }
             document.getElementById('edit-modal').classList.remove('hidden');
-        }
+        };
         
         function closeEditModal() { document.getElementById('edit-modal').classList.add('hidden'); }
         
