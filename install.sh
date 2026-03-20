@@ -39,10 +39,61 @@ if [ ! -f "/usr/bin/menu" ]; then
 fi
 
 # ==========================================
-# 2. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI
+# 2. MODUL ENKRIPSI AES-256 (TENDO CRYPT)
+# ==========================================
+generate_crypt_module() {
+    cat << 'EOF' > tendo_crypt.js
+const fs = require('fs');
+const crypto = require('crypto');
+const ALGO = 'aes-256-cbc';
+const KEY = crypto.scryptSync('DigitalTendoStore_SecureKey_2026', 'salt', 32);
+
+function encrypt(text) {
+    let iv = crypto.randomBytes(16);
+    let cipher = crypto.createCipheriv(ALGO, KEY, iv);
+    let encrypted = cipher.update(text);
+    encrypted = Buffer.concat([encrypted, cipher.final()]);
+    return iv.toString('hex') + ':' + encrypted.toString('hex');
+}
+
+function decrypt(text) {
+    let textParts = text.split(':');
+    let iv = Buffer.from(textParts.shift(), 'hex');
+    let encryptedText = Buffer.from(textParts.join(':'), 'hex');
+    let decipher = crypto.createDecipheriv(ALGO, KEY, iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+}
+
+module.exports = {
+    load: (file, defaultData = {}) => {
+        try {
+            if (!fs.existsSync(file)) return defaultData;
+            let raw = fs.readFileSync(file, 'utf8');
+            if(!raw) return defaultData;
+            // Migrasi otomatis jika file masih berupa teks asli (belum dienkripsi)
+            if (raw.trim().startsWith('{') || raw.trim().startsWith('[')) {
+                let parsed = JSON.parse(raw);
+                module.exports.save(file, parsed); // Enkripsi dan simpan ulang
+                return parsed;
+            }
+            return JSON.parse(decrypt(raw));
+        } catch(e) {
+            return defaultData;
+        }
+    },
+    save: (file, data) => {
+        fs.writeFileSync(file, encrypt(JSON.stringify(data, null, 2)));
+    }
+};
+EOF
+}
+
+# ==========================================
+# 3. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI
 # ==========================================
 generate_web_app() {
-    # Buat folder public, banner, dan folder info_images secara otomatis
     mkdir -p public/baner1 public/baner2 public/baner3 public/baner4 public/baner5 public/info_images
 
     cat << 'EOF' > public/manifest.json
@@ -66,7 +117,14 @@ self.addEventListener('activate', (e) => {
     }));
     self.clients.claim(); 
 });
-self.addEventListener('fetch', (e) => { });
+self.addEventListener('fetch', (e) => { 
+    // PERBAIKAN: Mencegah error muter-muter saat web direload
+    e.respondWith(
+        fetch(e.request).catch(() => {
+            return caches.match(e.request);
+        })
+    );
+});
 EOF
 
     cat << 'EOF' > public/index.html
@@ -1704,7 +1762,7 @@ EOF
 }
 
 # ==========================================
-# 3. FUNGSI UNTUK MEMBUAT FILE INDEX.JS
+# 4. FUNGSI UNTUK MEMBUAT FILE INDEX.JS
 # ==========================================
 generate_bot_script() {
     cat << 'EOF' > index.js
@@ -1717,9 +1775,19 @@ const bodyParser = require('body-parser');
 const { exec } = require('child_process');
 const axios = require('axios'); 
 const crypto = require('crypto'); 
+const crypt = require('./tendo_crypt.js');
 
 const app = express();
-app.disable('x-powered-by'); // Keamanan tambahan
+app.disable('x-powered-by');
+
+// SECURITY: Memblokir akses langsung file konfigurasi JSON lewat URL
+app.use((req, res, next) => {
+    if (req.path.endsWith('.json') && !req.path.endsWith('manifest.json')) {
+        return res.status(403).json({success: false, message: 'Akses Ditolak (Sistem Keamanan Tendo)'});
+    }
+    next();
+});
+
 app.use(bodyParser.json());
 app.use(express.static('public')); 
 
@@ -1732,16 +1800,8 @@ const japriFile = './japri.txt';
 const globalStatsFile = './global_stats.json';
 const topupFile = './topup.json';
 
-const loadJSON = (file) => {
-    try {
-        return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
-    } catch(e) {
-        console.error(`Error loading ${file}:`, e);
-        if (file === notifFile) return [];
-        return {};
-    }
-};
-const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
+const loadJSON = (file) => crypt.load(file, file === notifFile ? [] : {});
+const saveJSON = (file, data) => crypt.save(file, data);
 
 // Fungsi Hashing Password
 const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
@@ -1755,12 +1815,13 @@ configAwal.gopayMerchantId = configAwal.gopayMerchantId || "G881528152";
 configAwal.qrisUrl = configAwal.qrisUrl || "https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg";
 saveJSON(configFile, configAwal);
 
-if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
-if (!fs.existsSync(produkFile)) saveJSON(produkFile, {});
-if (!fs.existsSync(trxFile)) saveJSON(trxFile, {});
-if (!fs.existsSync(globalStatsFile)) saveJSON(globalStatsFile, {});
-if (!fs.existsSync(topupFile)) saveJSON(topupFile, {});
-if (!fs.existsSync(notifFile)) saveJSON(notifFile, []);
+// File creation checks managed by crypt logic now...
+loadJSON(dbFile);
+loadJSON(produkFile);
+loadJSON(trxFile);
+loadJSON(globalStatsFile);
+loadJSON(topupFile);
+loadJSON(notifFile);
 
 let globalSock = null;
 let tempOtpDB = {}; 
@@ -2314,7 +2375,7 @@ EOF
 }
 
 # ==========================================
-# 4. INSTALASI DEPENDENSI
+# 5. INSTALASI DEPENDENSI
 # ==========================================
 install_dependencies() {
     clear
@@ -2364,6 +2425,7 @@ install_dependencies() {
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
     echo -ne "${C_MAG}>> Meracik sistem utama & Web App...${C_RST}"
+    generate_crypt_module
     generate_bot_script
     generate_web_app
     if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
@@ -2382,7 +2444,7 @@ install_dependencies() {
 }
 
 # ==========================================
-# 5. SUB-MENU TELEGRAM SETUP
+# 6. SUB-MENU TELEGRAM SETUP
 # ==========================================
 menu_telegram() {
     while true; do
@@ -2404,11 +2466,11 @@ menu_telegram() {
                 read -p "Masukkan Token Bot Telegram: " token
                 read -p "Masukkan Chat ID Anda: " chatid
                 node -e "
-                    const fs = require('fs');
-                    let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
+                    const crypt = require('./tendo_crypt.js');
+                    let config = crypt.load('config.json');
                     config.teleToken = '$token';
                     config.teleChatId = '$chatid';
-                    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                    crypt.save('config.json', config);
                     console.log('\x1b[32m\n✅ Data Telegram berhasil disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -2429,11 +2491,11 @@ menu_telegram() {
                     echo -e "\n${C_RED}❌ Auto-Backup DIMATIKAN!${C_RST}"
                 fi
                 node -e "
-                    const fs = require('fs');
-                    let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
+                    const crypt = require('./tendo_crypt.js');
+                    let config = crypt.load('config.json');
                     config.autoBackup = $status;
                     config.backupInterval = parseInt('$menit');
-                    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                    crypt.save('config.json', config);
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
@@ -2444,7 +2506,7 @@ menu_telegram() {
 }
 
 # ==========================================
-# 6. SUB-MENU BACKUP & RESTORE
+# 7. SUB-MENU BACKUP & RESTORE
 # ==========================================
 menu_backup() {
     while true; do
@@ -2472,9 +2534,9 @@ menu_backup() {
                 zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json ssl_backup.tar.gz 2>/dev/null
                 echo -e "${C_GREEN}✅ File backup.zip (termasuk SSL) berhasil dikompresi!${C_RST}"
                 node -e "
-                    const fs = require('fs');
+                    const crypt = require('./tendo_crypt.js');
                     const { exec } = require('child_process');
-                    let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
+                    let config = crypt.load('config.json');
                     if(config.teleToken && config.teleChatId) {
                         console.log('\x1b[36m⏳ Sedang mengirim ke Telegram...\x1b[0m');
                         let cmd = \`curl -s -F chat_id=\"\${config.teleChatId}\" -F document=@\"backup.zip\" -F caption=\"📦 Manual Backup Data + SSL\" https://api.telegram.org/bot\${config.teleToken}/sendDocument\`;
@@ -2519,7 +2581,7 @@ menu_backup() {
 }
 
 # ==========================================
-# 7. SUB-MENU MANAJEMEN MEMBER
+# 8. SUB-MENU MANAJEMEN MEMBER
 # ==========================================
 menu_member() {
     while true; do
@@ -2542,8 +2604,8 @@ menu_member() {
                 read -p "Masukkan ID Member (No WA awalan 08/62 atau Email): " nomor
                 read -p "Masukkan Jumlah Saldo: " jumlah
                 node -e "
-                    const fs = require('fs');
-                    let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
+                    const crypt = require('./tendo_crypt.js');
+                    let db = crypt.load('database.json');
                     let input = '$nomor'.trim();
                     let normPhone = input.replace(/[^0-9]/g, '');
                     if(normPhone.startsWith('0')) normPhone = '62' + normPhone.substring(1);
@@ -2555,7 +2617,7 @@ menu_member() {
                         db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: target + '@s.whatsapp.net', trx_count: 0, history: [] };
                     }
                     db[target].saldo += parseInt('$jumlah');
-                    fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
+                    crypt.save('database.json', db);
                     console.log('\x1b[32m\n✅ Saldo Rp $jumlah berhasil ditambahkan ke ' + target + '!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -2565,8 +2627,8 @@ menu_member() {
                 read -p "Masukkan ID Member (No WA awalan 08/62 atau Email): " nomor
                 read -p "Masukkan Jumlah Saldo yg dikurangi: " jumlah
                 node -e "
-                    const fs = require('fs');
-                    let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
+                    const crypt = require('./tendo_crypt.js');
+                    let db = crypt.load('database.json');
                     let input = '$nomor'.trim();
                     let normPhone = input.replace(/[^0-9]/g, '');
                     if(normPhone.startsWith('0')) normPhone = '62' + normPhone.substring(1);
@@ -2578,7 +2640,7 @@ menu_member() {
                     } else {
                         db[target].saldo -= parseInt('$jumlah');
                         if(db[target].saldo < 0) db[target].saldo = 0;
-                        fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
+                        crypt.save('database.json', db);
                         console.log('\x1b[32m\n✅ Saldo berhasil dikurangi!\x1b[0m');
                     }
                 "
@@ -2587,8 +2649,8 @@ menu_member() {
             3)
                 echo -e "\n${C_CYAN}--- DAFTAR MEMBER ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let db = fs.existsSync('database.json') ? JSON.parse(fs.readFileSync('database.json')) : {};
+                    const crypt = require('./tendo_crypt.js');
+                    let db = crypt.load('database.json');
                     let members = Object.keys(db);
                     if(members.length === 0) console.log('\x1b[33mBelum ada member.\x1b[0m');
                     else {
@@ -2604,7 +2666,7 @@ menu_member() {
 }
 
 # ==========================================
-# 8. MANAJEMEN PRODUK & HARGA (DENGAN IMPORT)
+# 9. MANAJEMEN PRODUK & HARGA (DENGAN IMPORT)
 # ==========================================
 menu_produk() {
     while true; do
@@ -2664,7 +2726,7 @@ menu_produk() {
                 export TMP_DESC="$deskripsi"
                 
                 node -e "
-                    const fs = require('fs');
+                    const crypt = require('./tendo_crypt.js');
                     const catMap = {'1':'Pulsa', '2':'Data', '3':'Game', '4':'Voucher', '5':'E-Money', '6':'PLN', '7':'Paket SMS & Telpon', '8':'Masa Aktif', '9':'Aktivasi Perdana'};
                     const brandMap = {
                         'Pulsa': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
@@ -2678,7 +2740,7 @@ menu_produk() {
                     let catName = catMap[process.env.TMP_CAT_IDX] || 'Lainnya';
                     let brandName = (brandMap[catName] && brandMap[catName][process.env.TMP_BRAND_IDX]) ? brandMap[catName][process.env.TMP_BRAND_IDX] : 'Lainnya';
                     
-                    let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
+                    let produk = crypt.load('produk.json');
                     let key = process.env.TMP_KODE.toUpperCase().replace(/\s+/g, '');
                     produk[key] = { 
                         nama: process.env.TMP_NAMA, 
@@ -2687,7 +2749,7 @@ menu_produk() {
                         kategori: catName,
                         brand: brandName
                     };
-                    fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
+                    crypt.save('produk.json', produk);
                     console.log('\x1b[32m\n✅ Produk [' + key + '] berhasil ditambahkan ke ' + catName + ' - ' + brandName + '!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -2695,8 +2757,8 @@ menu_produk() {
             2)
                 echo -e "\n${C_CYAN}--- DAFTAR PRODUK UNTUK DIEDIT ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
+                    const crypt = require('./tendo_crypt.js');
+                    let produk = crypt.load('produk.json');
                     let keys = Object.keys(produk);
                     if(keys.length === 0) { console.log('\x1b[33mBelum ada produk.\x1b[0m'); process.exit(1); }
                     keys.forEach((k, i) => {
@@ -2711,8 +2773,8 @@ menu_produk() {
                 export NO_EDIT="$no_edit"
                 
                 eval $(node -e "
-                    const fs = require('fs');
-                    let produk = JSON.parse(fs.readFileSync('produk.json'));
+                    const crypt = require('./tendo_crypt.js');
+                    let produk = crypt.load('produk.json');
                     let keys = Object.keys(produk);
                     let idx = parseInt(process.env.NO_EDIT) - 1;
                     if(isNaN(idx) || idx < 0 || idx >= keys.length) {
@@ -2779,7 +2841,7 @@ menu_produk() {
                 export NEW_BRAND_IDX="$new_brand_idx"
                 
                 node -e "
-                    const fs = require('fs');
+                    const crypt = require('./tendo_crypt.js');
                     const catMap = {'1':'Pulsa', '2':'Data', '3':'Masa Aktif', '4':'SMS Telp', '5':'PLN', '6':'E-Wallet', '7':'Tagihan', '8':'E-Toll', '9':'Digital'};
                     const brandMap = {
                         'Pulsa': {'1':'Telkomsel', '2':'XL', '3':'Axis', '4':'Indosat', '5':'Tri', '6':'Smartfren', '7':'By.U'},
@@ -2793,7 +2855,7 @@ menu_produk() {
                         'PLN': {'1':'Token PLN'}
                     };
 
-                    let produk = JSON.parse(fs.readFileSync('produk.json'));
+                    let produk = crypt.load('produk.json');
                     let oldKey = process.env.OLD_KODE;
                     let newKey = process.env.NEW_KODE.toUpperCase().replace(/\s+/g, '');
                     
@@ -2823,7 +2885,7 @@ menu_produk() {
                         produk[oldKey] = item;
                     }
                     
-                    fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
+                    crypt.save('produk.json', produk);
                     console.log('\x1b[32m\n✅ Perubahan pada produk berhasil disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -2831,8 +2893,8 @@ menu_produk() {
             3)
                 echo -e "\n${C_CYAN}--- DAFTAR PRODUK UNTUK DIHAPUS ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
+                    const crypt = require('./tendo_crypt.js');
+                    let produk = crypt.load('produk.json');
                     let keys = Object.keys(produk);
                     if(keys.length === 0) { console.log('\x1b[33mBelum ada produk.\x1b[0m'); process.exit(1); }
                     keys.forEach((k, i) => {
@@ -2847,8 +2909,8 @@ menu_produk() {
                 export NO_DEL="$no_del"
 
                 node -e "
-                    const fs = require('fs');
-                    let produk = JSON.parse(fs.readFileSync('produk.json'));
+                    const crypt = require('./tendo_crypt.js');
+                    let produk = crypt.load('produk.json');
                     let keys = Object.keys(produk);
                     let idx = parseInt(process.env.NO_DEL) - 1;
                     
@@ -2858,7 +2920,7 @@ menu_produk() {
                         let key = keys[idx];
                         let nama = produk[key].nama;
                         delete produk[key];
-                        fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
+                        crypt.save('produk.json', produk);
                         console.log('\x1b[32m\n✅ Produk [' + key + '] ' + nama + ' berhasil dihapus dari database!\x1b[0m');
                     }
                 "
@@ -2867,8 +2929,8 @@ menu_produk() {
             4)
                 echo -e "\n${C_CYAN}--- DAFTAR PRODUK TOKO ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
+                    const crypt = require('./tendo_crypt.js');
+                    let produk = crypt.load('produk.json');
                     let keys = Object.keys(produk);
                     if(keys.length === 0) {
                         console.log('\x1b[33mBelum ada produk.\x1b[0m');
@@ -2908,11 +2970,11 @@ menu_produk() {
                 else
                     export EXCEL_PATH="$nama_file_excel"
                     node -e "
-                        const fs = require('fs');
+                        const crypt = require('./tendo_crypt.js');
                         const xlsx = require('xlsx');
                         
                         try {
-                            let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
+                            let config = crypt.load('config.json');
                             let margins = config.margin || {
                                 under100: 50,
                                 under1000: 200,
@@ -2928,7 +2990,7 @@ menu_produk() {
                             
                             let produk = {};
                             if (process.env.WIPE_DATA.toLowerCase() !== 'y') {
-                                produk = fs.existsSync('produk.json') ? JSON.parse(fs.readFileSync('produk.json')) : {};
+                                produk = crypt.load('produk.json');
                             }
                             
                             let added = 0;
@@ -3105,7 +3167,7 @@ menu_produk() {
                                 added++;
                             });
                             
-                            fs.writeFileSync('produk.json', JSON.stringify(produk, null, 2));
+                            crypt.save('produk.json', produk);
                             console.log('\x1b[32m\n✅ Berhasil mengimport dan merapikan ' + added + ' produk ke dalam databse!\x1b[0m');
                         } catch(err) {
                             console.log('\x1b[31m❌ Gagal memproses file Excel/CSV: ' + err.message + '\x1b[0m');
@@ -3125,8 +3187,8 @@ menu_produk() {
                 read -p "6. Keuntungan untuk modal di atas Rp 100.000: " m_max
 
                 node -e "
-                    const fs = require('fs');
-                    let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
+                    const crypt = require('./tendo_crypt.js');
+                    let config = crypt.load('config.json');
                     config.margin = {
                         under100: parseInt('$m_100') || 0,
                         under1000: parseInt('$m_1000') || 0,
@@ -3135,7 +3197,7 @@ menu_produk() {
                         under100000: parseInt('$m_100000') || 0,
                         above: parseInt('$m_max') || 0
                     };
-                    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                    crypt.save('config.json', config);
                     console.log('\x1b[32m\n✅ Konfigurasi Margin Keuntungan Berhasil Disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -3147,7 +3209,7 @@ menu_produk() {
 }
 
 # ==========================================
-# 9. MENU UTAMA (PANEL KONTROL)
+# 10. MENU UTAMA (PANEL KONTROL)
 # ==========================================
 while true; do
     clear
@@ -3187,11 +3249,11 @@ while true; do
                 read -p "📲 Masukkan Nomor WA Bot (Awali 628...): " nomor_bot
                 if [ ! -z "$nomor_bot" ]; then
                     node -e "
-                        const fs = require('fs');
-                        let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
+                        const crypt = require('./tendo_crypt.js');
+                        let config = crypt.load('config.json');
                         config.botNumber = '$nomor_bot';
                         config.botName = config.botName || 'Tendo Store';
-                        fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                        crypt.save('config.json', config);
                     "
                 fi
             fi
@@ -3224,11 +3286,11 @@ while true; do
             read -p "Username Digiflazz Baru: " user_api
             read -p "API Key Digiflazz Baru: " key_api
             node -e "
-                const fs = require('fs');
-                let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
+                const crypt = require('./tendo_crypt.js');
+                let config = crypt.load('config.json');
                 config.digiflazzUsername = '$user_api'.trim();
                 config.digiflazzApiKey = '$key_api'.trim();
-                fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                crypt.save('config.json', config);
                 console.log('\x1b[32m\n✅ Konfigurasi API Digiflazz berhasil disimpan!\x1b[0m');
             "
             read -p "Tekan Enter untuk kembali..."
@@ -3264,9 +3326,8 @@ while true; do
                 export TMP_MSG="$web_notif_msg"
                 export TMP_IMG="$web_notif_img"
                 node -e "
-                    const fs = require('fs');
-                    let file = 'web_notif.json';
-                    let notifs = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : [];
+                    const crypt = require('./tendo_crypt.js');
+                    let notifs = crypt.load('web_notif.json');
                     let newNotif = {
                         date: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric' }),
                         text: process.env.TMP_MSG,
@@ -3274,7 +3335,7 @@ while true; do
                     };
                     notifs.unshift(newNotif);
                     if(notifs.length > 10) notifs.pop();
-                    fs.writeFileSync(file, JSON.stringify(notifs, null, 2));
+                    crypt.save('web_notif.json', notifs);
                 "
                 echo -e "\n${C_GREEN}✅ Pengumuman Aplikasi Web berhasil ditambahkan!${C_RST}"
             fi
@@ -3310,8 +3371,8 @@ while true; do
                         read -p "Masukkan URL Link Gambar QRIS Anda: " qris_url
                         
                         node -e "
-                            const fs = require('fs');
-                            let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
+                            const crypt = require('./tendo_crypt.js');
+                            let config = crypt.load('config.json');
                             
                             let inToken = '$gopay_token'.trim();
                             let inMerch = '$gopay_merchant'.trim();
@@ -3321,19 +3382,19 @@ while true; do
                             if(inMerch) config.gopayMerchantId = inMerch;
                             if(inQris) config.qrisUrl = inQris;
                             
-                            fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                            crypt.save('config.json', config);
                             console.log('\x1b[32m\n✅ Konfigurasi GoPay Merchant Berhasil Disimpan!\x1b[0m');
                         "
                         read -p "Tekan Enter untuk kembali..."
                         ;;
                     2)
                         node -e "
-                            const fs = require('fs');
-                            let config = fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json')) : {};
+                            const crypt = require('./tendo_crypt.js');
+                            let config = crypt.load('config.json');
                             delete config.gopayToken;
                             delete config.gopayMerchantId;
                             delete config.qrisUrl;
-                            fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                            crypt.save('config.json', config);
                             console.log('\x1b[32m\n✅ Konfigurasi QRIS Otomatis berhasil dihapus!\x1b[0m');
                         "
                         read -p "Tekan Enter untuk kembali..."
