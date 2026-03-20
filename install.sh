@@ -94,6 +94,7 @@ EOF
 # 3. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI
 # ==========================================
 generate_web_app() {
+    # Buat folder public, banner, dan folder info_images secara otomatis
     mkdir -p public/baner1 public/baner2 public/baner3 public/baner4 public/baner5 public/info_images
 
     cat << 'EOF' > public/manifest.json
@@ -110,18 +111,25 @@ generate_web_app() {
 EOF
 
     cat << 'EOF' > public/sw.js
-self.addEventListener('install', (e) => { self.skipWaiting(); });
+const CACHE_NAME = 'tendo-v3';
+self.addEventListener('install', (e) => { 
+    self.skipWaiting(); 
+});
 self.addEventListener('activate', (e) => { 
     e.waitUntil(caches.keys().then((keyList) => {
-        return Promise.all(keyList.map((key) => caches.delete(key)));
+        return Promise.all(keyList.map((key) => {
+            if (key !== CACHE_NAME) {
+                return caches.delete(key);
+            }
+        }));
     }));
     self.clients.claim(); 
 });
 self.addEventListener('fetch', (e) => { 
-    // PERBAIKAN: Mencegah error muter-muter saat web direload
+    // PERBAIKAN: Meneruskan jaringan agar tidak muter-muter saat di-reload di Domain (HTTPS)
     e.respondWith(
         fetch(e.request).catch(() => {
-            return caches.match(e.request);
+            return new Response('Koneksi internet terputus', { status: 503, headers: { 'Content-Type': 'text/plain' } });
         })
     );
 });
