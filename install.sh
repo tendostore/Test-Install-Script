@@ -498,9 +498,16 @@ EOF
 </head>
 <body>
     <div id="app">
+        <div id="initial-loader" style="display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; background: var(--bg-main); position: fixed; top:0; left:0; width:100%; z-index:9999; transition: opacity 0.3s;">
+            <div style="width: 50px; height: 50px; border: 4px solid var(--border-color); border-top-color: #0ea5e9; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+            <div style="font-size:20px; font-weight:900; color:var(--text-main); letter-spacing: 1px;">DIGITAL TENDO</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:5px; font-weight: bold;">Memuat sistem...</div>
+            <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
+        </div>
+
         <div id="provider-toast" class="provider-toast">Telkomsel</div>
 
-        <div class="top-bar" id="home-topbar">
+        <div class="top-bar hidden" id="home-topbar">
             <button class="menu-btn" onclick="toggleSidebar()">
                 <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
@@ -510,7 +517,7 @@ EOF
             <div class="trx-badge" id="top-trx-badge" onclick="showHistory('Order')">0 Trx</div>
         </div>
 
-        <div class="banner-container" id="banner-container-wrap">
+        <div class="banner-container hidden" id="banner-container-wrap">
             <div class="banner" id="home-banner">
                 <div class="saldo-title">Sisa Saldo Anda</div>
                 <div class="saldo-amount" id="user-saldo">Rp 0</div>
@@ -551,7 +558,7 @@ EOF
             </div>
         </div>
 
-        <div id="login-screen" class="container">
+        <div id="login-screen" class="container hidden">
             <div style="text-align:center; margin: 40px 0;">
                 <h1 style="color:var(--text-main); margin:0; font-weight:900; font-size: 28px;">Digital Tendo Store</h1>
                 <p style="color:var(--text-muted); font-size:13px; margin-top:5px; font-weight: 600;">Solusi Pembayaran Digital</p>
@@ -820,7 +827,7 @@ EOF
             </div>
         </div>
 
-        <div class="bottom-nav" id="main-bottom-nav">
+        <div class="bottom-nav hidden" id="main-bottom-nav">
             <div class="nav-item active" id="nav-home" onclick="showDashboard()">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></span>HOME
             </div>
@@ -1097,6 +1104,13 @@ EOF
         }
 
         function showScreen(id, navId) {
+            // Hilangkan loader awal secara smooth jika masih ada
+            let loader = document.getElementById('initial-loader');
+            if(loader) {
+                loader.style.opacity = '0';
+                setTimeout(() => { if(loader) loader.style.display = 'none'; }, 300);
+            }
+
             ['login-screen', 'register-screen', 'otp-screen', 'forgot-screen', 'dashboard-screen', 'brand-screen', 'produk-screen', 'history-screen', 'profile-screen', 'notif-screen'].forEach(s => {
                 document.getElementById(s).classList.add('hidden');
             });
@@ -2190,7 +2204,8 @@ app.post('/api/order', async (req, res) => {
         
         db[targetKey].saldo -= p.harga; db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
         db[targetKey].history = db[targetKey].history || [];
-        db[targetKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: p.harga });
+        // PERBAIKAN: Menyimpan ref_id agar status riwayat dapat diperbarui dengan spesifik
+        db[targetKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: p.harga, ref_id: refId });
         if(db[targetKey].history.length > 20) db[targetKey].history.pop();
         saveJSON(dbFile, db);
         
@@ -2365,8 +2380,10 @@ async function startBot() {
                     let db = loadJSON(dbFile); let senderNum = trx.jid.split('@')[0]; let msg = '';
                     if(resData.status === 'Sukses') {
                         msg = `✅ *STATUS: SUKSES*\n\n📦 Produk: ${trx.nama}\n📱 Tujuan: ${trx.tujuan}\n🔑 SN: ${resData.sn || '-'}`;
-                        if (db[senderNum] && db[senderNum].history && db[senderNum].history.length > 0) {
-                            db[senderNum].history[0].status = 'Sukses'; db[senderNum].history[0].sn = resData.sn || '-'; saveJSON(dbFile, db);
+                        // PERBAIKAN: Cari transaksi berdasarkan ref_id agar status terganti pada pesanan yang tepat
+                        if (db[senderNum] && db[senderNum].history) {
+                            let hist = db[senderNum].history.find(h => h.ref_id === ref);
+                            if (hist) { hist.status = 'Sukses'; hist.sn = resData.sn || '-'; saveJSON(dbFile, db); }
                         }
                         
                         // Update Global Stats
@@ -2376,7 +2393,15 @@ async function startBot() {
                         saveJSON(globalStatsFile, gStats);
                         
                     } else {
-                        if (db[senderNum]) { db[senderNum].saldo += trx.harga; if(db[senderNum].history && db[senderNum].history.length > 0) db[senderNum].history[0].status = 'Gagal'; saveJSON(dbFile, db); }
+                        // PERBAIKAN: Pengembalian saldo (refund) dan pencarian riwayat yang tepat
+                        if (db[senderNum]) { 
+                            db[senderNum].saldo += trx.harga; 
+                            if(db[senderNum].history) {
+                                let hist = db[senderNum].history.find(h => h.ref_id === ref);
+                                if (hist) hist.status = 'Gagal';
+                            }
+                            saveJSON(dbFile, db); 
+                        }
                         msg = `❌ *STATUS: GAGAL*\n\n📦 Produk: ${trx.nama}\nAlasan: ${resData.message}\n_💰 Saldo dikembalikan._`;
                     }
                     delete trxs[ref]; saveJSON(trxFile, trxs);
@@ -3272,7 +3297,7 @@ while true; do
     echo -e "  ${C_GREEN}[12]${C_RST} 📢 Kirim Pesan Broadcast Kesemua Member (WA)"
     echo -e "  ${C_GREEN}[13]${C_RST} 🌐 Kirim Pemberitahuan ke Website Aplikasi"
     echo -e "  ${C_GREEN}[14]${C_RST} 💬 Kirim Pesan Langsung (Japri) ke Pelanggan"
-    echo -e "  ${C_GREEN}[15]${C_RST} 💳 Setup GoPay Merchant API (QRIS Auto)"
+    echo -e "  ${C_GREEN}[15]${C_RST} 💳 Setup GoPay Merchant API (QRIS Dinamis)"
     echo -e "  ${C_GREEN}[16]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
@@ -3327,184 +3352,108 @@ while true; do
             node -e "
                 const crypt = require('./tendo_crypt.js');
                 let config = crypt.load('config.json');
-                config.digiflazzUsername = '$user_api'.trim();
-                config.digiflazzApiKey = '$key_api'.trim();
+                if('$user_api' !== '') config.digiflazzUsername = '$user_api'.trim();
+                if('$key_api' !== '') config.digiflazzApiKey = '$key_api'.trim();
                 crypt.save('config.json', config);
-                console.log('\x1b[32m\n✅ Konfigurasi API Digiflazz berhasil disimpan!\x1b[0m');
+                console.log('\x1b[32m\n✅ Konfigurasi Digiflazz berhasil disimpan!\x1b[0m');
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
         11)
-            echo -e "\n${C_RED}${C_BOLD}⚠️ Ini akan menghapus sesi login WhatsApp saat ini.${C_RST}"
-            read -p "Lanjutkan? (y/n): " konfirmasi
-            if [ "$konfirmasi" == "y" ] || [ "$konfirmasi" == "Y" ]; then
+            echo -e "\n${C_RED}⚠️ Reset Sesi akan mengeluarkan bot dari WhatsApp saat ini.${C_RST}"
+            read -p "Yakin ingin mereset sesi? (y/n): " reset_sesi
+            if [ "$reset_sesi" == "y" ]; then
                 pm2 stop tendo-bot >/dev/null 2>&1
                 rm -rf sesi_bot
-                echo -e "${C_GREEN}✅ Sesi dihapus! Silakan pilih menu 2 untuk Login Ulang.${C_RST}"
+                echo -e "${C_GREEN}✅ Sesi berhasil dihapus. Silakan jalankan bot kembali untuk menautkan nomor baru.${C_RST}"
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
         12)
             echo -e "\n${C_MAG}--- BROADCAST PESAN WA ---${C_RST}"
-            echo -e "Gunakan \n untuk baris baru."
-            read -p "Ketik Pesan Broadcast: " pesan_bc
-            if [ ! -z "$pesan_bc" ]; then
-                echo -e "$pesan_bc" > broadcast.txt
-                echo -e "\n${C_GREEN}✅ Pesan berhasil masuk antrean broadcast WA!${C_RST}"
-            fi
+            read -p "Masukkan pesan Broadcast: " bc_msg
+            echo -e "Memproses Broadcast..."
+            node -e "
+                const crypt = require('./tendo_crypt.js'); const fs = require('fs');
+                let db = crypt.load('database.json'); let keys = Object.keys(db);
+                keys.forEach(k => { fs.appendFileSync('japri.txt', k + '|' + '$bc_msg' + '\n'); });
+                console.log('\x1b[32m✅ Pesan broadcast dimasukkan ke antrean pengiriman!\x1b[0m');
+            "
             read -p "Tekan Enter untuk kembali..."
             ;;
         13)
-            echo -e "\n${C_MAG}--- PENGUMUMAN WEBSITE APLIKASI ---${C_RST}"
-            echo -e "Anda bisa mengupload gambar (opsional) ke folder: ${C_CYAN}public/info_images/${C_RST} di VPS Anda terlebih dahulu."
-            echo -e "Sistem menyimpan hingga 10 pengumuman terbaru (Otomatis hapus yang lama).\n"
-            read -p "Ketik Pesan Pengumuman: " web_notif_msg
-            read -p "Nama File Gambar (contoh: promo.jpg) / Tekan Enter jika teks saja: " web_notif_img
-            
-            if [ ! -z "$web_notif_msg" ]; then
-                export TMP_MSG="$web_notif_msg"
-                export TMP_IMG="$web_notif_img"
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let notifs = crypt.load('web_notif.json');
-                    let newNotif = {
-                        date: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric' }),
-                        text: process.env.TMP_MSG,
-                        image: process.env.TMP_IMG || ''
-                    };
-                    notifs.unshift(newNotif);
-                    if(notifs.length > 10) notifs.pop();
-                    crypt.save('web_notif.json', notifs);
-                "
-                echo -e "\n${C_GREEN}✅ Pengumuman Aplikasi Web berhasil ditambahkan!${C_RST}"
-            fi
+            echo -e "\n${C_MAG}--- KIRIM PEMBERITAHUAN APLIKASI WEB ---${C_RST}"
+            read -p "Masukkan teks pemberitahuan: " notif_msg
+            read -p "Nama file gambar (Opsional, biarkan kosong jika tidak ada): " notif_img
+            node -e "
+                const crypt = require('./tendo_crypt.js');
+                let notifs = crypt.load('web_notif.json'); if(!Array.isArray(notifs)) notifs = [];
+                let today = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'long', year:'numeric' });
+                notifs.unshift({ date: today, text: '$notif_msg', image: '$notif_img' });
+                if(notifs.length > 10) notifs.pop();
+                crypt.save('web_notif.json', notifs);
+                console.log('\x1b[32m✅ Pemberitahuan Web Berhasil Ditambahkan!\x1b[0m');
+            "
             read -p "Tekan Enter untuk kembali..."
             ;;
         14)
-            echo -e "\n${C_MAG}--- KIRIM PESAN JAPRI KE PELANGGAN ---${C_RST}"
-            read -p "Masukkan Nomor WA Pelanggan (08/62): " no_japri
-            read -p "Masukkan Pesan yang ingin dikirim: " pesan_japri
-            if [ ! -z "$no_japri" ] && [ ! -z "$pesan_japri" ]; then
-                echo "$no_japri|$pesan_japri" >> japri.txt
-                echo -e "\n${C_GREEN}✅ Pesan masuk ke antrean dan akan segera dikirim oleh Bot!${C_RST}"
-            fi
+            echo -e "\n${C_MAG}--- KIRIM PESAN LANGSUNG JAPRI WA ---${C_RST}"
+            read -p "Masukkan Nomor Tujuan (Awalan 62/08): " jp_num
+            read -p "Masukkan Pesan: " jp_msg
+            node -e "
+                const fs = require('fs');
+                fs.appendFileSync('japri.txt', '$jp_num' + '|' + '$jp_msg' + '\n');
+                console.log('\x1b[32m✅ Pesan Japri dimasukkan ke antrean pengiriman!\x1b[0m');
+            "
             read -p "Tekan Enter untuk kembali..."
             ;;
         15)
-            while true; do
-                clear
-                echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT API ---${C_RST}"
-                echo -e "  ${C_GREEN}[1]${C_RST} Tambah / Ganti Konfigurasi API"
-                echo -e "  ${C_GREEN}[2]${C_RST} Hapus Konfigurasi (Matikan QRIS Auto)"
-                echo -e "  ${C_RED}[0]${C_RST} Kembali"
-                echo -ne "${C_YELLOW}Pilih menu [0-2]: ${C_RST}"
-                read setup_qris_choice
-
-                case $setup_qris_choice in
-                    1)
-                        echo -e "\n${C_CYAN}Token dan Merchant ID awal Anda sudah tersimpan otomatis.${C_RST}"
-                        echo -e "Silakan isi Link URL gambar QRIS statis toko Anda."
-                        echo -e "Contoh URL: https://i.ibb.co/gambar-qris-anda.jpg\n"
-                        read -p "Masukkan Bearer Token GoPay (Enter jika tidak berubah): " gopay_token
-                        read -p "Masukkan Merchant ID (Enter jika tidak berubah): " gopay_merchant
-                        read -p "Masukkan URL Link Gambar QRIS Anda: " qris_url
-                        
-                        node -e "
-                            const crypt = require('./tendo_crypt.js');
-                            let config = crypt.load('config.json');
-                            
-                            let inToken = '$gopay_token'.trim();
-                            let inMerch = '$gopay_merchant'.trim();
-                            let inQris = '$qris_url'.trim();
-                            
-                            if(inToken) config.gopayToken = inToken;
-                            if(inMerch) config.gopayMerchantId = inMerch;
-                            if(inQris) config.qrisUrl = inQris;
-                            
-                            crypt.save('config.json', config);
-                            console.log('\x1b[32m\n✅ Konfigurasi GoPay Merchant Berhasil Disimpan!\x1b[0m');
-                        "
-                        read -p "Tekan Enter untuk kembali..."
-                        ;;
-                    2)
-                        node -e "
-                            const crypt = require('./tendo_crypt.js');
-                            let config = crypt.load('config.json');
-                            delete config.gopayToken;
-                            delete config.gopayMerchantId;
-                            delete config.qrisUrl;
-                            crypt.save('config.json', config);
-                            console.log('\x1b[32m\n✅ Konfigurasi QRIS Otomatis berhasil dihapus!\x1b[0m');
-                        "
-                        read -p "Tekan Enter untuk kembali..."
-                        ;;
-                    0) break ;;
-                    *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
-                esac
-            done
+            echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT (QRIS DINAMIS) ---${C_RST}"
+            echo -e "${C_YELLOW}Fitur ini akan MERUBAH QRIS Statis Anda secara otomatis menjadi Dinamis!${C_RST}"
+            read -p "Masukkan Gopay Token Anda: " gopay_token
+            read -p "Masukkan Merchant ID (G88...): " gopay_mid
+            echo -e "\n${C_CYAN}Siapkan TEKS STRING dari QRIS Statis Anda.${C_RST}"
+            echo -e "Teks QRIS berawalan '000201010211...' dan diakhiri dengan kombinasi 4 huruf/angka (CRC)."
+            read -p "Paste TEKS STRING QRIS Anda di sini: " qris_text
+            node -e "
+                const crypt = require('./tendo_crypt.js'); let config = crypt.load('config.json');
+                if ('$gopay_token' !== '') config.gopayToken = '$gopay_token'.trim();
+                if ('$gopay_mid' !== '') config.gopayMerchantId = '$gopay_mid'.trim();
+                if ('$qris_text' !== '') config.qrisText = '$qris_text'.trim();
+                crypt.save('config.json', config);
+                console.log('\x1b[32m\n✅ Konfigurasi GoPay & QRIS Dinamis berhasil disimpan!\x1b[0m');
+            "
+            read -p "Tekan Enter untuk kembali..."
             ;;
         16)
-            clear
-            echo -e "${C_MAG}--- SETUP DOMAIN & HTTPS ---${C_RST}"
-            echo -e "Pastikan A Record domain Anda sudah diarahkan ke IP VPS ini ($(curl -s ifconfig.me))"
-            read -p "Sudah diarahkan? (y/n): " dns_r
-            if [[ "$dns_r" != "y" && "$dns_r" != "Y" ]]; then
-                echo -e "${C_RED}Silakan arahkan DNS terlebih dahulu dari panel domain Anda sebelum mengatur HTTPS!${C_RST}"
-                read -p "Tekan Enter untuk kembali..."
-                continue
-            fi
-
-            read -p "Masukkan Nama Domain Anda (contoh: store.domain.com): " domain_name
-            if [ -z "$domain_name" ]; then
-                echo -e "${C_RED}Domain tidak boleh kosong!${C_RST}"
-                sleep 2; continue
-            fi
-
-            read -p "Masukkan Email (untuk notifikasi SSL Let's Encrypt): " ssl_email
-
-            echo -e "\n${C_CYAN}>> Menginstall Nginx & Certbot...${C_RST}"
-            sudo apt-get update >/dev/null 2>&1
-            sudo apt-get install -y nginx certbot python3-certbot-nginx >/dev/null 2>&1
-
-            echo -e "${C_CYAN}>> Mengatur Konfigurasi Nginx Web Server...${C_RST}"
-            cat <<EOF > /etc/nginx/sites-available/$domain_name
+            echo -e "\n${C_MAG}--- SETUP DOMAIN & HTTPS ---${C_RST}"
+            read -p "Masukkan Nama Domain Anda (contoh: tendostore.com): " domain_name
+            read -p "Masukkan Email Aktif (untuk SSL Let's Encrypt): " ssl_email
+            if [ ! -z "$domain_name" ] && [ ! -z "$ssl_email" ]; then
+                echo -e "${C_CYAN}>> Menginstal Nginx dan Certbot...${C_RST}"
+                sudo apt install -y nginx certbot python3-certbot-nginx > /dev/null 2>&1
+                
+                cat <<EOF | sudo tee /etc/nginx/sites-available/$domain_name
 server {
-    listen 80;
-    server_name $domain_name;
-
-    add_header X-Frame-Options "SAMEORIGIN";
-    add_header X-XSS-Protection "1; mode=block";
-    add_header X-Content-Type-Options "nosniff";
-
+    listen 80; server_name $domain_name;
+    add_header X-Frame-Options "SAMEORIGIN"; add_header X-XSS-Protection "1; mode=block"; add_header X-Content-Type-Options "nosniff";
     location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_read_timeout 90;
-        proxy_connect_timeout 90;
-        proxy_send_timeout 90;
-        proxy_cache_bypass \$http_upgrade;
+        proxy_pass http://localhost:3000; proxy_http_version 1.1; proxy_set_header Upgrade \$http_upgrade; proxy_set_header Connection 'upgrade'; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; proxy_read_timeout 90; proxy_connect_timeout 90; proxy_send_timeout 90; proxy_cache_bypass \$http_upgrade;
     }
 }
 EOF
-
-            sudo ln -sf /etc/nginx/sites-available/$domain_name /etc/nginx/sites-enabled/
-            sudo rm -f /etc/nginx/sites-enabled/default
-            sudo nginx -t && sudo systemctl restart nginx
-
-            echo -e "${C_CYAN}>> Meminta Sertifikat SSL HTTPS ke Let's Encrypt...${C_RST}"
-            # Ditambahkan opsi --keep-until-expiring untuk mencegah rate limit Let's Encrypt
-            sudo certbot --nginx -d $domain_name --non-interactive --agree-tos -m $ssl_email --redirect --keep-until-expiring
-
-            echo -e "\n${C_GREEN}✅ Berhasil! Website Digital Tendo Store Anda sekarang bisa diakses dan sudah diamankan di: https://$domain_name ${C_RST}"
+                sudo ln -sf /etc/nginx/sites-available/$domain_name /etc/nginx/sites-enabled/
+                sudo rm -f /etc/nginx/sites-enabled/default
+                sudo nginx -t && sudo systemctl restart nginx
+                echo -e "${C_CYAN}>> Meminta Sertifikat SSL HTTPS ke Let's Encrypt...${C_RST}"
+                sudo certbot --nginx -d $domain_name --non-interactive --agree-tos -m $ssl_email --redirect --keep-until-expiring
+                echo -e "\n${C_GREEN}✅ Berhasil diamankan di: https://$domain_name ${C_RST}"
+            else
+                echo -e "${C_RED}❌ Domain atau Email tidak boleh kosong!${C_RST}"
+            fi
             read -p "Tekan Enter untuk kembali..."
             ;;
-        0) echo -e "${C_GREEN}Keluar dari panel. Sampai jumpa! 👋${C_RST}"; exit 0 ;;
-        *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 2 ;;
+        0) echo -e "${C_GREEN}Sampai jumpa!${C_RST}"; exit 0 ;;
+        *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
 done
