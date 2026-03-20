@@ -94,7 +94,6 @@ EOF
 # 3. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI
 # ==========================================
 generate_web_app() {
-    # Buat folder public, banner, dan folder info_images secara otomatis
     mkdir -p public/baner1 public/baner2 public/baner3 public/baner4 public/baner5 public/info_images
 
     cat << 'EOF' > public/manifest.json
@@ -111,7 +110,7 @@ generate_web_app() {
 EOF
 
     cat << 'EOF' > public/sw.js
-const CACHE_NAME = 'tendo-v3';
+const CACHE_NAME = 'tendo-v4';
 self.addEventListener('install', (e) => { 
     self.skipWaiting(); 
 });
@@ -128,9 +127,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => { 
     // PERBAIKAN: Meneruskan jaringan agar tidak muter-muter saat di-reload di Domain (HTTPS)
     e.respondWith(
-        fetch(e.request).catch(() => {
-            return new Response('Koneksi internet terputus', { status: 503, headers: { 'Content-Type': 'text/plain' } });
-        })
+        fetch(e.request).catch(() => caches.match(e.request))
     );
 });
 EOF
@@ -899,7 +896,10 @@ EOF
                 <h3 style="margin-top:0; font-size:18px;">Detail Transaksi</h3>
                 
                 <div id="hd-qris-box" class="hidden" style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; text-align: center; border: 1px solid var(--border-color);">
-                    <p style="font-size:12px; color:var(--text-main); margin-top:0; margin-bottom:10px; font-weight:bold;">Segera bayar dengan QRIS ini:</p>
+                    <p style="font-size:12px; color:var(--text-main); margin-top:0; margin-bottom:5px; font-weight:bold;">Sisa Waktu Pembayaran:</p>
+                    <div id="qris-countdown" style="font-size:22px; font-weight:900; color:#ef4444; margin-bottom:10px; background:#fee2e2; padding:5px; border-radius:8px; border: 1px solid #fca5a5;">-- : --</div>
+                    
+                    <p style="font-size:11px; color:var(--text-main); margin-top:0; margin-bottom:10px;">Segera bayar dengan QRIS ini:</p>
                     <img id="hd-qris-img" src="" style="width:100%; max-width:200px; border-radius:12px; border:1px solid var(--border-color); margin-bottom:10px; background:#fff;">
                     
                     <button class="btn-outline" style="width:100%; max-width:200px; padding:8px; margin: 0 auto 10px; font-size:11px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="downloadQRIS()">
@@ -909,7 +909,7 @@ EOF
 
                     <div style="font-size:11px; color:var(--text-muted); font-weight:bold;">Transfer TEPAT SEBESAR:</div>
                     <div style="font-size:24px; font-weight:900; color:#0ea5e9; margin: 5px 0;" id="hd-qris-amount">Rp 0</div>
-                    <div style="font-size:11px; color:#ef4444; font-weight:bold; line-height:1.4;">Batas Waktu: 10 Menit!<br>Harus persis agar otomatis masuk.</div>
+                    <div style="font-size:11px; color:#ef4444; font-weight:bold; line-height:1.4;">Harus persis agar otomatis masuk.</div>
                 </div>
 
                 <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left; font-size:13px; line-height: 1.6;">
@@ -947,7 +947,6 @@ EOF
         </div>
     </div>
 
-    <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="YOUR_CLIENT_KEY_HERE"></script>
     <script>
         // PWA SETUP
         let deferredPrompt;
@@ -964,7 +963,7 @@ EOF
         // GLOBAL VARS
         let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let tempForgotPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
         let currentCategory = ""; let currentBrand = ""; let currentHistoryFilter = 'All';
-        let bannerInterval;
+        let bannerInterval; let qrisInterval;
 
         // CEK THEME DARI LOKAL (Dark Mode Toggle)
         if(localStorage.getItem('tendo_theme') === 'dark') {
@@ -1127,7 +1126,10 @@ EOF
             }
         }
 
-        window.onload = async () => {
+        // ==========================================
+        // PERBAIKAN LOADING: Menggunakan DOMContentLoaded
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', async () => {
             let savedEmail = localStorage.getItem('tendo_email');
             let savedPass = localStorage.getItem('tendo_pass');
             if(savedEmail && savedPass) {
@@ -1139,7 +1141,6 @@ EOF
                         fetchGlobalStats();
                         loadBanners();
                         
-                        // LOGIKA AUTO-RESTORE TAB SEBELUMNYA
                         let lastTab = localStorage.getItem('tendo_last_tab') || 'dashboard-screen';
                         if (lastTab === 'history-screen') {
                             let savedFilter = localStorage.getItem('tendo_history_filter') || 'Order';
@@ -1154,7 +1155,7 @@ EOF
             } else {
                 showScreen('login-screen', null);
             }
-        }
+        });
 
         function showDashboard() { 
             showScreen('dashboard-screen', 'nav-home'); 
@@ -1333,6 +1334,32 @@ EOF
             } catch(e) {}
         }
 
+        // ==========================================
+        // FUNGSI TIMER COUNTDOWN LIVE QRIS
+        // ==========================================
+        function startQrisCountdown(expiredAt) {
+            clearInterval(qrisInterval);
+            let el = document.getElementById('qris-countdown');
+            
+            function update() {
+                let now = Date.now();
+                let diff = expiredAt - now;
+                if (diff <= 0) {
+                    clearInterval(qrisInterval);
+                    el.innerText = "KEDALUWARSA";
+                    document.getElementById('hd-status').innerText = 'Gagal (Kedaluwarsa)';
+                    document.getElementById('hd-qris-box').classList.add('hidden');
+                    if(currentHistoryItem) currentHistoryItem.status = 'Gagal';
+                } else {
+                    let m = Math.floor(diff / 60000);
+                    let s = Math.floor((diff % 60000) / 1000);
+                    el.innerText = (m < 10 ? "0" + m : m) + " : " + (s < 10 ? "0" + s : s);
+                }
+            }
+            update();
+            qrisInterval = setInterval(update, 1000);
+        }
+
         function openHistoryDetail(h) {
             currentHistoryItem = h;
             document.getElementById('hd-time').innerText = h.tanggal;
@@ -1356,18 +1383,23 @@ EOF
                     document.getElementById('hd-qris-img').src = h.qris_url;
                     document.getElementById('hd-qris-amount').innerText = 'Rp ' + h.amount.toLocaleString('id-ID');
                     qrisBox.classList.remove('hidden');
+                    startQrisCountdown(h.expired_at);
                 } else {
                     qrisBox.classList.add('hidden');
                     document.getElementById('hd-status').innerText = 'Gagal (Kedaluwarsa)';
                 }
             } else {
                 qrisBox.classList.add('hidden');
+                clearInterval(qrisInterval);
             }
             
             document.getElementById('history-detail-modal').classList.remove('hidden');
         }
         
-        function closeHistoryModal() { document.getElementById('history-detail-modal').classList.add('hidden'); }
+        function closeHistoryModal() { 
+            clearInterval(qrisInterval);
+            document.getElementById('history-detail-modal').classList.add('hidden'); 
+        }
         
         function contactAdmin() {
             let pesan = `Halo Admin Digital Tendo Store,%0A%0ASaya butuh bantuan terkait akun / layanan.`;
@@ -1587,7 +1619,6 @@ EOF
             
             let brands = [];
 
-            // MEMBUAT BRAND MUNCUL PERMANEN
             if(cat === 'Game') brands = ['Free Fire', 'Mobile Legends', 'PUBG'];
             if(cat === 'E-Money') brands = ['Dana', 'Go Pay', 'LinkAja', 'OVO', 'ShopeePay'];
             if(cat === 'Pulsa' || cat === 'Data' || cat === 'Masa Aktif' || cat === 'Paket SMS & Telpon') {
