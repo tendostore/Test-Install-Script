@@ -1859,6 +1859,72 @@ const saveJSON = (file, data) => crypt.save(file, data);
 // Fungsi Hashing Password
 const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
 
+// ==============================================================
+// PERBAIKAN: FUNGSI KONVERSI QRIS SMART PARSER (ANTI GAGAL/DANA)
+// ==============================================================
+function convertToDynamicQris(staticQris, amount) {
+    try {
+        if(!staticQris || staticQris.length < 30) return staticQris;
+        
+        // 1. Buang 8 karakter terakhir (tag 6304 dan CRC)
+        let qris = staticQris.substring(0, staticQris.length - 8);
+        
+        // 2. Ganti tipe QRIS ke Dinamis
+        qris = qris.replace("010211", "010212");
+        
+        // 3. Ekstrak struktur tag agar rapi dan hapus tag 54 jika sudah ada (mencegah double tag)
+        let parsed = "";
+        let i = 0;
+        while (i < qris.length) {
+            let id = qris.substring(i, i+2);
+            let lenStr = qris.substring(i+2, i+4);
+            let len = parseInt(lenStr, 10);
+            if (isNaN(len)) break; // Mencegah loop jika string berantakan
+            let val = qris.substring(i+4, i+4+len);
+            
+            // Kita skip tag 54 lama agar terganti dengan yang baru
+            if (id !== "54") {
+                parsed += id + lenStr + val;
+            }
+            i += 4 + len;
+        }
+        
+        // 4. Siapkan tag 54 (Nominal) yang baru
+        let amtStr = amount.toString();
+        let amtLen = amtStr.length.toString().padStart(2, '0');
+        let tag54 = "54" + amtLen + amtStr;
+        
+        // 5. PENEMPATAN KETAT! DANA & GoPay sangat sensitif.
+        // Kita taruh tag 54 tepat sebelum Tag 5802ID (Country Code) sesuai struktur baku ASPI
+        let finalQris = "";
+        if (parsed.includes("5802ID")) {
+            finalQris = parsed.replace("5802ID", tag54 + "5802ID");
+        } else {
+            // Fallback jika tidak ada tag 58, taruh di ujung
+            finalQris = parsed + tag54;
+        }
+        
+        // 6. Pasang kembali penutup 6304
+        finalQris += "6304";
+        
+        // 7. Hitung ulang CRC16-CCITT (Standar EMVCo QRIS)
+        let crc = 0xFFFF;
+        for(let j=0; j<finalQris.length; j++){
+            crc ^= finalQris.charCodeAt(j) << 8;
+            for(let k=0; k<8; k++){
+                if(crc & 0x8000) crc = (crc << 1) ^ 0x1021;
+                else crc = crc << 1;
+            }
+        }
+        let crcStr = (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+        return finalQris + crcStr;
+        
+    } catch(e) {
+        // Jika teks rusak, kembalikan teks aslinya agar aman
+        return staticQris; 
+    }
+}
+
 // AUTO-INJECT GOPAY CREDENTIALS FROM USER PROMPT
 let configAwal = loadJSON(configFile);
 configAwal.botName = configAwal.botName || "Digital Tendo Store";
@@ -1866,6 +1932,7 @@ configAwal.botNumber = configAwal.botNumber || "";
 configAwal.gopayToken = configAwal.gopayToken || "eyJhbGciOiJkaXIiLCJjdHkiOiJKV1QiLCJlbmMiOiJBMTI4R0NNIiwidHlwIjoiSldUIiwiemlwIjoiREVGIn0..VIQQ-T-biEeLHfw0.A2-r35syEmO_3WI_dsbDM06rN61YEqtJjL4Cl8IMvlLd4qZfsED3U1e7mQQvOnkbaSG1JvFKxEHQTZFNR6sKJ7Vm-j_5BQwc3XyRUN7C67EpayMGoqlgOxQ-FbFAP1LIL3PVrPpX8tq9Kb2cfUHxo4T2YQhdbN-F-xxFqkZE3MniVJ6bKv2j3ENpJ74WV0YO1EQ9inBGsL3LskNp--fkxlDpTP3VEAtJT8VeOXmF0TWkHK1PYvY7iR1BuWncqtPpPao1kYm3Jf9CF48lMPI3MT3kmOdkuWCkzTd71jCza8xnFt37itC36_qB14H0zC3mhLtxgFPQR0VzlVylqcfLYtblVIrgtKvRwFTK2SFCQnlYWJ2DcaXSqL7aie66HmWAl4G3jwqhKumJNTnwfWgJ7MpZA2PiIxLkli8p_5PARbyyhdpZCUPX1r_nJGCy5GmqT6QoSbafu2ps7gpjGbPY4iBa03KEIV-55g3lqbRsJsWSg6FgrPgM7i2o8NsZNQNAd5ZgMI4BCs5AAECXtfBgUL9ZN8OBHbMTeuapsx2wseCZd8I7r3JsAAp-Y70OxVraB-LHCiczAuwpYO8gcr_XGjh_wuicoS7lp8rIxKGNCWEiHR0dhY1FduSqAVE3Ced01A_QRMY4cnFJAHFAUbwFCH17Oy8FDqhPMmLG3hdxJZBqiyCi6v4U9GXBjcckkpVtZ1mg6yN8Mpfe_Le6nt4zGABwZHFeESojkW0YJQJaMzRcUoiUZF88zTnXmT93ZQ-T9my6J3cEGkTSl0J_WT7q2T_BYWFBPqrrv61OggbbnkK1UE2HiI481WmudS4VUuX857SLMxRunFcH0E_FybDd0n1vqvcFjs-osoK5yymM3p2mZT7_gGkR3cm-Jy0r1SCm-28ZY5mK7EA3N9l88yHv0R0dqyXETT3j0wa9N3YbViAre2dku_OgKjGh8ICnjTKhI5VlxIop42k0uFQg_QBECeY65xpmY6qbHFESoC4ii5IxODVyGqM6xVnHFRULSl66-ir-I3111D-l0PgnyUe7mbf3ewffLi6vdGW_e2Pd3jooP_u91Q_du2tqRWUsO3oeNTbJcfer0LRoB06ecsqRHUzCHKuG7XociDXLOifvdYJGwmrItjFGWTIlqSpYs45MZWYe07WEvftwhemXUzEPNtTCecq7kavGOcWDPx0PZJ_VP8Z6y1ocZ64ZnLNp_Zdq2ESU7ATWOaLi6HXavIKecvOo2QFFN4Jrs5HP46IHdp7uqX0mFtBqwMDOSOCmjfgLDsjUltHxCLuYWtGn1SUsTuzE0sqhELrh1CVYReiBk9FFFcXs4qlXpbjPb3FVWIX8TzdN6dQd9RfrMtN71pe69WocXAlE9uRNWY3p07ayKUm7Z1p6GSq0hlH_aPsHlNrVUvupwgg45XHlod6T6_Ki2Lq3pUesSGxMPD-zmPB9N90B-xcqYSBg_LoCU1_gWDxiNlggHWD65hMlxcJolRxV4reLwGn06rbadydyByuz3aC-gbxXYtF7CO9pOkYGms2hAhp6CBOQhmWe3cip3rx_hVNBZYbOgkAvfgaWD3h22v25FVmV9xsecPaA_nLWPvcZLYHcPZzmsOhxpecQaAJDn3uAdi6uu7aUqk7ljq1TIpbafbru3pnOf0TEgElgqXlTUUCKPxYdeQaGSpjM7NGjlBsLyrcRZa74VZ-g1mpCCX3Qxf8l8Mn0PSJHkS1AahS6u1Nqr0dVRyx1ikg6t_F8gCTCE3IF-zRTGJZITwOir0RI0coZUQ1xH7eZ0Rb-oAXDPxf00nFMoYpijiL1QdyKA3yc0RiMcw7nISGoYn8_BWbG7YvjlxVPAdjWaIKen1pXRFf0VC2OinEvATRPP2E31HkJWwJ_jLDTheWqf6kc3oqBAvX3Ch88z-jSuUF2zjzH0F4pWSE6oE2fKstonIdD.Ehu4BT1zjv_MGr1eUh-G8g";
 configAwal.gopayMerchantId = configAwal.gopayMerchantId || "G881528152";
 configAwal.qrisUrl = configAwal.qrisUrl || "https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg";
+configAwal.qrisText = configAwal.qrisText || "";
 saveJSON(configFile, configAwal);
 
 // File creation checks managed by crypt logic now...
@@ -2130,11 +2197,11 @@ app.post('/api/verify-forgot-otp', (req, res) => {
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
-// API TOPUP GOPAY MERCHANT LANGSUNG
+// API TOPUP GOPAY MERCHANT LANGSUNG DENGAN QRIS DINAMIS
 app.post('/api/topup', async (req, res) => {
     try {
         let config = loadJSON(configFile);
-        if(!config.gopayToken || !config.qrisUrl) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
+        if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
         
         let { phone, nominal } = req.body;
         let db = loadJSON(dbFile);
@@ -2144,6 +2211,13 @@ app.post('/api/topup', async (req, res) => {
         // Menambahkan 2 digit unik (1-99) untuk validasi otomatis
         let uniqueCode = Math.floor(Math.random() * 99) + 1;
         let totalPay = nominalAsli + uniqueCode;
+
+        // PEMROSESAN QRIS DINAMIS
+        let finalQrisUrl = config.qrisUrl;
+        if (config.qrisText) {
+            let dynQris = convertToDynamicQris(config.qrisText, totalPay);
+            finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=" + encodeURIComponent(dynQris);
+        }
 
         let topups = loadJSON(topupFile);
         let trxId = "TP-" + Date.now();
@@ -2164,7 +2238,7 @@ app.post('/api/topup', async (req, res) => {
             status: 'Pending', 
             sn: trxId, 
             amount: totalPay,
-            qris_url: config.qrisUrl,
+            qris_url: finalQrisUrl,
             expired_at: expiredAt
         });
         if(db[phone].history.length > 20) db[phone].history.pop();
