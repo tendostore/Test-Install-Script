@@ -907,12 +907,18 @@ EOF
                     <div id="qris-countdown" style="font-size:22px; font-weight:900; color:#ef4444; margin-bottom:10px; background:#fee2e2; padding:5px; border-radius:8px; border: 1px solid #fca5a5;">-- : --</div>
                     
                     <p style="font-size:11px; color:var(--text-main); margin-top:0; margin-bottom:10px;">Segera bayar dengan QRIS ini:</p>
-                    <img id="hd-qris-img" src="" style="width:100%; max-width:200px; border-radius:12px; border:1px solid var(--border-color); margin-bottom:10px; background:#fff;">
+                    <img id="hd-qris-img" src="" style="width:100%; max-width:240px; padding:20px; border-radius:16px; border:1px solid var(--border-color); margin-bottom:15px; background:#ffffff; box-sizing: border-box; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
                     
-                    <button class="btn-outline" style="width:100%; max-width:200px; padding:8px; margin: 0 auto 10px; font-size:11px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="downloadQRIS()">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        Download QRIS
-                    </button>
+                    <div style="display:flex; gap:10px; justify-content:center; margin-bottom:15px;">
+                        <button class="btn-outline" style="flex:1; margin:0; padding:10px 5px; font-size:12px; font-weight: bold; border-color:#16a34a; color:#16a34a; border-radius:20px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="shareQRIS()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                            Bagikan
+                        </button>
+                        <button class="btn-outline" style="flex:1; margin:0; padding:10px 5px; font-size:12px; font-weight: bold; border-color:#16a34a; color:#16a34a; border-radius:20px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="downloadQRIS()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            Simpan
+                        </button>
+                    </div>
 
                     <div style="font-size:11px; color:var(--text-muted); font-weight:bold;">Transfer TEPAT SEBESAR:</div>
                     <div style="font-size:24px; font-weight:900; color:#0ea5e9; margin: 5px 0;" id="hd-qris-amount">Rp 0</div>
@@ -1248,6 +1254,29 @@ EOF
             if(userData.history && userData.history.length > 0) {
                 let latest = userData.history.find(h => h.type === 'Topup' && h.status === 'Pending');
                 if(latest) openHistoryDetail(latest);
+            }
+        }
+
+        // PERBAIKAN: FUNGSI SHARE QRIS MENGGUNAKAN WEB SHARE API
+        async function shareQRIS() {
+            let imgUrl = document.getElementById('hd-qris-img').src;
+            if(!imgUrl) return;
+            try {
+                let response = await fetch(imgUrl, { mode: 'cors' });
+                let blob = await response.blob();
+                let file = new File([blob], "QRIS_Digital_Tendo.jpg", { type: "image/jpeg" });
+                
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        title: 'QRIS Pembayaran',
+                        text: 'Silakan scan QRIS berikut untuk melakukan pembayaran.',
+                        files: [file]
+                    });
+                } else {
+                    alert("Perangkat atau browser Anda tidak mendukung fitur bagikan gambar. Silakan gunakan tombol Simpan (Download).");
+                }
+            } catch(e) {
+                alert("Gagal membagikan gambar QRIS.");
             }
         }
 
@@ -2212,11 +2241,11 @@ app.post('/api/topup', async (req, res) => {
         let uniqueCode = Math.floor(Math.random() * 99) + 1;
         let totalPay = nominalAsli + uniqueCode;
 
-        // PEMROSESAN QRIS DINAMIS
+        // PERBAIKAN: FORMAT URL BARCODE QRIS BERGARIS PUTIH
         let finalQrisUrl = config.qrisUrl;
         if (config.qrisText) {
             let dynQris = convertToDynamicQris(config.qrisText, totalPay);
-            finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=" + encodeURIComponent(dynQris);
+            finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
         }
 
         let topups = loadJSON(topupFile);
