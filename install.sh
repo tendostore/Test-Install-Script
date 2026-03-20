@@ -23,6 +23,7 @@ sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT > /dev/null 2>&1 || true
 # ==========================================
 # 1. BIKIN SHORTCUT 'BOT' DI VPS
 # ==========================================
+# Hapus sisa-sisa Auto-Start panel yang bikin VPS macet sebelumnya
 sed -i '/# Auto-start bot panel/d' ~/.bashrc
 sed -i '/if \[ -f \/usr\/bin\/bot \] && \[ -t 1 \]; then/d' ~/.bashrc
 sed -i '/\/usr\/bin\/bot/d' ~/.bashrc
@@ -41,6 +42,7 @@ fi
 # 2. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI
 # ==========================================
 generate_web_app() {
+    # Buat folder public, banner, dan folder info_images secara otomatis
     mkdir -p public/baner1 public/baner2 public/baner3 public/baner4 public/baner5 public/info_images
 
     cat << 'EOF' > public/manifest.json
@@ -64,9 +66,7 @@ self.addEventListener('activate', (e) => {
     }));
     self.clients.claim(); 
 });
-self.addEventListener('fetch', (e) => {
-    e.respondWith(fetch(e.request).catch(() => fetch(e.request)));
-});
+self.addEventListener('fetch', (e) => { });
 EOF
 
     cat << 'EOF' > public/index.html
@@ -115,7 +115,7 @@ EOF
 
         /* TEMA PREMIUM CSS */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #cbd5e1; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
-        #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 160px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
+        #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 140px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
         
         /* TOP BAR */
         .top-bar { background: var(--topbar-bg); color: var(--text-main); padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: background 0.3s;}
@@ -291,7 +291,6 @@ EOF
         .prof-label { color: var(--text-muted); font-weight: 600;}
         .prof-val { font-weight: 900; text-align: right;}
         
-        /* Z-Index ditinggikan untuk menangani masalah tidak bisa diklik */
         .prof-actions-container {
             padding: 0 20px;
             margin-bottom: 150px; 
@@ -299,7 +298,7 @@ EOF
             flex-direction: column;
             gap: 10px;
             position: relative;
-            z-index: 50; 
+            z-index: 10;
         }
         
         .prof-action-btn { 
@@ -859,6 +858,27 @@ EOF
                 <button class="btn-outline" style="margin-top:0;" onclick="closeHistoryModal()">Tutup</button>
             </div>
         </div>
+
+        <div id="edit-modal" class="modal-overlay hidden">
+            <div class="modal-box">
+                <h3 style="margin-top:0; font-size:18px;" id="edit-title">Ubah Data</h3>
+                <div id="edit-step-1">
+                    <input type="text" id="edit-input" placeholder="Masukkan data baru">
+                    <div class="modal-btns">
+                        <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
+                        <button class="btn" id="btn-req-edit" onclick="reqEditOTP()">Kirim OTP</button>
+                    </div>
+                </div>
+                <div id="edit-step-2" class="hidden">
+                    <p style="font-size:12px; color:var(--text-muted); font-weight: bold;">OTP telah dikirim ke WA Anda.</p>
+                    <input type="number" id="edit-otp-input" placeholder="----" style="letter-spacing:12px; text-align:center; font-size:24px; background:var(--bg-main);" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
+                    <div class="modal-btns">
+                        <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
+                        <button class="btn" id="btn-verify-edit" onclick="verifyEditOTP()">Simpan</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="YOUR_CLIENT_KEY_HERE"></script>
@@ -925,7 +945,7 @@ EOF
             }
         }
 
-        // === API CALL KLASIK (ANTI-ERROR / FALLBACK LOADING) ===
+        // === API CALL KLASIK (ANTI-ERROR) ===
         async function apiCall(url, bodyData) {
             let options = {};
             if(bodyData) {
@@ -933,13 +953,8 @@ EOF
                 options.headers = {'Content-Type': 'application/json'};
                 options.body = JSON.stringify(bodyData);
             }
-            try {
-                let res = await fetch(url, options);
-                return await res.json();
-            } catch(e) {
-                console.error("API Error: ", e);
-                return { success: false, message: "Koneksi terputus." };
-            }
+            let res = await fetch(url, options);
+            return await res.json();
         }
 
         // FUNGSI FETCH STATISTIK GLOBAL
@@ -1050,12 +1065,8 @@ EOF
             let savedEmail = localStorage.getItem('tendo_email');
             let savedPass = localStorage.getItem('tendo_pass');
             if(savedEmail && savedPass) {
-                // Menambahkan Timeout perlindungan jika Server Mati
-                let loginPromise = apiCall('/api/login', {email:savedEmail, password:savedPass});
-                let timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({success: false}), 5000));
-                
                 try {
-                    let data = await Promise.race([loginPromise, timeoutPromise]);
+                    let data = await apiCall('/api/login', {email:savedEmail, password:savedPass});
                     if(data && data.success) {
                         currentUser = data.phone; userData = data.data;
                         fetchAllProducts();
@@ -1700,7 +1711,6 @@ generate_bot_script() {
 process.env.TZ = 'Asia/Jakarta';
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const fs = require('fs');
-const path = require('path');
 const pino = require('pino');
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -1709,8 +1719,9 @@ const axios = require('axios');
 const crypto = require('crypto'); 
 
 const app = express();
-app.disable('x-powered-by'); 
+app.disable('x-powered-by'); // Keamanan tambahan
 app.use(bodyParser.json());
+app.use(express.static('public')); 
 
 const configFile = './config.json';
 const dbFile = './database.json';
@@ -1725,45 +1736,26 @@ const loadJSON = (file) => {
     try {
         return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
     } catch(e) {
+        console.error(`Error loading ${file}:`, e);
         if (file === notifFile) return [];
         return {};
     }
 };
 const saveJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
 
+// Fungsi Hashing Password
 const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
 
-// AUTO-ENCRYPTOR: Enkripsi Semua Password Lama ke Hash secara Otomatis saat server jalan!
-let dbInitial = loadJSON(dbFile);
-let dbNeedsSave = false;
-for (let userPhone in dbInitial) {
-    let pwd = dbInitial[userPhone].password;
-    if (pwd && pwd.length !== 64) { 
-        dbInitial[userPhone].password = hashPassword(pwd);
-        dbNeedsSave = true;
-    }
-}
-if (dbNeedsSave) {
-    saveJSON(dbFile, dbInitial);
-    console.log('\x1b[32m[System] Mengamankan & mengenkripsi semua password lama di database...\x1b[0m');
-}
-
-// MIDDLEWARE ANTI JSON LEAK (AMAN DARI ERROR EXPRESS)
-app.use((req, res, next) => {
-    if (req.path.endsWith('.json') && !req.path.includes('manifest.json')) {
-        return res.status(403).send('Akses Ditolak!');
-    }
-    next();
-});
-
-// Serve frontend statis
-app.use(express.static(path.join(__dirname, 'public'))); 
-
+// AUTO-INJECT GOPAY CREDENTIALS FROM USER PROMPT
 let configAwal = loadJSON(configFile);
 configAwal.botName = configAwal.botName || "Digital Tendo Store";
 configAwal.botNumber = configAwal.botNumber || "";
+configAwal.gopayToken = configAwal.gopayToken || "eyJhbGciOiJkaXIiLCJjdHkiOiJKV1QiLCJlbmMiOiJBMTI4R0NNIiwidHlwIjoiSldUIiwiemlwIjoiREVGIn0..VIQQ-T-biEeLHfw0.A2-r35syEmO_3WI_dsbDM06rN61YEqtJjL4Cl8IMvlLd4qZfsED3U1e7mQQvOnkbaSG1JvFKxEHQTZFNR6sKJ7Vm-j_5BQwc3XyRUN7C67EpayMGoqlgOxQ-FbFAP1LIL3PVrPpX8tq9Kb2cfUHxo4T2YQhdbN-F-xxFqkZE3MniVJ6bKv2j3ENpJ74WV0YO1EQ9inBGsL3LskNp--fkxlDpTP3VEAtJT8VeOXmF0TWkHK1PYvY7iR1BuWncqtPpPao1kYm3Jf9CF48lMPI3MT3kmOdkuWCkzTd71jCza8xnFt37itC36_qB14H0zC3mhLtxgFPQR0VzlVylqcfLYtblVIrgtKvRwFTK2SFCQnlYWJ2DcaXSqL7aie66HmWAl4G3jwqhKumJNTnwfWgJ7MpZA2PiIxLkli8p_5PARbyyhdpZCUPX1r_nJGCy5GmqT6QoSbafu2ps7gpjGbPY4iBa03KEIV-55g3lqbRsJsWSg6FgrPgM7i2o8NsZNQNAd5ZgMI4BCs5AAECXtfBgUL9ZN8OBHbMTeuapsx2wseCZd8I7r3JsAAp-Y70OxVraB-LHCiczAuwpYO8gcr_XGjh_wuicoS7lp8rIxKGNCWEiHR0dhY1FduSqAVE3Ced01A_QRMY4cnFJAHFAUbwFCH17Oy8FDqhPMmLG3hdxJZBqiyCi6v4U9GXBjcckkpVtZ1mg6yN8Mpfe_Le6nt4zGABwZHFeESojkW0YJQJaMzRcUoiUZF88zTnXmT93ZQ-T9my6J3cEGkTSl0J_WT7q2T_BYWFBPqrrv61OggbbnkK1UE2HiI481WmudS4VUuX857SLMxRunFcH0E_FybDd0n1vqvcFjs-osoK5yymM3p2mZT7_gGkR3cm-Jy0r1SCm-28ZY5mK7EA3N9l88yHv0R0dqyXETT3j0wa9N3YbViAre2dku_OgKjGh8ICnjTKhI5VlxIop42k0uFQg_QBECeY65xpmY6qbHFESoC4ii5IxODVyGqM6xVnHFRULSl66-ir-I3111D-l0PgnyUe7mbf3ewffLi6vdGW_e2Pd3jooP_u91Q_du2tqRWUsO3oeNTbJcfer0LRoB06ecsqRHUzCHKuG7XociDXLOifvdYJGwmrItjFGWTIlqSpYs45MZWYe07WEvftwhemXUzEPNtTCecq7kavGOcWDPx0PZJ_VP8Z6y1ocZ64ZnLNp_Zdq2ESU7ATWOaLi6HXavIKecvOo2QFFN4Jrs5HP46IHdp7uqX0mFtBqwMDOSOCmjfgLDsjUltHxCLuYWtGn1SUsTuzE0sqhELrh1CVYReiBk9FFFcXs4qlXpbjPb3FVWIX8TzdN6dQd9RfrMtN71pe69WocXAlE9uRNWY3p07ayKUm7Z1p6GSq0hlH_aPsHlNrVUvupwgg45XHlod6T6_Ki2Lq3pUesSGxMPD-zmPB9N90B-xcqYSBg_LoCU1_gWDxiNlggHWD65hMlxcJolRxV4reLwGn06rbadydyByuz3aC-gbxXYtF7CO9pOkYGms2hAhp6CBOQhmWe3cip3rx_hVNBZYbOgkAvfgaWD3h22v25FVmV9xsecPaA_nLWPvcZLYHcPZzmsOhxpecQaAJDn3uAdi6uu7aUqk7ljq1TIpbafbru3pnOf0TEgElgqXlTUUCKPxYdeQaGSpjM7NGjlBsLyrcRZa74VZ-g1mpCCX3Qxf8l8Mn0PSJHkS1AahS6u1Nqr0dVRyx1ikg6t_F8gCTCE3IF-zRTGJZITwOir0RI0coZUQ1xH7eZ0Rb-oAXDPxf00nFMoYpijiL1QdyKA3yc0RiMcw7nISGoYn8_BWbG7YvjlxVPAdjWaIKen1pXRFf0VC2OinEvATRPP2E31HkJWwJ_jLDTheWqf6kc3oqBAvX3Ch88z-jSuUF2zjzH0F4pWSE6oE2fKstonIdD.Ehu4BT1zjv_MGr1eUh-G8g";
+configAwal.gopayMerchantId = configAwal.gopayMerchantId || "G881528152";
+configAwal.qrisUrl = configAwal.qrisUrl || "https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg";
 saveJSON(configFile, configAwal);
 
+if (!fs.existsSync(dbFile)) saveJSON(dbFile, {});
 if (!fs.existsSync(produkFile)) saveJSON(produkFile, {});
 if (!fs.existsSync(trxFile)) saveJSON(trxFile, {});
 if (!fs.existsSync(globalStatsFile)) saveJSON(globalStatsFile, {});
@@ -1772,7 +1764,7 @@ if (!fs.existsSync(notifFile)) saveJSON(notifFile, []);
 
 let globalSock = null;
 let tempOtpDB = {}; 
-let otpCooldown = {}; 
+let otpCooldown = {}; // Anti spam OTP
 
 function normalizePhone(phoneStr) {
     if(!phoneStr) return '';
@@ -1786,7 +1778,7 @@ app.get('/api/banners', (req, res) => {
     let banners = [];
     try {
         for (let i = 1; i <= 5; i++) {
-            let folderPath = path.join(__dirname, 'public', `baner${i}`);
+            let folderPath = `./public/baner${i}`;
             if (fs.existsSync(folderPath)) {
                 let files = fs.readdirSync(folderPath);
                 let imgFiles = files.filter(f => f.match(/\.(jpg|jpeg|png|gif|webp)$/i));
@@ -1795,7 +1787,7 @@ app.get('/api/banners', (req, res) => {
                 }
             }
         }
-    } catch(e) {}
+    } catch(e) { console.error(e); }
     res.json({ success: true, data: banners });
 });
 
@@ -1811,9 +1803,9 @@ app.get('/api/stats', (req, res) => {
             let diffTime = Math.abs(now - d);
             let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             
-            if(now.toISOString().split('T')[0] === k) daily += gStats[k]; 
-            if(diffDays <= 7) weekly += gStats[k]; 
-            if(diffDays <= 30) monthly += gStats[k]; 
+            if(now.toISOString().split('T')[0] === k) daily += gStats[k]; // Hari Ini
+            if(diffDays <= 7) weekly += gStats[k]; // Minggu Ini
+            if(diffDays <= 30) monthly += gStats[k]; // Bulan Ini
         }
         res.json({ success: true, daily, weekly, monthly });
     } catch(e) {
@@ -1821,6 +1813,7 @@ app.get('/api/stats', (req, res) => {
     }
 });
 
+// API ROUTER
 app.get('/api/produk', (req, res) => { res.json(loadJSON(produkFile)); });
 app.get('/api/notif', (req, res) => { 
     try {
@@ -1837,7 +1830,7 @@ app.get('/api/user/:phone', (req, res) => {
         let db = loadJSON(dbFile); let p = req.params.phone;
         if(db[p]) {
             let safeData = { ...db[p] };
-            delete safeData.password;
+            delete safeData.password; // Mencegah password (hash) bocor ke frontend
             res.json({success: true, data: safeData});
         }
         else res.json({success: false});
@@ -1851,6 +1844,13 @@ app.post('/api/login', (req, res) => {
         
         let userPhone = Object.keys(db).find(k => {
             if (!db[k] || db[k].email !== email) return false;
+            // Migrasi otomatis password lama (plain text) ke Hashed
+            if (db[k].password === password) {
+                db[k].password = hashedInput;
+                saveJSON(dbFile, db);
+                return true;
+            }
+            // Cocokkan dengan password yang sudah di-hash
             if (db[k].password === hashedInput) return true;
             return false;
         });
@@ -1870,6 +1870,7 @@ app.post('/api/register', (req, res) => {
         let phone = normalizePhone(req.body.phone); 
         if(!phone || phone.length < 9) return res.json({success: false, message: 'Nomor WA tidak valid!'});
         
+        // Anti Spam
         if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) {
             return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
         }
@@ -1880,6 +1881,7 @@ app.post('/api/register', (req, res) => {
         if (isEmailExist) return res.json({success: false, message: 'Email terdaftar!'});
 
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
+        // Simpan password dalam bentuk hash saat register
         tempOtpDB[phone] = { username, email, password: hashPassword(password), otp };
 
         res.json({success: true});
@@ -1890,7 +1892,7 @@ app.post('/api/register', (req, res) => {
                     let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
                     globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
                 }
-            } catch(err) {}
+            } catch(err) { console.error(err); }
         }, 100);
 
     } catch(e) { 
@@ -1919,12 +1921,14 @@ app.post('/api/req-edit-otp', (req, res) => {
         let { phone, type, newValue } = req.body; let db = loadJSON(dbFile);
         if(!db[phone]) return res.json({success: false, message: 'User tidak ditemukan.'});
         
+        // Anti Spam
         if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) {
             return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
         }
         otpCooldown[phone] = Date.now();
 
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
+        // Hash password jika yang diganti adalah password
         if (type === 'password') newValue = hashPassword(newValue);
         
         tempOtpDB[phone + '_edit'] = { type, newValue, otp };
@@ -1960,12 +1964,14 @@ app.post('/api/verify-edit-otp', (req, res) => {
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
+// API LUPA PASSWORD
 app.post('/api/req-forgot-otp', (req, res) => {
     try {
         let phone = normalizePhone(req.body.phone);
         let db = loadJSON(dbFile);
         if(!db[phone]) return res.json({success: false, message: 'Nomor WA tidak terdaftar!'});
         
+        // Anti Spam
         if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) {
             return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
         }
@@ -1982,7 +1988,7 @@ app.post('/api/req-forgot-otp', (req, res) => {
                     let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nPermintaan Reset Password.\nKode OTP Anda: *${otp}*\n\n_⚠️ Jika Anda tidak merasa memintanya, abaikan pesan ini!_`;
                     globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
                 }
-            } catch(err) {}
+            } catch(err) { console.error(err); }
         }, 100);
 
     } catch(e) { 
@@ -2010,6 +2016,7 @@ app.post('/api/verify-forgot-otp', (req, res) => {
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
+// API TOPUP GOPAY MERCHANT LANGSUNG
 app.post('/api/topup', async (req, res) => {
     try {
         let config = loadJSON(configFile);
@@ -2020,16 +2027,19 @@ app.post('/api/topup', async (req, res) => {
         if(!db[phone]) return res.json({success: false, message: "User tidak ditemukan."});
         
         let nominalAsli = parseInt(nominal);
+        // Menambahkan 2 digit unik (1-99) untuk validasi otomatis
         let uniqueCode = Math.floor(Math.random() * 99) + 1;
         let totalPay = nominalAsli + uniqueCode;
 
         let topups = loadJSON(topupFile);
         let trxId = "TP-" + Date.now();
-        let expiredAt = Date.now() + 10 * 60 * 1000; 
+        let expiredAt = Date.now() + 10 * 60 * 1000; // 10 Menit
 
+        // Saldo yang ditambahkan FULL sesuai yang ditransfer
         topups[trxId] = { phone, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, status: 'pending', timestamp: Date.now(), expired_at: expiredAt };
         saveJSON(topupFile, topups);
 
+        // Rekam ke Riwayat User
         db[phone].history = db[phone].history || [];
         db[phone].history.unshift({ 
             ts: Date.now(), 
@@ -2112,11 +2122,6 @@ app.post('/api/order', async (req, res) => {
     }
 });
 
-// ROUTING JATUH BEBAS (FALLBACK) AGAR PWA TIDAK MACET SAAT RELOAD
-app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, 'public', 'index.html'));
-});
-
 function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
@@ -2145,6 +2150,7 @@ async function startBot() {
     sock.ev.on('creds.update', saveCreds);
     sock.ev.on('connection.update', (u) => { if(u.connection === 'close') setTimeout(startBot, 4000); });
 
+    // INTERVAL POLING CEK MUTASI GOPAY MERCHANT (SETIAP 30 DETIK)
     setInterval(async () => {
         try {
             let cfg = loadJSON(configFile);
@@ -2158,7 +2164,9 @@ async function startBot() {
                 { headers: { 'Authorization': 'Bearer ' + cfg.gopayToken, 'Content-Type': 'application/json' } }
             );
 
+            // Ubah seluruh respons API ke string untuk pencarian yang sangat akurat dan tahan error
             let responseStr = JSON.stringify(gopayRes.data);
+
             let db = loadJSON(dbFile);
             let changedTp = false;
             let changedDb = false;
@@ -2166,6 +2174,7 @@ async function startBot() {
             for(let key of pendingKeys) {
                 let req = topups[key];
                 
+                // 1. Cek apakah Topup sudah kadaluarsa (lewat 10 menit)
                 if (Date.now() > req.expired_at) {
                     req.status = 'gagal';
                     changedTp = true;
@@ -2177,8 +2186,10 @@ async function startBot() {
                         }
                     }
                 } 
+                // 2. Cek apakah nominal unik muncul di JSON response (Format angka, string, atau desimal .00)
                 else {
                     let amountStr = req.amount_to_pay.toString();
+                    // Pencarian pintar: mengecek format "10011", :10011, "10011.00", :10011.00 di dalam respons
                     let isFound = responseStr.includes(`"${amountStr}"`) ||
                                   responseStr.includes(`:${amountStr}`) ||
                                   responseStr.includes(`"${amountStr}.00"`) ||
@@ -2209,6 +2220,7 @@ async function startBot() {
         } catch(e) {}
     }, 30000); 
 
+    // INTERVAL PENGHAPUSAN RIWAYAT (Lebih 30 Hari) 
     setInterval(() => {
         try {
             let db = loadJSON(dbFile);
@@ -2257,6 +2269,7 @@ async function startBot() {
                             db[senderNum].history[0].status = 'Sukses'; db[senderNum].history[0].sn = resData.sn || '-'; saveJSON(dbFile, db);
                         }
                         
+                        // Update Global Stats
                         let gStats = loadJSON(globalStatsFile);
                         let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
                         gStats[dateKey] = (gStats[dateKey] || 0) + 1;
@@ -2452,6 +2465,7 @@ menu_backup() {
                 echo -e "\n${C_MAG}⏳ Sedang memproses arsip backup...${C_RST}"
                 if ! command -v zip &> /dev/null; then sudo apt install zip -y > /dev/null 2>&1; fi
                 rm -f backup.zip
+                # Backup SSL Let's Encrypt jika ada
                 if [ -d "/etc/letsencrypt" ]; then
                     sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null
                 fi
@@ -3384,6 +3398,7 @@ EOF
             sudo nginx -t && sudo systemctl restart nginx
 
             echo -e "${C_CYAN}>> Meminta Sertifikat SSL HTTPS ke Let's Encrypt...${C_RST}"
+            # Ditambahkan opsi --keep-until-expiring untuk mencegah rate limit Let's Encrypt
             sudo certbot --nginx -d $domain_name --non-interactive --agree-tos -m $ssl_email --redirect --keep-until-expiring
 
             echo -e "\n${C_GREEN}✅ Berhasil! Website Digital Tendo Store Anda sekarang bisa diakses dan sudah diamankan di: https://$domain_name ${C_RST}"
