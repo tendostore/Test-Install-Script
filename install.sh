@@ -329,7 +329,7 @@ EOF
         
         .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;}
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
+        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: margin-top: 10px;}
         .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
 
         /* PROFILE & MODAL */
@@ -1889,6 +1889,22 @@ const saveJSON = (file, data) => crypt.save(file, data);
 const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
 
 // ==============================================================
+// FITUR BARU: NOTIFIKASI TELEGRAM ADMIN
+// ==============================================================
+function sendTelegramAdmin(message) {
+    try {
+        let cfg = loadJSON(configFile);
+        if (cfg.teleToken && cfg.teleChatId) {
+            axios.post(`https://api.telegram.org/bot${cfg.teleToken}/sendMessage`, {
+                chat_id: cfg.teleChatId,
+                text: message,
+                parse_mode: 'Markdown'
+            }).catch(e => {});
+        }
+    } catch(e) {}
+}
+
+// ==============================================================
 // PERBAIKAN: FUNGSI KONVERSI QRIS SMART PARSER (ANTI GAGAL/DANA)
 // ==============================================================
 function convertToDynamicQris(staticQris, amount) {
@@ -2326,6 +2342,12 @@ app.post('/api/order', async (req, res) => {
 
         res.json({success: true, saldo: db[targetKey].saldo});
 
+        // ===============================================
+        // NOTIFIKASI TELEGRAM: TRANSAKSI MASUK
+        // ===============================================
+        let teleMsg = `🔔 *PESANAN BARU MASUK*\n\n👤 Akun: ${db[targetKey].username || targetKey}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: *${statusOrder}*\n💰 Harga: Rp ${p.harga.toLocaleString('id-ID')}`;
+        sendTelegramAdmin(teleMsg);
+
         setTimeout(() => {
             try {
                 if (globalSock) {
@@ -2495,6 +2517,12 @@ async function startBot() {
                         gStats[dateKey] = (gStats[dateKey] || 0) + 1;
                         saveJSON(globalStatsFile, gStats);
                         
+                        // ===============================================
+                        // NOTIFIKASI TELEGRAM: TRANSAKSI SUKSES
+                        // ===============================================
+                        let teleSuccess = `✅ *PESANAN SUKSES*\n\n👤 Akun: ${db[senderNum]?.username || senderNum}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n🔑 SN: ${resData.sn || '-'}`;
+                        sendTelegramAdmin(teleSuccess);
+                        
                     } else {
                         // PERBAIKAN: Pengembalian saldo (refund) dan pencarian riwayat yang tepat
                         if (db[senderNum]) { 
@@ -2506,6 +2534,12 @@ async function startBot() {
                             saveJSON(dbFile, db); 
                         }
                         msg = `❌ *STATUS: GAGAL*\n\n📦 Produk: ${trx.nama}\nAlasan: ${resData.message}\n_💰 Saldo dikembalikan._`;
+                        
+                        // ===============================================
+                        // NOTIFIKASI TELEGRAM: TRANSAKSI GAGAL
+                        // ===============================================
+                        let teleFail = `❌ *PESANAN GAGAL*\n\n👤 Akun: ${db[senderNum]?.username || senderNum}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n📝 Alasan: ${resData.message}`;
+                        sendTelegramAdmin(teleFail);
                     }
                     delete trxs[ref]; saveJSON(trxFile, trxs);
                     sock.sendMessage(trx.jid, { text: msg }).catch(e => {}); 
