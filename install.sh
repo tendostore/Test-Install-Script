@@ -1237,6 +1237,7 @@ EOF
         function showDashboard() { 
             showScreen('dashboard-screen', 'nav-home'); 
             syncUserData(); 
+            fetchAllProducts(); // Auto-refresh data di background
         }
         
         function showHistory(filter = 'Order') { 
@@ -1698,12 +1699,14 @@ EOF
         async function fetchAllProducts() {
             try {
                 let data = await apiCall('/api/produk');
-                if(data) allProducts = data;
+                if(data) {
+                    allProducts = data;
+                }
             } catch(e){}
         }
 
         // ==========================================
-        // KATEGORI DINAMIS (TANPA HARDCODE BRAND)
+        // KATEGORI DINAMIS BERDASARKAN SYSTEM STRICT-MATCH
         // ==========================================
         async function loadCategory(cat) {
             currentCategory = cat; 
@@ -1716,7 +1719,7 @@ EOF
             document.getElementById('brand-cat-title').innerText = cat;
             
             let brands = [];
-            // Ambil brand murni dari list produk sesuai kategori tanpa hardcode
+            // Ambil brand murni dari list produk sesuai kategori
             for(let key in allProducts) {
                 if(allProducts[key].kategori !== cat) continue;
                 let b = allProducts[key].brand || 'Lainnya';
@@ -1999,7 +2002,7 @@ configAwal.gopayToken = configAwal.gopayToken || "";
 configAwal.gopayMerchantId = configAwal.gopayMerchantId || "";
 configAwal.qrisUrl = configAwal.qrisUrl || "https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg";
 configAwal.qrisText = configAwal.qrisText || "";
-configAwal.margin = configAwal.margin || { t1:100, t2:250, t3:500, t4:1000, t5:1500, t6:2000, t7:3000 };
+configAwal.margin = configAwal.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
 saveJSON(configFile, configAwal);
 
 loadJSON(dbFile); loadJSON(produkFile); loadJSON(trxFile); loadJSON(globalStatsFile); loadJSON(topupFile); loadJSON(notifFile);
@@ -2232,7 +2235,6 @@ app.post('/api/topup', async (req, res) => {
 
         res.json({success: true});
 
-        // NOTIFIKASI TELEGRAM: TOPUP PENDING
         let teleMsg = `⏳ *TOPUP PENDING (QRIS)*\n\n👤 Akun: ${db[phone].username || phone}\n📱 WA: ${phone}\n💰 Tagihan: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n\n_Menunggu pelanggan melakukan pembayaran..._`;
         sendTelegramAdmin(teleMsg);
 
@@ -2346,7 +2348,6 @@ async function startBot() {
                     if(db[req.phone]) {
                         let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
                         if(hist && hist.status === 'Pending') { hist.status = 'Gagal'; changedDb = true; }
-                        // NOTIF TELEGRAM GAGAL KEDALUWARSA
                         let teleMsg = `❌ *TOPUP KEDALUWARSA*\n\n👤 Akun: ${db[req.phone].username || req.phone}\n💰 Tagihan: Rp ${req.amount_to_pay.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}\n\n_Pelanggan tidak membayar tepat waktu._`;
                         sendTelegramAdmin(teleMsg);
                     }
@@ -2362,7 +2363,6 @@ async function startBot() {
                             if(hist && hist.status === 'Pending') hist.status = 'Sukses';
                             changedDb = true;
                             
-                            // NOTIF TELEGRAM SUKSES
                             let teleMsg = `✅ *TOPUP QRIS SUKSES MASUK*\n\n👤 Akun: ${db[req.phone].username || req.phone}\n📱 WA: ${req.phone}\n💰 Saldo Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}`;
                             sendTelegramAdmin(teleMsg);
 
@@ -2379,7 +2379,6 @@ async function startBot() {
         } catch(e) {}
     }, 30000); 
 
-    // INTERVAL PENGHAPUSAN RIWAYAT LAMA (Lebih 30 Hari) 
     setInterval(() => {
         try {
             let db = loadJSON(dbFile); let changed = false; let oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
@@ -2494,8 +2493,8 @@ async function tarikDataLayananOtomatis() {
 
         if (balasan.data && balasan.data.data) {
             let daftarPusat = balasan.data.data;
-            let daftarLokal = {}; // Rebuild database agar benar-benar fresh dan membuang produk yg sudah mati
-            let m = config.margin || { t1:100, t2:250, t3:500, t4:1000, t5:1500, t6:2000, t7:3000 };
+            let daftarLokal = {};
+            let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
             
             daftarPusat.forEach(item => {
                 // Jangan masukkan produk yang statusnya gangguan/tutup
@@ -2505,34 +2504,40 @@ async function tarikDataLayananOtomatis() {
                 let namaBarang = item.product_name;
                 let hargaModal = item.price;
                 
-                // MENGGOLONGKAN KATEGORI OTOMATIS BERDASARKAN KATA KUNCI DIGIFLAZZ
+                // MENGGOLONGKAN KATEGORI STRICT-MATCH DIGIFLAZZ
+                let catDigi = (item.category || '').trim();
+                let catLower = catDigi.toLowerCase();
                 let kategoriBarang = 'Lainnya';
-                let catDigi = (item.category || '').toLowerCase();
-                let namaKecil = namaBarang.toLowerCase();
                 
-                if (catDigi.includes('pulsa') || namaKecil.includes('pulsa') || namaKecil.includes('promo')) kategoriBarang = 'Pulsa';
-                else if (catDigi.includes('data') || namaKecil.includes('data') || namaKecil.includes('kuota') || namaKecil.includes('internet')) kategoriBarang = 'Data';
-                else if (catDigi.includes('games') || catDigi.includes('diamond') || namaKecil.includes('game') || namaKecil.includes('diamond') || namaKecil.includes('uc') || namaKecil.includes('ff')) kategoriBarang = 'Game';
-                else if (catDigi.includes('e-money') || catDigi.includes('saldo') || namaKecil.includes('saldo') || namaKecil.includes('pay') || namaKecil.includes('dana') || namaKecil.includes('ovo') || namaKecil.includes('linkaja')) kategoriBarang = 'E-Money';
-                else if (catDigi.includes('pln') || catDigi.includes('token') || namaKecil.includes('pln') || namaKecil.includes('token')) kategoriBarang = 'PLN';
-                else if (catDigi.includes('voucher') || namaKecil.includes('voucher')) kategoriBarang = 'Voucher';
-                else if (catDigi.includes('sms') || catDigi.includes('telepon') || namaKecil.includes('sms') || namaKecil.includes('telp')) kategoriBarang = 'Paket SMS & Telpon';
-                else if (catDigi.includes('masa aktif') || namaKecil.includes('masa aktif')) kategoriBarang = 'Masa Aktif';
-                else if (catDigi.includes('perdana') || namaKecil.includes('perdana') || namaKecil.includes('kpk')) kategoriBarang = 'Aktivasi Perdana';
-                else kategoriBarang = item.category || 'Lainnya';
+                if (catLower === 'pulsa') kategoriBarang = 'Pulsa';
+                else if (catLower === 'data') kategoriBarang = 'Data';
+                else if (catLower === 'e-money') kategoriBarang = 'E-Money';
+                else if (catLower === 'games') kategoriBarang = 'Game';
+                else if (catLower === 'pln') kategoriBarang = 'PLN';
+                else if (catLower === 'voucher') kategoriBarang = 'Voucher';
+                else if (catLower === 'paket sms & telpon') kategoriBarang = 'Paket SMS & Telpon';
+                else if (catLower === 'masa aktif') kategoriBarang = 'Masa Aktif';
+                else if (catLower === 'aktivasi perdana' || catLower === 'perdana') kategoriBarang = 'Aktivasi Perdana';
+                else kategoriBarang = catDigi; // Fallback jika digiflazz menambah kategori baru
                 
                 let merekBarang = item.brand || 'Lainnya';
                 let subKategori = item.type || 'Umum';
 
-                // PERHITUNGAN KEUNTUNGAN FLEKSIBEL
+                // PERHITUNGAN KEUNTUNGAN 13 TINGKAT
                 let keuntungan = 0;
-                if(hargaModal <= 1000) keuntungan = m.t1;
-                else if(hargaModal <= 10000) keuntungan = m.t2;
-                else if(hargaModal <= 50000) keuntungan = m.t3;
-                else if(hargaModal <= 100000) keuntungan = m.t4;
-                else if(hargaModal <= 500000) keuntungan = m.t5;
-                else if(hargaModal <= 1000000) keuntungan = m.t6;
-                else keuntungan = m.t7;
+                if(hargaModal <= 100) keuntungan = m.t1;
+                else if(hargaModal <= 500) keuntungan = m.t2;
+                else if(hargaModal <= 1000) keuntungan = m.t3;
+                else if(hargaModal <= 2000) keuntungan = m.t4;
+                else if(hargaModal <= 3000) keuntungan = m.t5;
+                else if(hargaModal <= 4000) keuntungan = m.t6;
+                else if(hargaModal <= 5000) keuntungan = m.t7;
+                else if(hargaModal <= 10000) keuntungan = m.t8;
+                else if(hargaModal <= 25000) keuntungan = m.t9;
+                else if(hargaModal <= 50000) keuntungan = m.t10;
+                else if(hargaModal <= 75000) keuntungan = m.t11;
+                else if(hargaModal <= 100000) keuntungan = m.t12;
+                else keuntungan = m.t13;
 
                 daftarLokal[kodeBarang] = {
                     nama: namaBarang,
@@ -2853,23 +2858,28 @@ menu_member() {
 }
 
 # ==========================================
-# 9. MANAJEMEN KEUNTUNGAN FLEKSIBEL
+# 9. MANAJEMEN KEUNTUNGAN FLEKSIBEL (13 TINGKAT)
 # ==========================================
 menu_keuntungan() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     echo -e "${C_YELLOW}${C_BOLD}             💰 MANAJEMEN KEUNTUNGAN 💰             ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_MAG}Silakan masukkan nominal untung yang ingin diambil (dalam Rupiah)."
-    echo -e "Ini akan ditambahkan otomatis ke harga asli (modal) dari Digiflazz.${C_RST}\n"
+    echo -e "${C_MAG}Masukkan nominal keuntungan (Rp) untuk masing-masing rentang harga.${C_RST}\n"
 
-    read -p "1. Keuntungan untuk modal 0 - 1.000          (Rp): " m_1
-    read -p "2. Keuntungan untuk modal 1.001 - 10.000     (Rp): " m_2
-    read -p "3. Keuntungan untuk modal 10.001 - 50.000    (Rp): " m_3
-    read -p "4. Keuntungan untuk modal 50.001 - 100.000   (Rp): " m_4
-    read -p "5. Keuntungan untuk modal 100.001 - 500.000  (Rp): " m_5
-    read -p "6. Keuntungan untuk modal 500.001 - 1.000.000(Rp): " m_6
-    read -p "7. Keuntungan untuk modal di atas 1.000.000  (Rp): " m_7
+    read -p "1. Modal Rp 0 - 100               : Rp " m_1
+    read -p "2. Modal Rp 100 - 500             : Rp " m_2
+    read -p "3. Modal Rp 500 - 1.000           : Rp " m_3
+    read -p "4. Modal Rp 1.000 - 2.000         : Rp " m_4
+    read -p "5. Modal Rp 2.000 - 3.000         : Rp " m_5
+    read -p "6. Modal Rp 3.000 - 4.000         : Rp " m_6
+    read -p "7. Modal Rp 4.000 - 5.000         : Rp " m_7
+    read -p "8. Modal Rp 5.000 - 10.000        : Rp " m_8
+    read -p "9. Modal Rp 10.000 - 25.000       : Rp " m_9
+    read -p "10. Modal Rp 25.000 - 50.000      : Rp " m_10
+    read -p "11. Modal Rp 50.000 - 75.000      : Rp " m_11
+    read -p "12. Modal Rp 75.000 - 100.000     : Rp " m_12
+    read -p "13. Modal Rp 100.000 - Seterusnya : Rp " m_13
 
     node -e "
         const crypt = require('./tendo_crypt.js');
@@ -2881,12 +2891,20 @@ menu_keuntungan() {
             t4: parseInt('$m_4') || 0,
             t5: parseInt('$m_5') || 0,
             t6: parseInt('$m_6') || 0,
-            t7: parseInt('$m_7') || 0
+            t7: parseInt('$m_7') || 0,
+            t8: parseInt('$m_8') || 0,
+            t9: parseInt('$m_9') || 0,
+            t10: parseInt('$m_10') || 0,
+            t11: parseInt('$m_11') || 0,
+            t12: parseInt('$m_12') || 0,
+            t13: parseInt('$m_13') || 0
         };
         crypt.save('config.json', config);
-        console.log('\x1b[32m\n✅ Konfigurasi Manajemen Keuntungan Berhasil Disimpan!\x1b[0m');
+        console.log('\x1b[32m\n✅ Konfigurasi 13 Tingkat Keuntungan Berhasil Disimpan!\x1b[0m');
     "
-    echo -e "\n${C_YELLOW}💡 Tips: Jangan lupa jalankan menu 'Sinkronisasi Digiflazz' agar harga produk terupdate dengan margin baru ini!${C_RST}"
+    echo -e "\n${C_YELLOW}💡 Menjalankan sinkronisasi otomatis agar harga langsung terupdate...${C_RST}"
+    curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
+    echo -e "${C_GREEN}✅ Harga telah di-refresh dan siap digunakan di Website!${C_RST}"
     read -p "Tekan Enter untuk kembali..."
 }
 
@@ -2906,7 +2924,7 @@ menu_sinkron() {
     
     curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
     
-    echo -e "\n${C_GREEN}✅ Sinkronisasi Selesai! Produk Website sudah terupdate.${C_RST}"
+    echo -e "\n${C_GREEN}✅ Sinkronisasi Selesai! Katalog Website dan Harga sudah terupdate secara realtime.${C_RST}"
     read -p "Tekan Enter untuk kembali..."
 }
 
@@ -2927,8 +2945,8 @@ while true; do
     echo ""
     echo -e "${C_MAG}▶ MANAJEMEN TOKO & SISTEM${C_RST}"
     echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo Member"
-    echo -e "  ${C_GREEN}[7]${C_RST}  💰 Manajemen Keuntungan Harga (0 - 1 Juta+)"
-    echo -e "  ${C_GREEN}[8]${C_RST}  🔄 Sinkronisasi Produk Digiflazz (Otomatis & Manual)"
+    echo -e "  ${C_GREEN}[7]${C_RST}  💰 Manajemen Keuntungan Harga (13 Tingkat)"
+    echo -e "  ${C_GREEN}[8]${C_RST}  🔄 Sinkronisasi Produk Digiflazz (Perbarui Katalog)"
     echo -e "  ${C_GREEN}[9]${C_RST}  ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
     echo -e "  ${C_GREEN}[10]${C_RST} 💾 Backup & Restore Database"
     echo -e "  ${C_GREEN}[11]${C_RST} 🔌 Ganti API Digiflazz"
