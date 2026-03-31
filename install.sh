@@ -23,7 +23,6 @@ sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT > /dev/null 2>&1 || true
 # ==========================================
 # 1. BIKIN SHORTCUT 'BOT' DI VPS
 # ==========================================
-# Membersihkan script startup lama jika ada
 sed -i '/# Auto-start bot panel/d' ~/.bashrc
 sed -i '/if \[ -t 1 \] && \[ -x \/usr\/bin\/menu \]; then/d' ~/.bashrc
 sed -i '/\/usr\/bin\/bot/d' ~/.bashrc
@@ -39,7 +38,6 @@ if [ ! -f "/usr/bin/menu" ]; then
     sudo chmod +x /usr/bin/menu
 fi
 
-# Fitur Auto-Start Panel saat buka VPS
 if ! grep -q "/usr/bin/menu" ~/.bashrc; then
     echo '# Auto-start bot panel' >> ~/.bashrc
     echo 'if [ -t 1 ] && [ -x /usr/bin/menu ] && [ -z "$TMUX" ]; then /usr/bin/menu; fi' >> ~/.bashrc
@@ -117,24 +115,18 @@ generate_web_app() {
 EOF
 
     cat << 'EOF' > public/sw.js
-const CACHE_NAME = 'tendo-v5';
-self.addEventListener('install', (e) => { 
-    self.skipWaiting(); 
-});
+const CACHE_NAME = 'tendo-v7';
+self.addEventListener('install', (e) => { self.skipWaiting(); });
 self.addEventListener('activate', (e) => { 
     e.waitUntil(caches.keys().then((keyList) => {
         return Promise.all(keyList.map((key) => {
-            if (key !== CACHE_NAME) {
-                return caches.delete(key);
-            }
+            if (key !== CACHE_NAME) return caches.delete(key);
         }));
     }));
     self.clients.claim(); 
 });
 self.addEventListener('fetch', (e) => { 
-    e.respondWith(
-        fetch(e.request).catch(() => caches.match(e.request))
-    );
+    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });
 EOF
 
@@ -153,163 +145,146 @@ EOF
     <style>
         /* VARIABEL TEMA GELAP / TERANG */
         :root {
-            --bg-main: #e9eef5; 
-            --bg-card: #f4f7f9; 
-            --text-main: #0b2136;
+            --bg-main: #f0f4f8; 
+            --bg-card: #ffffff; 
+            --text-main: #0f172a;
             --text-muted: #64748b;
-            --border-color: #d1d9e2;
+            --border-color: #e2e8f0;
             --grid-bg: #ffffff;
-            --grid-shadow: 0 4px 12px rgba(0,0,0,0.03); 
-            --grid-border: 1px solid var(--border-color);
-            --nav-bg: #0f172a;
-            --nav-text: #64748b;
-            --nav-active: #38bdf8;
-            --topbar-bg: #f4f7f9;
-            --toast-bg: #0f172a;
+            --nav-bg: #ffffff;
+            --nav-text: #94a3b8;
+            --nav-active: #2563eb;
+            --topbar-bg: #f0f4f8;
+            --toast-bg: #1e293b;
             --toast-text: #f8fafc;
         }
 
         .dark-mode {
-            --bg-main: #0f172a;
-            --bg-card: #1e293b;
+            --bg-main: #0b1121;
+            --bg-card: #151e32;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
-            --border-color: #334155;
-            --grid-bg: #1e293b;
-            --grid-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            --grid-border: 1px solid #334155;
-            --nav-bg: #0b1120;
+            --border-color: #2a364d;
+            --grid-bg: #151e32;
+            --nav-bg: #0f172a;
             --nav-text: #475569;
             --nav-active: #38bdf8;
-            --topbar-bg: #1e293b;
+            --topbar-bg: #0b1121;
             --toast-bg: #334155;
             --toast-text: #f8fafc;
         }
 
         /* TEMA PREMIUM CSS */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #0f172a; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #0b1121; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
         #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 140px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
         
         /* TOP BAR */
         .top-bar { background: var(--topbar-bg); color: var(--text-main); padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: background 0.3s;}
-        .menu-btn { cursor: pointer; background: none; border: none; padding: 0; margin-right: 15px; display: flex; align-items: center; justify-content: center; z-index: 2;}
-        .menu-btn svg { width: 28px; height: 28px; stroke: var(--text-main); fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
+        .menu-btn { cursor: pointer; background: none; border: none; padding: 0; margin-right: 15px; display: flex; align-items: center; justify-content: center; z-index: 2; color: var(--text-main);}
+        .menu-btn svg { width: 28px; height: 28px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
         
         .brand-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 16px; font-weight: 900; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-main); width: 60%; white-space: nowrap;}
         
         /* TRX BADGE */
-        .trx-badge { font-size: 11px; background: var(--bg-main); color: var(--text-main); padding: 5px 12px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.2s; z-index: 2;}
+        .trx-badge { font-size: 11px; background: var(--bg-card); color: var(--nav-active); padding: 6px 12px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.2s; z-index: 2; box-shadow: 0 2px 5px rgba(0,0,0,0.05);}
         .trx-badge:active { transform: scale(0.95); }
 
         /* DEGRADASI LENGKUNGAN KONTENER BANNER */
         .banner-container { 
             background: var(--topbar-bg); 
             padding: 5px 20px 25px; 
-            border-bottom-left-radius: 30px; 
-            border-bottom-right-radius: 30px; 
-            box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.08);
+            border-bottom-left-radius: 35px; 
+            border-bottom-right-radius: 35px; 
+            box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.05);
             position: relative;
             z-index: 10;
             transition: background 0.3s;
         }
 
-        /* CUSTOM UI BANNER SALDO SEPERTI GAMBAR */
+        /* CUSTOM UI BANNER SALDO SUPER MODERN (BIRU GLASS) */
         .saldo-card-modern {
-            background: #0f172a;
-            border-radius: 16px;
-            padding: 16px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-            border: 1px solid rgba(255,255,255,0.05);
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            border-radius: 22px;
+            padding: 22px 20px;
+            color: #ffffff;
+            box-shadow: 0 12px 30px rgba(59, 130, 246, 0.35);
             position: relative;
+            overflow: hidden;
             z-index: 2;
+            border: 1px solid rgba(255,255,255,0.15);
         }
-        .sc-left { display: flex; align-items: center; gap: 14px; }
-        .sc-icon { 
-            width: 44px; height: 44px; background: rgba(56, 189, 248, 0.15); 
-            border-radius: 12px; display: flex; justify-content: center; align-items: center; color: #38bdf8; 
+        /* Efek cahaya di dalam kartu */
+        .saldo-card-modern::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 60%);
+            transform: rotate(30deg); pointer-events: none;
         }
-        .sc-info { display: flex; flex-direction: column; gap: 4px; justify-content: center;}
-        .sc-title { font-size: 12px; color: #94a3b8; font-weight: 600; display: flex; align-items: center; gap: 8px; margin-top: 2px;}
-        .sc-eye { width: 15px; height: 15px; cursor: pointer; stroke: #94a3b8; transition: stroke 0.2s;}
-        .sc-eye:active { stroke: #ffffff; }
-        .sc-amount { font-size: 16px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; margin-top: 2px;}
-        .sc-btn-topup { 
-            background: #f97316; color: #ffffff; border: none; 
-            padding: 9px 20px; border-radius: 25px; font-weight: 800; font-size: 13px; cursor: pointer;
-            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.25); transition: transform 0.2s, background 0.2s;
+
+        .sc-header { display: flex; flex-direction: column; gap: 5px; position: relative; z-index: 2;}
+        .sc-title { font-size: 12px; font-weight: 600; opacity: 0.9; display: flex; align-items: center; gap: 6px; letter-spacing: 0.5px;}
+        .sc-amount { font-size: 34px; font-weight: 900; letter-spacing: -0.5px;}
+
+        /* TOMBOL 3 SEJAJAR */
+        .sc-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; position: relative; z-index: 2; }
+        .sc-btn {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+            padding: 12px 5px; border-radius: 16px; font-size: 11px; font-weight: 800; cursor: pointer;
+            border: none; transition: transform 0.2s, background 0.2s;
         }
-        .sc-btn-topup:active { transform: scale(0.95); background: #ea580c; }
+        .sc-btn:active { transform: scale(0.94); }
+        .sc-btn svg { width: 22px; height: 22px; }
         
-        .action-buttons { display: flex; justify-content: center; gap: 10px; margin-top: 15px; position: relative; z-index: 2; }
-        .btn-history-dash, .btn-help-dash { 
-            background: transparent; color: var(--text-main); border: 1px solid var(--border-color); 
-            padding: 8px 12px; border-radius: 25px; font-weight: 800; font-size: 10px; 
-            cursor: pointer; display: flex; align-items: center; justify-content: center; flex: 1; max-width: 140px;
-            transition: background 0.2s, color 0.2s; text-transform: uppercase; letter-spacing: 0.5px;
-        }
-        .btn-history-dash:active, .btn-help-dash:active { background: var(--bg-main); transform: scale(0.98); }
+        .sc-btn-primary { background: #ffffff; color: #1e3a8a; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .sc-btn-secondary { background: rgba(255,255,255,0.2); color: #ffffff; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.3); }
 
         /* SLIDER BANNER */
-        .banner-slider-container { margin: 20px 20px 0px; border-radius: 16px; overflow: hidden; position: relative; background: var(--bg-card); box-shadow: 0 4px 10px rgba(0,0,0,0.03);}
+        .banner-slider-container { margin: 25px 20px 0px; border-radius: 18px; overflow: hidden; position: relative; background: var(--bg-card); box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid var(--border-color);}
         .banner-slider { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         .banner-slider::-webkit-scrollbar { display: none; }
         .banner-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; justify-content: center; align-items: center; }
         .banner-slide img { width: 100%; height: auto; object-fit: cover; aspect-ratio: 21/9; display: block;}
 
-        /* GRID MENU (DIPERBARUI IKON & HIGHLIGHT) */
+        /* GRID MENU ICON MODERN */
         .grid-title { margin: 25px 20px 15px; font-weight: 900; color: var(--text-main); font-size: 15px;}
-        .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 0 20px;}
+        .grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px 10px; padding: 0 20px;}
         .grid-box { 
-            background: var(--grid-bg); border-radius: 18px; padding: 18px 5px; 
             text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-            box-shadow: var(--grid-shadow); border: var(--grid-border);
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s;
         }
-        .grid-box:active { transform: scale(0.95); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .grid-box:active { transform: scale(0.92); opacity: 0.8; }
         
+        /* Gradient Icons iOS Style */
         .grid-icon-wrap { 
-            width: 50px; height: 50px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center; 
-            border-radius: 14px; transition: background 0.3s;
+            width: 55px; height: 55px; margin-bottom: 8px; display: flex; justify-content: center; align-items: center; 
+            border-radius: 16px; color: #ffffff; box-shadow: 0 6px 14px rgba(0,0,0,0.1);
         }
-        /* Highlight warna background untuk setiap icon */
-        .ic-pulsa { background: rgba(56, 189, 248, 0.15); color: #0284c7; }
-        .ic-data { background: rgba(52, 211, 153, 0.15); color: #059669; }
-        .ic-game { background: rgba(248, 113, 113, 0.15); color: #dc2626; }
-        .ic-voucher { background: rgba(250, 204, 21, 0.15); color: #ca8a04; }
-        .ic-ewallet { background: rgba(167, 139, 250, 0.15); color: #7c3aed; }
-        .ic-pln { background: rgba(251, 191, 36, 0.15); color: #d97706; }
-        .ic-sms { background: rgba(244, 114, 182, 0.15); color: #db2777; }
-        .ic-masa { background: rgba(251, 146, 60, 0.15); color: #ea580c; }
-        .ic-perdana { background: rgba(45, 212, 191, 0.15); color: #0d9488; }
+        .ic-pulsa { background: linear-gradient(135deg, #38bdf8, #0284c7); }
+        .ic-data { background: linear-gradient(135deg, #34d399, #059669); }
+        .ic-game { background: linear-gradient(135deg, #f87171, #dc2626); }
+        .ic-voucher { background: linear-gradient(135deg, #facc15, #ca8a04); }
+        .ic-ewallet { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
+        .ic-pln { background: linear-gradient(135deg, #fbbf24, #d97706); }
+        .ic-sms { background: linear-gradient(135deg, #f472b6, #db2777); }
+        .ic-masa { background: linear-gradient(135deg, #fb923c, #ea580c); }
+        .ic-perdana { background: linear-gradient(135deg, #2dd4bf, #0d9488); }
         
-        .dark-mode .ic-pulsa { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
-        .dark-mode .ic-data { background: rgba(52, 211, 153, 0.2); color: #34d399; }
-        .dark-mode .ic-game { background: rgba(248, 113, 113, 0.2); color: #f87171; }
-        .dark-mode .ic-voucher { background: rgba(250, 204, 21, 0.2); color: #facc15; }
-        .dark-mode .ic-ewallet { background: rgba(167, 139, 250, 0.2); color: #a78bfa; }
-        .dark-mode .ic-pln { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
-        .dark-mode .ic-sms { background: rgba(244, 114, 182, 0.2); color: #f472b6; }
-        .dark-mode .ic-masa { background: rgba(251, 146, 60, 0.2); color: #fb923c; }
-        .dark-mode .ic-perdana { background: rgba(45, 212, 191, 0.2); color: #2dd4bf; }
+        .dark-mode .grid-icon-wrap { box-shadow: 0 6px 14px rgba(0,0,0,0.4); }
 
-        .grid-text { font-size: 10.5px; color: var(--text-main); font-weight: 800; line-height: 1.3; text-transform: uppercase; letter-spacing: -0.2px;}
+        .grid-text { font-size: 10px; color: var(--text-main); font-weight: 800; line-height: 1.3; text-transform: uppercase; letter-spacing: -0.2px;}
 
         /* STATISTIK GLOBAL */
-        .stats-container { margin: 25px 20px; padding: 15px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02);}
-        .stats-title { font-size: 14px; font-weight: 900; color: var(--text-main); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;}
+        .stats-container { margin: 25px 20px; padding: 18px; background: var(--bg-card); border-radius: 20px; border: 1px solid var(--border-color); text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.03);}
+        .stats-title { font-size: 13px; font-weight: 900; color: var(--text-main); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;}
         .stats-grid { display: flex; justify-content: space-between; gap: 10px;}
-        .stat-box { flex: 1; padding: 10px 5px; background: var(--bg-main); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--grid-shadow);}
-        .stat-val { font-size: 18px; font-weight: 900; color: #0ea5e9; margin-bottom: 5px;}
+        .stat-box { flex: 1; padding: 12px 5px; background: var(--bg-main); border-radius: 14px; border: 1px solid var(--border-color);}
+        .stat-val { font-size: 18px; font-weight: 900; color: var(--nav-active); margin-bottom: 5px;}
         .stat-lbl { font-size: 9px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;}
 
         /* BRAND LIST */
         .brand-list { display: flex; flex-direction: column; padding: 15px 20px; gap: 12px; }
-        .brand-row { background: var(--bg-card); padding: 15px; border-radius: 14px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s; color: var(--text-main);}
-        .brand-row:active { transform: scale(0.98); }
-        .b-logo { width: 45px; height: 45px; background: var(--bg-main); color: var(--text-main); border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border-color); flex-shrink: 0; text-transform: uppercase;}
+        .brand-row { background: var(--bg-card); padding: 15px; border-radius: 16px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s; color: var(--text-main);}
+        .brand-row:active { transform: scale(0.96); }
+        .b-logo { width: 48px; height: 48px; background: var(--bg-main); color: var(--nav-active); border-radius: 14px; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; flex-shrink: 0;}
         .b-name { font-size: 14px; font-weight: 800; flex: 1;}
 
         /* BOTTOM NAV MENGAMBANG */
@@ -323,31 +298,32 @@ EOF
             background: var(--nav-bg); 
             display: flex; 
             justify-content: space-around; 
-            padding: 10px 5px; 
+            padding: 12px 5px; 
             border-radius: 50px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.25); 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15); 
             z-index: 900; 
             transition: background 0.3s;
-            border: 1px solid rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
         }
         .nav-item { text-align: center; color: var(--nav-text); font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700; transition: color 0.3s;}
         .nav-icon { margin-bottom: 2px; display: flex; justify-content: center; align-items: center;}
-        .nav-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
+        .nav-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
         .nav-item.active { color: var(--nav-active);}
 
         /* PRODUCT LIST STYLE */
-        .product-item { background: var(--bg-card); padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); cursor: pointer; transition: 0.2s;}
-        .product-item:active { transform: scale(0.98); }
-        .prod-logo { width: 45px; height: 45px; background: var(--bg-main); color: var(--text-main); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 14px; border: 1px solid var(--border-color); flex-shrink: 0; text-transform: uppercase;}
+        .product-item { background: var(--bg-card); padding: 15px; border-radius: 16px; margin: 12px 20px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s;}
+        .product-item:active { transform: scale(0.96); }
+        .prod-logo { width: 48px; height: 48px; background: var(--bg-main); color: var(--nav-active); border-radius: 14px; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 14px; flex-shrink: 0;}
         .prod-info { flex: 1; min-width: 0; }
-        .prod-name { font-weight: 800; font-size: 13px; color: var(--text-main); margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; word-wrap: break-word;}
-        .badge-open { background: #e0f2fe; color: #0284c7; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800; border: 1px solid #bae6fd; flex-shrink: 0; margin-left: 8px;}
-        .prod-desc { font-size: 10px; color: var(--text-muted); font-weight: 600; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;}
-        .prod-price { color: var(--text-main); font-weight: 900; font-size: 15px;}
+        .prod-name { font-weight: 800; font-size: 13px; color: var(--text-main); margin-bottom: 5px; display: flex; align-items: center; justify-content: space-between; word-wrap: break-word; line-height: 1.4;}
+        .badge-open { background: rgba(14, 165, 233, 0.1); color: #0ea5e9; font-size: 9px; padding: 3px 8px; border-radius: 6px; font-weight: 900; flex-shrink: 0; margin-left: 8px;}
+        .badge-gangguan { background: #fee2e2; color: #b91c1c; font-size: 9px; padding: 3px 8px; border-radius: 6px; font-weight: 900; flex-shrink: 0; margin-left: 8px; border: 1px solid #fca5a5;}
+        .prod-desc { font-size: 10px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; line-height: 1.4;}
+        .prod-price { color: var(--nav-active); font-weight: 900; font-size: 15px;}
 
         /* SEARCH BAR */
         .search-box { padding: 15px 20px 5px; position: sticky; top: 58px; z-index: 50; background: var(--bg-main); transition: background 0.3s; }
-        .search-box input { margin-bottom: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.02); border-radius: 12px; padding: 12px 15px; width: 100%; box-sizing: border-box; font-weight: bold;}
+        .search-box input { margin-bottom: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border-radius: 14px; padding: 14px 18px; width: 100%; box-sizing: border-box; font-weight: bold; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);}
 
         /* TABS RIWAYAT TRANSAKSI & TOPUP */
         .history-tabs { display: flex; background: var(--bg-card); border-bottom: 1px solid var(--border-color); position: sticky; top: 58px; z-index: 50; }
@@ -355,146 +331,78 @@ EOF
         .hist-tab.active { color: var(--nav-active); border-bottom-color: var(--nav-active); }
 
         /* SIDEBAR */
-        .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); z-index: 1001; display: none; opacity: 0; transition: opacity 0.3s;}
-        .sidebar { position: fixed; top:0; left:-300px; width: 280px; height: 100%; background: var(--bg-card); z-index: 1002; transition: left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 5px 0 15px rgba(0,0,0,0.3);}
+        .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(11,17,33,0.8); z-index: 1001; display: none; opacity: 0; transition: opacity 0.3s;}
+        .sidebar { position: fixed; top:0; left:-300px; width: 280px; height: 100%; background: var(--bg-card); z-index: 1002; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow-y: auto; display: flex; flex-direction: column; box-shadow: 5px 0 25px rgba(0,0,0,0.2);}
         .sidebar.open { left: 0; }
-        .sidebar-header { padding: 30px 20px; text-align: center; border-bottom: 1px solid var(--border-color); background: #0f172a; color: #ffffff;}
-        .sidebar-avatar { width: 70px; height: 70px; background: #ffffff; border-radius: 50%; margin: 0 auto 10px auto; display: flex; justify-content: center; align-items: center; color: #0b2136; font-size: 30px; font-weight: bold; text-transform: uppercase;}
-        .sidebar-name { font-weight: bold; font-size: 16px; color: #ffffff;}
-        .sidebar-phone { font-size: 12px; color: #cbd5e1;}
-        .sidebar-menu { padding: 10px 0; flex: 1;}
-        .sidebar-item { padding: 15px 20px; display: flex; align-items: center; color: var(--text-main); text-decoration: none; font-size: 14px; border-bottom: 1px solid var(--border-color); font-weight: 600; gap: 15px;}
-        .sidebar-item:active { background: var(--bg-main); }
-        .sidebar-item svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .sidebar-header { padding: 40px 20px; text-align: center; background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: #ffffff;}
+        .sidebar-avatar { width: 75px; height: 75px; background: #ffffff; border-radius: 50%; margin: 0 auto 12px auto; display: flex; justify-content: center; align-items: center; color: #1e3a8a; font-size: 32px; font-weight: 900; box-shadow: 0 8px 20px rgba(0,0,0,0.2);}
+        .sidebar-name { font-weight: 900; font-size: 16px; color: #ffffff; letter-spacing: 0.5px;}
+        .sidebar-phone { font-size: 12px; color: rgba(255,255,255,0.8); font-weight: 600;}
+        .sidebar-menu { padding: 15px 0; flex: 1;}
+        .sidebar-item { padding: 16px 24px; display: flex; align-items: center; color: var(--text-main); text-decoration: none; font-size: 14px; font-weight: 700; gap: 15px; border-left: 4px solid transparent;}
+        .sidebar-item:active { background: var(--bg-main); border-left-color: var(--nav-active);}
+        .sidebar-item svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 
         /* FORMS & COMPONENTS */
         .container { padding: 20px; }
-        .card { background: var(--bg-card); padding: 25px 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.02);}
-        input { width: 100%; padding: 15px; margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 12px; box-sizing: border-box; font-size: 14px; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 600; transition: border-color 0.2s;}
-        input:focus { border-color: #0284c7; background: var(--bg-card);}
+        .card { background: var(--bg-card); padding: 30px 20px; border-radius: 20px; margin-bottom: 20px; border: 1px solid var(--border-color); box-shadow: 0 8px 25px rgba(0,0,0,0.03);}
+        input { width: 100%; padding: 15px 18px; margin-bottom: 15px; border: 1px solid var(--border-color); border-radius: 14px; box-sizing: border-box; font-size: 14px; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 700; transition: border-color 0.2s, box-shadow 0.2s;}
+        input:focus { border-color: var(--nav-active); background: var(--bg-card); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);}
         
-        .checkbox-container { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 20px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer;}
-        .checkbox-container input { width: 16px; height: 16px; margin: 0; padding: 0; cursor: pointer;}
+        .checkbox-container { display: flex; align-items: center; justify-content: flex-start; gap: 10px; margin-bottom: 25px; font-size: 13px; font-weight: 700; color: var(--text-muted); cursor: pointer;}
+        .checkbox-container input { width: 18px; height: 18px; margin: 0; padding: 0; cursor: pointer; accent-color: var(--nav-active);}
         
-        .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;}
+        .btn { background: var(--nav-active); color: #ffffff; border: none; padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 900; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 6px 15px rgba(37, 99, 235, 0.3);}
+        .btn:active { transform: scale(0.96); box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2); }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
-        .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
+        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 2px solid var(--border-color); padding: 14px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 800; cursor: pointer; margin-top: 12px; transition: background 0.2s;}
+        .btn-outline:active { background: var(--bg-main); }
+        .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 900; cursor: pointer; margin-top: 12px; box-shadow: 0 6px 15px rgba(239, 68, 68, 0.3);}
 
-        /* PROFILE & MODAL */
-        .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
-        
-        .prof-avatar-wrap {
-            width: 86px; height: 86px;
-            background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
-            border-radius: 50%;
-            padding: 4px;
-            margin: 0 auto 15px auto;
-            box-shadow: 0 10px 25px rgba(14, 165, 233, 0.4);
-        }
-        .prof-avatar {
-            width: 100%; height: 100%;
-            background: #ffffff; color: #0f172a;
-            border-radius: 50%; font-size: 38px; display: flex; justify-content: center; align-items: center; font-weight: 900; text-transform: uppercase;
-        }
+        /* PROFILE SCREEN */
+        .prof-header { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: #ffffff; padding: 40px 20px; text-align: center; border-bottom-left-radius: 35px; border-bottom-right-radius: 35px; box-shadow: 0 10px 20px rgba(59, 130, 246, 0.15);}
+        .prof-avatar-wrap { width: 90px; height: 90px; background: rgba(255,255,255,0.2); border-radius: 50%; padding: 5px; margin: 0 auto 15px auto; backdrop-filter: blur(5px);}
+        .prof-avatar { width: 100%; height: 100%; background: #ffffff; color: #1e3a8a; border-radius: 50%; font-size: 40px; display: flex; justify-content: center; align-items: center; font-weight: 900; }
 
-        .prof-box { background: var(--bg-card); color: var(--text-main); margin: -20px 20px 20px; border-radius: 16px; padding: 20px; position: relative; z-index: 10; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.03);}
-        .prof-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed var(--border-color); font-size: 13px;}
-        .prof-label { color: var(--text-muted); font-weight: 600;}
+        .prof-box { background: var(--bg-card); color: var(--text-main); margin: -25px 20px 20px; border-radius: 20px; padding: 25px 20px; position: relative; z-index: 10; border: 1px solid var(--border-color); box-shadow: 0 8px 25px rgba(0,0,0,0.05);}
+        .prof-row { display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px dashed var(--border-color); font-size: 13px;}
+        .prof-row:last-child { border-bottom: none; padding-bottom: 0;}
+        .prof-label { color: var(--text-muted); font-weight: 700;}
         .prof-val { font-weight: 900; text-align: right;}
         
-        .prof-actions-container {
-            padding: 0 20px;
-            margin-bottom: 150px; 
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            position: relative;
-            z-index: 10;
-        }
-        
-        .prof-action-btn { 
-            background: var(--bg-main); 
-            color: var(--text-main); 
-            border: 1px solid var(--border-color); 
-            padding: 15px; 
-            width: 100%; 
-            border-radius: 12px; 
-            font-weight: bold; 
-            cursor: pointer; 
-            font-size: 13px; 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-            transition: transform 0.2s; 
-        }
-        .prof-action-btn:active { transform: scale(0.98); }
-        .prof-action-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
+        .prof-actions-container { padding: 0 20px; margin-bottom: 150px; display: flex; flex-direction: column; gap: 12px; position: relative; z-index: 10; }
+        .prof-action-btn { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 16px 20px; width: 100%; border-radius: 16px; font-weight: 800; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 12px; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
+        .prof-action-btn:active { transform: scale(0.96); box-shadow: 0 2px 5px rgba(0,0,0,0.01); }
+        .prof-action-btn svg { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
 
-        .hist-item { background: var(--bg-card); color: var(--text-main); padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer;}
-        .hist-item:active { transform: scale(0.98); }
-        .hist-top { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 5px; font-weight: 700;}
-        .hist-title { font-weight: 800; font-size: 14px; margin-bottom: 3px;}
-        .hist-target { font-size: 12px; font-weight: 600;}
-        .stat-badge { padding: 4px 10px; border-radius: 8px; font-weight: bold; font-size: 10px;}
+        .hist-item { background: var(--bg-card); color: var(--text-main); padding: 16px; border-radius: 16px; margin: 12px 20px; border: 1px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s;}
+        .hist-item:active { transform: scale(0.96); }
+        .hist-top { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 8px; font-weight: 800;}
+        .hist-title { font-weight: 900; font-size: 14px; margin-bottom: 4px;}
+        .hist-target { font-size: 12px; font-weight: 700; color: var(--text-muted);}
+        .stat-badge { padding: 4px 10px; border-radius: 8px; font-weight: 900; font-size: 10px; letter-spacing: 0.5px;}
         .stat-Sukses { background: #dcfce7; color: #166534; } 
         .stat-Pending { background: #ffedd5; color: #c2410c; } 
         .stat-Gagal { background: #fee2e2; color: #b91c1c; text-decoration: line-through; }
 
-        .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
-        .modal-box { background: var(--bg-card); color: var(--text-main); width: 100%; max-width: 340px; border-radius: 20px; padding: 25px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;}
-        .modal-btns { display: flex; gap: 10px; margin-top: 15px;}
+        .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(11,17,33,0.85); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px; backdrop-filter: blur(4px);}
+        .modal-box { background: var(--bg-card); color: var(--text-main); width: 100%; max-width: 360px; border-radius: 24px; padding: 30px 25px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto;}
+        .modal-btns { display: flex; gap: 12px; margin-top: 20px;}
         
-        .screen-header { padding: 15px 20px; font-weight: 800; font-size: 18px; display: flex; align-items: center; gap: 15px; background: var(--bg-card); color: var(--text-main); border-bottom: 1px solid var(--border-color); position: sticky; top:0; z-index: 10; transition: background 0.3s;}
+        .screen-header { padding: 18px 20px; font-weight: 900; font-size: 17px; display: flex; align-items: center; gap: 15px; background: var(--bg-card); color: var(--text-main); border-bottom: 1px solid var(--border-color); position: sticky; top:0; z-index: 10; transition: background 0.3s;}
         .hidden { display: none !important; }
-        .back-icon { cursor: pointer; fill: none; stroke: var(--text-main); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
-
-        /* PROVIDER TOAST FLOATING */
-        .provider-toast {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #0f172a;
-            color: #ffffff;
-            padding: 8px 18px;
-            border-radius: 30px;
-            font-size: 12px;
-            font-weight: 800;
-            z-index: 3000;
-            opacity: 0;
-            transition: opacity 0.3s, top 0.3s;
-            pointer-events: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .provider-toast.show {
-            opacity: 1;
-            top: 40px;
-        }
+        .back-icon { cursor: pointer; fill: none; stroke: var(--text-main); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.2s;}
+        .back-icon:active { transform: scale(0.8); }
 
         /* CUSTOM TOAST NOTIFICATION */
         .custom-toast {
-            position: fixed;
-            top: -100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--toast-bg);
-            color: var(--toast-text);
-            padding: 12px 24px;
-            border-radius: 30px;
-            font-size: 13px;
-            font-weight: 800;
-            z-index: 9999;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
+            background: var(--toast-bg); color: var(--toast-text);
+            padding: 14px 24px; border-radius: 30px; font-size: 13px; font-weight: 800;
+            z-index: 9999; box-shadow: 0 15px 30px rgba(0,0,0,0.3);
             transition: top 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-            text-align: center;
-            width: max-content;
-            max-width: 90%;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            border: 1px solid rgba(255,255,255,0.1);
+            text-align: center; width: max-content; max-width: 90%;
+            display: flex; align-items: center; gap: 10px; border: 1px solid rgba(255,255,255,0.1);
         }
         .custom-toast.show { top: 40px; }
         .custom-toast.error { background: #ef4444; color: #fff; }
@@ -502,83 +410,38 @@ EOF
 
         /* DESKTOP RESPONSIVENESS */
         @media screen and (min-width: 768px) {
-            body { 
-                padding: 30px 0; 
-                background-color: #0f172a; /* Outer space dark */
-            }
-            #app {
-                max-width: 800px;
-                border-radius: 36px;
-                min-height: calc(100vh - 60px);
-                box-shadow: 0 25px 60px rgba(0,0,0,0.15);
-                padding-bottom: 130px;
-            }
-            .top-bar {
-                border-top-left-radius: 36px;
-                border-top-right-radius: 36px;
-                padding: 20px 30px;
-            }
+            body { padding: 30px 0; background-color: #0b1121; }
+            #app { max-width: 800px; border-radius: 36px; min-height: calc(100vh - 60px); box-shadow: 0 25px 60px rgba(0,0,0,0.3); padding-bottom: 130px; }
+            .top-bar { border-top-left-radius: 36px; border-top-right-radius: 36px; padding: 25px 30px; }
             .banner-container { padding: 10px 30px 30px; }
-            
-            .bottom-nav {
-                max-width: 740px;
-                bottom: 50px;
-                padding: 15px 10px;
-                border-radius: 60px;
-            }
+            .bottom-nav { max-width: 740px; bottom: 50px; padding: 15px 10px; border-radius: 60px; }
             .nav-item .nav-icon svg { width: 26px; height: 26px; }
-            
-            .grid-container { 
-                grid-template-columns: repeat(4, 1fr); 
-                padding: 0 30px; 
-                gap: 20px; 
-            }
+            .grid-container { grid-template-columns: repeat(5, 1fr); padding: 0 30px; gap: 20px; }
             .stats-container { margin: 30px; }
             .banner-slider-container { margin: 20px 30px 0px; }
-            
-            #product-list, #brand-list, #history-list {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 20px;
-                padding: 10px 30px 30px !important;
-            }
+            #product-list, #brand-list, #history-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 10px 30px 30px !important; }
             .product-item, .brand-row, .hist-item { margin: 0 !important; }
-            
-            #notif-list {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 20px;
-                padding: 30px !important;
-            }
+            #notif-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 30px !important; }
             #notif-list .card { margin-bottom: 0 !important; }
-            
-            #login-screen .card, #register-screen .card, #otp-screen .card, #forgot-screen .card {
-                max-width: 450px;
-                margin: 0 auto;
-                padding: 40px;
-            }
+            #login-screen .card, #register-screen .card, #otp-screen .card, #forgot-screen .card { max-width: 450px; margin: 0 auto; padding: 40px; }
             .sidebar { width: 340px; }
         }
 
         @media screen and (min-width: 1024px) {
             #app { max-width: 1024px; }
             .bottom-nav { max-width: 964px; }
-            .grid-container { grid-template-columns: repeat(5, 1fr); }
-            #product-list, #brand-list, #history-list, #notif-list {
-                grid-template-columns: repeat(3, 1fr);
-            }
+            .grid-container { grid-template-columns: repeat(6, 1fr); }
+            #product-list, #brand-list, #history-list, #notif-list { grid-template-columns: repeat(3, 1fr); }
         }
     </style>
 </head>
 <body class="dark-mode"> <div id="app">
         <div id="initial-loader" style="display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; background: var(--bg-main); position: fixed; top:0; left:0; width:100%; z-index:9999; transition: opacity 0.3s;">
-            <div style="width: 50px; height: 50px; border: 4px solid var(--border-color); border-top-color: #0ea5e9; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
-            <div style="font-size:20px; font-weight:900; color:var(--text-main); letter-spacing: 1px;">DIGITAL TENDO</div>
-            <div style="font-size:12px; color:var(--text-muted); margin-top:5px; font-weight: bold;">Memuat sistem...</div>
+            <div style="width: 55px; height: 55px; border: 5px solid var(--border-color); border-top-color: var(--nav-active); border-radius: 50%; animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite; margin-bottom: 25px;"></div>
+            <div style="font-size:22px; font-weight:900; color:var(--text-main); letter-spacing: 1.5px;">DIGITAL TENDO</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:8px; font-weight: 700; text-transform: uppercase;">Memuat sistem...</div>
             <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
         </div>
-
-        <div id="provider-toast" class="provider-toast">Telkomsel</div>
 
         <div class="top-bar hidden" id="home-topbar">
             <button class="menu-btn" onclick="toggleSidebar()">
@@ -587,31 +450,33 @@ EOF
             <div class="brand-title" id="top-title">
                 DIGITAL TENDO STORE
             </div>
-            <div class="trx-badge" id="top-trx-badge" onclick="showHistory('Order')">0 Trx</div>
+            <div class="trx-badge" id="top-trx-badge" onclick="navigateTo('history-screen', 'nav-history'); showHistory('Order')">0 Trx</div>
         </div>
 
         <div class="banner-container hidden" id="banner-container-wrap">
             <div class="saldo-card-modern">
-                <div class="sc-left">
-                    <div class="sc-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg>
+                <div class="sc-header">
+                    <div class="sc-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg>
+                        SALDO AKTIF
                     </div>
-                    <div class="sc-info">
-                        <div class="sc-title">
-                            Saldo Aktif 
-                            <svg class="sc-eye" id="sc-eye" onclick="toggleSaldoVisibility()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" y1="2" x2="22" y2="22"></line>
-                            </svg>
-                        </div>
-                        <div class="sc-amount" id="user-saldo" data-saldo="0">****</div>
-                    </div>
+                    <div class="sc-amount" id="user-saldo">Rp 0</div>
                 </div>
-                <button class="sc-btn-topup" onclick="openTopupModal()">Topup</button>
-            </div>
-            
-            <div class="action-buttons">
-                <button class="btn-history-dash" onclick="showHistory('Topup')">Riwayat Topup</button>
-                <button class="btn-help-dash" onclick="contactAdmin()">Bantuan Admin</button>
+                
+                <div class="sc-actions">
+                    <button class="sc-btn sc-btn-primary" onclick="openTopupModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                        Topup Saldo
+                    </button>
+                    <button class="sc-btn sc-btn-secondary" onclick="navigateTo('history-screen', 'nav-history'); setTimeout(()=>showHistory('Topup'), 50);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        Riwayat
+                    </button>
+                    <button class="sc-btn sc-btn-secondary" onclick="contactAdmin()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                        Bantuan
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -623,13 +488,13 @@ EOF
                 <div class="sidebar-phone" id="sb-phone">Belum Login</div>
             </div>
             <div class="sidebar-menu">
-                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showProfile()">
+                <a href="#" class="sidebar-item" onclick="toggleSidebar(); switchTab('profile-screen', 'nav-profile')">
                     <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Profil Akun
                 </a>
-                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showHistory('Order')">
+                <a href="#" class="sidebar-item" onclick="toggleSidebar(); switchTab('history-screen', 'nav-history'); showHistory('Order');">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Transaksi Saya
                 </a>
-                <a href="#" class="sidebar-item" onclick="toggleSidebar(); showNotif()">
+                <a href="#" class="sidebar-item" onclick="toggleSidebar(); switchTab('notif-screen', 'nav-notif')">
                     <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> Pemberitahuan
                 </a>
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); contactAdmin()">
@@ -647,7 +512,7 @@ EOF
         <div id="login-screen" class="container hidden">
             <div style="text-align:center; margin: 40px 0;">
                 <h1 style="color:var(--text-main); margin:0; font-weight:900; font-size: 28px;">Digital Tendo Store</h1>
-                <p style="color:var(--text-muted); font-size:13px; margin-top:5px; font-weight: 600;">Solusi Pembayaran Digital</p>
+                <p style="color:var(--text-muted); font-size:13px; margin-top:5px; font-weight: 700;">Solusi Pembayaran Digital</p>
             </div>
             <div class="card">
                 <h2 style="margin-top:0; text-align:center; font-size:18px;">Masuk Akun</h2>
@@ -657,51 +522,51 @@ EOF
                     <input type="checkbox" id="rem-login" checked> Tetap masuk
                 </label>
                 <button class="btn" id="btn-login" onclick="login()">Login Sekarang</button>
-                <a href="#" onclick="showScreen('forgot-screen')" style="display:block; text-align:center; font-size:13px; font-weight:600; color:var(--text-muted); margin-top:15px; text-decoration:none;">Lupa Password?</a>
-                <button class="btn-outline" onclick="showScreen('register-screen')">Buat Akun Baru</button>
+                <a href="#" onclick="switchTab('forgot-screen')" style="display:block; text-align:center; font-size:13px; font-weight:700; color:var(--text-muted); margin-top:15px; text-decoration:none;">Lupa Password?</a>
+                <button class="btn-outline" onclick="switchTab('register-screen')">Buat Akun Baru</button>
             </div>
         </div>
 
         <div id="register-screen" class="container hidden">
             <div class="card">
                 <h2 style="margin-top:0; text-align:center; font-size:18px;">Daftar Akun</h2>
-                <p style="font-size:12px; color:var(--text-muted); text-align: center; margin-bottom: 20px; font-weight: 600;">Gunakan Nomor WhatsApp Aktif (08/62)</p>
+                <p style="font-size:12px; color:var(--text-muted); text-align: center; margin-bottom: 20px; font-weight: 700;">Gunakan Nomor WhatsApp Aktif (08/62)</p>
                 <input type="text" id="reg-user" placeholder="Username (Cth: BudiCell)">
                 <input type="email" id="reg-email" placeholder="Alamat Email">
                 <input type="number" id="reg-phone" placeholder="Nomor WhatsApp">
                 <input type="password" id="reg-pass" placeholder="Buat Password">
                 <button class="btn" id="btn-register" onclick="requestOTP()">Kirim OTP WhatsApp</button>
-                <button class="btn-outline" style="border:none;" onclick="showScreen('login-screen')">Kembali ke Login</button>
+                <button class="btn-outline" style="border:none;" onclick="switchTab('login-screen')">Kembali ke Login</button>
             </div>
         </div>
 
         <div id="otp-screen" class="container hidden">
             <div class="card" style="text-align:center;">
                 <h2 style="margin-top:0; font-size:18px;">Verifikasi WhatsApp</h2>
-                <p style="font-size:13px; color:var(--text-muted); margin-bottom: 20px; font-weight: 600;">Kode OTP 4 digit telah dikirim ke WA.</p>
-                <input type="number" id="otp-code" placeholder="----" style="text-align:center; font-size:28px; letter-spacing: 12px; font-weight:bold; background:var(--bg-main);" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
+                <p style="font-size:13px; color:var(--text-muted); margin-bottom: 20px; font-weight: 700;">Kode OTP 4 digit telah dikirim ke WA.</p>
+                <input type="number" id="otp-code" placeholder="----" style="text-align:center; font-size:28px; letter-spacing: 12px; font-weight:900; background:var(--bg-main);" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
                 <button class="btn" id="btn-verify" onclick="verifyOTP()">Verifikasi & Daftar</button>
-                <button class="btn-outline" style="border:none;" onclick="showScreen('register-screen')">Batal</button>
+                <button class="btn-outline" style="border:none;" onclick="switchTab('register-screen')">Batal</button>
             </div>
         </div>
         
         <div id="forgot-screen" class="container hidden">
             <div class="card">
                 <h2 style="margin-top:0; text-align:center; font-size:18px;">Lupa Password</h2>
-                <p style="font-size:12px; color:var(--text-muted); text-align: center; margin-bottom: 20px; font-weight: 600;">Reset password melalui OTP WhatsApp</p>
+                <p style="font-size:12px; color:var(--text-muted); text-align: center; margin-bottom: 20px; font-weight: 700;">Reset password melalui OTP WhatsApp</p>
                 
                 <div id="forgot-step-1">
                     <input type="number" id="forgot-phone" placeholder="Nomor WhatsApp (08/62)">
                     <button class="btn" id="btn-req-forgot" onclick="reqForgotOTP()">Kirim OTP WhatsApp</button>
-                    <button class="btn-outline" style="border:none;" onclick="showScreen('login-screen')">Kembali ke Login</button>
+                    <button class="btn-outline" style="border:none;" onclick="switchTab('login-screen')">Kembali ke Login</button>
                 </div>
                 
                 <div id="forgot-step-2" class="hidden">
-                    <p style="font-size:12px; color:var(--text-muted); text-align: center; font-weight: bold;">OTP dikirim ke WA Anda.</p>
-                    <input type="number" id="forgot-otp" placeholder="----" style="text-align:center; font-size:28px; letter-spacing: 12px; font-weight:bold; background:var(--bg-main);" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
+                    <p style="font-size:12px; color:var(--text-muted); text-align: center; font-weight: 800;">OTP dikirim ke WA Anda.</p>
+                    <input type="number" id="forgot-otp" placeholder="----" style="text-align:center; font-size:28px; letter-spacing: 12px; font-weight:900; background:var(--bg-main);" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
                     <input type="text" id="forgot-new-pass" placeholder="Buat Password Baru">
                     <button class="btn" id="btn-verify-forgot" onclick="verifyForgotOTP()">Simpan Password</button>
-                    <button class="btn-outline" style="border:none;" onclick="showScreen('login-screen')">Batal</button>
+                    <button class="btn-outline" style="border:none;" onclick="switchTab('login-screen')">Batal</button>
                 </div>
             </div>
         </div>
@@ -715,7 +580,7 @@ EOF
             <div class="grid-container">
                 <div class="grid-box" onclick="loadCategory('Pulsa')">
                     <div class="grid-icon-wrap ic-pulsa">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" width="28" height="28">
                             <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line>
                         </svg>
                     </div>
@@ -822,7 +687,7 @@ EOF
 
         <div id="brand-screen" class="hidden">
             <div class="screen-header">
-                <svg class="back-icon" onclick="goBackFromBrandScreen()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                <svg class="back-icon" onclick="goBack()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span id="brand-cat-title" style="text-transform: uppercase;">Kategori</span>
@@ -832,7 +697,7 @@ EOF
 
         <div id="produk-screen" class="hidden">
             <div class="screen-header">
-                <svg class="back-icon" onclick="goBackFromProducts()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                <svg class="back-icon" onclick="goBack()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span id="cat-title-text" style="text-transform: uppercase;">Katalog</span>
@@ -845,7 +710,7 @@ EOF
 
         <div id="history-screen" class="hidden">
             <div class="screen-header">
-                <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                <svg class="back-icon" onclick="goBack()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span style="text-transform: uppercase;" id="history-title-text">Riwayat Transaksi</span>
@@ -886,7 +751,7 @@ EOF
 
         <div id="notif-screen" class="hidden">
             <div class="screen-header">
-                <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                <svg class="back-icon" onclick="goBack()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span>Pemberitahuan</span>
@@ -897,27 +762,27 @@ EOF
         </div>
 
         <div class="bottom-nav hidden" id="main-bottom-nav">
-            <div class="nav-item active" id="nav-home" onclick="showDashboard()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></span>HOME
+            <div class="nav-item active" id="nav-home" onclick="switchTab('dashboard-screen', 'nav-home')">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></span>HOME
             </div>
-            <div class="nav-item" id="nav-history" onclick="showHistory('Order')">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span>RIWAYAT
+            <div class="nav-item" id="nav-history" onclick="switchTab('history-screen', 'nav-history'); showHistory('Order');">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span>RIWAYAT
             </div>
-            <div class="nav-item" id="nav-notif" onclick="showNotif()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>INFO
+            <div class="nav-item" id="nav-notif" onclick="switchTab('notif-screen', 'nav-notif')">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>INFO
             </div>
-            <div class="nav-item" id="nav-profile" onclick="showProfile()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>PROFIL
+            <div class="nav-item" id="nav-profile" onclick="switchTab('profile-screen', 'nav-profile')">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>PROFIL
             </div>
         </div>
 
         <div id="order-modal" class="modal-overlay hidden">
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Formulir Pesanan</h3>
-                <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left;">
+                <div style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left;">
                     <strong id="m-name" style="font-size:14px; line-height:1.4; display:block; margin-bottom:5px;">Produk</strong>
                     <div id="m-desc" style="font-size:11px; color:var(--text-muted); margin-bottom:10px; line-height: 1.4;">Deskripsi Produk</div>
-                    <span style="font-weight:900; font-size: 20px;" id="m-price">Rp 0</span>
+                    <span style="font-weight:900; font-size: 20px; color: var(--nav-active);" id="m-price">Rp 0</span>
                 </div>
                 <input type="text" id="m-target" placeholder="Masukkan Nomor/ID Tujuan" style="text-align:center; font-size: 16px; font-weight: bold;" oninput="checkProvider(this.value)">
                 <div class="modal-btns">
@@ -929,15 +794,15 @@ EOF
 
         <div id="order-success-modal" class="modal-overlay hidden">
             <div class="modal-box" style="text-align:center;">
-                <div style="width:60px; height:60px; background:#dcfce7; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
+                <div style="width:65px; height:65px; background:#dcfce7; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px; box-shadow: 0 4px 15px rgba(22, 101, 52, 0.1);">
                     <svg viewBox="0 0 24 24" width="35" height="35" stroke="#166534" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                 </div>
                 <h3 style="margin-top:0; font-size:20px; color:#166534;">Pesanan Berhasil!</h3>
                 <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">Pesanan Anda sedang diproses oleh sistem.</p>
-                <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; text-align: left; font-size:13px; line-height: 1.6; border: 1px dashed var(--border-color);">
+                <div style="background:var(--bg-main); padding:15px; border-radius:14px; margin-bottom:20px; text-align: left; font-size:13px; line-height: 1.6; border: 1px dashed var(--border-color);">
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Produk</span><strong id="os-name" style="text-align:right; max-width:60%;"></strong></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Tujuan</span><strong id="os-target" style="text-align:right;"></strong></div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Harga</span><strong id="os-price" style="color:#0ea5e9;"></strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Harga</span><strong id="os-price" style="color:var(--nav-active);"></strong></div>
                 </div>
                 <button class="btn" style="width:100%;" onclick="closeOrderSuccessModal()">Selesai & Cek Riwayat</button>
             </div>
@@ -952,13 +817,13 @@ EOF
                     <button class="btn-outline" style="margin-top:0;" onclick="closeTopupModal()">Batal</button>
                     <button class="btn" id="btn-topup-submit" onclick="generateQris()">Buat QRIS</button>
                 </div>
-                <button class="btn-outline" style="margin-top:10px; width:100%; border-color: #0ea5e9; color: #0ea5e9;" onclick="manualTopupWA()">Topup Manual (Hubungi Admin)</button>
+                <button class="btn-outline" style="margin-top:12px; width:100%; border-color: var(--nav-active); color: var(--nav-active);" onclick="manualTopupWA()">Topup Manual (Hubungi Admin)</button>
             </div>
         </div>
 
         <div id="topup-success-modal" class="modal-overlay hidden">
             <div class="modal-box" style="text-align:center;">
-                <div style="width:60px; height:60px; background:#dcfce7; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
+                <div style="width:65px; height:65px; background:#dcfce7; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
                     <svg viewBox="0 0 24 24" width="35" height="35" stroke="#166534" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                 </div>
                 <h3 style="margin-top:0; font-size:20px; color:#166534;">Berhasil Dibuat!</h3>
@@ -971,30 +836,30 @@ EOF
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Detail Transaksi</h3>
                 
-                <div id="hd-qris-box" class="hidden" style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; text-align: center; border: 1px solid var(--border-color);">
+                <div id="hd-qris-box" class="hidden" style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; text-align: center; border: 1px solid var(--border-color);">
                     <p style="font-size:12px; color:var(--text-main); margin-top:0; margin-bottom:5px; font-weight:bold;">Sisa Waktu Pembayaran:</p>
-                    <div id="qris-countdown" style="font-size:22px; font-weight:900; color:#ef4444; margin-bottom:10px; background:#fee2e2; padding:5px; border-radius:8px; border: 1px solid #fca5a5;">-- : --</div>
+                    <div id="qris-countdown" style="font-size:22px; font-weight:900; color:#ef4444; margin-bottom:10px; background:#fee2e2; padding:5px; border-radius:10px; border: 1px solid #fca5a5;">-- : --</div>
                     
                     <p style="font-size:11px; color:var(--text-main); margin-top:0; margin-bottom:10px;">Segera bayar dengan QRIS ini:</p>
                     <img id="hd-qris-img" src="" style="width:100%; max-width:240px; padding:20px; border-radius:16px; border:1px solid var(--border-color); margin-bottom:15px; background:#ffffff; box-sizing: border-box; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
                     
                     <div style="display:flex; gap:10px; justify-content:center; margin-bottom:15px;">
-                        <button class="btn-outline" style="flex:1; margin:0; padding:10px 5px; font-size:12px; font-weight: bold; border-color:#16a34a; color:#16a34a; border-radius:20px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="shareQRIS()">
+                        <button class="btn-outline" style="flex:1; margin:0; padding:12px 5px; font-size:12px; border-color:#16a34a; color:#16a34a; border-radius:14px; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="shareQRIS()">
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                             Bagikan
                         </button>
-                        <button class="btn-outline" style="flex:1; margin:0; padding:10px 5px; font-size:12px; font-weight: bold; border-color:#16a34a; color:#16a34a; border-radius:20px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="downloadQRIS()">
+                        <button class="btn-outline" style="flex:1; margin:0; padding:12px 5px; font-size:12px; border-color:#16a34a; color:#16a34a; border-radius:14px; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="downloadQRIS()">
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                             Simpan
                         </button>
                     </div>
 
                     <div style="font-size:11px; color:var(--text-muted); font-weight:bold;">Transfer TEPAT SEBESAR:</div>
-                    <div style="font-size:24px; font-weight:900; color:#0ea5e9; margin: 5px 0;" id="hd-qris-amount">Rp 0</div>
+                    <div style="font-size:24px; font-weight:900; color:var(--nav-active); margin: 5px 0;" id="hd-qris-amount">Rp 0</div>
                     <div style="font-size:11px; color:#ef4444; font-weight:bold; line-height:1.4;">Harus persis agar otomatis masuk.</div>
                 </div>
 
-                <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left; font-size:13px; line-height: 1.6;">
+                <div style="background:var(--bg-main); padding:15px; border-radius:14px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left; font-size:13px; line-height: 1.6;">
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Waktu</span><strong id="hd-time"></strong></div>
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Status</span><strong id="hd-status"></strong></div>
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Layanan</span><strong id="hd-name" style="text-align:right; max-width:60%;"></strong></div>
@@ -1002,7 +867,7 @@ EOF
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Tujuan</span><strong id="hd-target"></strong></div>
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">SN/Ref</span><strong id="hd-sn" style="word-break:break-all;"></strong></div>
                 </div>
-                <button class="btn-danger hidden" id="hd-complain-btn" onclick="complainAdmin()" style="margin-bottom: 15px;">Hubungi Admin (Komplain)</button>
+                <button class="btn-danger hidden" id="hd-complain-btn" onclick="complainAdmin()" style="margin-bottom: 12px;">Hubungi Admin (Komplain)</button>
                 <button class="btn-outline" style="margin-top:0;" onclick="closeHistoryModal()">Tutup</button>
             </div>
         </div>
@@ -1030,6 +895,74 @@ EOF
     </div>
 
     <script>
+        // NAVIGATION STACK (Sistem Kembali Berurutan)
+        let navStack = [];
+
+        function internalShowScreen(id, navId) {
+            let loader = document.getElementById('initial-loader');
+            if(loader) {
+                loader.style.opacity = '0';
+                setTimeout(() => { if(loader) loader.style.display = 'none'; }, 300);
+            }
+
+            ['login-screen', 'register-screen', 'otp-screen', 'forgot-screen', 'dashboard-screen', 'brand-screen', 'produk-screen', 'history-screen', 'profile-screen', 'notif-screen'].forEach(s => {
+                document.getElementById(s).classList.add('hidden');
+            });
+            document.getElementById(id).classList.remove('hidden');
+            
+            if (['dashboard-screen', 'history-screen', 'notif-screen', 'profile-screen', 'brand-screen', 'produk-screen'].includes(id)) {
+                localStorage.setItem('tendo_last_tab', id);
+            }
+            if (navId) {
+                localStorage.setItem('tendo_last_nav', navId);
+                updateNav(navId);
+            }
+            
+            if(id === 'login-screen' || id === 'register-screen' || id === 'otp-screen' || id === 'forgot-screen') {
+                document.getElementById('home-topbar').classList.add('hidden');
+                document.getElementById('main-bottom-nav').classList.add('hidden');
+                document.getElementById('banner-container-wrap').classList.add('hidden');
+            } else {
+                document.getElementById('home-topbar').classList.remove('hidden');
+                document.getElementById('main-bottom-nav').classList.remove('hidden');
+                if(id === 'dashboard-screen') {
+                    document.getElementById('banner-container-wrap').classList.remove('hidden');
+                } else {
+                    document.getElementById('banner-container-wrap').classList.add('hidden');
+                }
+            }
+        }
+
+        // Pindah Tab Bawah (Reset History)
+        function switchTab(id, navId) {
+            navStack = [{id, navId}];
+            internalShowScreen(id, navId);
+            
+            if(id === 'dashboard-screen') { syncUserData(); fetchAllProducts(); }
+            else if(id === 'history-screen') { syncUserData(); }
+            else if(id === 'profile-screen') { syncUserData(); }
+            else if(id === 'notif-screen') { fetchNotif(); }
+        }
+
+        // Navigasi Maju (Menyimpan History)
+        function navigateTo(id, navId) {
+            if(navStack.length === 0 || navStack[navStack.length-1].id !== id) {
+                navStack.push({id, navId});
+            }
+            internalShowScreen(id, navId);
+        }
+
+        // Tombol Back (Mundur secara berurutan)
+        function goBack() {
+            if(navStack.length > 1) {
+                navStack.pop(); 
+                let prev = navStack[navStack.length - 1];
+                internalShowScreen(prev.id, prev.navId);
+            } else {
+                switchTab('dashboard-screen', 'nav-home');
+            }
+        }
+
         // CUSTOM TOAST NOTIFICATION
         function showToast(msg, type='info') {
             let t = document.getElementById('custom-toast-alert');
@@ -1042,22 +975,6 @@ EOF
             t.className = 'custom-toast ' + (type === 'error' ? 'error' : (type === 'success' ? 'success' : '')) + ' show';
             t.innerHTML = icon + msg;
             setTimeout(() => { t.classList.remove('show'); }, 3500);
-        }
-
-        // FUNGSI TOGGLE HIDE/SHOW SALDO
-        let saldoVisible = false; // Default sembunyi
-        function toggleSaldoVisibility() {
-            saldoVisible = !saldoVisible;
-            let el = document.getElementById('user-saldo');
-            let eye = document.getElementById('sc-eye');
-            if(saldoVisible) {
-                let s = parseInt(el.getAttribute('data-saldo')) || 0;
-                el.innerText = 'Rp ' + s.toLocaleString('id-ID');
-                eye.innerHTML = '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle>';
-            } else {
-                el.innerText = '****';
-                eye.innerHTML = '<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" y1="2" x2="22" y2="22"></line>';
-            }
         }
 
         // PWA SETUP
@@ -1074,10 +991,10 @@ EOF
 
         // GLOBAL VARS
         let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let tempForgotPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
-        let currentCategory = ""; let currentBrand = ""; let currentHistoryFilter = 'All';
+        let currentCategory = ""; let currentBrand = ""; let currentHistoryFilter = 'Order';
         let bannerInterval; let qrisInterval;
 
-        // CEK THEME DARI LOKAL (Sekarang DEFAULT GELAP)
+        // DEFAULT TEMA GELAP
         let savedTheme = localStorage.getItem('tendo_theme');
         if(savedTheme === 'light') {
             document.body.classList.remove('dark-mode');
@@ -1101,7 +1018,6 @@ EOF
         let toastTimer;
         function checkProvider(val) {
             if(val.length < 4) { lastDetected = ""; return; }
-            
             let prefix = val.substring(0, 4);
             if(val.startsWith('+62')) prefix = '0' + val.substring(3, 6);
             else if(val.startsWith('62')) prefix = '0' + val.substring(2, 5);
@@ -1119,12 +1035,8 @@ EOF
                 let toast = document.getElementById('provider-toast');
                 toast.innerText = "Terdeteksi: " + provider;
                 toast.classList.add('show');
-                
                 clearTimeout(toastTimer);
-                toastTimer = setTimeout(() => { 
-                    toast.classList.remove('show'); 
-                    lastDetected = ""; 
-                }, 3000);
+                toastTimer = setTimeout(() => { toast.classList.remove('show'); lastDetected = ""; }, 3000);
             }
         }
 
@@ -1194,56 +1106,6 @@ EOF
             });
         }
 
-        function toggleSidebar() {
-            const sb = document.getElementById('sidebar');
-            const ov = document.getElementById('sb-overlay');
-            if(sb.classList.contains('open')) {
-                sb.classList.remove('open'); ov.style.opacity = '0'; setTimeout(() => ov.style.display = 'none', 300);
-            } else {
-                ov.style.display = 'block'; setTimeout(() => { ov.style.opacity = '1'; sb.classList.add('open'); }, 10);
-            }
-        }
-
-        function updateNav(activeId) {
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            if(activeId) document.getElementById(activeId).classList.add('active');
-        }
-
-        function showScreen(id, navId) {
-            let loader = document.getElementById('initial-loader');
-            if(loader) {
-                loader.style.opacity = '0';
-                setTimeout(() => { if(loader) loader.style.display = 'none'; }, 300);
-            }
-
-            ['login-screen', 'register-screen', 'otp-screen', 'forgot-screen', 'dashboard-screen', 'brand-screen', 'produk-screen', 'history-screen', 'profile-screen', 'notif-screen'].forEach(s => {
-                document.getElementById(s).classList.add('hidden');
-            });
-            document.getElementById(id).classList.remove('hidden');
-            
-            if (['dashboard-screen', 'history-screen', 'notif-screen', 'profile-screen', 'brand-screen', 'produk-screen'].includes(id)) {
-                localStorage.setItem('tendo_last_tab', id);
-            }
-            if (navId) {
-                localStorage.setItem('tendo_last_nav', navId);
-                updateNav(navId);
-            }
-            
-            if(id === 'login-screen' || id === 'register-screen' || id === 'otp-screen' || id === 'forgot-screen') {
-                document.getElementById('home-topbar').classList.add('hidden');
-                document.getElementById('main-bottom-nav').classList.add('hidden');
-                document.getElementById('banner-container-wrap').classList.add('hidden');
-            } else {
-                document.getElementById('home-topbar').classList.remove('hidden');
-                document.getElementById('main-bottom-nav').classList.remove('hidden');
-                if(id === 'dashboard-screen') {
-                    document.getElementById('banner-container-wrap').classList.remove('hidden');
-                } else {
-                    document.getElementById('banner-container-wrap').classList.add('hidden');
-                }
-            }
-        }
-
         document.addEventListener('DOMContentLoaded', async () => {
             let savedEmail = localStorage.getItem('tendo_email');
             let savedPass = localStorage.getItem('tendo_pass');
@@ -1255,42 +1117,14 @@ EOF
                         await fetchAllProducts();
                         fetchGlobalStats();
                         loadBanners();
-                        
-                        let lastTab = localStorage.getItem('tendo_last_tab') || 'dashboard-screen';
-                        if (lastTab === 'history-screen') {
-                            let savedFilter = localStorage.getItem('tendo_history_filter') || 'Order';
-                            showHistory(savedFilter);
-                        }
-                        else if (lastTab === 'profile-screen') showProfile();
-                        else if (lastTab === 'notif-screen') showNotif();
-                        else if (lastTab === 'brand-screen') {
-                            let cCat = localStorage.getItem('tendo_current_cat');
-                            if(cCat) { showDashboard(); loadCategory(cCat); } else showDashboard();
-                        }
-                        else if (lastTab === 'produk-screen') {
-                            let cCat = localStorage.getItem('tendo_current_cat');
-                            let cBrand = localStorage.getItem('tendo_current_brand');
-                            let cSub = localStorage.getItem('tendo_current_subcat');
-                            if(cCat && cBrand) { 
-                                showDashboard(); 
-                                loadProducts(cCat, cBrand, (cSub === 'null' ? null : cSub)); 
-                            } else showDashboard();
-                        }
-                        else showDashboard();
-
-                    } else { showScreen('login-screen', null); }
-                } catch(e) { showScreen('login-screen', null); }
+                        switchTab('dashboard-screen', 'nav-home'); 
+                    } else { switchTab('login-screen', null); }
+                } catch(e) { switchTab('login-screen', null); }
             } else {
-                showScreen('login-screen', null);
+                switchTab('login-screen', null);
             }
         });
 
-        function showDashboard() { 
-            showScreen('dashboard-screen', 'nav-home'); 
-            syncUserData(); 
-            fetchAllProducts(); 
-        }
-        
         function showHistory(filter = 'Order') { 
             currentHistoryFilter = filter;
             localStorage.setItem('tendo_history_filter', filter);
@@ -1305,14 +1139,10 @@ EOF
                 document.getElementById('tab-hist-order').classList.add('active');
                 document.getElementById('history-title-text').innerText = 'Riwayat Transaksi';
             }
-            showScreen('history-screen', 'nav-history'); 
             syncUserData(); 
         }
         
-        function showProfile() { showScreen('profile-screen', 'nav-profile'); syncUserData(); }
-        
-        async function showNotif() { 
-            showScreen('notif-screen', 'nav-notif'); 
+        async function fetchNotif() { 
             try {
                 let data = await apiCall('/api/notif');
                 let html = '';
@@ -1320,11 +1150,11 @@ EOF
                     data.forEach(n => {
                         let imgTag = n.image ? `<img src="/info_images/${n.image}" style="width:100%; border-radius:8px; margin-bottom:10px; display:block;">` : '';
                         html += `
-                        <div class="card" style="border-left: 4px solid #0ea5e9; margin-bottom:15px; padding:15px;">
+                        <div class="card" style="border-left: 4px solid var(--nav-active); margin-bottom:15px; padding:15px;">
                             <div style="font-size:10px; color:var(--text-muted); margin-bottom:5px; font-weight:700;">${n.date}</div>
                             <h3 style="margin-top:0; color: var(--text-main); font-size:15px; margin-bottom:10px;">📢 Info Terbaru</h3>
                             ${imgTag}
-                            <p style="color: var(--text-muted); line-height: 1.6; font-size:13px; white-space: pre-wrap; font-weight: 500; margin:0;">${n.text}</p>
+                            <p style="color: var(--text-muted); line-height: 1.6; font-size:13px; white-space: pre-wrap; font-weight: 600; margin:0;">${n.text}</p>
                         </div>`;
                     });
                 } else {
@@ -1358,6 +1188,7 @@ EOF
         async function closeTopupSuccessModal() {
             document.getElementById('topup-success-modal').classList.add('hidden');
             await syncUserData(); 
+            navigateTo('history-screen', 'nav-history');
             showHistory('Topup');
             if(userData.history && userData.history.length > 0) {
                 let latest = userData.history.find(h => h.type === 'Topup' && h.status === 'Pending');
@@ -1372,19 +1203,10 @@ EOF
                 let response = await fetch(imgUrl, { mode: 'cors' });
                 let blob = await response.blob();
                 let file = new File([blob], "QRIS_Digital_Tendo.jpg", { type: "image/jpeg" });
-                
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        title: 'QRIS Pembayaran',
-                        text: 'Silakan scan QRIS berikut untuk melakukan pembayaran.',
-                        files: [file]
-                    });
-                } else {
-                    showToast("Browser tidak mendukung bagikan gambar. Gunakan tombol Simpan.", "error");
-                }
-            } catch(e) {
-                showToast("Gagal membagikan gambar QRIS.", "error");
-            }
+                    await navigator.share({ title: 'QRIS Pembayaran', text: 'Silakan scan QRIS berikut untuk melakukan pembayaran.', files: [file] });
+                } else { showToast("Browser tidak mendukung bagikan gambar.", "error"); }
+            } catch(e) { showToast("Gagal membagikan gambar QRIS.", "error"); }
         }
 
         async function downloadQRIS() {
@@ -1394,21 +1216,11 @@ EOF
                 let response = await fetch(imgUrl, { mode: 'cors' });
                 let blob = await response.blob();
                 let url = window.URL.createObjectURL(blob);
-                let a = document.createElement('a');
-                a.href = url;
-                a.download = 'QRIS_Topup_' + Date.now() + '.jpg';
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
+                let a = document.createElement('a'); a.href = url; a.download = 'QRIS_Topup_' + Date.now() + '.jpg';
+                document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); document.body.removeChild(a);
             } catch(e) {
-                let a = document.createElement('a');
-                a.href = imgUrl;
-                a.target = '_blank';
-                a.download = 'QRIS_Topup.jpg';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+                let a = document.createElement('a'); a.href = imgUrl; a.target = '_blank'; a.download = 'QRIS_Topup.jpg';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
             }
         }
 
@@ -1424,9 +1236,7 @@ EOF
             currentUser = ""; userData = {}; 
             localStorage.removeItem('tendo_email'); localStorage.removeItem('tendo_pass');
             localStorage.removeItem('tendo_last_tab'); localStorage.removeItem('tendo_last_nav');
-            localStorage.removeItem('tendo_history_filter');
-            localStorage.removeItem('tendo_current_cat'); localStorage.removeItem('tendo_current_brand');
-            toggleSidebar(); showScreen('login-screen', null);
+            toggleSidebar(); switchTab('login-screen', null);
             document.getElementById('log-pass').value = '';
         }
 
@@ -1437,15 +1247,7 @@ EOF
                 if(data && data.success) {
                     userData = data.data; let u = userData;
                     
-                    // Update Saldo Modern Banner
-                    let elSaldo = document.getElementById('user-saldo');
-                    elSaldo.setAttribute('data-saldo', u.saldo);
-                    if(saldoVisible) {
-                        elSaldo.innerText = 'Rp ' + u.saldo.toLocaleString('id-ID');
-                    } else {
-                        elSaldo.innerText = '****';
-                    }
-
+                    document.getElementById('user-saldo').innerText = 'Rp ' + u.saldo.toLocaleString('id-ID');
                     document.getElementById('top-trx-badge').innerText = (u.trx_count || 0) + ' Trx';
                     
                     let firstLetter = (u.username || "T").charAt(0).toUpperCase();
@@ -1494,24 +1296,20 @@ EOF
         function startQrisCountdown(expiredAt) {
             clearInterval(qrisInterval);
             let el = document.getElementById('qris-countdown');
-            
             function update() {
                 let now = Date.now();
                 let diff = expiredAt - now;
                 if (diff <= 0) {
-                    clearInterval(qrisInterval);
-                    el.innerText = "KEDALUWARSA";
+                    clearInterval(qrisInterval); el.innerText = "KEDALUWARSA";
                     document.getElementById('hd-status').innerText = 'Gagal (Kedaluwarsa)';
                     document.getElementById('hd-qris-box').classList.add('hidden');
                     if(currentHistoryItem) currentHistoryItem.status = 'Gagal';
                 } else {
-                    let m = Math.floor(diff / 60000);
-                    let s = Math.floor((diff % 60000) / 1000);
+                    let m = Math.floor(diff / 60000); let s = Math.floor((diff % 60000) / 1000);
                     el.innerText = (m < 10 ? "0" + m : m) + " : " + (s < 10 ? "0" + s : s);
                 }
             }
-            update();
-            qrisInterval = setInterval(update, 1000);
+            update(); qrisInterval = setInterval(update, 1000);
         }
 
         function openHistoryDetail(h) {
@@ -1524,35 +1322,25 @@ EOF
             document.getElementById('hd-sn').innerText = h.sn || '-';
             
             let btnComplain = document.getElementById('hd-complain-btn');
-            if(h.status === 'Pending' || h.status === 'Gagal') {
-                btnComplain.classList.remove('hidden');
-            } else {
-                btnComplain.classList.add('hidden');
-            }
+            if(h.status === 'Pending' || h.status === 'Gagal') btnComplain.classList.remove('hidden');
+            else btnComplain.classList.add('hidden');
             
             let qrisBox = document.getElementById('hd-qris-box');
             if(h.type === 'Topup' && h.status === 'Pending') {
                 if(Date.now() < h.expired_at) {
                     document.getElementById('hd-qris-img').src = h.qris_url;
                     document.getElementById('hd-qris-amount').innerText = 'Rp ' + h.amount.toLocaleString('id-ID');
-                    qrisBox.classList.remove('hidden');
-                    startQrisCountdown(h.expired_at);
+                    qrisBox.classList.remove('hidden'); startQrisCountdown(h.expired_at);
                 } else {
-                    qrisBox.classList.add('hidden');
-                    document.getElementById('hd-status').innerText = 'Gagal (Kedaluwarsa)';
+                    qrisBox.classList.add('hidden'); document.getElementById('hd-status').innerText = 'Gagal (Kedaluwarsa)';
                 }
             } else {
-                qrisBox.classList.add('hidden');
-                clearInterval(qrisInterval);
+                qrisBox.classList.add('hidden'); clearInterval(qrisInterval);
             }
-            
             document.getElementById('history-detail-modal').classList.remove('hidden');
         }
         
-        function closeHistoryModal() { 
-            clearInterval(qrisInterval);
-            document.getElementById('history-detail-modal').classList.add('hidden'); 
-        }
+        function closeHistoryModal() { clearInterval(qrisInterval); document.getElementById('history-detail-modal').classList.add('hidden'); }
         
         function contactAdmin() {
             let pesan = `Halo Admin Digital Tendo Store,%0A%0ASaya butuh bantuan terkait akun / layanan.`;
@@ -1572,21 +1360,15 @@ EOF
             let rem = document.getElementById('rem-login').checked;
             if(!email || !pass) return showToast('Isi Email & Password!', 'error');
             
-            let btn = document.getElementById('btn-login');
-            let ori = btn.innerText;
-            btn.innerText = "Memeriksa..."; btn.disabled = true;
-            
+            let btn = document.getElementById('btn-login'); let ori = btn.innerText; btn.innerText = "Memeriksa..."; btn.disabled = true;
             try {
                 let data = await apiCall('/api/login', {email, password:pass});
                 if(data && data.success) {
                     if(rem) { localStorage.setItem('tendo_email', email); localStorage.setItem('tendo_pass', pass); }
                     currentUser = data.phone; userData = data.data;
-                    fetchAllProducts(); showDashboard();
-                } else {
-                    showToast(data && data.message ? data.message : "Gagal terhubung.", 'error');
-                }
+                    fetchAllProducts(); switchTab('dashboard-screen', 'nav-home');
+                } else { showToast(data && data.message ? data.message : "Gagal terhubung.", 'error'); }
             } catch(e) { showToast('Kesalahan jaringan.', 'error'); }
-            
             btn.innerText = ori; btn.disabled = false;
         }
 
@@ -1597,63 +1379,44 @@ EOF
             let pass = document.getElementById('reg-pass').value.trim();
             if(!user || !email || !phone || !pass) return showToast('Semua kolom wajib diisi!', 'error');
             
-            let btn = document.getElementById('btn-register');
-            let ori = btn.innerText;
-            btn.innerText = "Mengirim..."; btn.disabled = true;
-            
+            let btn = document.getElementById('btn-register'); let ori = btn.innerText; btn.innerText = "Mengirim..."; btn.disabled = true;
             try {
                 let data = await apiCall('/api/register', {username:user, email, phone, password:pass});
                 if(data && data.success) { 
-                    tempRegPhone = phone; showScreen('otp-screen', null); 
-                } else {
-                    showToast(data && data.message ? data.message : "Pendaftaran Gagal.", 'error');
-                }
+                    tempRegPhone = phone; navigateTo('otp-screen', null); 
+                } else { showToast(data && data.message ? data.message : "Pendaftaran Gagal.", 'error'); }
             } catch(e) { showToast('Kesalahan jaringan. Pastikan internet lancar.', 'error'); }
-            
             btn.innerText = ori; btn.disabled = false;
         }
 
         async function verifyOTP() {
             let otp = document.getElementById('otp-code').value.trim();
             if(!otp) return showToast('Masukkan OTP!', 'error');
-            
-            let btn = document.getElementById('btn-verify');
-            let ori = btn.innerText;
-            btn.innerText = "Memproses..."; btn.disabled = true;
-            
+            let btn = document.getElementById('btn-verify'); let ori = btn.innerText; btn.innerText = "Memproses..."; btn.disabled = true;
             try {
                 let data = await apiCall('/api/verify-otp', {phone: tempRegPhone, otp});
                 if(data && data.success) {
                     showToast('Pendaftaran Berhasil! Silakan Login.', 'success');
                     document.getElementById('log-email').value = document.getElementById('reg-email').value;
                     document.getElementById('log-pass').value = document.getElementById('reg-pass').value;
-                    showScreen('login-screen', null);
-                } else {
-                    showToast(data && data.message ? data.message : "Sistem sibuk, coba sesaat lagi.", 'error');
-                }
+                    switchTab('login-screen', null);
+                } else { showToast(data && data.message ? data.message : "Sistem sibuk, coba sesaat lagi.", 'error'); }
             } catch(e) { showToast('Kesalahan jaringan.', 'error'); }
-            
             btn.innerText = ori; btn.disabled = false;
         }
 
         async function reqForgotOTP() {
             let phone = document.getElementById('forgot-phone').value.trim();
             if(!phone) return showToast('Masukkan Nomor WhatsApp!', 'error');
-            
-            let btn = document.getElementById('btn-req-forgot');
-            let ori = btn.innerText; btn.innerText = "Mengirim..."; btn.disabled = true;
-            
+            let btn = document.getElementById('btn-req-forgot'); let ori = btn.innerText; btn.innerText = "Mengirim..."; btn.disabled = true;
             try {
                 let data = await apiCall('/api/req-forgot-otp', {phone});
                 if(data && data.success) {
                     tempForgotPhone = phone;
                     document.getElementById('forgot-step-1').classList.add('hidden');
                     document.getElementById('forgot-step-2').classList.remove('hidden');
-                } else {
-                    showToast(data && data.message ? data.message : "Nomor tidak terdaftar.", 'error');
-                }
+                } else { showToast(data && data.message ? data.message : "Nomor tidak terdaftar.", 'error'); }
             } catch(e) { showToast('Kesalahan jaringan.', 'error'); }
-            
             btn.innerText = ori; btn.disabled = false;
         }
 
@@ -1661,52 +1424,26 @@ EOF
             let otp = document.getElementById('forgot-otp').value.trim();
             let newPass = document.getElementById('forgot-new-pass').value.trim();
             if(!otp || !newPass) return showToast('Isi OTP dan Password Baru!', 'error');
-            
-            let btn = document.getElementById('btn-verify-forgot');
-            let ori = btn.innerText; btn.innerText = "Memproses..."; btn.disabled = true;
-            
+            let btn = document.getElementById('btn-verify-forgot'); let ori = btn.innerText; btn.innerText = "Memproses..."; btn.disabled = true;
             try {
                 let data = await apiCall('/api/verify-forgot-otp', {phone: tempForgotPhone, otp, newPass});
                 if(data && data.success) {
                     showToast('Password berhasil diubah! Silakan login.', 'success');
-                    showScreen('login-screen', null);
+                    switchTab('login-screen', null);
                     document.getElementById('forgot-step-1').classList.remove('hidden');
                     document.getElementById('forgot-step-2').classList.add('hidden');
-                    document.getElementById('forgot-phone').value = '';
-                    document.getElementById('forgot-otp').value = '';
-                    document.getElementById('forgot-new-pass').value = '';
-                } else {
-                    showToast(data && data.message ? data.message : "Sistem error.", 'error');
-                }
+                    document.getElementById('forgot-phone').value = ''; document.getElementById('forgot-otp').value = ''; document.getElementById('forgot-new-pass').value = '';
+                } else { showToast(data && data.message ? data.message : "Sistem error.", 'error'); }
             } catch(e) { showToast('Kesalahan jaringan.', 'error'); }
-            
             btn.innerText = ori; btn.disabled = false;
         }
 
         window.openEditModal = function(type) {
-            currentEditMode = type;
-            let inp = document.getElementById('edit-input');
-            document.getElementById('edit-step-1').classList.remove('hidden');
-            document.getElementById('edit-step-2').classList.add('hidden');
-            
-            if(type === 'email') { 
-                document.getElementById('edit-title').innerText = "Ganti Email"; 
-                inp.type="email"; 
-                inp.placeholder="Email baru"; 
-                inp.value = (userData && userData.email) ? userData.email : "";
-            }
-            if(type === 'phone') { 
-                document.getElementById('edit-title').innerText = "Ganti Nomor WA"; 
-                inp.type="number"; 
-                inp.placeholder="Nomor WA baru (08/62)"; 
-                inp.value = currentUser ? currentUser : "";
-            }
-            if(type === 'password') { 
-                document.getElementById('edit-title').innerText = "Ganti Password"; 
-                inp.type="text"; 
-                inp.placeholder="Password baru"; 
-                inp.value = "";
-            }
+            currentEditMode = type; let inp = document.getElementById('edit-input');
+            document.getElementById('edit-step-1').classList.remove('hidden'); document.getElementById('edit-step-2').classList.add('hidden');
+            if(type === 'email') { document.getElementById('edit-title').innerText = "Ganti Email"; inp.type="email"; inp.placeholder="Email baru"; inp.value = (userData && userData.email) ? userData.email : ""; }
+            if(type === 'phone') { document.getElementById('edit-title').innerText = "Ganti Nomor WA"; inp.type="number"; inp.placeholder="Nomor WA baru (08/62)"; inp.value = currentUser ? currentUser : ""; }
+            if(type === 'password') { document.getElementById('edit-title').innerText = "Ganti Password"; inp.type="text"; inp.placeholder="Password baru"; inp.value = ""; }
             document.getElementById('edit-modal').classList.remove('hidden');
         };
         
@@ -1715,63 +1452,35 @@ EOF
         async function reqEditOTP() {
             let val = document.getElementById('edit-input').value.trim();
             if(!val) return showToast("Isi data baru!", 'error');
-            
-            let btn = document.getElementById('btn-req-edit');
-            let ori = btn.innerText;
-            btn.innerText = "Mengirim..."; btn.disabled = true;
-            
+            let btn = document.getElementById('btn-req-edit'); let ori = btn.innerText; btn.innerText = "Mengirim..."; btn.disabled = true;
             try {
                 let data = await apiCall('/api/req-edit-otp', {phone: currentUser, type: currentEditMode, newValue: val});
-                if(data && data.success) {
-                    document.getElementById('edit-step-1').classList.add('hidden');
-                    document.getElementById('edit-step-2').classList.remove('hidden');
-                } else {
-                    showToast(data && data.message ? data.message : "Error server", 'error');
-                }
+                if(data && data.success) { document.getElementById('edit-step-1').classList.add('hidden'); document.getElementById('edit-step-2').classList.remove('hidden'); } 
+                else { showToast(data && data.message ? data.message : "Error server", 'error'); }
             } catch(e) { showToast('Kesalahan jaringan.', 'error'); }
-            
             btn.innerText = ori; btn.disabled = false;
         }
 
         async function verifyEditOTP() {
             let otp = document.getElementById('edit-otp-input').value.trim();
             if(!otp) return showToast("Masukkan OTP!", 'error');
-            
-            let btn = document.getElementById('btn-verify-edit');
-            let ori = btn.innerText;
-            btn.innerText = "Memproses..."; btn.disabled = true;
-            
+            let btn = document.getElementById('btn-verify-edit'); let ori = btn.innerText; btn.innerText = "Memproses..."; btn.disabled = true;
             try {
                 let data = await apiCall('/api/verify-edit-otp', {phone: currentUser, otp: otp});
                 if(data && data.success) {
-                    showToast("Berhasil diubah!", 'success');
-                    closeEditModal();
-                    if(currentEditMode === 'phone' || currentEditMode === 'password') { logout(); } 
-                    else { syncUserData(); }
-                } else {
-                    showToast(data && data.message ? data.message : "Error server", 'error');
-                }
+                    showToast("Berhasil diubah!", 'success'); closeEditModal();
+                    if(currentEditMode === 'phone' || currentEditMode === 'password') { logout(); } else { syncUserData(); }
+                } else { showToast(data && data.message ? data.message : "Error server", 'error'); }
             } catch(e) { showToast('Kesalahan jaringan.', 'error'); }
-            
             btn.innerText = ori; btn.disabled = false;
         }
 
         async function fetchAllProducts() {
-            try {
-                let data = await apiCall('/api/produk');
-                if(data) {
-                    allProducts = data;
-                }
-            } catch(e){}
+            try { let data = await apiCall('/api/produk'); if(data) allProducts = data; } catch(e){}
         }
 
         async function loadCategory(cat) {
-            currentCategory = cat; 
-            currentBrand = "";
-            localStorage.setItem('tendo_current_cat', cat);
-            localStorage.setItem('tendo_current_brand', '');
-            localStorage.setItem('tendo_current_subcat', '');
-            
+            currentCategory = cat; currentBrand = "";
             await fetchAllProducts(); 
             document.getElementById('brand-cat-title').innerText = cat;
             
@@ -1784,35 +1493,23 @@ EOF
             }
 
             if(brands.length > 0) {
-                brands.sort();
-                let gridHTML = '';
+                brands.sort(); let gridHTML = '';
                 brands.forEach(b => {
                     let initial = b.substring(0,2).toUpperCase();
                     let clickAction = (cat === 'Data') ? `loadSubCategory('${cat}', '${b}')` : `loadProducts('${cat}', '${b}')`;
-                    
                     gridHTML += `
                     <div class="brand-row" onclick="${clickAction}">
-                        <div class="b-logo">${initial}</div>
-                        <div class="b-name">${b}</div>
-                        <div style="margin-left:auto">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                        </div>
+                        <div class="b-logo">${initial}</div><div class="b-name">${b}</div>
+                        <div style="margin-left:auto"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
                     </div>`;
                 });
                 document.getElementById('brand-list').innerHTML = gridHTML;
-                showScreen('brand-screen', 'nav-home');
-            } else {
-                showToast('Belum ada produk di kategori ini.', 'error');
-            }
+                navigateTo('brand-screen', 'nav-home');
+            } else { showToast('Belum ada produk di kategori ini.', 'error'); }
         }
 
         function loadSubCategory(cat, brand) {
-            currentCategory = cat;
-            currentBrand = brand;
-            localStorage.setItem('tendo_current_cat', cat);
-            localStorage.setItem('tendo_current_brand', brand);
-            localStorage.setItem('tendo_current_subcat', '');
-
+            currentCategory = cat; currentBrand = brand;
             document.getElementById('brand-cat-title').innerText = brand + " (Paket)";
             
             let subs = [];
@@ -1825,33 +1522,22 @@ EOF
             }
             
             if(subs.length > 0) {
-                let sortedSubs = subs.sort();
-                let gridHTML = '';
+                let sortedSubs = subs.sort(); let gridHTML = '';
                 sortedSubs.forEach(s => {
                     let initial = s.substring(0,2).toUpperCase();
                     gridHTML += `
                     <div class="brand-row" onclick="loadProducts('${cat}', '${brand}', '${s}')">
-                        <div class="b-logo">${initial}</div>
-                        <div class="b-name">${s}</div>
-                        <div style="margin-left:auto">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                        </div>
+                        <div class="b-logo">${initial}</div><div class="b-name">${s}</div>
+                        <div style="margin-left:auto"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
                     </div>`;
                 });
                 document.getElementById('brand-list').innerHTML = gridHTML;
-                showScreen('brand-screen', 'nav-home');
-            } else {
-                showToast('Belum ada paket untuk provider ini.', 'error');
-            }
+                navigateTo('brand-screen', 'nav-home');
+            } else { showToast('Belum ada paket untuk provider ini.', 'error'); }
         }
 
         function loadProducts(cat, brand, subCat = null) {
-            currentCategory = cat;
-            currentBrand = brand;
-            localStorage.setItem('tendo_current_cat', cat);
-            localStorage.setItem('tendo_current_brand', brand);
-            localStorage.setItem('tendo_current_subcat', subCat || 'null');
-
+            currentCategory = cat; currentBrand = brand;
             document.getElementById('cat-title-text').innerText = subCat ? subCat : brand;
             document.getElementById('search-product').value = ''; 
             
@@ -1859,21 +1545,20 @@ EOF
             for(let key in allProducts) {
                 let p = allProducts[key];
                 if (p.kategori !== cat || (p.brand || 'Lainnya') !== brand) continue;
-                if (subCat) {
-                    let pSub = p.sub_kategori || 'Umum';
-                    if (pSub !== subCat) continue;
-                }
+                if (subCat) { let pSub = p.sub_kategori || 'Umum'; if (pSub !== subCat) continue; }
                 
                 let safeName = p.nama.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 let safeDesc = p.deskripsi ? p.deskripsi.replace(/'/g, "\\'").replace(/"/g, '&quot;') : 'Proses Otomatis 24 Jam';
                 let initial = brand.substring(0,2).toUpperCase();
                 
-                // LOGIKA LABEL GANGGUAN / OPEN
-                let statusBadge = p.status_produk === false 
-                    ? '<span style="background:#fee2e2; color:#b91c1c; font-size:9px; padding:2px 6px; border-radius:4px; font-weight:800; border:1px solid #fca5a5; flex-shrink:0; margin-left:8px;">GANGGUAN</span>' 
+                // LOGIKA GANGGUAN (STRUKTUR LEBIH KETAT)
+                let isGangguan = (p.status_produk === false || p.status_produk === "false" || p.status_produk === 0);
+                
+                let statusBadge = isGangguan 
+                    ? '<span class="badge-gangguan">GANGGUAN</span>' 
                     : '<span class="badge-open">OPEN</span>';
                 
-                let onClickAction = p.status_produk === false
+                let onClickAction = isGangguan
                     ? `showToast('Maaf, produk ini sedang gangguan dari pusat.', 'error')`
                     : `openOrderModal('${key}', '${safeName}', ${p.harga}, '${safeDesc}')`;
                 
@@ -1888,25 +1573,11 @@ EOF
                 </div>`;
             }
             document.getElementById('product-list').innerHTML = listHTML || '<div style="text-align:center; padding:30px; font-weight:bold; color:var(--text-muted);">KOSONG</div>';
-            showScreen('produk-screen', 'nav-home');
+            navigateTo('produk-screen', 'nav-home');
         }
 
-        function goBackFromBrandScreen() {
-            let title = document.getElementById('brand-cat-title').innerText;
-            if(currentCategory === 'Data' && title.includes('(Paket)')) {
-                loadCategory(currentCategory); 
-            } else {
-                showDashboard(); 
-            }
-        }
-
-        function goBackFromProducts() {
-            if(currentCategory === 'Data') {
-                loadSubCategory(currentCategory, currentBrand); 
-            } else {
-                loadCategory(currentCategory); 
-            }
-        }
+        function goBackFromBrandScreen() { goBack(); }
+        function goBackFromProducts() { goBack(); }
 
         function openOrderModal(sku, nama, harga, desc) {
             selectedSKU = sku;
@@ -1919,36 +1590,26 @@ EOF
         function closeOrderModal() { document.getElementById('order-modal').classList.add('hidden'); }
         function closeOrderSuccessModal() { 
             document.getElementById('order-success-modal').classList.add('hidden'); 
+            switchTab('history-screen', 'nav-history');
             showHistory('Order');
         }
 
         async function processOrder() {
-            if(!currentUser) {
-                showToast('Sesi Anda habis. Silakan login ulang.', 'error');
-                logout(); return;
-            }
+            if(!currentUser) { showToast('Sesi habis. Silakan login ulang.', 'error'); logout(); return; }
             let target = document.getElementById('m-target').value.trim();
             if(!target || target.length < 4) return showToast("Nomor tujuan tidak valid!", 'error');
             
-            let btn = document.getElementById('m-submit');
-            let ori = btn.innerText; 
-            btn.innerText = 'Proses...'; btn.disabled = true;
-            
+            let btn = document.getElementById('m-submit'); let ori = btn.innerText; btn.innerText = 'Proses...'; btn.disabled = true;
             try {
                 let data = await apiCall('/api/order', {phone: currentUser, sku: selectedSKU, tujuan: target});
                 if(data && data.success) {
-                    closeOrderModal();
-                    syncUserData();
-                    
+                    closeOrderModal(); syncUserData();
                     document.getElementById('os-name').innerText = document.getElementById('m-name').innerText;
                     document.getElementById('os-target').innerText = target;
                     document.getElementById('os-price').innerText = document.getElementById('m-price').innerText;
                     document.getElementById('order-success-modal').classList.remove('hidden');
-                } else {
-                    showToast(data && data.message ? 'Gagal: ' + data.message : "Kesalahan server saat memproses order.", 'error');
-                }
+                } else { showToast(data && data.message ? 'Gagal: ' + data.message : "Kesalahan server.", 'error'); }
             } catch(e) { showToast('Kesalahan jaringan.', 'error'); }
-            
             btn.innerText = ori; btn.disabled = false;
         }
     </script>
@@ -2442,17 +2103,6 @@ async function startBot() {
         } catch(e) {}
     }, 30000); 
 
-    // TRIGGER RESET STATISTIK TEPAT JAM 00:00:00 WIB
-    setInterval(() => {
-        try {
-            let now = new Date();
-            let timeString = now.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-            if(timeString === '00:00:00' || timeString === '00:00:01') {
-                console.log('\x1b[36m[SISTEM] Reset harian pukul 00:00 WIB dilakukan.\x1b[0m');
-            }
-        } catch(e){}
-    }, 1000);
-
     // PENGHAPUSAN RIWAYAT LAMA LEBIH DARI 30 HARI
     setInterval(() => {
         try {
@@ -2535,9 +2185,7 @@ async function startBot() {
     });
 }
 
-// ==============================================================
-// TUGAS PEMBARUAN LAYANAN & HARGA OTOMATIS (DARI DIGIFLAZZ API)
-// ==============================================================
+// TUGAS PEMBARUAN LAYANAN OTOMATIS (DENGAN CEK STATUS GANGGUAN)
 async function tarikDataLayananOtomatis() {
     try {
         let config = loadJSON(configFile);
@@ -2562,9 +2210,15 @@ async function tarikDataLayananOtomatis() {
                 let kodeBarang = item.buyer_sku_code;
                 let namaBarang = item.product_name;
                 let hargaModal = item.price;
-                let statusProduk = item.buyer_product_status; // STATUS AKTIF/GANGGUAN
                 
-                // MENGGOLONGKAN KATEGORI STRICT-MATCH DIGIFLAZZ
+                // LOGIKA DETEKSI GANGGUAN MUTLAK (BUYER & SELLER STATUS)
+                let buyerStatus = item.buyer_product_status;
+                let sellerStatus = item.seller_product_status;
+                let statusProduk = true; 
+                if (buyerStatus === false || sellerStatus === false) {
+                    statusProduk = false; // Jika salah satu false, set Gangguan!
+                }
+                
                 let catDigi = (item.category || '').trim();
                 let catLower = catDigi.toLowerCase();
                 let kategoriBarang = 'Lainnya';
@@ -2583,7 +2237,6 @@ async function tarikDataLayananOtomatis() {
                 let merekBarang = item.brand || 'Lainnya';
                 let subKategori = item.type || 'Umum';
 
-                // PERHITUNGAN KEUNTUNGAN 13 TINGKAT
                 let keuntungan = 0;
                 if(hargaModal <= 100) keuntungan = m.t1;
                 else if(hargaModal <= 500) keuntungan = m.t2;
@@ -2717,7 +2370,7 @@ install_dependencies() {
     rm -rf node_modules package-lock.json
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    echo -ne "${C_MAG}>> Mengunduh modul utama...${C_RST}"
+    echo -ne "${C_MAG}>> Mengunduh modul (Baileys, XLSX, dll)...${C_RST}"
     npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser xlsx > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
@@ -3155,7 +2808,7 @@ menu_backup() {
 }
 
 # ==========================================
-# 12. MENU UTAMA (PANEL KONTROL 16 OPSI)
+# 12. MENU UTAMA (PANEL KONTROL 15 OPSI - BROADCAST & JAPRI DIHAPUS)
 # ==========================================
 while true; do
     clear
