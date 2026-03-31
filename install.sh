@@ -23,10 +23,11 @@ sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT > /dev/null 2>&1 || true
 # ==========================================
 # 1. BIKIN SHORTCUT 'BOT' DI VPS
 # ==========================================
-# Hapus sisa-sisa Auto-Start panel yang bikin VPS macet sebelumnya
+# Membersihkan script startup lama jika ada
 sed -i '/# Auto-start bot panel/d' ~/.bashrc
-sed -i '/if \[ -f \/usr\/bin\/bot \] && \[ -t 1 \]; then/d' ~/.bashrc
+sed -i '/if \[ -t 1 \] && \[ -x \/usr\/bin\/menu \]; then/d' ~/.bashrc
 sed -i '/\/usr\/bin\/bot/d' ~/.bashrc
+sed -i '/\/usr\/bin\/menu/d' ~/.bashrc
 
 if [ ! -f "/usr/bin/bot" ]; then
     echo -e '#!/bin/bash\ncd "'$(pwd)'"\n./install.sh' | sudo tee /usr/bin/bot > /dev/null
@@ -36,6 +37,12 @@ fi
 if [ ! -f "/usr/bin/menu" ]; then
     echo -e '#!/bin/bash\ncd "'$(pwd)'"\n./install.sh' | sudo tee /usr/bin/menu > /dev/null
     sudo chmod +x /usr/bin/menu
+fi
+
+# Fitur Auto-Start Panel saat buka VPS
+if ! grep -q "/usr/bin/menu" ~/.bashrc; then
+    echo '# Auto-start bot panel' >> ~/.bashrc
+    echo 'if [ -t 1 ] && [ -x /usr/bin/menu ] && [ -z "$TMUX" ]; then /usr/bin/menu; fi' >> ~/.bashrc
 fi
 
 # ==========================================
@@ -72,10 +79,10 @@ module.exports = {
             if (!fs.existsSync(file)) return defaultData;
             let raw = fs.readFileSync(file, 'utf8');
             if(!raw) return defaultData;
-            // Migrasi otomatis jika file masih berupa teks asli (belum dienkripsi)
+            // Migrasi otomatis jika file masih berupa teks asli
             if (raw.trim().startsWith('{') || raw.trim().startsWith('[')) {
                 let parsed = JSON.parse(raw);
-                module.exports.save(file, parsed); // Enkripsi dan simpan ulang
+                module.exports.save(file, parsed); 
                 return parsed;
             }
             return JSON.parse(decrypt(raw));
@@ -151,9 +158,9 @@ EOF
             --text-main: #0b2136;
             --text-muted: #64748b;
             --border-color: #d1d9e2;
-            --grid-bg: #f4f7f9;
-            --grid-shadow: inset 3px 3px 7px rgba(0,0,0,0.06), inset -3px -3px 7px rgba(255,255,255,0.6); 
-            --grid-border: 1px solid transparent;
+            --grid-bg: #ffffff;
+            --grid-shadow: 0 4px 12px rgba(0,0,0,0.03); 
+            --grid-border: 1px solid var(--border-color);
             --nav-bg: #0f172a;
             --nav-text: #64748b;
             --nav-active: #38bdf8;
@@ -169,7 +176,7 @@ EOF
             --text-muted: #94a3b8;
             --border-color: #334155;
             --grid-bg: #1e293b;
-            --grid-shadow: inset 3px 3px 8px rgba(0,0,0,0.4), inset -3px -3px 8px rgba(255,255,255,0.04);
+            --grid-shadow: 0 4px 12px rgba(0,0,0,0.2);
             --grid-border: 1px solid #334155;
             --nav-bg: #0b1120;
             --nav-text: #475569;
@@ -237,19 +244,43 @@ EOF
         .banner-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; justify-content: center; align-items: center; }
         .banner-slide img { width: 100%; height: auto; object-fit: cover; aspect-ratio: 21/9; display: block;}
 
-        /* GRID MENU */
+        /* GRID MENU (DIPERBARUI) */
         .grid-title { margin: 25px 20px 15px; font-weight: 900; color: var(--text-main); font-size: 15px;}
         .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 0 20px;}
         .grid-box { 
-            background: var(--grid-bg); border-radius: 16px; padding: 18px 5px; 
+            background: var(--grid-bg); border-radius: 18px; padding: 18px 5px; 
             text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
             box-shadow: var(--grid-shadow); border: var(--grid-border);
-            transition: transform 0.2s, background 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-        .grid-box:active { transform: scale(0.95); opacity: 0.8; }
+        .grid-box:active { transform: scale(0.95); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         
-        .grid-icon-wrap { width: 42px; height: 42px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center; color: var(--text-main);}
-        .grid-text { font-size: 10px; color: var(--text-main); font-weight: 800; line-height: 1.3; text-transform: uppercase; letter-spacing: -0.2px;}
+        .grid-icon-wrap { 
+            width: 50px; height: 50px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center; 
+            border-radius: 14px; transition: background 0.3s;
+        }
+        /* Highlight warna background untuk setiap icon */
+        .ic-pulsa { background: rgba(56, 189, 248, 0.15); color: #0284c7; }
+        .ic-data { background: rgba(52, 211, 153, 0.15); color: #059669; }
+        .ic-game { background: rgba(248, 113, 113, 0.15); color: #dc2626; }
+        .ic-voucher { background: rgba(250, 204, 21, 0.15); color: #ca8a04; }
+        .ic-ewallet { background: rgba(167, 139, 250, 0.15); color: #7c3aed; }
+        .ic-pln { background: rgba(251, 191, 36, 0.15); color: #d97706; }
+        .ic-sms { background: rgba(244, 114, 182, 0.15); color: #db2777; }
+        .ic-masa { background: rgba(251, 146, 60, 0.15); color: #ea580c; }
+        .ic-perdana { background: rgba(45, 212, 191, 0.15); color: #0d9488; }
+        
+        .dark-mode .ic-pulsa { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
+        .dark-mode .ic-data { background: rgba(52, 211, 153, 0.2); color: #34d399; }
+        .dark-mode .ic-game { background: rgba(248, 113, 113, 0.2); color: #f87171; }
+        .dark-mode .ic-voucher { background: rgba(250, 204, 21, 0.2); color: #facc15; }
+        .dark-mode .ic-ewallet { background: rgba(167, 139, 250, 0.2); color: #a78bfa; }
+        .dark-mode .ic-pln { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+        .dark-mode .ic-sms { background: rgba(244, 114, 182, 0.2); color: #f472b6; }
+        .dark-mode .ic-masa { background: rgba(251, 146, 60, 0.2); color: #fb923c; }
+        .dark-mode .ic-perdana { background: rgba(45, 212, 191, 0.2); color: #2dd4bf; }
+
+        .grid-text { font-size: 10.5px; color: var(--text-main); font-weight: 800; line-height: 1.3; text-transform: uppercase; letter-spacing: -0.2px;}
 
         /* STATISTIK GLOBAL */
         .stats-container { margin: 25px 20px; padding: 15px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02);}
@@ -456,63 +487,22 @@ EOF
 
         /* DESKTOP RESPONSIVENESS */
         @media screen and (min-width: 768px) {
-            body { 
-                padding: 30px 0; 
-                background-color: var(--border-color); 
-            }
-            #app {
-                max-width: 800px;
-                border-radius: 36px;
-                min-height: calc(100vh - 60px);
-                box-shadow: 0 25px 60px rgba(0,0,0,0.15);
-                padding-bottom: 130px;
-            }
-            .top-bar {
-                border-top-left-radius: 36px;
-                border-top-right-radius: 36px;
-                padding: 20px 30px;
-            }
+            body { padding: 30px 0; background-color: var(--border-color); }
+            #app { max-width: 800px; border-radius: 36px; min-height: calc(100vh - 60px); box-shadow: 0 25px 60px rgba(0,0,0,0.15); padding-bottom: 130px; }
+            .top-bar { border-top-left-radius: 36px; border-top-right-radius: 36px; padding: 20px 30px; }
             .banner-container { padding: 10px 30px 30px; }
             .banner { padding: 40px 30px 35px; }
             .saldo-amount { font-size: 42px; }
-            
-            .bottom-nav {
-                max-width: 740px;
-                bottom: 50px;
-                padding: 15px 10px;
-                border-radius: 60px;
-            }
+            .bottom-nav { max-width: 740px; bottom: 50px; padding: 15px 10px; border-radius: 60px; }
             .nav-item .nav-icon svg { width: 26px; height: 26px; }
-            
-            .grid-container { 
-                grid-template-columns: repeat(4, 1fr); 
-                padding: 0 30px; 
-                gap: 20px; 
-            }
+            .grid-container { grid-template-columns: repeat(4, 1fr); padding: 0 30px; gap: 20px; }
             .stats-container { margin: 30px; }
             .banner-slider-container { margin: 20px 30px 0px; }
-            
-            #product-list, #brand-list, #history-list {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 20px;
-                padding: 10px 30px 30px !important;
-            }
+            #product-list, #brand-list, #history-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 10px 30px 30px !important; }
             .product-item, .brand-row, .hist-item { margin: 0 !important; }
-            
-            #notif-list {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 20px;
-                padding: 30px !important;
-            }
+            #notif-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 30px !important; }
             #notif-list .card { margin-bottom: 0 !important; }
-            
-            #login-screen .card, #register-screen .card, #otp-screen .card, #forgot-screen .card {
-                max-width: 450px;
-                margin: 0 auto;
-                padding: 40px;
-            }
+            #login-screen .card, #register-screen .card, #otp-screen .card, #forgot-screen .card { max-width: 450px; margin: 0 auto; padding: 40px; }
             .sidebar { width: 340px; }
         }
 
@@ -520,9 +510,7 @@ EOF
             #app { max-width: 1024px; }
             .bottom-nav { max-width: 964px; }
             .grid-container { grid-template-columns: repeat(5, 1fr); }
-            #product-list, #brand-list, #history-list, #notif-list {
-                grid-template-columns: repeat(3, 1fr);
-            }
+            #product-list, #brand-list, #history-list, #notif-list { grid-template-columns: repeat(3, 1fr); }
         }
     </style>
 </head>
@@ -658,98 +646,81 @@ EOF
             <div class="grid-title">Layanan Produk</div>
             <div class="grid-container">
                 <div class="grid-box" onclick="loadCategory('Pulsa')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#93C5FD" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <rect x="5" y="2" width="14" height="20" rx="3"></rect>
-                            <path d="M12 18h.01" stroke-width="3"></path>
+                    <div class="grid-icon-wrap ic-pulsa">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" width="28" height="28">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><path d="M12 18h.01"></path><path d="M13 8l-2 3h3l-2 3"></path>
                         </svg>
                     </div>
                     <div class="grid-text">PULSA</div>
                 </div>
                 
                 <div class="grid-box" onclick="loadCategory('Data')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#86EFAC" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    <div class="grid-icon-wrap ic-data">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" width="28" height="28">
+                            <circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
                         </svg>
                     </div>
                     <div class="grid-text">DATA</div>
                 </div>
 
                 <div class="grid-box" onclick="loadCategory('Game')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#FCA5A5" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <rect x="2" y="6" width="20" height="12" rx="4"></rect>
-                            <line x1="6" y1="12" x2="10" y2="12"></line>
-                            <line x1="8" y1="10" x2="8" y2="14"></line>
-                            <line x1="15" y1="13" x2="15.01" y2="13"></line>
-                            <line x1="18" y1="11" x2="18.01" y2="11"></line>
+                    <div class="grid-icon-wrap ic-game">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" width="28" height="28">
+                            <rect x="2" y="6" width="20" height="12" rx="4"></rect><line x1="6" y1="12" x2="10" y2="12"></line><line x1="8" y1="10" x2="8" y2="14"></line><line x1="15" y1="13" x2="15.01" y2="13"></line><line x1="18" y1="11" x2="18.01" y2="11"></line>
                         </svg>
                     </div>
                     <div class="grid-text">GAME</div>
                 </div>
                 
                 <div class="grid-box" onclick="loadCategory('Voucher')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#FDE047" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <rect x="2" y="6" width="20" height="12" rx="2"></rect>
-                            <circle cx="2" cy="12" r="2.5" fill="none" stroke="currentColor"></circle>
-                            <circle cx="22" cy="12" r="2.5" fill="none" stroke="currentColor"></circle>
+                    <div class="grid-icon-wrap ic-voucher">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" width="28" height="28">
+                            <path d="M15 5.88 14 10l5.12.33-4 5.17 1.33 4.5L12 17l-4.45 3 1.33-4.5-4-5.17L10 10l-1-4.12L12 8z"></path>
                         </svg>
                     </div>
                     <div class="grid-text">VOUCHER</div>
                 </div>
                 
                 <div class="grid-box" onclick="loadCategory('E-Money')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#C4B5FD" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <rect x="3" y="6" width="18" height="13" rx="2"></rect>
-                            <path d="M16 10h5v4h-5z" fill="#FDE047"></path>
+                    <div class="grid-icon-wrap ic-ewallet">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" width="28" height="28">
+                            <rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line><path d="M16 14h.01"></path>
                         </svg>
                     </div>
                     <div class="grid-text">E-WALLET</div>
                 </div>
                 
                 <div class="grid-box" onclick="loadCategory('PLN')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#FDE047" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                    <div class="grid-icon-wrap ic-pln">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" width="28" height="28">
+                            <path d="M11 2v5a1 1 0 0 0 1 1h4"></path><path d="M6 14h12"></path><path d="M12 14v8"></path><path d="M9 10a5 5 0 0 0 5 5h.5a4.5 4.5 0 0 0 1.5-8.7V6"></path>
                         </svg>
                     </div>
                     <div class="grid-text">PLN</div>
                 </div>
 
                 <div class="grid-box" onclick="loadCategory('Paket SMS & Telpon')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#F9A8D4" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                    <div class="grid-icon-wrap ic-sms">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" width="28" height="28">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M9 10h.01"></path><path d="M12 10h.01"></path><path d="M15 10h.01"></path>
                         </svg>
                     </div>
                     <div class="grid-text">SMS TELP</div>
                 </div>
                 
                 <div class="grid-box" onclick="loadCategory('Masa Aktif')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#FDBA74" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="16" y1="2" x2="16" y2="6"></line>
-                            <line x1="8" y1="2" x2="8" y2="6"></line>
-                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                            <circle cx="12" cy="15" r="1.5" fill="currentColor" stroke="none"></circle>
-                            <circle cx="8" cy="15" r="1.5" fill="currentColor" stroke="none"></circle>
-                            <circle cx="16" cy="15" r="1.5" fill="currentColor" stroke="none"></circle>
+                    <div class="grid-icon-wrap ic-masa">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" width="28" height="28">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M12 14v4"></path><path d="M10 16h4"></path>
                         </svg>
                     </div>
                     <div class="grid-text">MASA AKTIF</div>
                 </div>
                 
                 <div class="grid-box" onclick="loadCategory('Aktivasi Perdana')">
-                    <div class="grid-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="#99F6E4" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
-                            <path d="M4 4h12l4 4v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path>
-                            <rect x="8" y="12" width="8" height="6" rx="1" fill="#FDE047" stroke="currentColor"></rect>
-                            <line x1="12" y1="12" x2="12" y2="18"></line>
+                    <div class="grid-icon-wrap ic-perdana">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" width="28" height="28">
+                            <path d="M4 4h12l4 4v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path><rect x="8" y="12" width="8" height="6" rx="1"></rect><line x1="12" y1="12" x2="12" y2="18"></line>
                         </svg>
                     </div>
                     <div class="grid-text">PERDANA</div>
@@ -1719,12 +1690,9 @@ EOF
             document.getElementById('brand-cat-title').innerText = cat;
             
             let brands = [];
-            // Ambil brand murni dari list produk sesuai kategori
             for(let key in allProducts) {
                 if(allProducts[key].kategori !== cat) continue;
                 let b = allProducts[key].brand || 'Lainnya';
-                
-                // Pengecualian agar 'Lainnya' tidak merusak susunan di kategori utama
                 if ((cat === 'Game' || cat === 'Data' || cat === 'Pulsa') && b === 'Lainnya') continue;
                 if(!brands.includes(b)) brands.push(b);
             }
@@ -1772,7 +1740,6 @@ EOF
             
             if(subs.length > 0) {
                 let sortedSubs = subs.sort();
-                
                 let gridHTML = '';
                 sortedSubs.forEach(s => {
                     let initial = s.substring(0,2).toUpperCase();
@@ -1806,7 +1773,6 @@ EOF
             for(let key in allProducts) {
                 let p = allProducts[key];
                 if (p.kategori !== cat || (p.brand || 'Lainnya') !== brand) continue;
-                
                 if (subCat) {
                     let pSub = p.sub_kategori || 'Umum';
                     if (pSub !== subCat) continue;
@@ -1957,7 +1923,7 @@ function sendTelegramAdmin(message) {
 }
 
 // ==============================================================
-// FUNGSI KONVERSI QRIS SMART PARSER (ANTI GAGAL/DANA)
+// FUNGSI KONVERSI QRIS SMART PARSER
 // ==============================================================
 function convertToDynamicQris(staticQris, amount) {
     try {
@@ -2034,19 +2000,21 @@ app.get('/api/banners', (req, res) => {
     res.json({ success: true, data: banners });
 });
 
-// GLOBAL STATS API
+// GLOBAL STATS API (AKURASI ZONA WAKTU ASIA/JAKARTA)
 app.get('/api/stats', (req, res) => {
     try {
         let gStats = loadJSON(globalStatsFile);
         let daily = 0, weekly = 0, monthly = 0;
-        let now = new Date();
+        
+        let nowString = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+        let nowDate = new Date(nowString + 'T00:00:00+07:00');
         
         for(let k in gStats) {
-            let d = new Date(k);
-            let diffTime = Math.abs(now - d);
+            let recordDate = new Date(k + 'T00:00:00+07:00');
+            let diffTime = Math.abs(nowDate - recordDate);
             let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             
-            if(now.toISOString().split('T')[0] === k) daily += gStats[k];
+            if(k === nowString) daily += gStats[k];
             if(diffDays <= 7) weekly += gStats[k];
             if(diffDays <= 30) monthly += gStats[k];
         }
@@ -2379,6 +2347,18 @@ async function startBot() {
         } catch(e) {}
     }, 30000); 
 
+    // TRIGGER RESET STATISTIK TEPAT JAM 00:00:00 WIB
+    setInterval(() => {
+        try {
+            let now = new Date();
+            let timeString = now.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+            if(timeString === '00:00:00' || timeString === '00:00:01') {
+                console.log('\x1b[36m[SISTEM] Reset harian pukul 00:00 WIB dilakukan.\x1b[0m');
+            }
+        } catch(e){}
+    }, 1000);
+
+    // PENGHAPUSAN RIWAYAT LAMA LEBIH DARI 30 HARI
     setInterval(() => {
         try {
             let db = loadJSON(dbFile); let changed = false; let oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
@@ -2518,7 +2498,7 @@ async function tarikDataLayananOtomatis() {
                 else if (catLower === 'paket sms & telpon') kategoriBarang = 'Paket SMS & Telpon';
                 else if (catLower === 'masa aktif') kategoriBarang = 'Masa Aktif';
                 else if (catLower === 'aktivasi perdana' || catLower === 'perdana') kategoriBarang = 'Aktivasi Perdana';
-                else kategoriBarang = catDigi; // Fallback jika digiflazz menambah kategori baru
+                else kategoriBarang = catDigi; // Fallback untuk kategori Digiflazz lainnya
                 
                 let merekBarang = item.brand || 'Lainnya';
                 let subKategori = item.type || 'Umum';
@@ -2568,6 +2548,32 @@ if (require.main === module) {
     app.listen(3000, '0.0.0.0', () => { console.log('\x1b[32m🌐 SERVER WEB AKTIF (PORT 3000).\x1b[0m'); });
     startBot().catch(err => {});
 }
+EOF
+}
+
+# ==========================================
+# 4.5. SCRIPT CEK SALDO DIGIFLAZZ (UNTUK TERMINAL)
+# ==========================================
+generate_cek_saldo_script() {
+    cat << 'EOF' > cek_saldo.js
+const crypto = require('crypto');
+const axios = require('axios');
+const crypt = require('./tendo_crypt.js');
+
+async function getSaldo() {
+    try {
+        let config = crypt.load('config.json');
+        let user = config.digiflazzUsername || '';
+        let key = config.digiflazzApiKey || '';
+        if(!user || !key) return console.log('Rp 0 (API Belum Diatur)');
+        let sign = crypto.createHash('md5').update(user + key + 'depo').digest('hex');
+        let res = await axios.post('https://api.digiflazz.com/v1/cek-saldo', {
+            cmd: 'deposit', username: user, sign: sign
+        });
+        console.log('Rp ' + res.data.data.deposit.toLocaleString('id-ID'));
+    } catch(e) { console.log('Rp 0 (Gangguan Server)'); }
+}
+getSaldo();
 EOF
 }
 
@@ -2624,6 +2630,7 @@ install_dependencies() {
     echo -ne "${C_MAG}>> Meracik sistem utama & Web App...${C_RST}"
     generate_crypt_module
     generate_bot_script
+    generate_cek_saldo_script
     generate_web_app
     if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
     rm -rf node_modules package-lock.json
@@ -2858,54 +2865,68 @@ menu_member() {
 }
 
 # ==========================================
-# 9. MANAJEMEN KEUNTUNGAN FLEKSIBEL (13 TINGKAT)
+# 9. MANAJEMEN KEUNTUNGAN FLEKSIBEL (13 TINGKAT DENGAN PILIHAN)
 # ==========================================
 menu_keuntungan() {
-    clear
-    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_YELLOW}${C_BOLD}             💰 MANAJEMEN KEUNTUNGAN 💰             ${C_RST}"
-    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_MAG}Masukkan nominal keuntungan (Rp) untuk masing-masing rentang harga.${C_RST}\n"
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             💰 MANAJEMEN KEUNTUNGAN 💰             ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        
+        # Tampilkan harga saat ini menggunakan Node.js
+        node -e "
+            const crypt = require('./tendo_crypt.js');
+            let c = crypt.load('config.json').margin || {};
+            console.log('  \x1b[32m[1]\x1b[0m  Modal Rp 0 - 100               : Rp ' + (c.t1||50));
+            console.log('  \x1b[32m[2]\x1b[0m  Modal Rp 100 - 500             : Rp ' + (c.t2||100));
+            console.log('  \x1b[32m[3]\x1b[0m  Modal Rp 500 - 1.000           : Rp ' + (c.t3||250));
+            console.log('  \x1b[32m[4]\x1b[0m  Modal Rp 1.000 - 2.000         : Rp ' + (c.t4||500));
+            console.log('  \x1b[32m[5]\x1b[0m  Modal Rp 2.000 - 3.000         : Rp ' + (c.t5||1000));
+            console.log('  \x1b[32m[6]\x1b[0m  Modal Rp 3.000 - 4.000         : Rp ' + (c.t6||1500));
+            console.log('  \x1b[32m[7]\x1b[0m  Modal Rp 4.000 - 5.000         : Rp ' + (c.t7||2000));
+            console.log('  \x1b[32m[8]\x1b[0m  Modal Rp 5.000 - 10.000        : Rp ' + (c.t8||2500));
+            console.log('  \x1b[32m[9]\x1b[0m  Modal Rp 10.000 - 25.000       : Rp ' + (c.t9||3000));
+            console.log('  \x1b[32m[10]\x1b[0m Modal Rp 25.000 - 50.000      : Rp ' + (c.t10||4000));
+            console.log('  \x1b[32m[11]\x1b[0m Modal Rp 50.000 - 75.000      : Rp ' + (c.t11||5000));
+            console.log('  \x1b[32m[12]\x1b[0m Modal Rp 75.000 - 100.000     : Rp ' + (c.t12||7500));
+            console.log('  \x1b[32m[13]\x1b[0m Modal Rp 100.000 - Seterusnya : Rp ' + (c.t13||10000));
+        "
+        
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST}  Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih nomor rentang yang ingin diubah [0-13]: ${C_RST}"
+        read k_choice
 
-    read -p "1. Modal Rp 0 - 100               : Rp " m_1
-    read -p "2. Modal Rp 100 - 500             : Rp " m_2
-    read -p "3. Modal Rp 500 - 1.000           : Rp " m_3
-    read -p "4. Modal Rp 1.000 - 2.000         : Rp " m_4
-    read -p "5. Modal Rp 2.000 - 3.000         : Rp " m_5
-    read -p "6. Modal Rp 3.000 - 4.000         : Rp " m_6
-    read -p "7. Modal Rp 4.000 - 5.000         : Rp " m_7
-    read -p "8. Modal Rp 5.000 - 10.000        : Rp " m_8
-    read -p "9. Modal Rp 10.000 - 25.000       : Rp " m_9
-    read -p "10. Modal Rp 25.000 - 50.000      : Rp " m_10
-    read -p "11. Modal Rp 50.000 - 75.000      : Rp " m_11
-    read -p "12. Modal Rp 75.000 - 100.000     : Rp " m_12
-    read -p "13. Modal Rp 100.000 - Seterusnya : Rp " m_13
-
-    node -e "
-        const crypt = require('./tendo_crypt.js');
-        let config = crypt.load('config.json');
-        config.margin = {
-            t1: parseInt('$m_1') || 0,
-            t2: parseInt('$m_2') || 0,
-            t3: parseInt('$m_3') || 0,
-            t4: parseInt('$m_4') || 0,
-            t5: parseInt('$m_5') || 0,
-            t6: parseInt('$m_6') || 0,
-            t7: parseInt('$m_7') || 0,
-            t8: parseInt('$m_8') || 0,
-            t9: parseInt('$m_9') || 0,
-            t10: parseInt('$m_10') || 0,
-            t11: parseInt('$m_11') || 0,
-            t12: parseInt('$m_12') || 0,
-            t13: parseInt('$m_13') || 0
-        };
-        crypt.save('config.json', config);
-        console.log('\x1b[32m\n✅ Konfigurasi 13 Tingkat Keuntungan Berhasil Disimpan!\x1b[0m');
-    "
-    echo -e "\n${C_YELLOW}💡 Menjalankan sinkronisasi otomatis agar harga langsung terupdate...${C_RST}"
-    curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
-    echo -e "${C_GREEN}✅ Harga telah di-refresh dan siap digunakan di Website!${C_RST}"
-    read -p "Tekan Enter untuk kembali..."
+        if [ "$k_choice" == "0" ]; then
+            break
+        elif [[ "$k_choice" -ge 1 && "$k_choice" -le 13 ]]; then
+            read -p "Masukkan Keuntungan Baru (Rp) untuk Pilihan $k_choice: " nominal_baru
+            
+            # Jika user membatalkan / kosong
+            if [ -z "$nominal_baru" ]; then
+                echo -e "${C_RED}❌ Dibatalkan, nominal tidak boleh kosong.${C_RST}"
+                sleep 1
+                continue
+            fi
+            
+            node -e "
+                const crypt = require('./tendo_crypt.js');
+                let config = crypt.load('config.json');
+                if(!config.margin) config.margin = { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
+                let tier = 't' + $k_choice;
+                config.margin[tier] = parseInt('$nominal_baru');
+                crypt.save('config.json', config);
+            "
+            echo -e "${C_GREEN}✅ Keuntungan tier $k_choice berhasil diubah! Me-refresh Katalog Website...${C_RST}"
+            curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
+            sleep 1
+        else
+            echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"
+            sleep 1
+        fi
+    done
 }
 
 # ==========================================
@@ -2933,11 +2954,20 @@ menu_sinkron() {
 # ==========================================
 while true; do
     clear
+    
+    # MENGAMBIL SALDO DIGIFLAZZ MENGGUNAKAN NODE.JS (cek_saldo.js)
+    SALDO_DIGI="Rp 0 (Memuat...)"
+    if [ -f "cek_saldo.js" ]; then
+        SALDO_DIGI=$(node cek_saldo.js 2>/dev/null)
+    fi
+
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     echo -e "${C_YELLOW}${C_BOLD}             🤖 PANEL ADMIN TENDO STORE 🤖            ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_GREEN}${C_BOLD} 💰 Sisa Saldo Digiflazz : ${C_YELLOW}${SALDO_DIGI}${C_RST}"
+    echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
     echo -e "${C_MAG}▶ MANAJEMEN BOT & WEB APP${C_RST}"
-    echo -e "  ${C_GREEN}[1]${C_RST}  Install & Perbarui Sistem"
+    echo -e "  ${C_GREEN}[1]${C_RST}  Install & Perbarui Sistem (Wajib Jalankan Dulu)"
     echo -e "  ${C_GREEN}[2]${C_RST}  Mulai Bot (Terminal / Scan QR)"
     echo -e "  ${C_GREEN}[3]${C_RST}  Jalankan Bot & Web di Latar Belakang (PM2)"
     echo -e "  ${C_GREEN}[4]${C_RST}  Hentikan Bot & Web (PM2)"
