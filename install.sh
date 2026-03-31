@@ -72,9 +72,10 @@ module.exports = {
             if (!fs.existsSync(file)) return defaultData;
             let raw = fs.readFileSync(file, 'utf8');
             if(!raw) return defaultData;
+            // Migrasi otomatis jika file masih berupa teks asli (belum dienkripsi)
             if (raw.trim().startsWith('{') || raw.trim().startsWith('[')) {
                 let parsed = JSON.parse(raw);
-                module.exports.save(file, parsed);
+                module.exports.save(file, parsed); // Enkripsi dan simpan ulang
                 return parsed;
             }
             return JSON.parse(decrypt(raw));
@@ -157,6 +158,8 @@ EOF
             --nav-text: #64748b;
             --nav-active: #38bdf8;
             --topbar-bg: #f4f7f9;
+            --toast-bg: #0f172a;
+            --toast-text: #f8fafc;
         }
 
         .dark-mode {
@@ -172,20 +175,26 @@ EOF
             --nav-text: #475569;
             --nav-active: #38bdf8;
             --topbar-bg: #1e293b;
+            --toast-bg: #334155;
+            --toast-text: #f8fafc;
         }
 
+        /* TEMA PREMIUM CSS */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #cbd5e1; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
         #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 140px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
         
+        /* TOP BAR */
         .top-bar { background: var(--topbar-bg); color: var(--text-main); padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: background 0.3s;}
         .menu-btn { cursor: pointer; background: none; border: none; padding: 0; margin-right: 15px; display: flex; align-items: center; justify-content: center; z-index: 2;}
         .menu-btn svg { width: 28px; height: 28px; stroke: var(--text-main); fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
         
         .brand-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 16px; font-weight: 900; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-main); width: 60%; white-space: nowrap;}
         
+        /* TRX BADGE */
         .trx-badge { font-size: 11px; background: var(--bg-main); color: var(--text-main); padding: 5px 12px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.2s; z-index: 2;}
         .trx-badge:active { transform: scale(0.95); }
 
+        /* DEGRADASI LENGKUNGAN */
         .banner-container { 
             background: var(--topbar-bg); 
             padding: 5px 20px 25px; 
@@ -197,6 +206,7 @@ EOF
             transition: background 0.3s;
         }
 
+        /* BANNER SALDO */
         .banner { 
             background: linear-gradient(135deg, #111827 0%, #0f172a 100%); 
             border-radius: 20px; padding: 25px 15px; 
@@ -220,12 +230,14 @@ EOF
         }
         .btn-topup-dash:active, .btn-history-dash:active, .btn-help-dash:active { background: #ffffff; color: #0f172a; }
 
+        /* SLIDER BANNER */
         .banner-slider-container { margin: 20px 20px 0px; border-radius: 16px; overflow: hidden; position: relative; background: var(--bg-card); box-shadow: 0 4px 10px rgba(0,0,0,0.03);}
         .banner-slider { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         .banner-slider::-webkit-scrollbar { display: none; }
         .banner-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; justify-content: center; align-items: center; }
         .banner-slide img { width: 100%; height: auto; object-fit: cover; aspect-ratio: 21/9; display: block;}
 
+        /* GRID MENU */
         .grid-title { margin: 25px 20px 15px; font-weight: 900; color: var(--text-main); font-size: 15px;}
         .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 0 20px;}
         .grid-box { 
@@ -239,6 +251,7 @@ EOF
         .grid-icon-wrap { width: 42px; height: 42px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center; color: var(--text-main);}
         .grid-text { font-size: 10px; color: var(--text-main); font-weight: 800; line-height: 1.3; text-transform: uppercase; letter-spacing: -0.2px;}
 
+        /* STATISTIK GLOBAL */
         .stats-container { margin: 25px 20px; padding: 15px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02);}
         .stats-title { font-size: 14px; font-weight: 900; color: var(--text-main); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;}
         .stats-grid { display: flex; justify-content: space-between; gap: 10px;}
@@ -246,46 +259,61 @@ EOF
         .stat-val { font-size: 18px; font-weight: 900; color: #0ea5e9; margin-bottom: 5px;}
         .stat-lbl { font-size: 9px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;}
 
+        /* BRAND LIST */
         .brand-list { display: flex; flex-direction: column; padding: 15px 20px; gap: 12px; }
         .brand-row { background: var(--bg-card); padding: 15px; border-radius: 14px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s; color: var(--text-main);}
         .brand-row:active { transform: scale(0.98); }
-        .b-logo { width: 45px; height: 45px; background: var(--bg-main); color: var(--text-main); border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border-color); flex-shrink: 0;}
+        .b-logo { width: 45px; height: 45px; background: var(--bg-main); color: var(--text-main); border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border-color); flex-shrink: 0; text-transform: uppercase;}
         .b-name { font-size: 14px; font-weight: 800; flex: 1;}
 
+        /* BOTTOM NAV MENGAMBANG */
         .bottom-nav { 
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            width: calc(100% - 40px); max-width: 400px; 
-            background: var(--nav-bg); display: flex; justify-content: space-around; 
-            padding: 10px 5px; border-radius: 50px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.25); z-index: 900; 
-            transition: background 0.3s; border: 1px solid rgba(255,255,255,0.05);
+            position: fixed; 
+            bottom: 20px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 40px); 
+            max-width: 400px; 
+            background: var(--nav-bg); 
+            display: flex; 
+            justify-content: space-around; 
+            padding: 10px 5px; 
+            border-radius: 50px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25); 
+            z-index: 900; 
+            transition: background 0.3s;
+            border: 1px solid rgba(255,255,255,0.05);
         }
         .nav-item { text-align: center; color: var(--nav-text); font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700; transition: color 0.3s;}
         .nav-icon { margin-bottom: 2px; display: flex; justify-content: center; align-items: center;}
         .nav-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
         .nav-item.active { color: var(--nav-active);}
 
+        /* PRODUCT LIST STYLE */
         .product-item { background: var(--bg-card); padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); cursor: pointer; transition: 0.2s;}
         .product-item:active { transform: scale(0.98); }
-        .prod-logo { width: 45px; height: 45px; background: var(--bg-main); color: var(--text-main); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 14px; border: 1px solid var(--border-color); flex-shrink: 0;}
+        .prod-logo { width: 45px; height: 45px; background: var(--bg-main); color: var(--text-main); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 14px; border: 1px solid var(--border-color); flex-shrink: 0; text-transform: uppercase;}
         .prod-info { flex: 1; min-width: 0; }
         .prod-name { font-weight: 800; font-size: 13px; color: var(--text-main); margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; word-wrap: break-word;}
         .badge-open { background: #e0f2fe; color: #0284c7; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800; border: 1px solid #bae6fd; flex-shrink: 0; margin-left: 8px;}
         .prod-desc { font-size: 10px; color: var(--text-muted); font-weight: 600; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;}
         .prod-price { color: var(--text-main); font-weight: 900; font-size: 15px;}
 
+        /* SEARCH BAR */
         .search-box { padding: 15px 20px 5px; position: sticky; top: 58px; z-index: 50; background: var(--bg-main); transition: background 0.3s; }
         .search-box input { margin-bottom: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.02); border-radius: 12px; padding: 12px 15px; width: 100%; box-sizing: border-box; font-weight: bold;}
 
+        /* TABS RIWAYAT TRANSAKSI & TOPUP */
         .history-tabs { display: flex; background: var(--bg-card); border-bottom: 1px solid var(--border-color); position: sticky; top: 58px; z-index: 50; }
         .hist-tab { flex: 1; text-align: center; padding: 15px 0; font-size: 13px; font-weight: 800; cursor: pointer; color: var(--text-muted); border-bottom: 3px solid transparent; transition: all 0.2s; text-transform: uppercase;}
         .hist-tab.active { color: var(--nav-active); border-bottom-color: var(--nav-active); }
 
+        /* SIDEBAR */
         .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); z-index: 1001; display: none; opacity: 0; transition: opacity 0.3s;}
         .sidebar { position: fixed; top:0; left:-300px; width: 280px; height: 100%; background: var(--bg-card); z-index: 1002; transition: left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 5px 0 15px rgba(0,0,0,0.3);}
         .sidebar.open { left: 0; }
         .sidebar-header { padding: 30px 20px; text-align: center; border-bottom: 1px solid var(--border-color); background: #0f172a; color: #ffffff;}
-        .sidebar-avatar { width: 70px; height: 70px; background: #ffffff; border-radius: 50%; margin: 0 auto 10px auto; display: flex; justify-content: center; align-items: center; color: #0b2136; font-size: 30px; font-weight: bold;}
+        .sidebar-avatar { width: 70px; height: 70px; background: #ffffff; border-radius: 50%; margin: 0 auto 10px auto; display: flex; justify-content: center; align-items: center; color: #0b2136; font-size: 30px; font-weight: bold; text-transform: uppercase;}
         .sidebar-name { font-weight: bold; font-size: 16px; color: #ffffff;}
         .sidebar-phone { font-size: 12px; color: #cbd5e1;}
         .sidebar-menu { padding: 10px 0; flex: 1;}
@@ -293,6 +321,7 @@ EOF
         .sidebar-item:active { background: var(--bg-main); }
         .sidebar-item svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
+        /* FORMS & COMPONENTS */
         .container { padding: 20px; }
         .card { background: var(--bg-card); padding: 25px 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.02);}
         input { width: 100%; padding: 15px; margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 12px; box-sizing: border-box; font-size: 14px; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 600; transition: border-color 0.2s;}
@@ -303,19 +332,56 @@ EOF
         
         .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;}
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: margin-top: 10px;}
+        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
         .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
 
+        /* PROFILE & MODAL */
         .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
-        .prof-avatar-wrap { width: 86px; height: 86px; background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%); border-radius: 50%; padding: 4px; margin: 0 auto 15px auto; box-shadow: 0 10px 25px rgba(14, 165, 233, 0.4);}
-        .prof-avatar { width: 100%; height: 100%; background: #ffffff; color: #0f172a; border-radius: 50%; font-size: 38px; display: flex; justify-content: center; align-items: center; font-weight: 900;}
+        
+        .prof-avatar-wrap {
+            width: 86px; height: 86px;
+            background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+            border-radius: 50%;
+            padding: 4px;
+            margin: 0 auto 15px auto;
+            box-shadow: 0 10px 25px rgba(14, 165, 233, 0.4);
+        }
+        .prof-avatar {
+            width: 100%; height: 100%;
+            background: #ffffff; color: #0f172a;
+            border-radius: 50%; font-size: 38px; display: flex; justify-content: center; align-items: center; font-weight: 900; text-transform: uppercase;
+        }
+
         .prof-box { background: var(--bg-card); color: var(--text-main); margin: -20px 20px 20px; border-radius: 16px; padding: 20px; position: relative; z-index: 10; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.03);}
         .prof-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed var(--border-color); font-size: 13px;}
         .prof-label { color: var(--text-muted); font-weight: 600;}
         .prof-val { font-weight: 900; text-align: right;}
         
-        .prof-actions-container { padding: 0 20px; margin-bottom: 150px; display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 10;}
-        .prof-action-btn { background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px; transition: transform 0.2s; }
+        .prof-actions-container {
+            padding: 0 20px;
+            margin-bottom: 150px; 
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .prof-action-btn { 
+            background: var(--bg-main); 
+            color: var(--text-main); 
+            border: 1px solid var(--border-color); 
+            padding: 15px; 
+            width: 100%; 
+            border-radius: 12px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            font-size: 13px; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            transition: transform 0.2s; 
+        }
         .prof-action-btn:active { transform: scale(0.98); }
         .prof-action-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
 
@@ -339,45 +405,114 @@ EOF
 
         /* PROVIDER TOAST FLOATING */
         .provider-toast {
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-            background: #0f172a; color: #ffffff; padding: 8px 18px; border-radius: 30px;
-            font-size: 12px; font-weight: 800; z-index: 3000; opacity: 0;
-            transition: opacity 0.3s, top 0.3s; pointer-events: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0f172a;
+            color: #ffffff;
+            padding: 8px 18px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 800;
+            z-index: 3000;
+            opacity: 0;
+            transition: opacity 0.3s, top 0.3s;
+            pointer-events: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
         }
-        .provider-toast.show { opacity: 1; top: 40px; }
+        .provider-toast.show {
+            opacity: 1;
+            top: 40px;
+        }
 
-        /* PESAN MENGAMBANG (CUSTOM TOAST) */
+        /* CUSTOM TOAST NOTIFICATION */
         .custom-toast {
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(15, 23, 42, 0.95); color: #fff; padding: 12px 24px;
-            border-radius: 50px; font-size: 13px; font-weight: 800; z-index: 9999;
-            opacity: 0; visibility: hidden; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 10px;
-            white-space: nowrap; border: 1px solid rgba(255,255,255,0.1);
+            position: fixed;
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--toast-bg);
+            color: var(--toast-text);
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 800;
+            z-index: 9999;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            transition: top 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            text-align: center;
+            width: max-content;
+            max-width: 90%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
-        .custom-toast.show { opacity: 1; visibility: visible; top: 40px; }
-        .custom-toast.error { background: rgba(239, 68, 68, 0.95); border-color: #f87171;}
-        .custom-toast.success { background: rgba(16, 185, 129, 0.95); border-color: #34d399;}
+        .custom-toast.show { top: 40px; }
+        .custom-toast.error { background: #ef4444; color: #fff; }
+        .custom-toast.success { background: #10b981; color: #fff; }
 
         /* DESKTOP RESPONSIVENESS */
         @media screen and (min-width: 768px) {
-            body { padding: 30px 0; background-color: var(--border-color); }
-            #app { max-width: 800px; border-radius: 36px; min-height: calc(100vh - 60px); box-shadow: 0 25px 60px rgba(0,0,0,0.15); padding-bottom: 130px; }
-            .top-bar { border-top-left-radius: 36px; border-top-right-radius: 36px; padding: 20px 30px; }
+            body { 
+                padding: 30px 0; 
+                background-color: var(--border-color); 
+            }
+            #app {
+                max-width: 800px;
+                border-radius: 36px;
+                min-height: calc(100vh - 60px);
+                box-shadow: 0 25px 60px rgba(0,0,0,0.15);
+                padding-bottom: 130px;
+            }
+            .top-bar {
+                border-top-left-radius: 36px;
+                border-top-right-radius: 36px;
+                padding: 20px 30px;
+            }
             .banner-container { padding: 10px 30px 30px; }
             .banner { padding: 40px 30px 35px; }
             .saldo-amount { font-size: 42px; }
-            .bottom-nav { max-width: 740px; bottom: 50px; padding: 15px 10px; border-radius: 60px; }
+            
+            .bottom-nav {
+                max-width: 740px;
+                bottom: 50px;
+                padding: 15px 10px;
+                border-radius: 60px;
+            }
             .nav-item .nav-icon svg { width: 26px; height: 26px; }
-            .grid-container { grid-template-columns: repeat(4, 1fr); padding: 0 30px; gap: 20px; }
+            
+            .grid-container { 
+                grid-template-columns: repeat(4, 1fr); 
+                padding: 0 30px; 
+                gap: 20px; 
+            }
             .stats-container { margin: 30px; }
             .banner-slider-container { margin: 20px 30px 0px; }
-            #product-list, #brand-list, #history-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 10px 30px 30px !important; }
+            
+            #product-list, #brand-list, #history-list {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+                padding: 10px 30px 30px !important;
+            }
             .product-item, .brand-row, .hist-item { margin: 0 !important; }
-            #notif-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 30px !important; }
+            
+            #notif-list {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+                padding: 30px !important;
+            }
             #notif-list .card { margin-bottom: 0 !important; }
-            #login-screen .card, #register-screen .card, #otp-screen .card, #forgot-screen .card { max-width: 450px; margin: 0 auto; padding: 40px; }
+            
+            #login-screen .card, #register-screen .card, #otp-screen .card, #forgot-screen .card {
+                max-width: 450px;
+                margin: 0 auto;
+                padding: 40px;
+            }
             .sidebar { width: 340px; }
         }
 
@@ -385,14 +520,14 @@ EOF
             #app { max-width: 1024px; }
             .bottom-nav { max-width: 964px; }
             .grid-container { grid-template-columns: repeat(5, 1fr); }
-            #product-list, #brand-list, #history-list, #notif-list { grid-template-columns: repeat(3, 1fr); }
+            #product-list, #brand-list, #history-list, #notif-list {
+                grid-template-columns: repeat(3, 1fr);
+            }
         }
     </style>
 </head>
 <body>
     <div id="app">
-        <div id="custom-toast" class="custom-toast">Pesan Disini</div>
-
         <div id="initial-loader" style="display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; background: var(--bg-main); position: fixed; top:0; left:0; width:100%; z-index:9999; transition: opacity 0.3s;">
             <div style="width: 50px; height: 50px; border: 4px solid var(--border-color); border-top-color: #0ea5e9; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
             <div style="font-size:20px; font-weight:900; color:var(--text-main); letter-spacing: 1px;">DIGITAL TENDO</div>
@@ -856,13 +991,18 @@ EOF
     </div>
 
     <script>
-        // FUNGSI CUSTOM TOAST ALERT
-        function showToast(msg, type = 'error') {
-            let t = document.getElementById('custom-toast');
-            let icon = type === 'error' ? '⚠️' : '✅';
-            t.innerHTML = `${icon} ${msg}`;
-            t.className = `custom-toast show ${type}`;
-            setTimeout(() => { t.classList.remove('show'); }, 3000);
+        // CUSTOM TOAST NOTIFICATION FUNCTION (Menggantikan Alert)
+        function showToast(msg, type='info') {
+            let t = document.getElementById('custom-toast-alert');
+            if(!t) {
+                t = document.createElement('div');
+                t.id = 'custom-toast-alert';
+                document.body.appendChild(t);
+            }
+            let icon = type === 'error' ? '⚠️ ' : (type === 'success' ? '✅ ' : 'ℹ️ ');
+            t.className = 'custom-toast ' + (type === 'error' ? 'error' : (type === 'success' ? 'success' : '')) + ' show';
+            t.innerHTML = icon + msg;
+            setTimeout(() => { t.classList.remove('show'); }, 3500);
         }
 
         // PWA SETUP
@@ -927,6 +1067,7 @@ EOF
             }
         }
 
+        // === API CALL KLASIK (ANTI-ERROR) ===
         async function apiCall(url, bodyData) {
             let options = {};
             if(bodyData) {
@@ -938,6 +1079,7 @@ EOF
             return await res.json();
         }
 
+        // FUNGSI FETCH STATISTIK GLOBAL
         async function fetchGlobalStats() {
             try {
                 let res = await apiCall('/api/stats');
@@ -949,6 +1091,7 @@ EOF
             } catch(e){}
         }
 
+        // FUNGSI LOAD BANNER (SLIDER OTOMATIS)
         async function loadBanners() {
             try {
                 let data = await apiCall('/api/banners');
@@ -980,6 +1123,7 @@ EOF
             } catch(e) {}
         }
 
+        // FITUR PENCARIAN PRODUK
         function filterProducts() {
             let input = document.getElementById('search-product').value.toLowerCase();
             let items = document.querySelectorAll('#product-list .product-item');
@@ -993,6 +1137,7 @@ EOF
             });
         }
 
+        // UI HELPERS
         function toggleSidebar() {
             const sb = document.getElementById('sidebar');
             const ov = document.getElementById('sb-overlay');
@@ -1009,6 +1154,7 @@ EOF
         }
 
         function showScreen(id, navId) {
+            // Hilangkan loader awal secara smooth jika masih ada
             let loader = document.getElementById('initial-loader');
             if(loader) {
                 loader.style.opacity = '0';
@@ -1044,7 +1190,9 @@ EOF
             }
         }
 
-        // PERBAIKAN LOADING & REFRESH HALAMAN
+        // ==========================================
+        // PERBAIKAN LOADING & PERSISTENSI HALAMAN
+        // ==========================================
         document.addEventListener('DOMContentLoaded', async () => {
             let savedEmail = localStorage.getItem('tendo_email');
             let savedPass = localStorage.getItem('tendo_pass');
@@ -1058,18 +1206,25 @@ EOF
                         loadBanners();
                         
                         let lastTab = localStorage.getItem('tendo_last_tab') || 'dashboard-screen';
-                        let savedCat = localStorage.getItem('tendo_current_cat');
-                        let savedBrand = localStorage.getItem('tendo_current_brand');
-                        let savedSubCat = localStorage.getItem('tendo_current_subcat');
-
                         if (lastTab === 'history-screen') {
                             let savedFilter = localStorage.getItem('tendo_history_filter') || 'Order';
                             showHistory(savedFilter);
                         }
                         else if (lastTab === 'profile-screen') showProfile();
                         else if (lastTab === 'notif-screen') showNotif();
-                        else if (lastTab === 'brand-screen' && savedCat) loadCategory(savedCat);
-                        else if (lastTab === 'produk-screen' && savedCat && savedBrand) loadProducts(savedCat, savedBrand, savedSubCat);
+                        else if (lastTab === 'brand-screen') {
+                            let cCat = localStorage.getItem('tendo_current_cat');
+                            if(cCat) { showDashboard(); loadCategory(cCat); } else showDashboard();
+                        }
+                        else if (lastTab === 'produk-screen') {
+                            let cCat = localStorage.getItem('tendo_current_cat');
+                            let cBrand = localStorage.getItem('tendo_current_brand');
+                            let cSub = localStorage.getItem('tendo_current_subcat');
+                            if(cCat && cBrand) { 
+                                showDashboard(); 
+                                loadProducts(cCat, cBrand, (cSub === 'null' ? null : cSub)); 
+                            } else showDashboard();
+                        }
                         else showDashboard();
 
                     } else { showScreen('login-screen', null); }
@@ -1086,7 +1241,7 @@ EOF
         
         function showHistory(filter = 'Order') { 
             currentHistoryFilter = filter;
-            localStorage.setItem('tendo_history_filter', filter); 
+            localStorage.setItem('tendo_history_filter', filter);
 
             document.getElementById('tab-hist-order').classList.remove('active');
             document.getElementById('tab-hist-topup').classList.remove('active');
@@ -1142,7 +1297,7 @@ EOF
                     closeTopupModal();
                     document.getElementById('topup-success-modal').classList.remove('hidden');
                 } 
-                else { showToast(data.message || "Gagal memuat QRIS. Pastikan Admin sudah mengatur API.", "error"); }
+                else { showToast(data.message || "Gagal memuat QRIS. Pastikan API GoPay sudah diatur.", "error"); }
             } catch(e) { showToast("Kesalahan server.", "error"); }
             
             btn.innerText = "Buat QRIS"; btn.disabled = false;
@@ -1173,9 +1328,11 @@ EOF
                         files: [file]
                     });
                 } else {
-                    showToast("Browser tidak mendukung share. Silakan Simpan gambar.", "error");
+                    showToast("Browser tidak mendukung bagikan gambar. Gunakan tombol Simpan.", "error");
                 }
-            } catch(e) { showToast("Gagal membagikan gambar QRIS.", "error"); }
+            } catch(e) {
+                showToast("Gagal membagikan gambar QRIS.", "error");
+            }
         }
 
         async function downloadQRIS() {
@@ -1192,11 +1349,14 @@ EOF
                 a.click();
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
-                showToast("Berhasil menyimpan QRIS", "success");
             } catch(e) {
                 let a = document.createElement('a');
-                a.href = imgUrl; a.target = '_blank'; a.download = 'QRIS_Topup.jpg';
-                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                a.href = imgUrl;
+                a.target = '_blank';
+                a.download = 'QRIS_Topup.jpg';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
             }
         }
 
@@ -1211,12 +1371,9 @@ EOF
         function logout() {
             currentUser = ""; userData = {}; 
             localStorage.removeItem('tendo_email'); localStorage.removeItem('tendo_pass');
-            localStorage.removeItem('tendo_last_tab');
-            localStorage.removeItem('tendo_last_nav');
+            localStorage.removeItem('tendo_last_tab'); localStorage.removeItem('tendo_last_nav');
             localStorage.removeItem('tendo_history_filter');
-            localStorage.removeItem('tendo_current_cat');
-            localStorage.removeItem('tendo_current_brand');
-            localStorage.removeItem('tendo_current_subcat');
+            localStorage.removeItem('tendo_current_cat'); localStorage.removeItem('tendo_current_brand');
             toggleSidebar(); showScreen('login-screen', null);
             document.getElementById('log-pass').value = '';
         }
@@ -1363,7 +1520,7 @@ EOF
                 if(data && data.success) {
                     if(rem) { localStorage.setItem('tendo_email', email); localStorage.setItem('tendo_pass', pass); }
                     currentUser = data.phone; userData = data.data;
-                    fetchAllProducts(); showDashboard(); showToast('Login Berhasil', 'success');
+                    fetchAllProducts(); showDashboard();
                 } else {
                     showToast(data && data.message ? data.message : "Gagal terhubung.", 'error');
                 }
@@ -1496,7 +1653,7 @@ EOF
         
         async function reqEditOTP() {
             let val = document.getElementById('edit-input').value.trim();
-            if(!val) return showToast("Isi data baru!", "error");
+            if(!val) return showToast("Isi data baru!", 'error');
             
             let btn = document.getElementById('btn-req-edit');
             let ori = btn.innerText;
@@ -1508,7 +1665,7 @@ EOF
                     document.getElementById('edit-step-1').classList.add('hidden');
                     document.getElementById('edit-step-2').classList.remove('hidden');
                 } else {
-                    showToast(data && data.message ? data.message : "Error server", "error");
+                    showToast(data && data.message ? data.message : "Error server", 'error');
                 }
             } catch(e) { showToast('Kesalahan jaringan.', 'error'); }
             
@@ -1517,7 +1674,7 @@ EOF
 
         async function verifyEditOTP() {
             let otp = document.getElementById('edit-otp-input').value.trim();
-            if(!otp) return showToast("Masukkan OTP!", "error");
+            if(!otp) return showToast("Masukkan OTP!", 'error');
             
             let btn = document.getElementById('btn-verify-edit');
             let ori = btn.innerText;
@@ -1526,12 +1683,12 @@ EOF
             try {
                 let data = await apiCall('/api/verify-edit-otp', {phone: currentUser, otp: otp});
                 if(data && data.success) {
-                    showToast("Berhasil diubah!", "success");
+                    showToast("Berhasil diubah!", 'success');
                     closeEditModal();
                     if(currentEditMode === 'phone' || currentEditMode === 'password') { logout(); } 
                     else { syncUserData(); }
                 } else {
-                    showToast(data && data.message ? data.message : "Error server", "error");
+                    showToast(data && data.message ? data.message : "Error server", 'error');
                 }
             } catch(e) { showToast('Kesalahan jaringan.', 'error'); }
             
@@ -1545,21 +1702,27 @@ EOF
             } catch(e){}
         }
 
+        // ==========================================
+        // KATEGORI DINAMIS (TANPA HARDCODE BRAND)
+        // ==========================================
         async function loadCategory(cat) {
             currentCategory = cat; 
             currentBrand = "";
             localStorage.setItem('tendo_current_cat', cat);
-            localStorage.removeItem('tendo_current_brand');
-            localStorage.removeItem('tendo_current_subcat');
-
+            localStorage.setItem('tendo_current_brand', '');
+            localStorage.setItem('tendo_current_subcat', '');
+            
             await fetchAllProducts(); 
             document.getElementById('brand-cat-title').innerText = cat;
             
-            // HAPUS KATEGORI HARDCODE - GANTI DENGAN DINAMIS MURNI
             let brands = [];
+            // Ambil brand murni dari list produk sesuai kategori tanpa hardcode
             for(let key in allProducts) {
                 if(allProducts[key].kategori !== cat) continue;
                 let b = allProducts[key].brand || 'Lainnya';
+                
+                // Pengecualian agar 'Lainnya' tidak merusak susunan di kategori utama
+                if ((cat === 'Game' || cat === 'Data' || cat === 'Pulsa') && b === 'Lainnya') continue;
                 if(!brands.includes(b)) brands.push(b);
             }
 
@@ -1589,7 +1752,10 @@ EOF
         function loadSubCategory(cat, brand) {
             currentCategory = cat;
             currentBrand = brand;
+            localStorage.setItem('tendo_current_cat', cat);
             localStorage.setItem('tendo_current_brand', brand);
+            localStorage.setItem('tendo_current_subcat', '');
+
             document.getElementById('brand-cat-title').innerText = brand + " (Paket)";
             
             let subs = [];
@@ -1628,8 +1794,7 @@ EOF
             currentBrand = brand;
             localStorage.setItem('tendo_current_cat', cat);
             localStorage.setItem('tendo_current_brand', brand);
-            if(subCat) localStorage.setItem('tendo_current_subcat', subCat);
-            else localStorage.removeItem('tendo_current_subcat');
+            localStorage.setItem('tendo_current_subcat', subCat || 'null');
 
             document.getElementById('cat-title-text').innerText = subCat ? subCat : brand;
             document.getElementById('search-product').value = ''; 
@@ -1667,7 +1832,6 @@ EOF
             if(currentCategory === 'Data' && title.includes('(Paket)')) {
                 loadCategory(currentCategory); 
             } else {
-                localStorage.removeItem('tendo_current_cat');
                 showDashboard(); 
             }
         }
@@ -1700,7 +1864,7 @@ EOF
                 logout(); return;
             }
             let target = document.getElementById('m-target').value.trim();
-            if(!target || target.length < 4) return showToast("Nomor tujuan tidak valid!", "error");
+            if(!target || target.length < 4) return showToast("Nomor tujuan tidak valid!", 'error');
             
             let btn = document.getElementById('m-submit');
             let ori = btn.innerText; 
@@ -1717,9 +1881,9 @@ EOF
                     document.getElementById('os-price').innerText = document.getElementById('m-price').innerText;
                     document.getElementById('order-success-modal').classList.remove('hidden');
                 } else {
-                    showToast(data && data.message ? 'Gagal: ' + data.message : "Kesalahan server saat memproses order.", "error");
+                    showToast(data && data.message ? 'Gagal: ' + data.message : "Kesalahan server saat memproses order.", 'error');
                 }
-            } catch(e) { showToast('Kesalahan jaringan.', "error"); }
+            } catch(e) { showToast('Kesalahan jaringan.', 'error'); }
             
             btn.innerText = ori; btn.disabled = false;
         }
@@ -1728,7 +1892,6 @@ EOF
 </html>
 EOF
 }
-
 # ==========================================
 # 4. FUNGSI UNTUK MEMBUAT FILE INDEX.JS
 # ==========================================
@@ -1748,6 +1911,7 @@ const crypt = require('./tendo_crypt.js');
 const app = express();
 app.disable('x-powered-by');
 
+// SECURITY: Memblokir akses langsung file konfigurasi JSON lewat URL
 app.use((req, res, next) => {
     if (req.path.endsWith('.json') && !req.path.endsWith('manifest.json')) {
         return res.status(403).json({success: false, message: 'Akses Ditolak (Sistem Keamanan Tendo)'});
@@ -1770,8 +1934,12 @@ const topupFile = './topup.json';
 const loadJSON = (file) => crypt.load(file, file === notifFile ? [] : {});
 const saveJSON = (file, data) => crypt.save(file, data);
 
+// Fungsi Hashing Password
 const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
 
+// ==============================================================
+// FITUR: NOTIFIKASI TELEGRAM ADMIN
+// ==============================================================
 function sendTelegramAdmin(message) {
     try {
         let cfg = loadJSON(configFile);
@@ -1785,18 +1953,20 @@ function sendTelegramAdmin(message) {
     } catch(e) {}
 }
 
+// ==============================================================
+// FUNGSI KONVERSI QRIS SMART PARSER (ANTI GAGAL/DANA)
+// ==============================================================
 function convertToDynamicQris(staticQris, amount) {
     try {
         if(!staticQris || staticQris.length < 30) return staticQris;
         let qris = staticQris.substring(0, staticQris.length - 8);
         qris = qris.replace("010211", "010212");
-        let parsed = "";
-        let i = 0;
+        let parsed = ""; let i = 0;
         while (i < qris.length) {
             let id = qris.substring(i, i+2);
             let lenStr = qris.substring(i+2, i+4);
             let len = parseInt(lenStr, 10);
-            if (isNaN(len)) break; 
+            if (isNaN(len)) break;
             let val = qris.substring(i+4, i+4+len);
             if (id !== "54") parsed += id + lenStr + val;
             i += 4 + len;
@@ -1808,6 +1978,7 @@ function convertToDynamicQris(staticQris, amount) {
         if (parsed.includes("5802ID")) finalQris = parsed.replace("5802ID", tag54 + "5802ID");
         else finalQris = parsed + tag54;
         finalQris += "6304";
+        
         let crc = 0xFFFF;
         for(let j=0; j<finalQris.length; j++){
             crc ^= finalQris.charCodeAt(j) << 8;
@@ -1824,22 +1995,27 @@ function convertToDynamicQris(staticQris, amount) {
 let configAwal = loadJSON(configFile);
 configAwal.botName = configAwal.botName || "Digital Tendo Store";
 configAwal.botNumber = configAwal.botNumber || "";
-configAwal.gopayToken = configAwal.gopayToken || "eyJhbGciOiJkaXIiLCJjdHkiOiJKV1QiLCJlbmMiOiJBMTI4R0NNIiwidHlwIjoiSldUIiwiemlwIjoiREVGIn0..VIQQ-T-biEeLHfw0.A2-r35syEmO_3WI_dsbDM06rN61YEqtJjL4Cl8IMvlLd4qZfsED3U1e7mQQvOnkbaSG1JvFKxEHQTZFNR6sKJ7Vm-j_5BQwc3XyRUN7C67EpayMGoqlgOxQ-FbFAP1LIL3PVrPpX8tq9Kb2cfUHxo4T2YQhdbN-F-xxFqkZE3MniVJ6bKv2j3ENpJ74WV0YO1EQ9inBGsL3LskNp--fkxlDpTP3VEAtJT8VeOXmF0TWkHK1PYvY7iR1BuWncqtPpPao1kYm3Jf9CF48lMPI3MT3kmOdkuWCkzTd71jCza8xnFt37itC36_qB14H0zC3mhLtxgFPQR0VzlVylqcfLYtblVIrgtKvRwFTK2SFCQnlYWJ2DcaXSqL7aie66HmWAl4G3jwqhKumJNTnwfWgJ7MpZA2PiIxLkli8p_5PARbyyhdpZCUPX1r_nJGCy5GmqT6QoSbafu2ps7gpjGbPY4iBa03KEIV-55g3lqbRsJsWSg6FgrPgM7i2o8NsZNQNAd5ZgMI4BCs5AAECXtfBgUL9ZN8OBHbMTeuapsx2wseCZd8I7r3JsAAp-Y70OxVraB-LHCiczAuwpYO8gcr_XGjh_wuicoS7lp8rIxKGNCWEiHR0dhY1FduSqAVE3Ced01A_QRMY4cnFJAHFAUbwFCH17Oy8FDqhPMmLG3hdxJZBqiyCi6v4U9GXBjcckkpVtZ1mg6yN8Mpfe_Le6nt4zGABwZHFeESojkW0YJQJaMzRcUoiUZF88zTnXmT93ZQ-T9my6J3cEGkTSl0J_WT7q2T_BYWFBPqrrv61OggbbnkK1UE2HiI481WmudS4VUuX857SLMxRunFcH0E_FybDd0n1vqvcFjs-osoK5yymM3p2mZT7_gGkR3cm-Jy0r1SCm-28ZY5mK7EA3N9l88yHv0R0dqyXETT3j0wa9N3YbViAre2dku_OgKjGh8ICnjTKhI5VlxIop42k0uFQg_QBECeY65xpmY6qbHFESoC4ii5IxODVyGqM6xVnHFRULSl66-ir-I3111D-l0PgnyUe7mbf3ewffLi6vdGW_e2Pd3jooP_u91Q_du2tqRWUsO3oeNTbJcfer0LRoB06ecsqRHUzCHKuG7XociDXLOifvdYJGwmrItjFGWTIlqSpYs45MZWYe07WEvftwhemXUzEPNtTCecq7kavGOcWDPx0PZJ_VP8Z6y1ocZ64ZnLNp_Zdq2ESU7ATWOaLi6HXavIKecvOo2QFFN4Jrs5HP46IHdp7uqX0mFtBqwMDOSOCmjfgLDsjUltHxCLuYWtGn1SUsTuzE0sqhELrh1CVYReiBk9FFFcXs4qlXpbjPb3FVWIX8TzdN6dQd9RfrMtN71pe69WocXAlE9uRNWY3p07ayKUm7Z1p6GSq0hlH_aPsHlNrVUvupwgg45XHlod6T6_Ki2Lq3pUesSGxMPD-zmPB9N90B-xcqYSBg_LoCU1_gWDxiNlggHWD65hMlxcJolRxV4reLwGn06rbadydyByuz3aC-gbxXYtF7CO9pOkYGms2hAhp6CBOQhmWe3cip3rx_hVNBZYbOgkAvfgaWD3h22v25FVmV9xsecPaA_nLWPvcZLYHcPZzmsOhxpecQaAJDn3uAdi6uu7aUqk7ljq1TIpbafbru3pnOf0TEgElgqXlTUUCKPxYdeQaGSpjM7NGjlBsLyrcRZa74VZ-g1mpCCX3Qxf8l8Mn0PSJHkS1AahS6u1Nqr0dVRyx1ikg6t_F8gCTCE3IF-zRTGJZITwOir0RI0coZUQ1xH7eZ0Rb-oAXDPxf00nFMoYpijiL1QdyKA3yc0RiMcw7nISGoYn8_BWbG7YvjlxVPAdjWaIKen1pXRFf0VC2OinEvATRPP2E31HkJWwJ_jLDTheWqf6kc3oqBAvX3Ch88z-jSuUF2zjzH0F4pWSE6oE2fKstonIdD.Ehu4BT1zjv_MGr1eUh-G8g";
-configAwal.gopayMerchantId = configAwal.gopayMerchantId || "G881528152";
+configAwal.gopayToken = configAwal.gopayToken || "";
+configAwal.gopayMerchantId = configAwal.gopayMerchantId || "";
 configAwal.qrisUrl = configAwal.qrisUrl || "https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg";
 configAwal.qrisText = configAwal.qrisText || "";
+configAwal.margin = configAwal.margin || { t1:100, t2:250, t3:500, t4:1000, t5:1500, t6:2000, t7:3000 };
 saveJSON(configFile, configAwal);
 
 loadJSON(dbFile); loadJSON(produkFile); loadJSON(trxFile); loadJSON(globalStatsFile); loadJSON(topupFile); loadJSON(notifFile);
 
-let globalSock = null; let tempOtpDB = {}; let otpCooldown = {};
+let globalSock = null;
+let tempOtpDB = {}; 
+let otpCooldown = {}; 
 
 function normalizePhone(phoneStr) {
-    if(!phoneStr) return ''; let num = phoneStr.replace(/[^0-9]/g, '');
+    if(!phoneStr) return '';
+    let num = phoneStr.replace(/[^0-9]/g, '');
     if(num.startsWith('0')) return '62' + num.substring(1);
     return num;
 }
 
+// BANNERS API
 app.get('/api/banners', (req, res) => {
     let banners = [];
     try {
@@ -1851,15 +2027,22 @@ app.get('/api/banners', (req, res) => {
                 if (imgFiles.length > 0) banners.push(`/baner${i}/${imgFiles[0]}`);
             }
         }
-    } catch(e) { }
+    } catch(e) {}
     res.json({ success: true, data: banners });
 });
 
+// GLOBAL STATS API
 app.get('/api/stats', (req, res) => {
     try {
-        let gStats = loadJSON(globalStatsFile); let daily = 0, weekly = 0, monthly = 0; let now = new Date();
+        let gStats = loadJSON(globalStatsFile);
+        let daily = 0, weekly = 0, monthly = 0;
+        let now = new Date();
+        
         for(let k in gStats) {
-            let d = new Date(k); let diffTime = Math.abs(now - d); let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            let d = new Date(k);
+            let diffTime = Math.abs(now - d);
+            let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
             if(now.toISOString().split('T')[0] === k) daily += gStats[k];
             if(diffDays <= 7) weekly += gStats[k];
             if(diffDays <= 30) monthly += gStats[k];
@@ -1869,47 +2052,67 @@ app.get('/api/stats', (req, res) => {
 });
 
 app.get('/api/produk', (req, res) => { res.json(loadJSON(produkFile)); });
-app.get('/api/notif', (req, res) => { 
-    try { let notifs = loadJSON(notifFile); if(!Array.isArray(notifs)) notifs = []; res.json(notifs); } catch(e) { res.json([]); }
-});
+app.get('/api/notif', (req, res) => { res.json(loadJSON(notifFile) || []); });
 
 app.get('/api/user/:phone', (req, res) => {
     try {
         let db = loadJSON(dbFile); let p = req.params.phone;
-        if(db[p]) { let safeData = { ...db[p] }; delete safeData.password; res.json({success: true, data: safeData}); }
-        else res.json({success: false});
+        if(db[p]) {
+            let safeData = { ...db[p] }; delete safeData.password; 
+            res.json({success: true, data: safeData});
+        } else res.json({success: false});
     } catch(e) { res.json({success: false}); }
 });
 
 app.post('/api/login', (req, res) => {
     try {
-        let { email, password } = req.body; let db = loadJSON(dbFile); let hashedInput = hashPassword(password);
+        let { email, password } = req.body; let db = loadJSON(dbFile);
+        let hashedInput = hashPassword(password);
+        
         let userPhone = Object.keys(db).find(k => {
             if (!db[k] || db[k].email !== email) return false;
-            if (db[k].password === password) { db[k].password = hashedInput; saveJSON(dbFile, db); return true; }
+            if (db[k].password === password) {
+                db[k].password = hashedInput; saveJSON(dbFile, db); return true;
+            }
             if (db[k].password === hashedInput) return true;
             return false;
         });
-        if (userPhone) { let safeData = { ...db[userPhone] }; delete safeData.password; res.json({success: true, data: safeData, phone: userPhone}); }
+
+        if (userPhone) {
+            let safeData = { ...db[userPhone] }; delete safeData.password;
+            res.json({success: true, data: safeData, phone: userPhone});
+        }
         else res.json({success: false, message: 'Email atau Password salah!'});
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
 app.post('/api/register', (req, res) => {
     try {
-        let { username, email, password } = req.body; let phone = normalizePhone(req.body.phone); 
+        let { username, email, password } = req.body;
+        let phone = normalizePhone(req.body.phone); 
         if(!phone || phone.length < 9) return res.json({success: false, message: 'Nomor WA tidak valid!'});
+        
         if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
         otpCooldown[phone] = Date.now();
+        
         let db = loadJSON(dbFile);
         let isEmailExist = Object.keys(db).some(k => db[k] && db[k].email === email);
         if (isEmailExist) return res.json({success: false, message: 'Email terdaftar!'});
+
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
         tempOtpDB[phone] = { username, email, password: hashPassword(password), otp };
+
         res.json({success: true});
+
         setTimeout(() => {
-            try { if (globalSock) globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_` }).catch(e=>{}); } catch(err) {}
+            try {
+                if (globalSock) {
+                    let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
+                    globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
+                }
+            } catch(err) {}
         }, 100);
+
     } catch(e) { if (!res.headersSent) res.json({success: false, message: 'Gagal memproses pendaftaran.'}); }
 });
 
@@ -1918,8 +2121,12 @@ app.post('/api/verify-otp', (req, res) => {
         let otp = req.body.otp; let phone = normalizePhone(req.body.phone);
         if(tempOtpDB[phone] && tempOtpDB[phone].otp === otp) {
             let db = loadJSON(dbFile); let idPelanggan = 'TD-' + Math.floor(100000 + Math.random() * 900000); 
-            if(db[phone]) { db[phone].username = tempOtpDB[phone].username; db[phone].email = tempOtpDB[phone].email; db[phone].password = tempOtpDB[phone].password; if(!db[phone].id_pelanggan) db[phone].id_pelanggan = idPelanggan; } 
-            else { db[phone] = { id_pelanggan: idPelanggan, username: tempOtpDB[phone].username, email: tempOtpDB[phone].email, password: tempOtpDB[phone].password, saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [] }; }
+            if(db[phone]) {
+                db[phone].username = tempOtpDB[phone].username; db[phone].email = tempOtpDB[phone].email; db[phone].password = tempOtpDB[phone].password;
+                if(!db[phone].id_pelanggan) db[phone].id_pelanggan = idPelanggan;
+            } else {
+                db[phone] = { id_pelanggan: idPelanggan, username: tempOtpDB[phone].username, email: tempOtpDB[phone].email, password: tempOtpDB[phone].password, saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [] };
+            }
             saveJSON(dbFile, db); delete tempOtpDB[phone]; res.json({success: true});
         } else res.json({success: false, message: 'Kode OTP Salah!'});
     } catch(e) { res.json({success: false, message: 'Server error'}); }
@@ -1929,14 +2136,17 @@ app.post('/api/req-edit-otp', (req, res) => {
     try {
         let { phone, type, newValue } = req.body; let db = loadJSON(dbFile);
         if(!db[phone]) return res.json({success: false, message: 'User tidak ditemukan.'});
+        
         if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
         otpCooldown[phone] = Date.now();
+
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
         if (type === 'password') newValue = hashPassword(newValue);
         tempOtpDB[phone + '_edit'] = { type, newValue, otp };
         res.json({success: true});
+
         setTimeout(() => {
-            try { if (globalSock) globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nKode OTP untuk mengubah data Anda adalah: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{}); } catch(e) {}
+            if (globalSock) globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nKode OTP perubahan data: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
         }, 100);
     } catch(e) { if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); }
 });
@@ -1963,11 +2173,13 @@ app.post('/api/req-forgot-otp', (req, res) => {
         if(!db[phone]) return res.json({success: false, message: 'Nomor WA tidak terdaftar!'});
         if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
         otpCooldown[phone] = Date.now();
+
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
         tempOtpDB[phone + '_forgot'] = { otp };
         res.json({success: true});
+
         setTimeout(() => {
-            try { if (globalSock) globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nPermintaan Reset Password.\nKode OTP Anda: *${otp}*\n\n_⚠️ Jika Anda tidak merasa memintanya, abaikan pesan ini!_` }).catch(e=>{}); } catch(err) {}
+            if (globalSock) globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nPermintaan Reset Password.\nKode OTP: *${otp}*\n\n_⚠️ Abaikan jika bukan Anda!_` }).catch(e=>{});
         }, 100);
     } catch(e) { if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); }
 });
@@ -1979,34 +2191,51 @@ app.post('/api/verify-forgot-otp', (req, res) => {
         if(session && session.otp === otp) {
             if(db[phone]) { db[phone].password = hashPassword(newPass); saveJSON(dbFile, db); }
             delete tempOtpDB[phone + '_forgot']; res.json({success: true});
-        } else { res.json({success: false, message: 'Kode OTP Salah!'}); }
+        } else res.json({success: false, message: 'Kode OTP Salah!'});
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
+// API TOPUP GOPAY MERCHANT LANGSUNG DENGAN QRIS DINAMIS
 app.post('/api/topup', async (req, res) => {
     try {
         let config = loadJSON(configFile);
         if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
+        
         let { phone, nominal } = req.body; let db = loadJSON(dbFile);
         if(!db[phone]) return res.json({success: false, message: "User tidak ditemukan."});
         
-        let nominalAsli = parseInt(nominal); let uniqueCode = Math.floor(Math.random() * 99) + 1; let totalPay = nominalAsli + uniqueCode;
+        let nominalAsli = parseInt(nominal);
+        let uniqueCode = Math.floor(Math.random() * 99) + 1;
+        let totalPay = nominalAsli + uniqueCode;
+
         let finalQrisUrl = config.qrisUrl;
         if (config.qrisText) {
             let dynQris = convertToDynamicQris(config.qrisText, totalPay);
             finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
         }
 
-        let topups = loadJSON(topupFile); let trxId = "TP-" + Date.now(); let expiredAt = Date.now() + 10 * 60 * 1000;
+        let topups = loadJSON(topupFile);
+        let trxId = "TP-" + Date.now();
+        let expiredAt = Date.now() + 10 * 60 * 1000; // 10 Menit
+
         topups[trxId] = { phone, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, status: 'pending', timestamp: Date.now(), expired_at: expiredAt };
         saveJSON(topupFile, topups);
 
         db[phone].history = db[phone].history || [];
-        db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt });
+        db[phone].history.unshift({ 
+            ts: Date.now(), 
+            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+            type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
+        });
         if(db[phone].history.length > 20) db[phone].history.pop();
         saveJSON(dbFile, db);
 
         res.json({success: true});
+
+        // NOTIFIKASI TELEGRAM: TOPUP PENDING
+        let teleMsg = `⏳ *TOPUP PENDING (QRIS)*\n\n👤 Akun: ${db[phone].username || phone}\n📱 WA: ${phone}\n💰 Tagihan: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n\n_Menunggu pelanggan melakukan pembayaran..._`;
+        sendTelegramAdmin(teleMsg);
+
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
 });
 
@@ -2022,11 +2251,16 @@ app.post('/api/order', async (req, res) => {
         if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
         if (db[targetKey].saldo < p.harga) return res.json({success: false, message: 'Saldo tidak cukup.'});
 
-        let username = (config.digiflazzUsername || '').trim(); let apiKey = (config.digiflazzApiKey || '').trim();
-        let refId = 'WEB-' + Date.now(); let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
+        let username = (config.digiflazzUsername || '').trim();
+        let apiKey = (config.digiflazzApiKey || '').trim();
+        let refId = 'WEB-' + Date.now();
+        let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
         let maxPrice = parseInt(p.harga);
 
-        const response = await axios.post('https://api.digiflazz.com/v1/transaction', { username: username, buyer_sku_code: sku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: maxPrice });
+        const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
+            username: username, buyer_sku_code: sku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: maxPrice
+        });
+        
         const statusOrder = response.data.data.status; 
         if (statusOrder === 'Gagal') return res.json({success: false, message: response.data.data.message});
         
@@ -2036,28 +2270,35 @@ app.post('/api/order', async (req, res) => {
         if(db[targetKey].history.length > 20) db[targetKey].history.pop();
         saveJSON(dbFile, db);
         
-        let trxs = loadJSON(trxFile); let targetJid = db[targetKey].jid || targetKey + '@s.whatsapp.net';
+        let trxs = loadJSON(trxFile);
+        let targetJid = db[targetKey].jid || targetKey + '@s.whatsapp.net';
         trxs[refId] = { jid: targetJid, sku: sku, tujuan: tujuan, harga: p.harga, nama: p.nama, tanggal: Date.now() };
         saveJSON(trxFile, trxs);
 
         if (statusOrder === 'Sukses') {
-            let gStats = loadJSON(globalStatsFile); let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-            gStats[dateKey] = (gStats[dateKey] || 0) + 1; saveJSON(globalStatsFile, gStats);
+            let gStats = loadJSON(globalStatsFile);
+            let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+            gStats[dateKey] = (gStats[dateKey] || 0) + 1;
+            saveJSON(globalStatsFile, gStats);
         }
+
         res.json({success: true, saldo: db[targetKey].saldo});
 
         let teleMsg = `🔔 *PESANAN BARU MASUK*\n\n👤 Akun: ${db[targetKey].username || targetKey}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: *${statusOrder}*\n💰 Harga: Rp ${p.harga.toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
 
         setTimeout(() => {
-            try { if (globalSock) globalSock.sendMessage(targetJid, { text: `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}` }).catch(e=>{}); } catch(e){}
+            if (globalSock) {
+                let msgWa = `🌐 *NOTA PEMBELIAN APLIKASI*\n\n📦 Produk: ${p.nama}\n📱 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Sisa Saldo: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
+                globalSock.sendMessage(targetJid, { text: msgWa }).catch(e=>{});
+            }
         }, 100);
-
     } catch (error) { if (!res.headersSent) return res.json({success: false, message: 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)'}); }
 });
 
 function doBackupAndSend() {
-    let cfg = loadJSON(configFile); if (!cfg.teleToken || !cfg.teleChatId) return;
+    let cfg = loadJSON(configFile);
+    if (!cfg.teleToken || !cfg.teleChatId) return;
     exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json ssl_backup.tar.gz 2>/dev/null`, (err) => {
         if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
     });
@@ -2073,20 +2314,29 @@ async function startBot() {
 
     if (!sock.authState.creds.registered) {
         setTimeout(async () => {
-            try { let formattedNumber = config.botNumber.replace(/[^0-9]/g, ''); const code = await sock.requestPairingCode(formattedNumber); console.log(`\x1b[33m🔑 KODE TAUTAN : ${code}\x1b[0m\n`); } catch (error) {}
+            try {
+                let formattedNumber = config.botNumber.replace(/[^0-9]/g, '');
+                const code = await sock.requestPairingCode(formattedNumber);
+                console.log(`\x1b[33m🔑 KODE TAUTAN : ${code}\x1b[0m\n`);
+            } catch (error) {}
         }, 8000); 
     }
     sock.ev.on('creds.update', saveCreds);
     sock.ev.on('connection.update', (u) => { if(u.connection === 'close') setTimeout(startBot, 4000); });
 
+    // INTERVAL POLING CEK MUTASI GOPAY MERCHANT (SETIAP 30 DETIK)
     setInterval(async () => {
         try {
             let cfg = loadJSON(configFile); let topups = loadJSON(topupFile);
             let pendingKeys = Object.keys(topups).filter(k => topups[k].status === 'pending');
             if(pendingKeys.length === 0 || !cfg.gopayToken || !cfg.gopayMerchantId) return;
 
-            const gopayRes = await axios.post('https://gopay.autoftbot.com/api/backend/transactions', { merchant_id: cfg.gopayMerchantId }, { headers: { 'Authorization': 'Bearer ' + cfg.gopayToken, 'Content-Type': 'application/json' } });
+            const gopayRes = await axios.post('https://gopay.autoftbot.com/api/backend/transactions', 
+                { merchant_id: cfg.gopayMerchantId }, 
+                { headers: { 'Authorization': 'Bearer ' + cfg.gopayToken, 'Content-Type': 'application/json' } }
+            );
             let responseStr = JSON.stringify(gopayRes.data);
+
             let db = loadJSON(dbFile); let changedTp = false; let changedDb = false;
 
             for(let key of pendingKeys) {
@@ -2096,6 +2346,9 @@ async function startBot() {
                     if(db[req.phone]) {
                         let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
                         if(hist && hist.status === 'Pending') { hist.status = 'Gagal'; changedDb = true; }
+                        // NOTIF TELEGRAM GAGAL KEDALUWARSA
+                        let teleMsg = `❌ *TOPUP KEDALUWARSA*\n\n👤 Akun: ${db[req.phone].username || req.phone}\n💰 Tagihan: Rp ${req.amount_to_pay.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}\n\n_Pelanggan tidak membayar tepat waktu._`;
+                        sendTelegramAdmin(teleMsg);
                     }
                 } 
                 else {
@@ -2109,11 +2362,9 @@ async function startBot() {
                             if(hist && hist.status === 'Pending') hist.status = 'Sukses';
                             changedDb = true;
                             
-                            // FITUR BARU: Notifikasi Telegram Saat Topup Otomatis Berhasil
-                            if(cfg.teleToken && cfg.teleChatId) {
-                                let teleTopup = `✅ *TOPUP OTOMATIS BERHASIL*\n\n👤 Akun: ${db[req.phone]?.username || req.phone}\n📱 WA: ${req.phone}\n💰 Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\n💳 Saldo Akhir: Rp ${db[req.phone].saldo.toLocaleString('id-ID')}`;
-                                sendTelegramAdmin(teleTopup);
-                            }
+                            // NOTIF TELEGRAM SUKSES
+                            let teleMsg = `✅ *TOPUP QRIS SUKSES MASUK*\n\n👤 Akun: ${db[req.phone].username || req.phone}\n📱 WA: ${req.phone}\n💰 Saldo Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}`;
+                            sendTelegramAdmin(teleMsg);
 
                             if(globalSock) {
                                 let msg = `✅ *TOPUP QRIS BERHASIL*\n\nTotal Transfer: Rp ${req.amount_to_pay.toLocaleString('id-ID')}\nSaldo Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\nSaldo Sekarang: Rp ${db[req.phone].saldo.toLocaleString('id-ID')}`;
@@ -2128,6 +2379,7 @@ async function startBot() {
         } catch(e) {}
     }, 30000); 
 
+    // INTERVAL PENGHAPUSAN RIWAYAT LAMA (Lebih 30 Hari) 
     setInterval(() => {
         try {
             let db = loadJSON(dbFile); let changed = false; let oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
@@ -2173,7 +2425,9 @@ async function startBot() {
                             let hist = db[senderNum].history.find(h => h.ref_id === ref);
                             if (hist) { hist.status = 'Sukses'; hist.sn = resData.sn || '-'; saveJSON(dbFile, db); }
                         }
-                        let gStats = loadJSON(globalStatsFile); let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+                        
+                        let gStats = loadJSON(globalStatsFile);
+                        let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
                         gStats[dateKey] = (gStats[dateKey] || 0) + 1; saveJSON(globalStatsFile, gStats);
                         
                         let teleSuccess = `✅ *PESANAN SUKSES*\n\n👤 Akun: ${db[senderNum]?.username || senderNum}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n🔑 SN: ${resData.sn || '-'}`;
@@ -2189,6 +2443,7 @@ async function startBot() {
                             saveJSON(dbFile, db); 
                         }
                         msg = `❌ *STATUS: GAGAL*\n\n📦 Produk: ${trx.nama}\nAlasan: ${resData.message}\n_💰 Saldo dikembalikan._`;
+                        
                         let teleFail = `❌ *PESANAN GAGAL*\n\n👤 Akun: ${db[senderNum]?.username || senderNum}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n📝 Alasan: ${resData.message}`;
                         sendTelegramAdmin(teleFail);
                     }
@@ -2219,7 +2474,9 @@ async function startBot() {
     });
 }
 
-// TUGAS PEMBARUAN LAYANAN OTOMATIS (DENGAN MARGIN FLEKSIBEL)
+// ==============================================================
+// TUGAS PEMBARUAN LAYANAN & HARGA OTOMATIS (DARI DIGIFLAZZ API)
+// ==============================================================
 async function tarikDataLayananOtomatis() {
     try {
         let config = loadJSON(configFile);
@@ -2237,65 +2494,70 @@ async function tarikDataLayananOtomatis() {
 
         if (balasan.data && balasan.data.data) {
             let daftarPusat = balasan.data.data;
-            let daftarLokal = loadJSON(produkFile);
-            let aturanKeuntungan = config.margin || { under1K: 50, under10K: 200, under50K: 500, under100K: 1000, under500K: 1500, under1M: 2000, above1M: 2500 };
+            let daftarLokal = {}; // Rebuild database agar benar-benar fresh dan membuang produk yg sudah mati
+            let m = config.margin || { t1:100, t2:250, t3:500, t4:1000, t5:1500, t6:2000, t7:3000 };
             
-            let simpanPerubahan = false;
-
             daftarPusat.forEach(item => {
-                if (item.buyer_product_status === false && !daftarLokal[item.buyer_sku_code]) return;
+                // Jangan masukkan produk yang statusnya gangguan/tutup
+                if (item.buyer_product_status === false) return; 
                 
                 let kodeBarang = item.buyer_sku_code;
                 let namaBarang = item.product_name;
                 let hargaModal = item.price;
                 
+                // MENGGOLONGKAN KATEGORI OTOMATIS BERDASARKAN KATA KUNCI DIGIFLAZZ
                 let kategoriBarang = 'Lainnya';
-                let merekBarang = item.brand || 'Lainnya';
+                let catDigi = (item.category || '').toLowerCase();
                 let namaKecil = namaBarang.toLowerCase();
                 
-                if (namaKecil.includes('pulsa') || namaKecil.includes('promo')) kategoriBarang = 'Pulsa';
-                else if (namaKecil.includes('data') || namaKecil.includes('kuota') || namaKecil.includes('internet')) kategoriBarang = 'Data';
-                else if (namaKecil.includes('pln') || namaKecil.includes('token')) kategoriBarang = 'PLN';
-                else if (namaKecil.includes('game') || namaKecil.includes('diamond') || namaKecil.includes('uc') || namaKecil.includes('ff')) kategoriBarang = 'Game';
-                else if (namaKecil.includes('saldo') || namaKecil.includes('pay') || namaKecil.includes('dana') || namaKecil.includes('ovo') || namaKecil.includes('linkaja')) kategoriBarang = 'E-Money';
+                if (catDigi.includes('pulsa') || namaKecil.includes('pulsa') || namaKecil.includes('promo')) kategoriBarang = 'Pulsa';
+                else if (catDigi.includes('data') || namaKecil.includes('data') || namaKecil.includes('kuota') || namaKecil.includes('internet')) kategoriBarang = 'Data';
+                else if (catDigi.includes('games') || catDigi.includes('diamond') || namaKecil.includes('game') || namaKecil.includes('diamond') || namaKecil.includes('uc') || namaKecil.includes('ff')) kategoriBarang = 'Game';
+                else if (catDigi.includes('e-money') || catDigi.includes('saldo') || namaKecil.includes('saldo') || namaKecil.includes('pay') || namaKecil.includes('dana') || namaKecil.includes('ovo') || namaKecil.includes('linkaja')) kategoriBarang = 'E-Money';
+                else if (catDigi.includes('pln') || catDigi.includes('token') || namaKecil.includes('pln') || namaKecil.includes('token')) kategoriBarang = 'PLN';
+                else if (catDigi.includes('voucher') || namaKecil.includes('voucher')) kategoriBarang = 'Voucher';
+                else if (catDigi.includes('sms') || catDigi.includes('telepon') || namaKecil.includes('sms') || namaKecil.includes('telp')) kategoriBarang = 'Paket SMS & Telpon';
+                else if (catDigi.includes('masa aktif') || namaKecil.includes('masa aktif')) kategoriBarang = 'Masa Aktif';
+                else if (catDigi.includes('perdana') || namaKecil.includes('perdana') || namaKecil.includes('kpk')) kategoriBarang = 'Aktivasi Perdana';
+                else kategoriBarang = item.category || 'Lainnya';
                 
-                let keuntungan = 0;
-                if(hargaModal <= 1000) keuntungan = aturanKeuntungan.under1K || 0;
-                else if(hargaModal <= 10000) keuntungan = aturanKeuntungan.under10K || 0;
-                else if(hargaModal <= 50000) keuntungan = aturanKeuntungan.under50K || 0;
-                else if(hargaModal <= 100000) keuntungan = aturanKeuntungan.under100K || 0;
-                else if(hargaModal <= 500000) keuntungan = aturanKeuntungan.under500K || 0;
-                else if(hargaModal <= 1000000) keuntungan = aturanKeuntungan.under1M || 0;
-                else keuntungan = aturanKeuntungan.above1M || 0;
+                let merekBarang = item.brand || 'Lainnya';
+                let subKategori = item.type || 'Umum';
 
-                if (!daftarLokal[kodeBarang]) {
-                    daftarLokal[kodeBarang] = {
-                        nama: namaBarang,
-                        harga: hargaModal + keuntungan,
-                        kategori: kategoriBarang,
-                        brand: merekBarang,
-                        sub_kategori: 'Umum',
-                        deskripsi: item.desc || 'Proses Otomatis'
-                    };
-                    simpanPerubahan = true;
-                } else {
-                    let hargaJualBaru = hargaModal + keuntungan;
-                    if (daftarLokal[kodeBarang].harga !== hargaJualBaru) {
-                        daftarLokal[kodeBarang].harga = hargaJualBaru;
-                        simpanPerubahan = true;
-                    }
-                }
+                // PERHITUNGAN KEUNTUNGAN FLEKSIBEL
+                let keuntungan = 0;
+                if(hargaModal <= 1000) keuntungan = m.t1;
+                else if(hargaModal <= 10000) keuntungan = m.t2;
+                else if(hargaModal <= 50000) keuntungan = m.t3;
+                else if(hargaModal <= 100000) keuntungan = m.t4;
+                else if(hargaModal <= 500000) keuntungan = m.t5;
+                else if(hargaModal <= 1000000) keuntungan = m.t6;
+                else keuntungan = m.t7;
+
+                daftarLokal[kodeBarang] = {
+                    nama: namaBarang,
+                    harga: hargaModal + keuntungan,
+                    kategori: kategoriBarang,
+                    brand: merekBarang,
+                    sub_kategori: subKategori,
+                    deskripsi: item.desc || 'Proses Otomatis'
+                };
             });
 
-            if (simpanPerubahan) {
-                saveJSON(produkFile, daftarLokal);
-            }
+            saveJSON(produkFile, daftarLokal);
+            console.log('\x1b[32m✅ Data Produk Digiflazz Berhasil Tersinkronisasi!\x1b[0m');
         }
-    } catch(err) {}
+    } catch(err) { console.log('\x1b[31m❌ Gagal Sinkronisasi Digiflazz.\x1b[0m', err.message); }
 }
 
+// Endpoint manual untuk sinkronisasi dari terminal
+app.get('/api/sync-digiflazz', async (req, res) => {
+    await tarikDataLayananOtomatis();
+    res.json({success: true, message: 'Sinkronisasi Selesai.'});
+});
+
 setInterval(tarikDataLayananOtomatis, 12 * 60 * 60 * 1000);
-setTimeout(tarikDataLayananOtomatis, 15000);
+setTimeout(tarikDataLayananOtomatis, 10000);
 
 if (require.main === module) {
     app.listen(3000, '0.0.0.0', () => { console.log('\x1b[32m🌐 SERVER WEB AKTIF (PORT 3000).\x1b[0m'); });
@@ -2362,8 +2624,8 @@ install_dependencies() {
     rm -rf node_modules package-lock.json
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    echo -ne "${C_MAG}>> Mengunduh modul (Baileys, XLSX, dll)...${C_RST}"
-    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser xlsx > /dev/null 2>&1 &
+    echo -ne "${C_MAG}>> Mengunduh modul utama...${C_RST}"
+    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
@@ -2540,7 +2802,6 @@ menu_member() {
                     if(normPhone.startsWith('0')) normPhone = '62' + normPhone.substring(1);
                     
                     let target = Object.keys(db).find(k => k === normPhone || db[k].email === input);
-                    
                     if(!target) {
                         target = normPhone || input;
                         db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: target + '@s.whatsapp.net', trx_count: 0, history: [] };
@@ -2563,10 +2824,7 @@ menu_member() {
                     if(normPhone.startsWith('0')) normPhone = '62' + normPhone.substring(1);
                     
                     let target = Object.keys(db).find(k => k === normPhone || db[k].email === input);
-                    
-                    if(!target) { 
-                        console.log('\x1b[31m\n❌ Akun tidak ditemukan di database.\x1b[0m'); 
-                    } else {
+                    if(!target) { console.log('\x1b[31m\n❌ Akun tidak ditemukan di database.\x1b[0m'); } else {
                         db[target].saldo -= parseInt('$jumlah');
                         if(db[target].saldo < 0) db[target].saldo = 0;
                         crypt.save('database.json', db);
@@ -2595,46 +2853,65 @@ menu_member() {
 }
 
 # ==========================================
-# 9. MANAJEMEN KEUNTUNGAN (0 - 1.000.000)
+# 9. MANAJEMEN KEUNTUNGAN FLEKSIBEL
 # ==========================================
 menu_keuntungan() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_YELLOW}${C_BOLD}           ⚙️ MANAJEMEN KEUNTUNGAN OTOMATIS ⚙️        ${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}             💰 MANAJEMEN KEUNTUNGAN 💰             ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_MAG}Atur margin keuntungan (Rp) sesuai range harga modal Digiflazz.${C_RST}"
-    echo -e "${C_YELLOW}Biarkan angka 0 jika tidak ingin mengambil untung di range tersebut.${C_RST}"
-    echo ""
-    
-    read -p "1. Modal Rp 0 s/d Rp 1.000 (Contoh: 100): " m1
-    read -p "2. Modal Rp 1.001 s/d Rp 10.000 (Contoh: 500): " m2
-    read -p "3. Modal Rp 10.001 s/d Rp 50.000 (Contoh: 1500): " m3
-    read -p "4. Modal Rp 50.001 s/d Rp 100.000 (Contoh: 2000): " m4
-    read -p "5. Modal Rp 100.001 s/d Rp 500.000 (Contoh: 3000): " m5
-    read -p "6. Modal Rp 500.001 s/d Rp 1.000.000 (Contoh: 4000): " m6
-    read -p "7. Modal di atas Rp 1.000.000 (Contoh: 5000): " m7
+    echo -e "${C_MAG}Silakan masukkan nominal untung yang ingin diambil (dalam Rupiah)."
+    echo -e "Ini akan ditambahkan otomatis ke harga asli (modal) dari Digiflazz.${C_RST}\n"
+
+    read -p "1. Keuntungan untuk modal 0 - 1.000          (Rp): " m_1
+    read -p "2. Keuntungan untuk modal 1.001 - 10.000     (Rp): " m_2
+    read -p "3. Keuntungan untuk modal 10.001 - 50.000    (Rp): " m_3
+    read -p "4. Keuntungan untuk modal 50.001 - 100.000   (Rp): " m_4
+    read -p "5. Keuntungan untuk modal 100.001 - 500.000  (Rp): " m_5
+    read -p "6. Keuntungan untuk modal 500.001 - 1.000.000(Rp): " m_6
+    read -p "7. Keuntungan untuk modal di atas 1.000.000  (Rp): " m_7
 
     node -e "
         const crypt = require('./tendo_crypt.js');
         let config = crypt.load('config.json');
         config.margin = {
-            under1K: parseInt('$m1') || 0,
-            under10K: parseInt('$m2') || 0,
-            under50K: parseInt('$m3') || 0,
-            under100K: parseInt('$m4') || 0,
-            under500K: parseInt('$m5') || 0,
-            under1M: parseInt('$m6') || 0,
-            above1M: parseInt('$m7') || 0
+            t1: parseInt('$m_1') || 0,
+            t2: parseInt('$m_2') || 0,
+            t3: parseInt('$m_3') || 0,
+            t4: parseInt('$m_4') || 0,
+            t5: parseInt('$m_5') || 0,
+            t6: parseInt('$m_6') || 0,
+            t7: parseInt('$m_7') || 0
         };
         crypt.save('config.json', config);
-        console.log('\x1b[32m\n✅ Konfigurasi Margin Keuntungan Berhasil Disimpan!\x1b[0m');
-        console.log('\x1b[36m(Harga akan diperbarui otomatis saat proses sinkronisasi dengan Digiflazz berlangsung)\x1b[0m');
+        console.log('\x1b[32m\n✅ Konfigurasi Manajemen Keuntungan Berhasil Disimpan!\x1b[0m');
     "
+    echo -e "\n${C_YELLOW}💡 Tips: Jangan lupa jalankan menu 'Sinkronisasi Digiflazz' agar harga produk terupdate dengan margin baru ini!${C_RST}"
     read -p "Tekan Enter untuk kembali..."
 }
 
 # ==========================================
-# 10. MENU UTAMA (PANEL KONTROL)
+# 10. SINKRONISASI MANUAL DIGIFLAZZ
+# ==========================================
+menu_sinkron() {
+    clear
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}          🔄 SINKRONISASI PRODUK DIGIFLAZZ 🔄         ${C_RST}"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_MAG}Sistem akan menarik seluruh data produk dari API Digiflazz,"
+    echo -e "menyesuaikan kategori otomatis, dan menata harga berdasarkan"
+    echo -e "Manajemen Keuntungan yang sudah kamu atur sebelumnya.${C_RST}\n"
+    
+    echo -e "${C_YELLOW}⏳ Memulai sinkronisasi... Harap tunggu beberapa detik.${C_RST}"
+    
+    curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
+    
+    echo -e "\n${C_GREEN}✅ Sinkronisasi Selesai! Produk Website sudah terupdate.${C_RST}"
+    read -p "Tekan Enter untuk kembali..."
+}
+
+# ==========================================
+# 11. MENU UTAMA (PANEL KONTROL)
 # ==========================================
 while true; do
     clear
@@ -2650,20 +2927,21 @@ while true; do
     echo ""
     echo -e "${C_MAG}▶ MANAJEMEN TOKO & SISTEM${C_RST}"
     echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo Member"
-    echo -e "  ${C_GREEN}[7]${C_RST}  ⚙️ Manajemen Keuntungan (Set Margin Otomatis)"
-    echo -e "  ${C_GREEN}[8]${C_RST}  ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
-    echo -e "  ${C_GREEN}[9]${C_RST}  💾 Backup & Restore Data Database"
-    echo -e "  ${C_GREEN}[10]${C_RST} 🔌 Ganti API Digiflazz"
-    echo -e "  ${C_GREEN}[11]${C_RST} 🔄 Ganti Akun Bot WA (Reset Sesi)"
-    echo -e "  ${C_GREEN}[12]${C_RST} 📢 Kirim Pesan Broadcast Kesemua Member (WA)"
-    echo -e "  ${C_GREEN}[13]${C_RST} 🌐 Kirim Pemberitahuan ke Website Aplikasi"
-    echo -e "  ${C_GREEN}[14]${C_RST} 💬 Kirim Pesan Langsung (Japri) ke Pelanggan"
-    echo -e "  ${C_GREEN}[15]${C_RST} 💳 Setup GoPay Merchant API (QRIS Dinamis)"
-    echo -e "  ${C_GREEN}[16]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
+    echo -e "  ${C_GREEN}[7]${C_RST}  💰 Manajemen Keuntungan Harga (0 - 1 Juta+)"
+    echo -e "  ${C_GREEN}[8]${C_RST}  🔄 Sinkronisasi Produk Digiflazz (Otomatis & Manual)"
+    echo -e "  ${C_GREEN}[9]${C_RST}  ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
+    echo -e "  ${C_GREEN}[10]${C_RST} 💾 Backup & Restore Database"
+    echo -e "  ${C_GREEN}[11]${C_RST} 🔌 Ganti API Digiflazz"
+    echo -e "  ${C_GREEN}[12]${C_RST} 🔄 Ganti Akun Bot WA (Reset Sesi)"
+    echo -e "  ${C_GREEN}[13]${C_RST} 📢 Kirim Pesan Broadcast Kesemua Member (WA)"
+    echo -e "  ${C_GREEN}[14]${C_RST} 🌐 Kirim Pemberitahuan ke Website Aplikasi"
+    echo -e "  ${C_GREEN}[15]${C_RST} 💬 Kirim Pesan Langsung (Japri) ke Pelanggan"
+    echo -e "  ${C_GREEN}[16]${C_RST} 💳 Setup GoPay Merchant API (QRIS Dinamis)"
+    echo -e "  ${C_GREEN}[17]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
     echo -e "${C_CYAN}======================================================${C_RST}"
-    echo -ne "${C_YELLOW}Pilih menu [0-16]: ${C_RST}"
+    echo -ne "${C_YELLOW}Pilih menu [0-17]: ${C_RST}"
     read choice
 
     case $choice in
@@ -2704,9 +2982,10 @@ while true; do
         5) pm2 logs tendo-bot ;;
         6) menu_member ;;
         7) menu_keuntungan ;;
-        8) menu_telegram ;;
-        9) menu_backup ;;
-        10)
+        8) menu_sinkron ;;
+        9) menu_telegram ;;
+        10) menu_backup ;;
+        11)
             echo -e "\n${C_MAG}--- GANTI API DIGIFLAZZ ---${C_RST}"
             read -p "Username Digiflazz Baru: " user_api
             read -p "API Key Digiflazz Baru: " key_api
@@ -2720,7 +2999,7 @@ while true; do
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
-        11)
+        12)
             echo -e "\n${C_RED}⚠️ Reset Sesi akan mengeluarkan bot dari WhatsApp saat ini.${C_RST}"
             read -p "Yakin ingin mereset sesi? (y/n): " reset_sesi
             if [ "$reset_sesi" == "y" ]; then
@@ -2730,7 +3009,7 @@ while true; do
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
-        12)
+        13)
             echo -e "\n${C_MAG}--- BROADCAST PESAN WA ---${C_RST}"
             read -p "Masukkan pesan Broadcast: " bc_msg
             echo -e "Memproses Broadcast..."
@@ -2742,7 +3021,7 @@ while true; do
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
-        13)
+        14)
             echo -e "\n${C_MAG}--- KIRIM PEMBERITAHUAN APLIKASI WEB ---${C_RST}"
             read -p "Masukkan teks pemberitahuan: " notif_msg
             read -p "Nama file gambar (Opsional, biarkan kosong jika tidak ada): " notif_img
@@ -2757,7 +3036,7 @@ while true; do
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
-        14)
+        15)
             echo -e "\n${C_MAG}--- KIRIM PESAN LANGSUNG JAPRI WA ---${C_RST}"
             read -p "Masukkan Nomor Tujuan (Awalan 62/08): " jp_num
             read -p "Masukkan Pesan: " jp_msg
@@ -2768,7 +3047,7 @@ while true; do
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
-        15)
+        16)
             echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT (QRIS DINAMIS) ---${C_RST}"
             echo -e "${C_YELLOW}Fitur ini akan MERUBAH QRIS Statis Anda secara otomatis menjadi Dinamis!${C_RST}"
             read -p "Masukkan Gopay Token Anda: " gopay_token
@@ -2786,7 +3065,7 @@ while true; do
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
-        16)
+        17)
             echo -e "\n${C_MAG}--- SETUP DOMAIN & HTTPS ---${C_RST}"
             read -p "Masukkan Nama Domain Anda (contoh: tendostore.com): " domain_name
             read -p "Masukkan Email Aktif (untuk SSL Let's Encrypt): " ssl_email
