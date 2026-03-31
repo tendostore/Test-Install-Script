@@ -213,44 +213,48 @@ EOF
             transition: background 0.3s;
         }
 
-        /* CUSTOM UI BANNER SALDO SEPERTI GAMBAR */
+        /* CUSTOM UI BANNER SALDO SEPERTI GAMBAR (DENGAN TOMBOL DISEBELAHNYA) */
         .saldo-card-modern {
-            background: #0f172a;
+            background: var(--bg-card);
             border-radius: 16px;
             padding: 16px 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
             position: relative;
             z-index: 2;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         .sc-left { display: flex; align-items: center; gap: 14px; }
         .sc-icon { 
             width: 44px; height: 44px; background: rgba(56, 189, 248, 0.15); 
             border-radius: 12px; display: flex; justify-content: center; align-items: center; color: #38bdf8; 
         }
-        .sc-info { display: flex; flex-direction: column; gap: 4px; justify-content: center;}
-        .sc-title { font-size: 12px; color: #94a3b8; font-weight: 600; display: flex; align-items: center; gap: 8px; margin-top: 2px;}
-        .sc-eye { width: 15px; height: 15px; cursor: pointer; stroke: #94a3b8; transition: stroke 0.2s;}
-        .sc-eye:active { stroke: #ffffff; }
-        .sc-amount { font-size: 16px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; margin-top: 2px;}
+        .sc-info { display: flex; flex-direction: column; justify-content: center;}
+        .sc-title { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;}
+        .sc-amount { font-size: 18px; font-weight: 900; color: var(--text-main); letter-spacing: 0.5px;}
+
+        .sc-actions { display: flex; gap: 8px; align-items: center; }
+        .sc-btn-action {
+            background: var(--bg-main);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            width: 38px; height: 38px;
+            border-radius: 12px; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: transform 0.2s;
+        }
+        .sc-btn-action:active { transform: scale(0.95); }
+        .sc-btn-action svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
         .sc-btn-topup { 
-            background: #f97316; color: #ffffff; border: none; 
-            padding: 9px 20px; border-radius: 25px; font-weight: 800; font-size: 13px; cursor: pointer;
-            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.25); transition: transform 0.2s, background 0.2s;
+            background: var(--nav-active); color: #ffffff; border: none; 
+            padding: 0 16px; height: 38px; border-radius: 12px; font-weight: 800; font-size: 13px; cursor: pointer;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25); transition: transform 0.2s;
         }
-        .sc-btn-topup:active { transform: scale(0.95); background: #ea580c; }
-        
-        .action-buttons { display: flex; justify-content: center; gap: 10px; margin-top: 15px; position: relative; z-index: 2; }
-        .btn-history-dash, .btn-help-dash { 
-            background: transparent; color: var(--text-main); border: 1px solid var(--border-color); 
-            padding: 8px 12px; border-radius: 25px; font-weight: 800; font-size: 10px; 
-            cursor: pointer; display: flex; align-items: center; justify-content: center; flex: 1; max-width: 140px;
-            transition: background 0.2s, color 0.2s; text-transform: uppercase; letter-spacing: 0.5px;
-        }
-        .btn-history-dash:active, .btn-help-dash:active { background: var(--bg-main); transform: scale(0.98); }
+        .sc-btn-topup:active { transform: scale(0.95); }
 
         /* SLIDER BANNER */
         .banner-slider-container { margin: 20px 20px 0px; border-radius: 16px; overflow: hidden; position: relative; background: var(--bg-card); box-shadow: 0 4px 10px rgba(0,0,0,0.03);}
@@ -259,7 +263,7 @@ EOF
         .banner-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; justify-content: center; align-items: center; }
         .banner-slide img { width: 100%; height: auto; object-fit: cover; aspect-ratio: 21/9; display: block;}
 
-        /* GRID MENU (DIPERBARUI IKON & HIGHLIGHT) */
+        /* GRID MENU */
         .grid-title { margin: 25px 20px 15px; font-weight: 900; color: var(--text-main); font-size: 15px;}
         .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 0 20px;}
         .grid-box { 
@@ -502,61 +506,23 @@ EOF
 
         /* DESKTOP RESPONSIVENESS */
         @media screen and (min-width: 768px) {
-            body { 
-                padding: 30px 0; 
-                background-color: #0f172a; /* Outer space dark */
-            }
+            body { padding: 30px 0; background-color: #0f172a; }
             #app {
-                max-width: 800px;
-                border-radius: 36px;
-                min-height: calc(100vh - 60px);
-                box-shadow: 0 25px 60px rgba(0,0,0,0.15);
-                padding-bottom: 130px;
+                max-width: 800px; border-radius: 36px; min-height: calc(100vh - 60px);
+                box-shadow: 0 25px 60px rgba(0,0,0,0.15); padding-bottom: 130px;
             }
-            .top-bar {
-                border-top-left-radius: 36px;
-                border-top-right-radius: 36px;
-                padding: 20px 30px;
-            }
+            .top-bar { border-top-left-radius: 36px; border-top-right-radius: 36px; padding: 20px 30px; }
             .banner-container { padding: 10px 30px 30px; }
-            
-            .bottom-nav {
-                max-width: 740px;
-                bottom: 50px;
-                padding: 15px 10px;
-                border-radius: 60px;
-            }
+            .bottom-nav { max-width: 740px; bottom: 50px; padding: 15px 10px; border-radius: 60px; }
             .nav-item .nav-icon svg { width: 26px; height: 26px; }
-            
-            .grid-container { 
-                grid-template-columns: repeat(4, 1fr); 
-                padding: 0 30px; 
-                gap: 20px; 
-            }
+            .grid-container { grid-template-columns: repeat(4, 1fr); padding: 0 30px; gap: 20px; }
             .stats-container { margin: 30px; }
             .banner-slider-container { margin: 20px 30px 0px; }
-            
-            #product-list, #brand-list, #history-list {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 20px;
-                padding: 10px 30px 30px !important;
-            }
+            #product-list, #brand-list, #history-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 10px 30px 30px !important; }
             .product-item, .brand-row, .hist-item { margin: 0 !important; }
-            
-            #notif-list {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 20px;
-                padding: 30px !important;
-            }
+            #notif-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 30px !important; }
             #notif-list .card { margin-bottom: 0 !important; }
-            
-            #login-screen .card, #register-screen .card, #otp-screen .card, #forgot-screen .card {
-                max-width: 450px;
-                margin: 0 auto;
-                padding: 40px;
-            }
+            #login-screen .card, #register-screen .card, #otp-screen .card, #forgot-screen .card { max-width: 450px; margin: 0 auto; padding: 40px; }
             .sidebar { width: 340px; }
         }
 
@@ -564,9 +530,7 @@ EOF
             #app { max-width: 1024px; }
             .bottom-nav { max-width: 964px; }
             .grid-container { grid-template-columns: repeat(5, 1fr); }
-            #product-list, #brand-list, #history-list, #notif-list {
-                grid-template-columns: repeat(3, 1fr);
-            }
+            #product-list, #brand-list, #history-list, #notif-list { grid-template-columns: repeat(3, 1fr); }
         }
     </style>
 </head>
@@ -597,21 +561,19 @@ EOF
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg>
                     </div>
                     <div class="sc-info">
-                        <div class="sc-title">
-                            Saldo Aktif 
-                            <svg class="sc-eye" id="sc-eye" onclick="toggleSaldoVisibility()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" y1="2" x2="22" y2="22"></line>
-                            </svg>
-                        </div>
-                        <div class="sc-amount" id="user-saldo" data-saldo="0">****</div>
+                        <div class="sc-title">Saldo Aktif</div>
+                        <div class="sc-amount" id="user-saldo" data-saldo="0">Rp 0</div>
                     </div>
                 </div>
-                <button class="sc-btn-topup" onclick="openTopupModal()">Topup</button>
-            </div>
-            
-            <div class="action-buttons">
-                <button class="btn-history-dash" onclick="showHistory('Topup')">Riwayat Topup</button>
-                <button class="btn-help-dash" onclick="contactAdmin()">Bantuan Admin</button>
+                <div class="sc-actions">
+                    <button class="sc-btn-action" onclick="showHistory('Topup')" title="Riwayat Topup">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="12 8 12 12 14 14"></polyline><circle cx="12" cy="12" r="10"></circle></svg>
+                    </button>
+                    <button class="sc-btn-action" onclick="contactAdmin()" title="Bantuan Admin">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                    </button>
+                    <button class="sc-btn-topup" onclick="openTopupModal()">Topup</button>
+                </div>
             </div>
         </div>
 
@@ -822,7 +784,7 @@ EOF
 
         <div id="brand-screen" class="hidden">
             <div class="screen-header">
-                <svg class="back-icon" onclick="goBackFromBrandScreen()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                <svg class="back-icon" onclick="goBackGlobal()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span id="brand-cat-title" style="text-transform: uppercase;">Kategori</span>
@@ -832,7 +794,7 @@ EOF
 
         <div id="produk-screen" class="hidden">
             <div class="screen-header">
-                <svg class="back-icon" onclick="goBackFromProducts()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                <svg class="back-icon" onclick="goBackGlobal()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span id="cat-title-text" style="text-transform: uppercase;">Katalog</span>
@@ -845,7 +807,7 @@ EOF
 
         <div id="history-screen" class="hidden">
             <div class="screen-header">
-                <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                <svg class="back-icon" onclick="goBackGlobal()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span style="text-transform: uppercase;" id="history-title-text">Riwayat Transaksi</span>
@@ -886,7 +848,7 @@ EOF
 
         <div id="notif-screen" class="hidden">
             <div class="screen-header">
-                <svg class="back-icon" onclick="showDashboard()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                <svg class="back-icon" onclick="goBackGlobal()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
                 <span>Pemberitahuan</span>
@@ -1030,6 +992,40 @@ EOF
     </div>
 
     <script>
+        // LOGIKA BACK HISTORY / SCREEN STACKING (URUT SESUAI MENU MASUK)
+        let historyStack = [];
+        let currentState = null;
+
+        function pushState(newState) {
+            if (currentState && JSON.stringify(currentState) !== JSON.stringify(newState)) {
+                historyStack.push(currentState);
+            }
+            currentState = newState;
+        }
+
+        function goBackGlobal() {
+            if (historyStack.length > 0) {
+                let prevState = historyStack.pop();
+                currentState = prevState; 
+                restoreState(prevState);
+            } else {
+                currentState = {screen: 'dashboard-screen'};
+                showDashboardInternal();
+            }
+        }
+
+        function restoreState(s) {
+            if(s.screen === 'dashboard-screen') showDashboardInternal();
+            else if(s.screen === 'brand-screen') {
+                if(s.subcat_mode) loadSubCategoryInternal(s.cat, s.brand);
+                else loadCategoryInternal(s.cat);
+            }
+            else if(s.screen === 'produk-screen') loadProductsInternal(s.cat, s.brand, s.subcat);
+            else if(s.screen === 'history-screen') showHistoryInternal(s.filter);
+            else if(s.screen === 'profile-screen') showProfileInternal();
+            else if(s.screen === 'notif-screen') showNotifInternal();
+        }
+
         // CUSTOM TOAST NOTIFICATION
         function showToast(msg, type='info') {
             let t = document.getElementById('custom-toast-alert');
@@ -1042,22 +1038,6 @@ EOF
             t.className = 'custom-toast ' + (type === 'error' ? 'error' : (type === 'success' ? 'success' : '')) + ' show';
             t.innerHTML = icon + msg;
             setTimeout(() => { t.classList.remove('show'); }, 3500);
-        }
-
-        // FUNGSI TOGGLE HIDE/SHOW SALDO
-        let saldoVisible = false; // Default sembunyi
-        function toggleSaldoVisibility() {
-            saldoVisible = !saldoVisible;
-            let el = document.getElementById('user-saldo');
-            let eye = document.getElementById('sc-eye');
-            if(saldoVisible) {
-                let s = parseInt(el.getAttribute('data-saldo')) || 0;
-                el.innerText = 'Rp ' + s.toLocaleString('id-ID');
-                eye.innerHTML = '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle>';
-            } else {
-                el.innerText = '****';
-                eye.innerHTML = '<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" y1="2" x2="22" y2="22"></line>';
-            }
         }
 
         // PWA SETUP
@@ -1257,26 +1237,33 @@ EOF
                         loadBanners();
                         
                         let lastTab = localStorage.getItem('tendo_last_tab') || 'dashboard-screen';
+                        // Initialize first state for stack
+                        currentState = { screen: lastTab };
+                        
                         if (lastTab === 'history-screen') {
                             let savedFilter = localStorage.getItem('tendo_history_filter') || 'Order';
-                            showHistory(savedFilter);
+                            showHistoryInternal(savedFilter);
+                            currentState.filter = savedFilter;
                         }
-                        else if (lastTab === 'profile-screen') showProfile();
-                        else if (lastTab === 'notif-screen') showNotif();
+                        else if (lastTab === 'profile-screen') showProfileInternal();
+                        else if (lastTab === 'notif-screen') showNotifInternal();
                         else if (lastTab === 'brand-screen') {
                             let cCat = localStorage.getItem('tendo_current_cat');
-                            if(cCat) { showDashboard(); loadCategory(cCat); } else showDashboard();
+                            if(cCat) { 
+                                loadCategoryInternal(cCat); 
+                                currentState.cat = cCat; currentState.subcat_mode = false;
+                            } else showDashboardInternal();
                         }
                         else if (lastTab === 'produk-screen') {
                             let cCat = localStorage.getItem('tendo_current_cat');
                             let cBrand = localStorage.getItem('tendo_current_brand');
                             let cSub = localStorage.getItem('tendo_current_subcat');
                             if(cCat && cBrand) { 
-                                showDashboard(); 
-                                loadProducts(cCat, cBrand, (cSub === 'null' ? null : cSub)); 
-                            } else showDashboard();
+                                loadProductsInternal(cCat, cBrand, (cSub === 'null' ? null : cSub)); 
+                                currentState.cat = cCat; currentState.brand = cBrand; currentState.subcat = (cSub === 'null' ? null : cSub);
+                            } else showDashboardInternal();
                         }
-                        else showDashboard();
+                        else showDashboardInternal();
 
                     } else { showScreen('login-screen', null); }
                 } catch(e) { showScreen('login-screen', null); }
@@ -1285,13 +1272,13 @@ EOF
             }
         });
 
-        function showDashboard() { 
-            showScreen('dashboard-screen', 'nav-home'); 
-            syncUserData(); 
-            fetchAllProducts(); 
-        }
+        // ---------------------------------------
+        // FUNGSI NAVIGASI INTERNAL & STACKING
+        // ---------------------------------------
+        function showDashboardInternal() { showScreen('dashboard-screen', 'nav-home'); syncUserData(); fetchAllProducts(); }
+        function showDashboard() { pushState({screen: 'dashboard-screen'}); showDashboardInternal(); }
         
-        function showHistory(filter = 'Order') { 
+        function showHistoryInternal(filter) { 
             currentHistoryFilter = filter;
             localStorage.setItem('tendo_history_filter', filter);
 
@@ -1308,10 +1295,12 @@ EOF
             showScreen('history-screen', 'nav-history'); 
             syncUserData(); 
         }
+        function showHistory(filter = 'Order') { pushState({screen: 'history-screen', filter: filter}); showHistoryInternal(filter); }
         
-        function showProfile() { showScreen('profile-screen', 'nav-profile'); syncUserData(); }
+        function showProfileInternal() { showScreen('profile-screen', 'nav-profile'); syncUserData(); }
+        function showProfile() { pushState({screen: 'profile-screen'}); showProfileInternal(); }
         
-        async function showNotif() { 
+        async function showNotifInternal() { 
             showScreen('notif-screen', 'nav-notif'); 
             try {
                 let data = await apiCall('/api/notif');
@@ -1333,7 +1322,10 @@ EOF
                 document.getElementById('notif-list').innerHTML = html;
             } catch(e){}
         }
+        function showNotif() { pushState({screen: 'notif-screen'}); showNotifInternal(); }
 
+        // ---
+        
         function openTopupModal() { document.getElementById('topup-nominal').value = ''; document.getElementById('topup-modal').classList.remove('hidden'); }
         function closeTopupModal() { document.getElementById('topup-modal').classList.add('hidden'); }
         
@@ -1437,14 +1429,10 @@ EOF
                 if(data && data.success) {
                     userData = data.data; let u = userData;
                     
-                    // Update Saldo Modern Banner
+                    // Update Saldo Modern Banner (Tampil selalu tanpa perlu toggle)
                     let elSaldo = document.getElementById('user-saldo');
                     elSaldo.setAttribute('data-saldo', u.saldo);
-                    if(saldoVisible) {
-                        elSaldo.innerText = 'Rp ' + u.saldo.toLocaleString('id-ID');
-                    } else {
-                        elSaldo.innerText = '****';
-                    }
+                    elSaldo.innerText = 'Rp ' + u.saldo.toLocaleString('id-ID');
 
                     document.getElementById('top-trx-badge').innerText = (u.trx_count || 0) + ' Trx';
                     
@@ -1765,14 +1753,13 @@ EOF
             } catch(e){}
         }
 
-        async function loadCategory(cat) {
+        function loadCategoryInternal(cat) {
             currentCategory = cat; 
             currentBrand = "";
             localStorage.setItem('tendo_current_cat', cat);
             localStorage.setItem('tendo_current_brand', '');
             localStorage.setItem('tendo_current_subcat', '');
             
-            await fetchAllProducts(); 
             document.getElementById('brand-cat-title').innerText = cat;
             
             let brands = [];
@@ -1805,8 +1792,9 @@ EOF
                 showToast('Belum ada produk di kategori ini.', 'error');
             }
         }
+        function loadCategory(cat) { pushState({screen: 'brand-screen', cat: cat, subcat_mode: false}); loadCategoryInternal(cat); }
 
-        function loadSubCategory(cat, brand) {
+        function loadSubCategoryInternal(cat, brand) {
             currentCategory = cat;
             currentBrand = brand;
             localStorage.setItem('tendo_current_cat', cat);
@@ -1844,8 +1832,9 @@ EOF
                 showToast('Belum ada paket untuk provider ini.', 'error');
             }
         }
+        function loadSubCategory(cat, brand) { pushState({screen: 'brand-screen', cat: cat, brand: brand, subcat_mode: true}); loadSubCategoryInternal(cat, brand); }
 
-        function loadProducts(cat, brand, subCat = null) {
+        function loadProductsInternal(cat, brand, subCat = null) {
             currentCategory = cat;
             currentBrand = brand;
             localStorage.setItem('tendo_current_cat', cat);
@@ -1890,23 +1879,7 @@ EOF
             document.getElementById('product-list').innerHTML = listHTML || '<div style="text-align:center; padding:30px; font-weight:bold; color:var(--text-muted);">KOSONG</div>';
             showScreen('produk-screen', 'nav-home');
         }
-
-        function goBackFromBrandScreen() {
-            let title = document.getElementById('brand-cat-title').innerText;
-            if(currentCategory === 'Data' && title.includes('(Paket)')) {
-                loadCategory(currentCategory); 
-            } else {
-                showDashboard(); 
-            }
-        }
-
-        function goBackFromProducts() {
-            if(currentCategory === 'Data') {
-                loadSubCategory(currentCategory, currentBrand); 
-            } else {
-                loadCategory(currentCategory); 
-            }
-        }
+        function loadProducts(cat, brand, subCat = null) { pushState({screen: 'produk-screen', cat: cat, brand: brand, subcat: subCat}); loadProductsInternal(cat, brand, subCat); }
 
         function openOrderModal(sku, nama, harga, desc) {
             selectedSKU = sku;
@@ -2100,7 +2073,6 @@ app.get('/api/stats', (req, res) => {
         let gStats = loadJSON(globalStatsFile);
         let daily = 0, weekly = 0, monthly = 0;
         
-        // Murni menggunakan Waktu Jakarta (WIB) tanpa terpengaruh Timezone Server VPS
         let nowString = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
         let nowDate = new Date(nowString + 'T00:00:00+07:00');
         
@@ -2562,7 +2534,10 @@ async function tarikDataLayananOtomatis() {
                 let kodeBarang = item.buyer_sku_code;
                 let namaBarang = item.product_name;
                 let hargaModal = item.price;
-                let statusProduk = item.buyer_product_status; // STATUS AKTIF/GANGGUAN
+                
+                // PERBAIKAN LOGIKA GANGGUAN:
+                // Mengecek buyer_product_status dan seller_product_status sekaligus
+                let statusProduk = (item.buyer_product_status === true && item.seller_product_status === true);
                 
                 // MENGGOLONGKAN KATEGORI STRICT-MATCH DIGIFLAZZ
                 let catDigi = (item.category || '').trim();
