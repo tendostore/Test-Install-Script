@@ -109,8 +109,8 @@ generate_web_app() {
   "short_name": "Digital Tendo Store",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ebf0f5",
-  "theme_color": "#f8fafc",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "orientation": "portrait",
   "icons": [{"src": "https://cdn-icons-png.flaticon.com/512/3144/3144456.png", "sizes": "512x512", "type": "image/png"}]
 }
@@ -149,7 +149,7 @@ EOF
     <meta http-equiv="Expires" content="0">
     <title>Digital Tendo Store</title>
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#ffffff" id="meta-theme">
     <style>
         /* VARIABEL TEMA GELAP / TERANG */
         :root {
@@ -187,7 +187,7 @@ EOF
         }
 
         /* TEMA PREMIUM CSS */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #cbd5e1; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #0f172a; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
         #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 140px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
         
         /* TOP BAR */
@@ -201,7 +201,7 @@ EOF
         .trx-badge { font-size: 11px; background: var(--bg-main); color: var(--text-main); padding: 5px 12px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.2s; z-index: 2;}
         .trx-badge:active { transform: scale(0.95); }
 
-        /* DEGRADASI LENGKUNGAN */
+        /* DEGRADASI LENGKUNGAN KONTENER BANNER */
         .banner-container { 
             background: var(--topbar-bg); 
             padding: 5px 20px 25px; 
@@ -213,29 +213,44 @@ EOF
             transition: background 0.3s;
         }
 
-        /* BANNER SALDO */
-        .banner { 
-            background: linear-gradient(135deg, #111827 0%, #0f172a 100%); 
-            border-radius: 20px; padding: 25px 15px; 
-            color: #ffffff; text-align: center; position: relative; overflow: hidden;
-            box-shadow: 0 8px 20px rgba(15,23,42,0.15);
+        /* CUSTOM UI BANNER SALDO SEPERTI GAMBAR */
+        .saldo-card-modern {
+            background: #0f172a;
+            border-radius: 16px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            border: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+            z-index: 2;
         }
-        .banner::before { 
-            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            background-image: url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='wave' width='100' height='40' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 20 Q 25 5, 50 20 T 100 20' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='2'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23wave)'/%3E%3C/svg%3E");
-            pointer-events: none; 
+        .sc-left { display: flex; align-items: center; gap: 14px; }
+        .sc-icon { 
+            width: 44px; height: 44px; background: rgba(56, 189, 248, 0.15); 
+            border-radius: 12px; display: flex; justify-content: center; align-items: center; color: #38bdf8; 
         }
-        .saldo-title { font-size: 12px; font-weight: 500; opacity: 0.9; margin-bottom: 5px; position: relative; z-index: 2;}
-        .saldo-amount { font-size: 34px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 20px; position: relative; z-index: 2;}
+        .sc-info { display: flex; flex-direction: column; gap: 4px; justify-content: center;}
+        .sc-title { font-size: 12px; color: #94a3b8; font-weight: 600; display: flex; align-items: center; gap: 8px; margin-top: 2px;}
+        .sc-eye { width: 15px; height: 15px; cursor: pointer; stroke: #94a3b8; transition: stroke 0.2s;}
+        .sc-eye:active { stroke: #ffffff; }
+        .sc-amount { font-size: 16px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; margin-top: 2px;}
+        .sc-btn-topup { 
+            background: #f97316; color: #ffffff; border: none; 
+            padding: 9px 20px; border-radius: 25px; font-weight: 800; font-size: 13px; cursor: pointer;
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.25); transition: transform 0.2s, background 0.2s;
+        }
+        .sc-btn-topup:active { transform: scale(0.95); background: #ea580c; }
         
-        .action-buttons { display: flex; justify-content: center; gap: 10px; position: relative; z-index: 2; }
-        .btn-topup-dash, .btn-history-dash, .btn-help-dash { 
-            background: transparent; color: #ffffff; border: 1px solid rgba(255,255,255,0.8); 
+        .action-buttons { display: flex; justify-content: center; gap: 10px; margin-top: 15px; position: relative; z-index: 2; }
+        .btn-history-dash, .btn-help-dash { 
+            background: transparent; color: var(--text-main); border: 1px solid var(--border-color); 
             padding: 8px 12px; border-radius: 25px; font-weight: 800; font-size: 10px; 
-            cursor: pointer; display: flex; align-items: center; justify-content: center; flex: 1; max-width: 110px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; flex: 1; max-width: 140px;
             transition: background 0.2s, color 0.2s; text-transform: uppercase; letter-spacing: 0.5px;
         }
-        .btn-topup-dash:active, .btn-history-dash:active, .btn-help-dash:active { background: #ffffff; color: #0f172a; }
+        .btn-history-dash:active, .btn-help-dash:active { background: var(--bg-main); transform: scale(0.98); }
 
         /* SLIDER BANNER */
         .banner-slider-container { margin: 20px 20px 0px; border-radius: 16px; overflow: hidden; position: relative; background: var(--bg-card); box-shadow: 0 4px 10px rgba(0,0,0,0.03);}
@@ -244,7 +259,7 @@ EOF
         .banner-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; justify-content: center; align-items: center; }
         .banner-slide img { width: 100%; height: auto; object-fit: cover; aspect-ratio: 21/9; display: block;}
 
-        /* GRID MENU (DIPERBARUI) */
+        /* GRID MENU (DIPERBARUI IKON & HIGHLIGHT) */
         .grid-title { margin: 25px 20px 15px; font-weight: 900; color: var(--text-main); font-size: 15px;}
         .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 0 20px;}
         .grid-box { 
@@ -487,22 +502,61 @@ EOF
 
         /* DESKTOP RESPONSIVENESS */
         @media screen and (min-width: 768px) {
-            body { padding: 30px 0; background-color: var(--border-color); }
-            #app { max-width: 800px; border-radius: 36px; min-height: calc(100vh - 60px); box-shadow: 0 25px 60px rgba(0,0,0,0.15); padding-bottom: 130px; }
-            .top-bar { border-top-left-radius: 36px; border-top-right-radius: 36px; padding: 20px 30px; }
+            body { 
+                padding: 30px 0; 
+                background-color: #0f172a; /* Outer space dark */
+            }
+            #app {
+                max-width: 800px;
+                border-radius: 36px;
+                min-height: calc(100vh - 60px);
+                box-shadow: 0 25px 60px rgba(0,0,0,0.15);
+                padding-bottom: 130px;
+            }
+            .top-bar {
+                border-top-left-radius: 36px;
+                border-top-right-radius: 36px;
+                padding: 20px 30px;
+            }
             .banner-container { padding: 10px 30px 30px; }
-            .banner { padding: 40px 30px 35px; }
-            .saldo-amount { font-size: 42px; }
-            .bottom-nav { max-width: 740px; bottom: 50px; padding: 15px 10px; border-radius: 60px; }
+            
+            .bottom-nav {
+                max-width: 740px;
+                bottom: 50px;
+                padding: 15px 10px;
+                border-radius: 60px;
+            }
             .nav-item .nav-icon svg { width: 26px; height: 26px; }
-            .grid-container { grid-template-columns: repeat(4, 1fr); padding: 0 30px; gap: 20px; }
+            
+            .grid-container { 
+                grid-template-columns: repeat(4, 1fr); 
+                padding: 0 30px; 
+                gap: 20px; 
+            }
             .stats-container { margin: 30px; }
             .banner-slider-container { margin: 20px 30px 0px; }
-            #product-list, #brand-list, #history-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 10px 30px 30px !important; }
+            
+            #product-list, #brand-list, #history-list {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+                padding: 10px 30px 30px !important;
+            }
             .product-item, .brand-row, .hist-item { margin: 0 !important; }
-            #notif-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 30px !important; }
+            
+            #notif-list {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+                padding: 30px !important;
+            }
             #notif-list .card { margin-bottom: 0 !important; }
-            #login-screen .card, #register-screen .card, #otp-screen .card, #forgot-screen .card { max-width: 450px; margin: 0 auto; padding: 40px; }
+            
+            #login-screen .card, #register-screen .card, #otp-screen .card, #forgot-screen .card {
+                max-width: 450px;
+                margin: 0 auto;
+                padding: 40px;
+            }
             .sidebar { width: 340px; }
         }
 
@@ -510,12 +564,13 @@ EOF
             #app { max-width: 1024px; }
             .bottom-nav { max-width: 964px; }
             .grid-container { grid-template-columns: repeat(5, 1fr); }
-            #product-list, #brand-list, #history-list, #notif-list { grid-template-columns: repeat(3, 1fr); }
+            #product-list, #brand-list, #history-list, #notif-list {
+                grid-template-columns: repeat(3, 1fr);
+            }
         }
     </style>
 </head>
-<body>
-    <div id="app">
+<body class="dark-mode"> <div id="app">
         <div id="initial-loader" style="display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; background: var(--bg-main); position: fixed; top:0; left:0; width:100%; z-index:9999; transition: opacity 0.3s;">
             <div style="width: 50px; height: 50px; border: 4px solid var(--border-color); border-top-color: #0ea5e9; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
             <div style="font-size:20px; font-weight:900; color:var(--text-main); letter-spacing: 1px;">DIGITAL TENDO</div>
@@ -536,14 +591,27 @@ EOF
         </div>
 
         <div class="banner-container hidden" id="banner-container-wrap">
-            <div class="banner" id="home-banner">
-                <div class="saldo-title">Sisa Saldo Anda</div>
-                <div class="saldo-amount" id="user-saldo">Rp 0</div>
-                <div class="action-buttons">
-                    <button class="btn-topup-dash" onclick="openTopupModal()">ISI SALDO</button>
-                    <button class="btn-history-dash" onclick="showHistory('Topup')">RIWAYAT</button>
-                    <button class="btn-help-dash" onclick="contactAdmin()">BANTUAN</button>
+            <div class="saldo-card-modern">
+                <div class="sc-left">
+                    <div class="sc-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg>
+                    </div>
+                    <div class="sc-info">
+                        <div class="sc-title">
+                            Saldo Aktif 
+                            <svg class="sc-eye" id="sc-eye" onclick="toggleSaldoVisibility()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" y1="2" x2="22" y2="22"></line>
+                            </svg>
+                        </div>
+                        <div class="sc-amount" id="user-saldo" data-saldo="0">****</div>
+                    </div>
                 </div>
+                <button class="sc-btn-topup" onclick="openTopupModal()">Topup</button>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn-history-dash" onclick="showHistory('Topup')">Riwayat Topup</button>
+                <button class="btn-help-dash" onclick="contactAdmin()">Bantuan Admin</button>
             </div>
         </div>
 
@@ -568,7 +636,7 @@ EOF
                     <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Hubungi Admin
                 </a>
                 <a href="#" class="sidebar-item" onclick="toggleTheme()">
-                    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg> <span id="theme-text">Mode Gelap</span>
+                    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg> <span id="theme-text">Mode Terang</span>
                 </a>
             </div>
             <div style="padding: 20px;">
@@ -586,7 +654,7 @@ EOF
                 <input type="email" id="log-email" placeholder="Alamat Email">
                 <input type="password" id="log-pass" placeholder="Password">
                 <label class="checkbox-container">
-                    <input type="checkbox" id="rem-login"> Tetap masuk
+                    <input type="checkbox" id="rem-login" checked> Tetap masuk
                 </label>
                 <button class="btn" id="btn-login" onclick="login()">Login Sekarang</button>
                 <a href="#" onclick="showScreen('forgot-screen')" style="display:block; text-align:center; font-size:13px; font-weight:600; color:var(--text-muted); margin-top:15px; text-decoration:none;">Lupa Password?</a>
@@ -647,8 +715,8 @@ EOF
             <div class="grid-container">
                 <div class="grid-box" onclick="loadCategory('Pulsa')">
                     <div class="grid-icon-wrap ic-pulsa">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" width="28" height="28">
-                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><path d="M12 18h.01"></path><path d="M13 8l-2 3h3l-2 3"></path>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line>
                         </svg>
                     </div>
                     <div class="grid-text">PULSA</div>
@@ -692,8 +760,8 @@ EOF
                 
                 <div class="grid-box" onclick="loadCategory('PLN')">
                     <div class="grid-icon-wrap ic-pln">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" width="28" height="28">
-                            <path d="M11 2v5a1 1 0 0 0 1 1h4"></path><path d="M6 14h12"></path><path d="M12 14v8"></path><path d="M9 10a5 5 0 0 0 5 5h.5a4.5 4.5 0 0 0 1.5-8.7V6"></path>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                         </svg>
                     </div>
                     <div class="grid-text">PLN</div>
@@ -962,7 +1030,7 @@ EOF
     </div>
 
     <script>
-        // CUSTOM TOAST NOTIFICATION FUNCTION (Menggantikan Alert)
+        // CUSTOM TOAST NOTIFICATION
         function showToast(msg, type='info') {
             let t = document.getElementById('custom-toast-alert');
             if(!t) {
@@ -974,6 +1042,22 @@ EOF
             t.className = 'custom-toast ' + (type === 'error' ? 'error' : (type === 'success' ? 'success' : '')) + ' show';
             t.innerHTML = icon + msg;
             setTimeout(() => { t.classList.remove('show'); }, 3500);
+        }
+
+        // FUNGSI TOGGLE HIDE/SHOW SALDO
+        let saldoVisible = false; // Default sembunyi
+        function toggleSaldoVisibility() {
+            saldoVisible = !saldoVisible;
+            let el = document.getElementById('user-saldo');
+            let eye = document.getElementById('sc-eye');
+            if(saldoVisible) {
+                let s = parseInt(el.getAttribute('data-saldo')) || 0;
+                el.innerText = 'Rp ' + s.toLocaleString('id-ID');
+                eye.innerHTML = '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle>';
+            } else {
+                el.innerText = '****';
+                eye.innerHTML = '<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" y1="2" x2="22" y2="22"></line>';
+            }
         }
 
         // PWA SETUP
@@ -993,11 +1077,17 @@ EOF
         let currentCategory = ""; let currentBrand = ""; let currentHistoryFilter = 'All';
         let bannerInterval; let qrisInterval;
 
-        // CEK THEME DARI LOKAL (Dark Mode Toggle)
-        if(localStorage.getItem('tendo_theme') === 'dark') {
+        // CEK THEME DARI LOKAL (Sekarang DEFAULT GELAP)
+        let savedTheme = localStorage.getItem('tendo_theme');
+        if(savedTheme === 'light') {
+            document.body.classList.remove('dark-mode');
+            document.getElementById('theme-text').innerText = "Mode Gelap";
+        } else {
             document.body.classList.add('dark-mode');
             document.getElementById('theme-text').innerText = "Mode Terang";
+            localStorage.setItem('tendo_theme', 'dark');
         }
+
         function toggleTheme() {
             document.body.classList.toggle('dark-mode');
             let isDark = document.body.classList.contains('dark-mode');
@@ -1006,7 +1096,7 @@ EOF
             toggleSidebar();
         }
 
-        // FUNGSI DETEKSI PROVIDER
+        // DETEKSI PROVIDER
         let lastDetected = "";
         let toastTimer;
         function checkProvider(val) {
@@ -1038,7 +1128,6 @@ EOF
             }
         }
 
-        // === API CALL KLASIK (ANTI-ERROR) ===
         async function apiCall(url, bodyData) {
             let options = {};
             if(bodyData) {
@@ -1050,7 +1139,6 @@ EOF
             return await res.json();
         }
 
-        // FUNGSI FETCH STATISTIK GLOBAL
         async function fetchGlobalStats() {
             try {
                 let res = await apiCall('/api/stats');
@@ -1062,7 +1150,6 @@ EOF
             } catch(e){}
         }
 
-        // FUNGSI LOAD BANNER (SLIDER OTOMATIS)
         async function loadBanners() {
             try {
                 let data = await apiCall('/api/banners');
@@ -1094,7 +1181,6 @@ EOF
             } catch(e) {}
         }
 
-        // FITUR PENCARIAN PRODUK
         function filterProducts() {
             let input = document.getElementById('search-product').value.toLowerCase();
             let items = document.querySelectorAll('#product-list .product-item');
@@ -1108,7 +1194,6 @@ EOF
             });
         }
 
-        // UI HELPERS
         function toggleSidebar() {
             const sb = document.getElementById('sidebar');
             const ov = document.getElementById('sb-overlay');
@@ -1125,7 +1210,6 @@ EOF
         }
 
         function showScreen(id, navId) {
-            // Hilangkan loader awal secara smooth jika masih ada
             let loader = document.getElementById('initial-loader');
             if(loader) {
                 loader.style.opacity = '0';
@@ -1137,7 +1221,6 @@ EOF
             });
             document.getElementById(id).classList.remove('hidden');
             
-            // SIMPAN TAB TERAKHIR KE LOCAL STORAGE UNTUK PERSISTENSI SAAT RELOAD
             if (['dashboard-screen', 'history-screen', 'notif-screen', 'profile-screen', 'brand-screen', 'produk-screen'].includes(id)) {
                 localStorage.setItem('tendo_last_tab', id);
             }
@@ -1161,9 +1244,6 @@ EOF
             }
         }
 
-        // ==========================================
-        // PERBAIKAN LOADING & PERSISTENSI HALAMAN
-        // ==========================================
         document.addEventListener('DOMContentLoaded', async () => {
             let savedEmail = localStorage.getItem('tendo_email');
             let savedPass = localStorage.getItem('tendo_pass');
@@ -1208,7 +1288,7 @@ EOF
         function showDashboard() { 
             showScreen('dashboard-screen', 'nav-home'); 
             syncUserData(); 
-            fetchAllProducts(); // Auto-refresh data di background
+            fetchAllProducts(); 
         }
         
         function showHistory(filter = 'Order') { 
@@ -1356,7 +1436,16 @@ EOF
                 let data = await apiCall('/api/user/' + currentUser);
                 if(data && data.success) {
                     userData = data.data; let u = userData;
-                    document.getElementById('user-saldo').innerText = 'Rp ' + u.saldo.toLocaleString('id-ID');
+                    
+                    // Update Saldo Modern Banner
+                    let elSaldo = document.getElementById('user-saldo');
+                    elSaldo.setAttribute('data-saldo', u.saldo);
+                    if(saldoVisible) {
+                        elSaldo.innerText = 'Rp ' + u.saldo.toLocaleString('id-ID');
+                    } else {
+                        elSaldo.innerText = '****';
+                    }
+
                     document.getElementById('top-trx-badge').innerText = (u.trx_count || 0) + ' Trx';
                     
                     let firstLetter = (u.username || "T").charAt(0).toUpperCase();
@@ -1676,9 +1765,6 @@ EOF
             } catch(e){}
         }
 
-        // ==========================================
-        // KATEGORI DINAMIS BERDASARKAN SYSTEM STRICT-MATCH
-        // ==========================================
         async function loadCategory(cat) {
             currentCategory = cat; 
             currentBrand = "";
@@ -1782,11 +1868,20 @@ EOF
                 let safeDesc = p.deskripsi ? p.deskripsi.replace(/'/g, "\\'").replace(/"/g, '&quot;') : 'Proses Otomatis 24 Jam';
                 let initial = brand.substring(0,2).toUpperCase();
                 
+                // LOGIKA LABEL GANGGUAN / OPEN
+                let statusBadge = p.status_produk === false 
+                    ? '<span style="background:#fee2e2; color:#b91c1c; font-size:9px; padding:2px 6px; border-radius:4px; font-weight:800; border:1px solid #fca5a5; flex-shrink:0; margin-left:8px;">GANGGUAN</span>' 
+                    : '<span class="badge-open">OPEN</span>';
+                
+                let onClickAction = p.status_produk === false
+                    ? `showToast('Maaf, produk ini sedang gangguan dari pusat.', 'error')`
+                    : `openOrderModal('${key}', '${safeName}', ${p.harga}, '${safeDesc}')`;
+                
                 listHTML += `
-                <div class="product-item" onclick="openOrderModal('${key}', '${safeName}', ${p.harga}, '${safeDesc}')">
+                <div class="product-item" onclick="${onClickAction}">
                     <div class="prod-logo">${initial}</div>
                     <div class="prod-info">
-                        <div class="prod-name">${p.nama} <span class="badge-open">OPEN</span></div>
+                        <div class="prod-name">${p.nama} ${statusBadge}</div>
                         <div class="prod-desc">${p.deskripsi ? p.deskripsi.substring(0,40)+'...' : 'Proses Cepat'}</div>
                         <div class="prod-price">Rp ${p.harga.toLocaleString('id-ID')}</div>
                     </div>
@@ -1896,7 +1991,6 @@ const dbFile = './database.json';
 const produkFile = './produk.json';
 const trxFile = './trx.json';
 const notifFile = './web_notif.json';
-const japriFile = './japri.txt';
 const globalStatsFile = './global_stats.json';
 const topupFile = './topup.json';
 
@@ -2006,6 +2100,7 @@ app.get('/api/stats', (req, res) => {
         let gStats = loadJSON(globalStatsFile);
         let daily = 0, weekly = 0, monthly = 0;
         
+        // Murni menggunakan Waktu Jakarta (WIB) tanpa terpengaruh Timezone Server VPS
         let nowString = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
         let nowDate = new Date(nowString + 'T00:00:00+07:00');
         
@@ -2373,19 +2468,6 @@ async function startBot() {
         } catch(e) {}
     }, 12 * 60 * 60 * 1000); 
 
-    setInterval(() => {
-        if(fs.existsSync(japriFile)) {
-            let lines = fs.readFileSync(japriFile, 'utf8').split('\n'); fs.unlinkSync(japriFile);
-            for(let line of lines) {
-                if(line.includes('|')) {
-                    let parts = line.split('|'); let target = parts[0]; parts.shift(); let msg = parts.join('|');
-                    let targetJid = normalizePhone(target) + '@s.whatsapp.net';
-                    sock.sendMessage(targetJid, { text: msg }).catch(e=>{});
-                }
-            }
-        }
-    }, 3000);
-
     setInterval(async () => {
         let trxs = loadJSON(trxFile); let keys = Object.keys(trxs); if (keys.length === 0) return;
         let cfg = loadJSON(configFile); let userAPI = (cfg.digiflazzUsername || '').trim(); let keyAPI = (cfg.digiflazzApiKey || '').trim();
@@ -2477,12 +2559,10 @@ async function tarikDataLayananOtomatis() {
             let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
             
             daftarPusat.forEach(item => {
-                // Jangan masukkan produk yang statusnya gangguan/tutup
-                if (item.buyer_product_status === false) return; 
-                
                 let kodeBarang = item.buyer_sku_code;
                 let namaBarang = item.product_name;
                 let hargaModal = item.price;
+                let statusProduk = item.buyer_product_status; // STATUS AKTIF/GANGGUAN
                 
                 // MENGGOLONGKAN KATEGORI STRICT-MATCH DIGIFLAZZ
                 let catDigi = (item.category || '').trim();
@@ -2498,7 +2578,7 @@ async function tarikDataLayananOtomatis() {
                 else if (catLower === 'paket sms & telpon') kategoriBarang = 'Paket SMS & Telpon';
                 else if (catLower === 'masa aktif') kategoriBarang = 'Masa Aktif';
                 else if (catLower === 'aktivasi perdana' || catLower === 'perdana') kategoriBarang = 'Aktivasi Perdana';
-                else kategoriBarang = catDigi; // Fallback untuk kategori Digiflazz lainnya
+                else kategoriBarang = catDigi; 
                 
                 let merekBarang = item.brand || 'Lainnya';
                 let subKategori = item.type || 'Umum';
@@ -2525,7 +2605,8 @@ async function tarikDataLayananOtomatis() {
                     kategori: kategoriBarang,
                     brand: merekBarang,
                     sub_kategori: subKategori,
-                    deskripsi: item.desc || 'Proses Otomatis'
+                    deskripsi: item.desc || 'Proses Otomatis',
+                    status_produk: statusProduk
                 };
             });
 
@@ -2637,7 +2718,7 @@ install_dependencies() {
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
     echo -ne "${C_MAG}>> Mengunduh modul utama...${C_RST}"
-    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser > /dev/null 2>&1 &
+    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser xlsx > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
@@ -2648,7 +2729,297 @@ install_dependencies() {
 }
 
 # ==========================================
-# 6. SUB-MENU TELEGRAM SETUP
+# 6. SUB-MENU MANAJEMEN MEMBER
+# ==========================================
+menu_member() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             👥 MANAJEMEN MEMBER BOT 👥             ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Saldo Member"
+        echo -e "  ${C_GREEN}[2]${C_RST} Kurangi Saldo Member"
+        echo -e "  ${C_GREEN}[3]${C_RST} Lihat Daftar Semua Member"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-3]: ${C_RST}"
+        read subchoice
+
+        case $subchoice in
+            1)
+                echo -e "\n${C_MAG}--- TAMBAH SALDO ---${C_RST}"
+                read -p "Masukkan ID Member (No WA awalan 08/62 atau Email): " nomor
+                read -p "Masukkan Jumlah Saldo: " jumlah
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let db = crypt.load('database.json');
+                    let input = '$nomor'.trim();
+                    let normPhone = input.replace(/[^0-9]/g, '');
+                    if(normPhone.startsWith('0')) normPhone = '62' + normPhone.substring(1);
+                    
+                    let target = Object.keys(db).find(k => k === normPhone || db[k].email === input);
+                    
+                    if(!target) {
+                        target = normPhone || input;
+                        db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: target + '@s.whatsapp.net', trx_count: 0, history: [] };
+                    }
+                    db[target].saldo += parseInt('$jumlah');
+                    crypt.save('database.json', db);
+                    console.log('\x1b[32m\n✅ Saldo Rp $jumlah berhasil ditambahkan ke ' + target + '!\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo -e "\n${C_MAG}--- KURANGI SALDO ---${C_RST}"
+                read -p "Masukkan ID Member (No WA awalan 08/62 atau Email): " nomor
+                read -p "Masukkan Jumlah Saldo yg dikurangi: " jumlah
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let db = crypt.load('database.json');
+                    let input = '$nomor'.trim();
+                    let normPhone = input.replace(/[^0-9]/g, '');
+                    if(normPhone.startsWith('0')) normPhone = '62' + normPhone.substring(1);
+                    
+                    let target = Object.keys(db).find(k => k === normPhone || db[k].email === input);
+                    
+                    if(!target) { 
+                        console.log('\x1b[31m\n❌ Akun tidak ditemukan di database.\x1b[0m'); 
+                    } else {
+                        db[target].saldo -= parseInt('$jumlah');
+                        if(db[target].saldo < 0) db[target].saldo = 0;
+                        crypt.save('database.json', db);
+                        console.log('\x1b[32m\n✅ Saldo berhasil dikurangi!\x1b[0m');
+                    }
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            3)
+                echo -e "\n${C_CYAN}--- DAFTAR MEMBER ---${C_RST}"
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let db = crypt.load('database.json');
+                    let members = Object.keys(db);
+                    if(members.length === 0) console.log('\x1b[33mBelum ada member.\x1b[0m');
+                    else {
+                        members.forEach((m, i) => console.log((i + 1) + '. WA: ' + m + ' | Email: ' + (db[m].email || '-') + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID')));
+                    }
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
+# ==========================================
+# 7. MANAJEMEN PRODUK IMPORT EXCEL
+# ==========================================
+menu_produk() {
+    clear
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}             🛒 IMPORT PRODUK VIA EXCEL 🛒             ${C_RST}"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "Sistem Import Cerdas. Format kolom apapun akan terdeteksi!"
+    read -p "Apakah Anda ingin MENGHAPUS produk lama agar bersih dari produk nyasar? (y/n): " wipe_data
+    export WIPE_DATA="$wipe_data"
+    
+    read -p "Masukkan nama file lengkap (contoh: daftar-produk-buyer.xlsx ATAU namafile.csv): " nama_file_excel
+    if [ ! -f "$nama_file_excel" ]; then
+        echo -e "${C_RED}❌ File tidak ditemukan. Pastikan file $nama_file_excel ada di direktori $(pwd)${C_RST}"
+    else
+        export EXCEL_PATH="$nama_file_excel"
+        node -e "
+            const crypt = require('./tendo_crypt.js');
+            const xlsx = require('xlsx');
+            
+            try {
+                let config = crypt.load('config.json');
+                let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
+
+                const workbook = xlsx.readFile(process.env.EXCEL_PATH);
+                const sheet_name = workbook.SheetNames[0];
+                const rawData = xlsx.utils.sheet_to_json(workbook.Sheets[sheet_name]);
+                
+                let produk = {};
+                if (process.env.WIPE_DATA.toLowerCase() !== 'y') {
+                    produk = crypt.load('produk.json');
+                }
+                
+                let added = 0;
+                
+                rawData.forEach(item => {
+                    let keys = Object.keys(item);
+                    let getColStrict = (keywords) => keys.find(k => keywords.includes(k.toLowerCase().trim()));
+                    
+                    let kodeCol = getColStrict(['buyer_sku_code', 'sku', 'kode produk', 'kode']);
+                    let namaCol = getColStrict(['product_name', 'nama produk', 'produk', 'nama']);
+                    let hargaCol = getColStrict(['price', 'harga']);
+                    let statusCol = getColStrict(['buyer_product_status', 'status']);
+                    let descCol = getColStrict(['desc', 'deskripsi']);
+                    let brandCol = getColStrict(['brand', 'provider', 'operator']);
+                    let categoryCol = getColStrict(['category', 'kategori']);
+                    
+                    if(!kodeCol) kodeCol = keys.find(k => k.toLowerCase().includes('kode') || k.toLowerCase().includes('sku'));
+                    if(!namaCol) namaCol = keys.find(k => k.toLowerCase().includes('nama') || k.toLowerCase().includes('produk'));
+                    if(!hargaCol) hargaCol = keys.find(k => k.toLowerCase().includes('harga') || k.toLowerCase().includes('price'));
+                    if(!statusCol) statusCol = keys.find(k => k.toLowerCase().includes('status'));
+
+                    if(!kodeCol || !namaCol || !hargaCol) return;
+
+                    let kode = item[kodeCol].toString().trim();
+                    let nama = item[namaCol].toString().trim();
+                    let hargaModal = parseInt(item[hargaCol]);
+                    let deskripsi = descCol && item[descCol] ? item[descCol].toString().trim() : 'Proses Otomatis';
+                    let statusProduk = true;
+
+                    if(statusCol) {
+                        let stat = item[statusCol].toString().toLowerCase();
+                        if(stat === 'false' || stat === 'gangguan' || stat === 'closed') statusProduk = false;
+                    }
+
+                    if(isNaN(hargaModal)) return;
+
+                    let catDigi = (categoryCol && item[categoryCol]) ? item[categoryCol].toString().trim() : '';
+                    let catLower = catDigi.toLowerCase();
+                    let kategoriBarang = 'Lainnya';
+                    
+                    if (catLower === 'pulsa') kategoriBarang = 'Pulsa';
+                    else if (catLower === 'data') kategoriBarang = 'Data';
+                    else if (catLower === 'e-money') kategoriBarang = 'E-Money';
+                    else if (catLower === 'games') kategoriBarang = 'Game';
+                    else if (catLower === 'pln') kategoriBarang = 'PLN';
+                    else if (catLower === 'voucher') kategoriBarang = 'Voucher';
+                    else if (catLower === 'paket sms & telpon') kategoriBarang = 'Paket SMS & Telpon';
+                    else if (catLower === 'masa aktif') kategoriBarang = 'Masa Aktif';
+                    else if (catLower === 'aktivasi perdana' || catLower === 'perdana') kategoriBarang = 'Aktivasi Perdana';
+                    else kategoriBarang = catDigi || 'Lainnya'; 
+                    
+                    let merekBarang = (brandCol && item[brandCol]) ? item[brandCol].toString().trim() : 'Lainnya';
+
+                    let keuntungan = 0;
+                    if(hargaModal <= 100) keuntungan = m.t1;
+                    else if(hargaModal <= 500) keuntungan = m.t2;
+                    else if(hargaModal <= 1000) keuntungan = m.t3;
+                    else if(hargaModal <= 2000) keuntungan = m.t4;
+                    else if(hargaModal <= 3000) keuntungan = m.t5;
+                    else if(hargaModal <= 4000) keuntungan = m.t6;
+                    else if(hargaModal <= 5000) keuntungan = m.t7;
+                    else if(hargaModal <= 10000) keuntungan = m.t8;
+                    else if(hargaModal <= 25000) keuntungan = m.t9;
+                    else if(hargaModal <= 50000) keuntungan = m.t10;
+                    else if(hargaModal <= 75000) keuntungan = m.t11;
+                    else if(hargaModal <= 100000) keuntungan = m.t12;
+                    else keuntungan = m.t13;
+
+                    produk[kode] = {
+                        nama: nama,
+                        harga: hargaModal + keuntungan,
+                        kategori: kategoriBarang,
+                        brand: merekBarang,
+                        sub_kategori: 'Umum',
+                        deskripsi: deskripsi,
+                        status_produk: statusProduk
+                    };
+                    added++;
+                });
+                
+                crypt.save('produk.json', produk);
+                console.log('\x1b[32m\n✅ Berhasil mengimport dan merapikan ' + added + ' produk ke dalam databse!\x1b[0m');
+            } catch(err) {
+                console.log('\x1b[31m❌ Gagal memproses file Excel/CSV: ' + err.message + '\x1b[0m');
+            }
+        "
+    fi
+    read -p "Tekan Enter untuk kembali..."
+}
+
+# ==========================================
+# 8. MANAJEMEN KEUNTUNGAN FLEKSIBEL (13 TINGKAT DENGAN PILIHAN)
+# ==========================================
+menu_keuntungan() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             💰 MANAJEMEN KEUNTUNGAN 💰             ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        
+        node -e "
+            const crypt = require('./tendo_crypt.js');
+            let c = crypt.load('config.json').margin || {};
+            console.log('  \x1b[32m[1]\x1b[0m  Modal Rp 0 - 100               : Rp ' + (c.t1||50));
+            console.log('  \x1b[32m[2]\x1b[0m  Modal Rp 100 - 500             : Rp ' + (c.t2||100));
+            console.log('  \x1b[32m[3]\x1b[0m  Modal Rp 500 - 1.000           : Rp ' + (c.t3||250));
+            console.log('  \x1b[32m[4]\x1b[0m  Modal Rp 1.000 - 2.000         : Rp ' + (c.t4||500));
+            console.log('  \x1b[32m[5]\x1b[0m  Modal Rp 2.000 - 3.000         : Rp ' + (c.t5||1000));
+            console.log('  \x1b[32m[6]\x1b[0m  Modal Rp 3.000 - 4.000         : Rp ' + (c.t6||1500));
+            console.log('  \x1b[32m[7]\x1b[0m  Modal Rp 4.000 - 5.000         : Rp ' + (c.t7||2000));
+            console.log('  \x1b[32m[8]\x1b[0m  Modal Rp 5.000 - 10.000        : Rp ' + (c.t8||2500));
+            console.log('  \x1b[32m[9]\x1b[0m  Modal Rp 10.000 - 25.000       : Rp ' + (c.t9||3000));
+            console.log('  \x1b[32m[10]\x1b[0m Modal Rp 25.000 - 50.000      : Rp ' + (c.t10||4000));
+            console.log('  \x1b[32m[11]\x1b[0m Modal Rp 50.000 - 75.000      : Rp ' + (c.t11||5000));
+            console.log('  \x1b[32m[12]\x1b[0m Modal Rp 75.000 - 100.000     : Rp ' + (c.t12||7500));
+            console.log('  \x1b[32m[13]\x1b[0m Modal Rp 100.000 - Seterusnya : Rp ' + (c.t13||10000));
+        "
+        
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST}  Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih nomor rentang yang ingin diubah [0-13]: ${C_RST}"
+        read k_choice
+
+        if [ "$k_choice" == "0" ]; then
+            break
+        elif [[ "$k_choice" -ge 1 && "$k_choice" -le 13 ]]; then
+            read -p "Masukkan Keuntungan Baru (Rp) untuk Pilihan $k_choice: " nominal_baru
+            
+            if [ -z "$nominal_baru" ]; then
+                echo -e "${C_RED}❌ Dibatalkan, nominal tidak boleh kosong.${C_RST}"
+                sleep 1
+                continue
+            fi
+            
+            node -e "
+                const crypt = require('./tendo_crypt.js');
+                let config = crypt.load('config.json');
+                if(!config.margin) config.margin = { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
+                let tier = 't' + $k_choice;
+                config.margin[tier] = parseInt('$nominal_baru');
+                crypt.save('config.json', config);
+            "
+            echo -e "${C_GREEN}✅ Keuntungan tier $k_choice berhasil diubah! Me-refresh Katalog Website...${C_RST}"
+            curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
+            sleep 1
+        else
+            echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"
+            sleep 1
+        fi
+    done
+}
+
+# ==========================================
+# 9. SINKRONISASI MANUAL DIGIFLAZZ
+# ==========================================
+menu_sinkron() {
+    clear
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}          🔄 SINKRONISASI PRODUK DIGIFLAZZ 🔄         ${C_RST}"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_MAG}Sistem akan menarik seluruh data produk dari API Digiflazz,"
+    echo -e "menyesuaikan kategori otomatis, dan menata harga berdasarkan"
+    echo -e "Manajemen Keuntungan yang sudah kamu atur sebelumnya.${C_RST}\n"
+    
+    echo -e "${C_YELLOW}⏳ Memulai sinkronisasi... Harap tunggu beberapa detik.${C_RST}"
+    
+    curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
+    
+    echo -e "\n${C_GREEN}✅ Sinkronisasi Selesai! Katalog Website dan Harga sudah terupdate secara realtime.${C_RST}"
+    read -p "Tekan Enter untuk kembali..."
+}
+
+# ==========================================
+# 10. SUB-MENU TELEGRAM SETUP
 # ==========================================
 menu_telegram() {
     while true; do
@@ -2710,7 +3081,7 @@ menu_telegram() {
 }
 
 # ==========================================
-# 7. SUB-MENU BACKUP & RESTORE
+# 11. SUB-MENU BACKUP & RESTORE
 # ==========================================
 menu_backup() {
     while true; do
@@ -2784,173 +3155,7 @@ menu_backup() {
 }
 
 # ==========================================
-# 8. SUB-MENU MANAJEMEN MEMBER
-# ==========================================
-menu_member() {
-    while true; do
-        clear
-        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "${C_YELLOW}${C_BOLD}             👥 MANAJEMEN MEMBER BOT 👥             ${C_RST}"
-        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Saldo Member"
-        echo -e "  ${C_GREEN}[2]${C_RST} Kurangi Saldo Member"
-        echo -e "  ${C_GREEN}[3]${C_RST} Lihat Daftar Semua Member"
-        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
-        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
-        echo -e "${C_CYAN}======================================================${C_RST}"
-        echo -ne "${C_YELLOW}Pilih menu [0-3]: ${C_RST}"
-        read subchoice
-
-        case $subchoice in
-            1)
-                echo -e "\n${C_MAG}--- TAMBAH SALDO ---${C_RST}"
-                read -p "Masukkan ID Member (No WA awalan 08/62 atau Email): " nomor
-                read -p "Masukkan Jumlah Saldo: " jumlah
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let db = crypt.load('database.json');
-                    let input = '$nomor'.trim();
-                    let normPhone = input.replace(/[^0-9]/g, '');
-                    if(normPhone.startsWith('0')) normPhone = '62' + normPhone.substring(1);
-                    
-                    let target = Object.keys(db).find(k => k === normPhone || db[k].email === input);
-                    if(!target) {
-                        target = normPhone || input;
-                        db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: target + '@s.whatsapp.net', trx_count: 0, history: [] };
-                    }
-                    db[target].saldo += parseInt('$jumlah');
-                    crypt.save('database.json', db);
-                    console.log('\x1b[32m\n✅ Saldo Rp $jumlah berhasil ditambahkan ke ' + target + '!\x1b[0m');
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            2)
-                echo -e "\n${C_MAG}--- KURANGI SALDO ---${C_RST}"
-                read -p "Masukkan ID Member (No WA awalan 08/62 atau Email): " nomor
-                read -p "Masukkan Jumlah Saldo yg dikurangi: " jumlah
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let db = crypt.load('database.json');
-                    let input = '$nomor'.trim();
-                    let normPhone = input.replace(/[^0-9]/g, '');
-                    if(normPhone.startsWith('0')) normPhone = '62' + normPhone.substring(1);
-                    
-                    let target = Object.keys(db).find(k => k === normPhone || db[k].email === input);
-                    if(!target) { console.log('\x1b[31m\n❌ Akun tidak ditemukan di database.\x1b[0m'); } else {
-                        db[target].saldo -= parseInt('$jumlah');
-                        if(db[target].saldo < 0) db[target].saldo = 0;
-                        crypt.save('database.json', db);
-                        console.log('\x1b[32m\n✅ Saldo berhasil dikurangi!\x1b[0m');
-                    }
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            3)
-                echo -e "\n${C_CYAN}--- DAFTAR MEMBER ---${C_RST}"
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let db = crypt.load('database.json');
-                    let members = Object.keys(db);
-                    if(members.length === 0) console.log('\x1b[33mBelum ada member.\x1b[0m');
-                    else {
-                        members.forEach((m, i) => console.log((i + 1) + '. WA: ' + m + ' | Email: ' + (db[m].email || '-') + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID')));
-                    }
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            0) break ;;
-            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
-        esac
-    done
-}
-
-# ==========================================
-# 9. MANAJEMEN KEUNTUNGAN FLEKSIBEL (13 TINGKAT DENGAN PILIHAN)
-# ==========================================
-menu_keuntungan() {
-    while true; do
-        clear
-        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "${C_YELLOW}${C_BOLD}             💰 MANAJEMEN KEUNTUNGAN 💰             ${C_RST}"
-        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        
-        # Tampilkan harga saat ini menggunakan Node.js
-        node -e "
-            const crypt = require('./tendo_crypt.js');
-            let c = crypt.load('config.json').margin || {};
-            console.log('  \x1b[32m[1]\x1b[0m  Modal Rp 0 - 100               : Rp ' + (c.t1||50));
-            console.log('  \x1b[32m[2]\x1b[0m  Modal Rp 100 - 500             : Rp ' + (c.t2||100));
-            console.log('  \x1b[32m[3]\x1b[0m  Modal Rp 500 - 1.000           : Rp ' + (c.t3||250));
-            console.log('  \x1b[32m[4]\x1b[0m  Modal Rp 1.000 - 2.000         : Rp ' + (c.t4||500));
-            console.log('  \x1b[32m[5]\x1b[0m  Modal Rp 2.000 - 3.000         : Rp ' + (c.t5||1000));
-            console.log('  \x1b[32m[6]\x1b[0m  Modal Rp 3.000 - 4.000         : Rp ' + (c.t6||1500));
-            console.log('  \x1b[32m[7]\x1b[0m  Modal Rp 4.000 - 5.000         : Rp ' + (c.t7||2000));
-            console.log('  \x1b[32m[8]\x1b[0m  Modal Rp 5.000 - 10.000        : Rp ' + (c.t8||2500));
-            console.log('  \x1b[32m[9]\x1b[0m  Modal Rp 10.000 - 25.000       : Rp ' + (c.t9||3000));
-            console.log('  \x1b[32m[10]\x1b[0m Modal Rp 25.000 - 50.000      : Rp ' + (c.t10||4000));
-            console.log('  \x1b[32m[11]\x1b[0m Modal Rp 50.000 - 75.000      : Rp ' + (c.t11||5000));
-            console.log('  \x1b[32m[12]\x1b[0m Modal Rp 75.000 - 100.000     : Rp ' + (c.t12||7500));
-            console.log('  \x1b[32m[13]\x1b[0m Modal Rp 100.000 - Seterusnya : Rp ' + (c.t13||10000));
-        "
-        
-        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
-        echo -e "  ${C_RED}[0]${C_RST}  Kembali ke Panel Utama"
-        echo -e "${C_CYAN}======================================================${C_RST}"
-        echo -ne "${C_YELLOW}Pilih nomor rentang yang ingin diubah [0-13]: ${C_RST}"
-        read k_choice
-
-        if [ "$k_choice" == "0" ]; then
-            break
-        elif [[ "$k_choice" -ge 1 && "$k_choice" -le 13 ]]; then
-            read -p "Masukkan Keuntungan Baru (Rp) untuk Pilihan $k_choice: " nominal_baru
-            
-            # Jika user membatalkan / kosong
-            if [ -z "$nominal_baru" ]; then
-                echo -e "${C_RED}❌ Dibatalkan, nominal tidak boleh kosong.${C_RST}"
-                sleep 1
-                continue
-            fi
-            
-            node -e "
-                const crypt = require('./tendo_crypt.js');
-                let config = crypt.load('config.json');
-                if(!config.margin) config.margin = { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
-                let tier = 't' + $k_choice;
-                config.margin[tier] = parseInt('$nominal_baru');
-                crypt.save('config.json', config);
-            "
-            echo -e "${C_GREEN}✅ Keuntungan tier $k_choice berhasil diubah! Me-refresh Katalog Website...${C_RST}"
-            curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
-            sleep 1
-        else
-            echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"
-            sleep 1
-        fi
-    done
-}
-
-# ==========================================
-# 10. SINKRONISASI MANUAL DIGIFLAZZ
-# ==========================================
-menu_sinkron() {
-    clear
-    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_YELLOW}${C_BOLD}          🔄 SINKRONISASI PRODUK DIGIFLAZZ 🔄         ${C_RST}"
-    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_MAG}Sistem akan menarik seluruh data produk dari API Digiflazz,"
-    echo -e "menyesuaikan kategori otomatis, dan menata harga berdasarkan"
-    echo -e "Manajemen Keuntungan yang sudah kamu atur sebelumnya.${C_RST}\n"
-    
-    echo -e "${C_YELLOW}⏳ Memulai sinkronisasi... Harap tunggu beberapa detik.${C_RST}"
-    
-    curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
-    
-    echo -e "\n${C_GREEN}✅ Sinkronisasi Selesai! Katalog Website dan Harga sudah terupdate secara realtime.${C_RST}"
-    read -p "Tekan Enter untuk kembali..."
-}
-
-# ==========================================
-# 11. MENU UTAMA (PANEL KONTROL)
+# 12. MENU UTAMA (PANEL KONTROL 16 OPSI)
 # ==========================================
 while true; do
     clear
@@ -2975,21 +3180,20 @@ while true; do
     echo ""
     echo -e "${C_MAG}▶ MANAJEMEN TOKO & SISTEM${C_RST}"
     echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo Member"
-    echo -e "  ${C_GREEN}[7]${C_RST}  💰 Manajemen Keuntungan Harga (13 Tingkat)"
-    echo -e "  ${C_GREEN}[8]${C_RST}  🔄 Sinkronisasi Produk Digiflazz (Perbarui Katalog)"
-    echo -e "  ${C_GREEN}[9]${C_RST}  ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
-    echo -e "  ${C_GREEN}[10]${C_RST} 💾 Backup & Restore Database"
-    echo -e "  ${C_GREEN}[11]${C_RST} 🔌 Ganti API Digiflazz"
-    echo -e "  ${C_GREEN}[12]${C_RST} 🔄 Ganti Akun Bot WA (Reset Sesi)"
-    echo -e "  ${C_GREEN}[13]${C_RST} 📢 Kirim Pesan Broadcast Kesemua Member (WA)"
+    echo -e "  ${C_GREEN}[7]${C_RST}  🛒 Manajemen Produk & Harga (XLSX/CSV Import)"
+    echo -e "  ${C_GREEN}[8]${C_RST}  💰 Manajemen Keuntungan Harga (13 Tingkat)"
+    echo -e "  ${C_GREEN}[9]${C_RST}  🔄 Sinkronisasi Produk Digiflazz (Perbarui Katalog)"
+    echo -e "  ${C_GREEN}[10]${C_RST} ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
+    echo -e "  ${C_GREEN}[11]${C_RST} 💾 Backup & Restore Database"
+    echo -e "  ${C_GREEN}[12]${C_RST} 🔌 Ganti API Digiflazz"
+    echo -e "  ${C_GREEN}[13]${C_RST} 🔄 Ganti Akun Bot WA (Reset Sesi)"
     echo -e "  ${C_GREEN}[14]${C_RST} 🌐 Kirim Pemberitahuan ke Website Aplikasi"
-    echo -e "  ${C_GREEN}[15]${C_RST} 💬 Kirim Pesan Langsung (Japri) ke Pelanggan"
-    echo -e "  ${C_GREEN}[16]${C_RST} 💳 Setup GoPay Merchant API (QRIS Dinamis)"
-    echo -e "  ${C_GREEN}[17]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
+    echo -e "  ${C_GREEN}[15]${C_RST} 💳 Setup GoPay Merchant API (QRIS Dinamis)"
+    echo -e "  ${C_GREEN}[16]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
     echo -e "${C_CYAN}======================================================${C_RST}"
-    echo -ne "${C_YELLOW}Pilih menu [0-17]: ${C_RST}"
+    echo -ne "${C_YELLOW}Pilih menu [0-16]: ${C_RST}"
     read choice
 
     case $choice in
@@ -3029,11 +3233,12 @@ while true; do
             sleep 2 ;;
         5) pm2 logs tendo-bot ;;
         6) menu_member ;;
-        7) menu_keuntungan ;;
-        8) menu_sinkron ;;
-        9) menu_telegram ;;
-        10) menu_backup ;;
-        11)
+        7) menu_produk ;;
+        8) menu_keuntungan ;;
+        9) menu_sinkron ;;
+        10) menu_telegram ;;
+        11) menu_backup ;;
+        12)
             echo -e "\n${C_MAG}--- GANTI API DIGIFLAZZ ---${C_RST}"
             read -p "Username Digiflazz Baru: " user_api
             read -p "API Key Digiflazz Baru: " key_api
@@ -3047,7 +3252,7 @@ while true; do
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
-        12)
+        13)
             echo -e "\n${C_RED}⚠️ Reset Sesi akan mengeluarkan bot dari WhatsApp saat ini.${C_RST}"
             read -p "Yakin ingin mereset sesi? (y/n): " reset_sesi
             if [ "$reset_sesi" == "y" ]; then
@@ -3055,18 +3260,6 @@ while true; do
                 rm -rf sesi_bot
                 echo -e "${C_GREEN}✅ Sesi berhasil dihapus. Silakan jalankan bot kembali untuk menautkan nomor baru.${C_RST}"
             fi
-            read -p "Tekan Enter untuk kembali..."
-            ;;
-        13)
-            echo -e "\n${C_MAG}--- BROADCAST PESAN WA ---${C_RST}"
-            read -p "Masukkan pesan Broadcast: " bc_msg
-            echo -e "Memproses Broadcast..."
-            node -e "
-                const crypt = require('./tendo_crypt.js'); const fs = require('fs');
-                let db = crypt.load('database.json'); let keys = Object.keys(db);
-                keys.forEach(k => { fs.appendFileSync('japri.txt', k + '|' + '$bc_msg' + '\n'); });
-                console.log('\x1b[32m✅ Pesan broadcast dimasukkan ke antrean pengiriman!\x1b[0m');
-            "
             read -p "Tekan Enter untuk kembali..."
             ;;
         14)
@@ -3085,17 +3278,6 @@ while true; do
             read -p "Tekan Enter untuk kembali..."
             ;;
         15)
-            echo -e "\n${C_MAG}--- KIRIM PESAN LANGSUNG JAPRI WA ---${C_RST}"
-            read -p "Masukkan Nomor Tujuan (Awalan 62/08): " jp_num
-            read -p "Masukkan Pesan: " jp_msg
-            node -e "
-                const fs = require('fs');
-                fs.appendFileSync('japri.txt', '$jp_num' + '|' + '$jp_msg' + '\n');
-                console.log('\x1b[32m✅ Pesan Japri dimasukkan ke antrean pengiriman!\x1b[0m');
-            "
-            read -p "Tekan Enter untuk kembali..."
-            ;;
-        16)
             echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT (QRIS DINAMIS) ---${C_RST}"
             echo -e "${C_YELLOW}Fitur ini akan MERUBAH QRIS Statis Anda secara otomatis menjadi Dinamis!${C_RST}"
             read -p "Masukkan Gopay Token Anda: " gopay_token
@@ -3113,7 +3295,7 @@ while true; do
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
-        17)
+        16)
             echo -e "\n${C_MAG}--- SETUP DOMAIN & HTTPS ---${C_RST}"
             read -p "Masukkan Nama Domain Anda (contoh: tendostore.com): " domain_name
             read -p "Masukkan Email Aktif (untuk SSL Let's Encrypt): " ssl_email
