@@ -196,10 +196,12 @@ EOF
         
         /* TOP BAR */
         .top-bar { background: var(--topbar-bg); color: var(--text-main); padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: background 0.3s;}
-        .menu-btn { cursor: pointer; background: none; border: none; padding: 0; margin-right: 15px; display: flex; align-items: center; justify-content: center; z-index: 2;}
-        .menu-btn svg { width: 28px; height: 28px; stroke: var(--text-main); fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
         
-        .brand-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 16px; font-weight: 900; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-main); width: 60%; white-space: nowrap;}
+        .menu-btn { cursor: pointer; background: var(--bg-card); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 12px; margin-right: 15px; display: flex; align-items: center; justify-content: center; z-index: 2; box-shadow: var(--shadow-outer), var(--shadow-inner); transition: transform 0.2s;}
+        .menu-btn:active { transform: scale(0.95); }
+        .menu-btn svg { width: 24px; height: 24px; stroke: var(--text-main); fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
+        
+        .brand-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 13px; font-weight: 900; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; background: var(--text-main); color: var(--bg-main); padding: 8px 20px; border-radius: 30px; box-shadow: var(--shadow-outer), var(--shadow-inner); white-space: nowrap; z-index: 2;}
         
         /* TRX BADGE */
         .trx-badge { font-size: 11px; background: var(--bg-main); color: var(--text-main); padding: 5px 12px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.2s; z-index: 2;}
@@ -344,7 +346,7 @@ EOF
         .nav-item.active { color: var(--nav-active);}
 
         /* PRODUCT LIST STYLE */
-        .product-item { background: var(--bg-card); padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); cursor: pointer; transition: 0.2s;}
+        .product-item { background: var(--bg-card); padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow-outer), var(--shadow-inner); cursor: pointer; transition: transform 0.2s;}
         .product-item:active { transform: scale(0.98); }
         .prod-logo { width: 45px; height: 45px; background: var(--bg-main); color: var(--text-main); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 14px; border: 1px solid var(--border-color); flex-shrink: 0; text-transform: uppercase;}
         .prod-info { flex: 1; min-width: 0; }
@@ -358,9 +360,9 @@ EOF
         .search-box input { margin-bottom: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.02); border-radius: 12px; padding: 12px 15px; width: 100%; box-sizing: border-box; font-weight: bold;}
 
         /* TABS RIWAYAT TRANSAKSI & TOPUP */
-        .history-tabs { display: flex; background: var(--bg-card); border-bottom: 1px solid var(--border-color); position: sticky; top: 58px; z-index: 50; }
-        .hist-tab { flex: 1; text-align: center; padding: 15px 0; font-size: 13px; font-weight: 800; cursor: pointer; color: var(--text-muted); border-bottom: 3px solid transparent; transition: all 0.2s; text-transform: uppercase;}
-        .hist-tab.active { color: var(--nav-active); border-bottom-color: var(--nav-active); }
+        .history-tabs { display: flex; gap: 10px; padding: 10px 20px; background: var(--bg-main); position: sticky; top: 58px; z-index: 50; }
+        .hist-tab { flex: 1; text-align: center; padding: 12px 0; font-size: 13px; font-weight: 800; cursor: pointer; color: var(--text-main); background: var(--bg-card); border-radius: 14px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer), var(--shadow-inner); transition: all 0.2s; text-transform: uppercase;}
+        .hist-tab.active { background: var(--nav-active); color: #ffffff; border-color: var(--nav-active); }
 
         /* SIDEBAR */
         .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); z-index: 1001; display: none; opacity: 0; transition: opacity 0.3s;}
@@ -371,8 +373,9 @@ EOF
         .sidebar-name { font-weight: bold; font-size: 16px; color: #ffffff;}
         .sidebar-phone { font-size: 12px; color: #cbd5e1;}
         .sidebar-menu { padding: 10px 0; flex: 1;}
-        .sidebar-item { padding: 15px 20px; display: flex; align-items: center; color: var(--text-main); text-decoration: none; font-size: 14px; border-bottom: 1px solid var(--border-color); font-weight: 600; gap: 15px;}
-        .sidebar-item:active { background: var(--bg-main); }
+        
+        .sidebar-item { padding: 15px 20px; display: flex; align-items: center; color: var(--text-main); text-decoration: none; font-size: 14px; border: 1px solid var(--border-color); font-weight: 600; gap: 15px; background: var(--bg-card); border-radius: 14px; margin: 10px 15px; box-shadow: var(--shadow-outer), var(--shadow-inner); transition: transform 0.2s; }
+        .sidebar-item:active { transform: scale(0.95); background: var(--bg-main); }
         .sidebar-item svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
         /* FORMS & COMPONENTS */
@@ -421,25 +424,11 @@ EOF
             z-index: 10;
         }
         
-        .prof-action-btn { 
-            background: var(--bg-main); 
-            color: var(--text-main); 
-            border: 1px solid var(--border-color); 
-            padding: 15px; 
-            width: 100%; 
-            border-radius: 12px; 
-            font-weight: bold; 
-            cursor: pointer; 
-            font-size: 13px; 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-            transition: transform 0.2s; 
-        }
+        .prof-action-btn { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px; transition: transform 0.2s; box-shadow: var(--shadow-outer), var(--shadow-inner); }
         .prof-action-btn:active { transform: scale(0.98); }
         .prof-action-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
 
-        .hist-item { background: var(--bg-card); color: var(--text-main); padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer;}
+        .hist-item { background: var(--bg-card); color: var(--text-main); padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer), var(--shadow-inner); cursor: pointer; transition: transform 0.2s;}
         .hist-item:active { transform: scale(0.98); }
         .hist-top { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 5px; font-weight: 700;}
         .hist-title { font-weight: 800; font-size: 14px; margin-bottom: 3px;}
@@ -778,12 +767,6 @@ EOF
                     </div>
                 </div>
             </div>
-            
-            <div style="padding: 20px; margin: 20px; background: var(--bg-card); border-radius: 16px; text-align: center; border: 1px dashed var(--border-color);" id="install-banner" class="hidden">
-                <strong style="color:var(--text-main); font-size:14px;">Aplikasi Digital Tendo Store</strong><br>
-                <span style="font-size:12px; color:var(--text-muted); font-weight: 600;">Pasang di layar utama HP Anda untuk akses cepat!</span><br>
-                <button class="btn" style="margin-top:15px; padding: 10px 30px; font-size:12px; width:auto; border-radius:20px;" id="install-btn">Install Sekarang</button>
-            </div>
         </div>
 
         <div id="brand-screen" class="hidden">
@@ -1046,13 +1029,8 @@ EOF
 
         // PWA SETUP
         let deferredPrompt;
-        const installBanner = document.getElementById('install-banner');
-        const installBtn = document.getElementById('install-btn');
         window.addEventListener('beforeinstallprompt', (e) => { 
-            e.preventDefault(); deferredPrompt = e; installBanner.classList.remove('hidden'); 
-        });
-        installBtn.addEventListener('click', async () => { 
-            if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt = null; installBanner.classList.add('hidden');} 
+            e.preventDefault(); deferredPrompt = e;
         });
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 
