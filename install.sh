@@ -151,22 +151,24 @@ EOF
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ffffff" id="meta-theme">
     <style>
-        /* VARIABEL TEMA GELAP / TERANG */
+        /* VARIABEL TEMA GELAP / TERANG & SHADOWS */
         :root {
             --bg-main: #e9eef5; 
             --bg-card: #f4f7f9; 
             --text-main: #0b2136;
             --text-muted: #64748b;
             --border-color: #d1d9e2;
-            --grid-bg: #ffffff;
-            --grid-shadow: 0 4px 12px rgba(0,0,0,0.03); 
-            --grid-border: 1px solid var(--border-color);
-            --nav-bg: #0f172a;
+            --grid-bg: #f4f7f9;
+            --nav-bg: #f4f7f9;
             --nav-text: #64748b;
             --nav-active: #38bdf8;
             --topbar-bg: #f4f7f9;
             --toast-bg: #0f172a;
             --toast-text: #f8fafc;
+            
+            /* Enhanced Shadows for Light Mode */
+            --shadow-outer: 0 8px 20px rgba(0, 0, 0, 0.12), 0 2px 5px rgba(0, 0, 0, 0.08);
+            --shadow-inner: inset 2px 2px 5px rgba(255, 255, 255, 0.8), inset -3px -3px 6px rgba(0, 0, 0, 0.05);
         }
 
         .dark-mode {
@@ -176,14 +178,16 @@ EOF
             --text-muted: #94a3b8;
             --border-color: #334155;
             --grid-bg: #1e293b;
-            --grid-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            --grid-border: 1px solid #334155;
-            --nav-bg: #0b1120;
+            --nav-bg: #1e293b;
             --nav-text: #475569;
             --nav-active: #38bdf8;
             --topbar-bg: #1e293b;
             --toast-bg: #334155;
             --toast-text: #f8fafc;
+
+            /* Enhanced Shadows for Dark Mode */
+            --shadow-outer: 0 8px 20px rgba(0, 0, 0, 0.5), 0 2px 5px rgba(0, 0, 0, 0.3);
+            --shadow-inner: inset 2px 2px 4px rgba(255, 255, 255, 0.08), inset -3px -3px 6px rgba(0, 0, 0, 0.4);
         }
 
         /* TEMA PREMIUM CSS */
@@ -221,7 +225,7 @@ EOF
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            box-shadow: var(--shadow-outer), var(--shadow-inner);
             border: 1px solid var(--border-color);
             position: relative;
             z-index: 2;
@@ -269,7 +273,7 @@ EOF
         .grid-box { 
             background: var(--grid-bg); border-radius: 18px; padding: 18px 5px; 
             text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-            box-shadow: var(--grid-shadow); border: var(--grid-border);
+            box-shadow: var(--shadow-outer), var(--shadow-inner); border: 1px solid var(--border-color);
             transition: transform 0.2s, box-shadow 0.2s;
         }
         .grid-box:active { transform: scale(0.95); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -302,10 +306,10 @@ EOF
         .grid-text { font-size: 10.5px; color: var(--text-main); font-weight: 800; line-height: 1.3; text-transform: uppercase; letter-spacing: -0.2px;}
 
         /* STATISTIK GLOBAL */
-        .stats-container { margin: 25px 20px; padding: 15px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02);}
+        .stats-container { margin: 25px 20px; padding: 15px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); text-align: center; box-shadow: var(--shadow-outer), var(--shadow-inner);}
         .stats-title { font-size: 14px; font-weight: 900; color: var(--text-main); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;}
         .stats-grid { display: flex; justify-content: space-between; gap: 10px;}
-        .stat-box { flex: 1; padding: 10px 5px; background: var(--bg-main); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--grid-shadow);}
+        .stat-box { flex: 1; padding: 10px 5px; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer), var(--shadow-inner);}
         .stat-val { font-size: 18px; font-weight: 900; color: #0ea5e9; margin-bottom: 5px;}
         .stat-lbl { font-size: 9px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;}
 
@@ -329,10 +333,10 @@ EOF
             justify-content: space-around; 
             padding: 10px 5px; 
             border-radius: 50px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.25); 
+            box-shadow: var(--shadow-outer), var(--shadow-inner); 
             z-index: 900; 
             transition: background 0.3s;
-            border: 1px solid rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
         }
         .nav-item { text-align: center; color: var(--nav-text); font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700; transition: color 0.3s;}
         .nav-icon { margin-bottom: 2px; display: flex; justify-content: center; align-items: center;}
@@ -2693,7 +2697,7 @@ install_dependencies() {
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
     echo -ne "${C_MAG}>> Mengunduh modul utama...${C_RST}"
-    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser xlsx > /dev/null 2>&1 &
+    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
@@ -2789,129 +2793,7 @@ menu_member() {
 }
 
 # ==========================================
-# 7. MANAJEMEN PRODUK IMPORT EXCEL
-# ==========================================
-menu_produk() {
-    clear
-    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_YELLOW}${C_BOLD}             🛒 IMPORT PRODUK VIA EXCEL 🛒             ${C_RST}"
-    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "Sistem Import Cerdas. Format kolom apapun akan terdeteksi!"
-    read -p "Apakah Anda ingin MENGHAPUS produk lama agar bersih dari produk nyasar? (y/n): " wipe_data
-    export WIPE_DATA="$wipe_data"
-    
-    read -p "Masukkan nama file lengkap (contoh: daftar-produk-buyer.xlsx ATAU namafile.csv): " nama_file_excel
-    if [ ! -f "$nama_file_excel" ]; then
-        echo -e "${C_RED}❌ File tidak ditemukan. Pastikan file $nama_file_excel ada di direktori $(pwd)${C_RST}"
-    else
-        export EXCEL_PATH="$nama_file_excel"
-        node -e "
-            const crypt = require('./tendo_crypt.js');
-            const xlsx = require('xlsx');
-            
-            try {
-                let config = crypt.load('config.json');
-                let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
-
-                const workbook = xlsx.readFile(process.env.EXCEL_PATH);
-                const sheet_name = workbook.SheetNames[0];
-                const rawData = xlsx.utils.sheet_to_json(workbook.Sheets[sheet_name]);
-                
-                let produk = {};
-                if (process.env.WIPE_DATA.toLowerCase() !== 'y') {
-                    produk = crypt.load('produk.json');
-                }
-                
-                let added = 0;
-                
-                rawData.forEach(item => {
-                    let keys = Object.keys(item);
-                    let getColStrict = (keywords) => keys.find(k => keywords.includes(k.toLowerCase().trim()));
-                    
-                    let kodeCol = getColStrict(['buyer_sku_code', 'sku', 'kode produk', 'kode']);
-                    let namaCol = getColStrict(['product_name', 'nama produk', 'produk', 'nama']);
-                    let hargaCol = getColStrict(['price', 'harga']);
-                    let statusCol = getColStrict(['buyer_product_status', 'status']);
-                    let descCol = getColStrict(['desc', 'deskripsi']);
-                    let brandCol = getColStrict(['brand', 'provider', 'operator']);
-                    let categoryCol = getColStrict(['category', 'kategori']);
-                    
-                    if(!kodeCol) kodeCol = keys.find(k => k.toLowerCase().includes('kode') || k.toLowerCase().includes('sku'));
-                    if(!namaCol) namaCol = keys.find(k => k.toLowerCase().includes('nama') || k.toLowerCase().includes('produk'));
-                    if(!hargaCol) hargaCol = keys.find(k => k.toLowerCase().includes('harga') || k.toLowerCase().includes('price'));
-                    if(!statusCol) statusCol = keys.find(k => k.toLowerCase().includes('status'));
-
-                    if(!kodeCol || !namaCol || !hargaCol) return;
-
-                    let kode = item[kodeCol].toString().trim();
-                    let nama = item[namaCol].toString().trim();
-                    let hargaModal = parseInt(item[hargaCol]);
-                    let deskripsi = descCol && item[descCol] ? item[descCol].toString().trim() : 'Proses Otomatis';
-                    let statusProduk = true;
-
-                    if(statusCol) {
-                        let stat = item[statusCol].toString().toLowerCase();
-                        if(stat === 'false' || stat === 'gangguan' || stat === 'closed') statusProduk = false;
-                    }
-
-                    if(isNaN(hargaModal)) return;
-
-                    let catDigi = (categoryCol && item[categoryCol]) ? item[categoryCol].toString().trim() : '';
-                    let catLower = catDigi.toLowerCase();
-                    let kategoriBarang = 'Lainnya';
-                    
-                    if (catLower === 'pulsa') kategoriBarang = 'Pulsa';
-                    else if (catLower === 'data') kategoriBarang = 'Data';
-                    else if (catLower === 'e-money') kategoriBarang = 'E-Money';
-                    else if (catLower === 'games') kategoriBarang = 'Game';
-                    else if (catLower === 'pln') kategoriBarang = 'PLN';
-                    else if (catLower === 'voucher') kategoriBarang = 'Voucher';
-                    else if (catLower === 'paket sms & telpon') kategoriBarang = 'Paket SMS & Telpon';
-                    else if (catLower === 'masa aktif') kategoriBarang = 'Masa Aktif';
-                    else if (catLower === 'aktivasi perdana' || catLower === 'perdana') kategoriBarang = 'Aktivasi Perdana';
-                    else kategoriBarang = catDigi || 'Lainnya'; 
-                    
-                    let merekBarang = (brandCol && item[brandCol]) ? item[brandCol].toString().trim() : 'Lainnya';
-
-                    let keuntungan = 0;
-                    if(hargaModal <= 100) keuntungan = m.t1;
-                    else if(hargaModal <= 500) keuntungan = m.t2;
-                    else if(hargaModal <= 1000) keuntungan = m.t3;
-                    else if(hargaModal <= 2000) keuntungan = m.t4;
-                    else if(hargaModal <= 3000) keuntungan = m.t5;
-                    else if(hargaModal <= 4000) keuntungan = m.t6;
-                    else if(hargaModal <= 5000) keuntungan = m.t7;
-                    else if(hargaModal <= 10000) keuntungan = m.t8;
-                    else if(hargaModal <= 25000) keuntungan = m.t9;
-                    else if(hargaModal <= 50000) keuntungan = m.t10;
-                    else if(hargaModal <= 75000) keuntungan = m.t11;
-                    else if(hargaModal <= 100000) keuntungan = m.t12;
-                    else keuntungan = m.t13;
-
-                    produk[kode] = {
-                        nama: nama,
-                        harga: hargaModal + keuntungan,
-                        kategori: kategoriBarang,
-                        brand: merekBarang,
-                        sub_kategori: 'Umum',
-                        deskripsi: deskripsi,
-                        status_produk: statusProduk
-                    };
-                    added++;
-                });
-                
-                crypt.save('produk.json', produk);
-                console.log('\x1b[32m\n✅ Berhasil mengimport dan merapikan ' + added + ' produk ke dalam databse!\x1b[0m');
-            } catch(err) {
-                console.log('\x1b[31m❌ Gagal memproses file Excel/CSV: ' + err.message + '\x1b[0m');
-            }
-        "
-    fi
-    read -p "Tekan Enter untuk kembali..."
-}
-
-# ==========================================
-# 8. MANAJEMEN KEUNTUNGAN FLEKSIBEL (13 TINGKAT DENGAN PILIHAN)
+# 7. MANAJEMEN KEUNTUNGAN FLEKSIBEL (13 TINGKAT DENGAN PILIHAN)
 # ==========================================
 menu_keuntungan() {
     while true; do
@@ -2974,7 +2856,7 @@ menu_keuntungan() {
 }
 
 # ==========================================
-# 9. SINKRONISASI MANUAL DIGIFLAZZ
+# 8. SINKRONISASI MANUAL DIGIFLAZZ
 # ==========================================
 menu_sinkron() {
     clear
@@ -2994,7 +2876,7 @@ menu_sinkron() {
 }
 
 # ==========================================
-# 10. SUB-MENU TELEGRAM SETUP
+# 9. SUB-MENU TELEGRAM SETUP
 # ==========================================
 menu_telegram() {
     while true; do
@@ -3056,7 +2938,7 @@ menu_telegram() {
 }
 
 # ==========================================
-# 11. SUB-MENU BACKUP & RESTORE
+# 10. SUB-MENU BACKUP & RESTORE
 # ==========================================
 menu_backup() {
     while true; do
@@ -3130,7 +3012,7 @@ menu_backup() {
 }
 
 # ==========================================
-# 12. MENU UTAMA (PANEL KONTROL 16 OPSI)
+# 11. MENU UTAMA (PANEL KONTROL 15 OPSI)
 # ==========================================
 while true; do
     clear
@@ -3155,20 +3037,19 @@ while true; do
     echo ""
     echo -e "${C_MAG}▶ MANAJEMEN TOKO & SISTEM${C_RST}"
     echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo Member"
-    echo -e "  ${C_GREEN}[7]${C_RST}  🛒 Manajemen Produk & Harga (XLSX/CSV Import)"
-    echo -e "  ${C_GREEN}[8]${C_RST}  💰 Manajemen Keuntungan Harga (13 Tingkat)"
-    echo -e "  ${C_GREEN}[9]${C_RST}  🔄 Sinkronisasi Produk Digiflazz (Perbarui Katalog)"
-    echo -e "  ${C_GREEN}[10]${C_RST} ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
-    echo -e "  ${C_GREEN}[11]${C_RST} 💾 Backup & Restore Database"
-    echo -e "  ${C_GREEN}[12]${C_RST} 🔌 Ganti API Digiflazz"
-    echo -e "  ${C_GREEN}[13]${C_RST} 🔄 Ganti Akun Bot WA (Reset Sesi)"
-    echo -e "  ${C_GREEN}[14]${C_RST} 🌐 Kirim Pemberitahuan ke Website Aplikasi"
-    echo -e "  ${C_GREEN}[15]${C_RST} 💳 Setup GoPay Merchant API (QRIS Dinamis)"
-    echo -e "  ${C_GREEN}[16]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
+    echo -e "  ${C_GREEN}[7]${C_RST}  💰 Manajemen Keuntungan Harga (13 Tingkat)"
+    echo -e "  ${C_GREEN}[8]${C_RST}  🔄 Sinkronisasi Produk Digiflazz (Perbarui Katalog)"
+    echo -e "  ${C_GREEN}[9]${C_RST}  ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
+    echo -e "  ${C_GREEN}[10]${C_RST} 💾 Backup & Restore Database"
+    echo -e "  ${C_GREEN}[11]${C_RST} 🔌 Ganti API Digiflazz"
+    echo -e "  ${C_GREEN}[12]${C_RST} 🔄 Ganti Akun Bot WA (Reset Sesi)"
+    echo -e "  ${C_GREEN}[13]${C_RST} 🌐 Kirim Pemberitahuan ke Website Aplikasi"
+    echo -e "  ${C_GREEN}[14]${C_RST} 💳 Setup GoPay Merchant API (QRIS Dinamis)"
+    echo -e "  ${C_GREEN}[15]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
     echo -e "${C_CYAN}======================================================${C_RST}"
-    echo -ne "${C_YELLOW}Pilih menu [0-16]: ${C_RST}"
+    echo -ne "${C_YELLOW}Pilih menu [0-15]: ${C_RST}"
     read choice
 
     case $choice in
@@ -3208,12 +3089,11 @@ while true; do
             sleep 2 ;;
         5) pm2 logs tendo-bot ;;
         6) menu_member ;;
-        7) menu_produk ;;
-        8) menu_keuntungan ;;
-        9) menu_sinkron ;;
-        10) menu_telegram ;;
-        11) menu_backup ;;
-        12)
+        7) menu_keuntungan ;;
+        8) menu_sinkron ;;
+        9) menu_telegram ;;
+        10) menu_backup ;;
+        11)
             echo -e "\n${C_MAG}--- GANTI API DIGIFLAZZ ---${C_RST}"
             read -p "Username Digiflazz Baru: " user_api
             read -p "API Key Digiflazz Baru: " key_api
@@ -3227,7 +3107,7 @@ while true; do
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
-        13)
+        12)
             echo -e "\n${C_RED}⚠️ Reset Sesi akan mengeluarkan bot dari WhatsApp saat ini.${C_RST}"
             read -p "Yakin ingin mereset sesi? (y/n): " reset_sesi
             if [ "$reset_sesi" == "y" ]; then
@@ -3237,7 +3117,7 @@ while true; do
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
-        14)
+        13)
             echo -e "\n${C_MAG}--- KIRIM PEMBERITAHUAN APLIKASI WEB ---${C_RST}"
             read -p "Masukkan teks pemberitahuan: " notif_msg
             read -p "Nama file gambar (Opsional, biarkan kosong jika tidak ada): " notif_img
@@ -3252,7 +3132,7 @@ while true; do
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
-        15)
+        14)
             echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT (QRIS DINAMIS) ---${C_RST}"
             echo -e "${C_YELLOW}Fitur ini akan MERUBAH QRIS Statis Anda secara otomatis menjadi Dinamis!${C_RST}"
             read -p "Masukkan Gopay Token Anda: " gopay_token
@@ -3270,7 +3150,7 @@ while true; do
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
-        16)
+        15)
             echo -e "\n${C_MAG}--- SETUP DOMAIN & HTTPS ---${C_RST}"
             read -p "Masukkan Nama Domain Anda (contoh: tendostore.com): " domain_name
             read -p "Masukkan Email Aktif (untuk SSL Let's Encrypt): " ssl_email
