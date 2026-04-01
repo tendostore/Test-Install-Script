@@ -1043,7 +1043,7 @@ EOF
         let savedTheme = localStorage.getItem('tendo_theme');
         if(savedTheme === 'light') {
             document.body.classList.remove('dark-mode');
-            document.getElementById('theme-text').innerText = "Mode Gelap";
+            document.getElementById('theme-text').innerText = "Mode Terang";
         } else {
             document.body.classList.add('dark-mode');
             document.getElementById('theme-text').innerText = "Mode Terang";
@@ -2343,19 +2343,19 @@ async function startBot() {
     sock.ev.on('creds.update', saveCreds);
     sock.ev.on('connection.update', (u) => { if(u.connection === 'close') setTimeout(startBot, 4000); });
 
-    // INTERVAL POLING CEK MUTASI GOPAY MERCHANT (SETIAP 30 DETIK)
+    // INTERVAL POLING CEK MUTASI GOPAY MERCHANT BHM BIZ (SETIAP 30 DETIK)
     setInterval(async () => {
         try {
             let cfg = loadJSON(configFile); let topups = loadJSON(topupFile);
             let pendingKeys = Object.keys(topups).filter(k => topups[k].status === 'pending');
             if(pendingKeys.length === 0 || !cfg.gopayToken || !cfg.gopayMerchantId) return;
 
-            const gopayRes = await axios.post('https://gopay.autoftbot.com/api/backend/transactions', 
-                { merchant_id: cfg.gopayMerchantId }, 
-                { headers: { 'Authorization': 'Bearer ' + cfg.gopayToken, 'Content-Type': 'application/json' } }
+            // MENGGUNAKAN METHOD GET SESUAI DOKUMENTASI BHM BIZ
+            const gopayRes = await axios.get('http://gopay.bhm.biz.id/api/transactions', 
+                { headers: { 'Authorization': 'Bearer ' + cfg.gopayToken } }
             );
+            
             let responseStr = JSON.stringify(gopayRes.data);
-
             let db = loadJSON(dbFile); let changedTp = false; let changedDb = false;
 
             for(let key of pendingKeys) {
@@ -2371,6 +2371,7 @@ async function startBot() {
                 } 
                 else {
                     let amountStr = req.amount_to_pay.toString();
+                    // Pencocokan string pintar untuk memastikan format angka uang cocok
                     let isFound = responseStr.includes(`"${amountStr}"`) || responseStr.includes(`:${amountStr}`) || responseStr.includes(`"${amountStr}.00"`) || responseStr.includes(`:${amountStr}.00`);
                     if(isFound) {
                         req.status = 'sukses'; changedTp = true;
@@ -3022,7 +3023,7 @@ while true; do
     echo -e "  ${C_GREEN}[11]${C_RST} 🔌 Ganti API Digiflazz"
     echo -e "  ${C_GREEN}[12]${C_RST} 🔄 Ganti Akun Bot WA (Reset Sesi)"
     echo -e "  ${C_GREEN}[13]${C_RST} 🌐 Kirim Pemberitahuan ke Website Aplikasi"
-    echo -e "  ${C_GREEN}[14]${C_RST} 💳 Setup GoPay Merchant API (QRIS Dinamis)"
+    echo -e "  ${C_GREEN}[14]${C_RST} 💳 Setup GoPay Merchant API (BHM Biz)"
     echo -e "  ${C_GREEN}[15]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
@@ -3111,10 +3112,33 @@ while true; do
             read -p "Tekan Enter untuk kembali..."
             ;;
         14)
-            echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT (QRIS DINAMIS) ---${C_RST}"
-            echo -e "${C_YELLOW}Fitur ini akan MERUBAH QRIS Statis Anda secara otomatis menjadi Dinamis!${C_RST}"
-            read -p "Masukkan Gopay Token Anda: " gopay_token
-            read -p "Masukkan Merchant ID (G88...): " gopay_mid
+            echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT (BHM BIZ API) ---${C_RST}"
+            echo -e "${C_YELLOW}Fitur ini akan menghubungkan merchant GoPay Anda dan mengatur QRIS Dinamis!${C_RST}"
+            read -p "Masukkan API Token BHM Biz Anda: " gopay_token
+            read -p "Masukkan Merchant ID (Angka, contoh: 123): " gopay_mid
+            read -p "Masukkan Nomor HP GoPay (08...): " gopay_phone
+
+            if [ ! -z "$gopay_token" ] && [ ! -z "$gopay_phone" ] && [ ! -z "$gopay_mid" ]; then
+                echo -e "\n${C_CYAN}>> Mengirim Request OTP ke nomor $gopay_phone...${C_RST}"
+                req_otp=$(curl -sS -X POST http://gopay.bhm.biz.id/v1/gopay/merchants/connect/request-otp \
+                  -H 'Content-Type: application/json' \
+                  -d "{\"phone\":\"$gopay_phone\"}")
+                
+                echo -e "${C_YELLOW}Respon Server: $req_otp${C_RST}"
+                
+                read -p "Masukkan 4 Digit OTP dari WA/SMS Gojek: " gopay_otp
+                
+                if [ ! -z "$gopay_otp" ]; then
+                    echo -e "\n${C_CYAN}>> Memverifikasi OTP...${C_RST}"
+                    ver_otp=$(curl -sS -X POST http://gopay.bhm.biz.id/v1/gopay/merchants/$gopay_mid/connect/verify-otp \
+                      -H "Authorization: Bearer $gopay_token" \
+                      -H 'Content-Type: application/json' \
+                      -d "{\"otp\":\"$gopay_otp\"}")
+                    
+                    echo -e "${C_YELLOW}Respon Server: $ver_otp${C_RST}"
+                fi
+            fi
+
             echo -e "\n${C_CYAN}Siapkan TEKS STRING dari QRIS Statis Anda.${C_RST}"
             echo -e "Teks QRIS berawalan '000201010211...' dan diakhiri dengan kombinasi 4 huruf/angka (CRC)."
             read -p "Paste TEKS STRING QRIS Anda di sini: " qris_text
@@ -3124,7 +3148,7 @@ while true; do
                 if ('$gopay_mid' !== '') config.gopayMerchantId = '$gopay_mid'.trim();
                 if ('$qris_text' !== '') config.qrisText = '$qris_text'.trim();
                 crypt.save('config.json', config);
-                console.log('\x1b[32m\n✅ Konfigurasi GoPay & QRIS Dinamis berhasil disimpan!\x1b[0m');
+                console.log('\x1b[32m\n✅ Konfigurasi GoPay BHM Biz & QRIS Dinamis berhasil disimpan!\x1b[0m');
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
