@@ -197,7 +197,9 @@ EOF
         .menu-btn:active { transform: scale(0.95); }
         .menu-btn svg { width: 24px; height: 24px; stroke: var(--text-main); fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
         
-        .brand-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 13px; font-weight: 900; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; background: var(--text-main); color: var(--bg-main); padding: 8px 20px; border-radius: 30px; box-shadow: var(--shadow-outer), var(--shadow-inner); white-space: nowrap; z-index: 2;}
+        .brand-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 13px; font-weight: 900; background: var(--text-main); color: var(--bg-main); padding: 8px 0; border-radius: 30px; box-shadow: var(--shadow-outer), var(--shadow-inner); z-index: 2; overflow: hidden; width: 170px; display: flex; align-items: center;}
+        .marquee-text { display: inline-block; white-space: nowrap; animation: marquee 6s linear infinite; }
+        @keyframes marquee { 0% { transform: translateX(170px); } 100% { transform: translateX(-100%); } }
         
         .trx-badge { font-size: 11px; background: var(--bg-main); color: var(--text-main); padding: 5px 12px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.2s; z-index: 2;}
         .trx-badge:active { transform: scale(0.95); }
@@ -513,8 +515,8 @@ EOF
             <button class="menu-btn" onclick="toggleSidebar()">
                 <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
-            <div class="brand-title" id="top-title">
-                DIGITAL TENDO STORE
+            <div class="brand-title">
+                <div class="marquee-text" id="top-title">DIGITAL TENDO STORE</div>
             </div>
             <div class="trx-badge" id="top-trx-badge" onclick="showHistory('Order')">0 Trx</div>
         </div>
@@ -671,7 +673,7 @@ EOF
                 <div class="grid-box" onclick="loadCategory('Voucher')">
                     <div class="grid-icon-wrap ic-voucher">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" width="28" height="28">
-                            <path d="M15 5.88 14 10l5.12.33-4 5.17 1.33 4.5L12 17l-4.45 3 1.33-4.5-4-5.17L10 10l-1-4.12L12 8z"></path>
+                            <path d="M15 5H9a2 2 0 0 0-2 2v3a1 1 0 0 1 0 2v3a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-3a1 1 0 0 1 0-2V7a2 2 0 0 0-2-2z"></path>
                         </svg>
                     </div>
                     <div class="grid-text">VOUCHER</div>
@@ -894,11 +896,11 @@ EOF
                 <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Pilih atau masukkan nominal (Khusus QRIS Tanpa biaya admin). Saldo masuk utuh.</p>
                 
                 <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; justify-items:center; margin-bottom:15px; width: 100%;">
-                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center;" onclick="document.getElementById('topup-nominal').value='1000'">1K</div>
-                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center;" onclick="document.getElementById('topup-nominal').value='5000'">5K</div>
-                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center;" onclick="document.getElementById('topup-nominal').value='10000'">10K</div>
-                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center;" onclick="document.getElementById('topup-nominal').value='50000'">50K</div>
-                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center; grid-column: span 2;" onclick="document.getElementById('topup-nominal').value='100000'">100K</div>
+                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center;" onclick="document.getElementById('topup-nominal').value='1000'">Rp.1000</div>
+                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center;" onclick="document.getElementById('topup-nominal').value='5000'">Rp.5000</div>
+                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center;" onclick="document.getElementById('topup-nominal').value='10000'">Rp.10.000</div>
+                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center;" onclick="document.getElementById('topup-nominal').value='50000'">Rp.50.000</div>
+                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center; grid-column: span 2;" onclick="document.getElementById('topup-nominal').value='100000'">Rp.100.000</div>
                 </div>
 
                 <input type="number" id="topup-nominal" placeholder="Nominal (Min. 1000)" style="text-align:center; font-size:18px; font-weight:bold;">
@@ -2910,8 +2912,10 @@ menu_member() {
                         if(idx >= 0 && idx < members.length) {
                             let target = members[idx];
                             let history = db[target].history || [];
+                            let targetSaldo = db[target].saldo || 0;
                             let topups = history.filter(h => h.type === 'Topup' || h.type === 'Order QRIS');
                             console.log('\n\x1b[36m=== RIWAYAT TOPUP: ' + target + ' ===\x1b[0m');
+                            console.log('\x1b[32m💰 Saldo Saat Ini: Rp ' + targetSaldo.toLocaleString('id-ID') + '\x1b[0m');
                             if(topups.length === 0) console.log('\x1b[33mBelum ada riwayat topup di akun ini.\x1b[0m');
                             else {
                                 topups.forEach(h => console.log('- \x1b[33m' + h.tanggal + '\x1b[0m | ' + h.nama + ' | \x1b[32mRp ' + h.amount.toLocaleString('id-ID') + '\x1b[0m | Status: ' + h.status));
@@ -3188,6 +3192,9 @@ menu_tambah_produk() {
         echo -e "${C_RED}❌ Kode SKU tidak boleh kosong.${C_RST}"; sleep 1; return
     fi
     
+    read -p "Masukkan Nama Produk (Kosongkan jika ingin pakai nama asli Digiflazz): " custom_nama
+    read -p "Masukkan Deskripsi Produk (Kosongkan jika ingin pakai default 'Proses Otomatis'): " custom_desc
+    
     echo -e "\n${C_MAG}⏳ Menghubungkan ke API Digiflazz untuk menarik data...${C_RST}"
     node -e "
         const axios = require('axios');
@@ -3230,20 +3237,25 @@ menu_tambah_produk() {
                 else if(hargaModal <= 100000) keuntungan = m.t12;
                 else keuntungan = m.t13;
 
+                let customNama = '$custom_nama'.trim();
+                let customDesc = '$custom_desc'.trim();
+                let finalNama = customNama !== '' ? customNama : found.product_name;
+                let finalDesc = customDesc !== '' ? customDesc : (found.desc || 'Proses Otomatis');
+
                 let dbProd = crypt.load('produk.json');
                 dbProd[sku] = {
-                    nama: found.product_name,
+                    nama: finalNama,
                     harga: hargaModal + keuntungan,
                     kategori: '$kat_nama',
                     brand: found.brand || 'Lainnya',
                     sub_kategori: found.type || 'Umum',
-                    deskripsi: found.desc || 'Proses Otomatis',
+                    deskripsi: finalDesc,
                     status_produk: (found.buyer_product_status && found.seller_product_status),
                     is_manual_cat: true
                 };
                 
                 crypt.save('produk.json', dbProd);
-                console.log('\x1b[32m✅ BERHASIL: Produk \"' + found.product_name + '\" (' + sku + ') telah ditambahkan secara manual ke Kategori $kat_nama!\x1b[0m');
+                console.log('\x1b[32m✅ BERHASIL: Produk \"' + finalNama + '\" (' + sku + ') telah ditambahkan secara manual ke Kategori $kat_nama!\x1b[0m');
             } catch(e) {
                 console.log('\x1b[31m❌ Gagal menghubungi server Digiflazz. Periksa koneksi internet Anda.\x1b[0m');
             }
