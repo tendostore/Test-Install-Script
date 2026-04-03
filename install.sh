@@ -860,7 +860,7 @@ EOF
                     <label style="font-size:12px; font-weight:800; color:var(--text-muted);">Metode Pembayaran:</label>
                     <select id="m-payment-method" style="width:100%; padding:12px; border-radius:12px; background:var(--bg-main); color:var(--text-main); border:1px solid var(--border-color); font-weight:bold; margin-top:5px; outline:none;">
                         <option value="saldo">💳 Menggunakan Saldo Akun</option>
-                        <option value="qris">📲 Langsung Bayar QRIS Otomatis (+Biaya Rp 1-50)</option>
+                        <option value="qris">📲 Langsung Bayar QRIS Otomatis</option>
                     </select>
                 </div>
 
@@ -882,6 +882,7 @@ EOF
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Produk</span><strong id="os-name" style="text-align:right; max-width:60%;"></strong></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Tujuan</span><strong id="os-target" style="text-align:right;"></strong></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Metode</span><strong id="os-metode" style="color:#0ea5e9;">Saldo Akun</strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Harga</span><strong id="os-price" style="text-align:right;"></strong></div>
                 </div>
                 <button class="btn" style="width:100%;" onclick="closeOrderSuccessModal()">Selesai & Cek Riwayat</button>
             </div>
@@ -892,12 +893,12 @@ EOF
                 <h3 style="margin-top:0; font-size:18px;">Isi Saldo Otomatis</h3>
                 <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Pilih atau masukkan nominal (Khusus QRIS Tanpa biaya admin). Saldo masuk utuh.</p>
                 
-                <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:15px;">
-                    <div class="trx-badge" style="padding:8px 15px;" onclick="document.getElementById('topup-nominal').value='1000'">1K</div>
-                    <div class="trx-badge" style="padding:8px 15px;" onclick="document.getElementById('topup-nominal').value='5000'">5K</div>
-                    <div class="trx-badge" style="padding:8px 15px;" onclick="document.getElementById('topup-nominal').value='10000'">10K</div>
-                    <div class="trx-badge" style="padding:8px 15px;" onclick="document.getElementById('topup-nominal').value='50000'">50K</div>
-                    <div class="trx-badge" style="padding:8px 15px;" onclick="document.getElementById('topup-nominal').value='100000'">100K</div>
+                <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; justify-items:center; margin-bottom:15px; width: 100%;">
+                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center;" onclick="document.getElementById('topup-nominal').value='1000'">1K</div>
+                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center;" onclick="document.getElementById('topup-nominal').value='5000'">5K</div>
+                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center;" onclick="document.getElementById('topup-nominal').value='10000'">10K</div>
+                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center;" onclick="document.getElementById('topup-nominal').value='50000'">50K</div>
+                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center; grid-column: span 2;" onclick="document.getElementById('topup-nominal').value='100000'">100K</div>
                 </div>
 
                 <input type="number" id="topup-nominal" placeholder="Nominal (Min. 1000)" style="text-align:center; font-size:18px; font-weight:bold;">
@@ -2264,7 +2265,7 @@ app.post('/api/topup', async (req, res) => {
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
 });
 
-// API ORDER LANGSUNG QRIS (+ BIAYA RANDOM 1-50 RUPIAH)
+// API ORDER LANGSUNG QRIS (+ BIAYA RANDOM 1-50 RUPIAH SUDAH DIHILANGKAN DI TAMPILAN)
 app.post('/api/order-qris', async (req, res) => {
     try {
         if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan (23:00-00:30 WIB).'});
@@ -2343,7 +2344,6 @@ app.post('/api/order', async (req, res) => {
         const statusOrder = response.data.data.status; 
         if (statusOrder === 'Gagal') return res.json({success: false, message: response.data.data.message});
         
-        // PERBAIKAN PENGURANGAN SALDO AGAR TIDAK MENGGABUNGKAN STRING
         db[targetKey].saldo = parseInt(db[targetKey].saldo) - hargaFix; 
         db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
         
@@ -2384,7 +2384,6 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         let db = loadJSON(dbFile); let config = loadJSON(configFile);
         let hargaFix = parseInt(harga_asli);
         
-        // Pengecekan saldo. Karena saldo topup baru masuk, pasti cukup.
         if (parseInt(db[phone].saldo) < hargaFix) return; 
         
         let username = (config.digiflazzUsername || '').trim();
@@ -2480,7 +2479,6 @@ async function startBot() {
                     if(isFound) {
                         req.status = 'sukses'; changedTp = true;
                         if(db[req.phone]) {
-                            // TAMBAHKAN SALDO KE AKUN MENGGUNAKAN PARSE INT
                             db[req.phone].saldo = parseInt(db[req.phone].saldo) + parseInt(req.saldo_to_add); 
                             
                             let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
@@ -2488,7 +2486,6 @@ async function startBot() {
                             changedDb = true;
                             
                             if (req.is_order) {
-                                // JIKA ORDER VIA QRIS, LANGSUNG TEMBAK DIGIFLAZZ (SISA BIAYA LAYANAN TETAP MENJADI MILIK PELANGGAN DI SALDO)
                                 prosesAutoOrderQRIS(req.phone, req.sku, req.tujuan, req.nama_produk, req.harga_asli, req.trx_id);
                             } else {
                                 let teleMsg = `✅ *TOPUP QRIS SUKSES MASUK*\n\n👤 Akun: ${db[req.phone].username || req.phone}\n📱 WA: ${req.phone}\n💰 Saldo Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}`;
@@ -2561,7 +2558,6 @@ async function startBot() {
                         sendTelegramAdmin(teleSuccess);
                         
                     } else {
-                        // PERBAIKAN PENGEMBALIAN SALDO KETIKA DIGIFLAZZ GAGAL (MENGGUNAKAN PARSE INT)
                         if (db[senderNum]) { 
                             db[senderNum].saldo = parseInt(db[senderNum].saldo) + parseInt(trx.harga); 
                             if(db[senderNum].history) {
@@ -2622,6 +2618,7 @@ async function tarikDataLayananOtomatis() {
 
         if (balasan.data && balasan.data.data) {
             let daftarPusat = balasan.data.data;
+            let produkLama = loadJSON(produkFile);
             let daftarLokal = {};
             let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
             
@@ -2645,6 +2642,11 @@ async function tarikDataLayananOtomatis() {
                 else if (catLower === 'masa aktif') kategoriBarang = 'Masa Aktif';
                 else if (catLower === 'aktivasi perdana' || catLower === 'perdana') kategoriBarang = 'Aktivasi Perdana';
                 else kategoriBarang = catDigi; 
+
+                // PROTEKSI AGAR KATEGORI HASIL TAMBAH MANUAL TIDAK TERTABRAK OLEH SINKRONISASI
+                if (produkLama[kodeBarang] && produkLama[kodeBarang].is_manual_cat) {
+                    kategoriBarang = produkLama[kodeBarang].kategori;
+                }
                 
                 let merekBarang = item.brand || 'Lainnya';
                 let subKategori = item.type || 'Umum';
@@ -2672,7 +2674,8 @@ async function tarikDataLayananOtomatis() {
                     brand: merekBarang,
                     sub_kategori: subKategori,
                     deskripsi: item.desc || 'Proses Otomatis',
-                    status_produk: statusProduk
+                    status_produk: statusProduk,
+                    is_manual_cat: (produkLama[kodeBarang] ? produkLama[kodeBarang].is_manual_cat : false)
                 };
             });
 
@@ -2687,7 +2690,6 @@ app.get('/api/sync-digiflazz', async (req, res) => {
     res.json({success: true, message: 'Sinkronisasi Selesai.'});
 });
 
-// INTERVAL SINKRONISASI DIUBAH MENJADI 10 MENIT
 setInterval(tarikDataLayananOtomatis, 10 * 60 * 1000);
 setTimeout(tarikDataLayananOtomatis, 10000);
 
@@ -2805,11 +2807,12 @@ menu_member() {
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "  ${C_GREEN}[1]${C_RST} Tambah Saldo Member"
         echo -e "  ${C_GREEN}[2]${C_RST} Kurangi Saldo Member"
-        echo -e "  ${C_GREEN}[3]${C_RST} Lihat Daftar Semua Member"
+        echo -e "  ${C_GREEN}[3]${C_RST} Lihat Daftar Semua Member Aktif"
+        echo -e "  ${C_GREEN}[4]${C_RST} Cek Riwayat Topup Member"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
         echo -e "${C_CYAN}======================================================${C_RST}"
-        echo -ne "${C_YELLOW}Pilih menu [0-3]: ${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-4]: ${C_RST}"
         read subchoice
 
         case $subchoice in
@@ -2866,11 +2869,58 @@ menu_member() {
                     const crypt = require('./tendo_crypt.js');
                     let db = crypt.load('database.json');
                     let members = Object.keys(db);
-                    if(members.length === 0) console.log('\x1b[33mBelum ada member.\x1b[0m');
+                    let deletedCount = 0;
+                    
+                    // Filter & hapus member tanpa email
+                    members.forEach(m => {
+                        if (!db[m].email || db[m].email.trim() === '-' || db[m].email.trim() === '') {
+                            delete db[m];
+                            deletedCount++;
+                        }
+                    });
+                    if (deletedCount > 0) crypt.save('database.json', db);
+                    
+                    members = Object.keys(db); // Update list setelah penghapusan
+                    if(members.length === 0) console.log('\x1b[33mBelum ada member aktif (yang terdaftar email).\x1b[0m');
                     else {
-                        members.forEach((m, i) => console.log((i + 1) + '. WA: ' + m + ' | Email: ' + (db[m].email || '-') + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID')));
+                        members.forEach((m, i) => console.log((i + 1) + '. WA: ' + m + ' | Email: ' + db[m].email + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID')));
                     }
                 "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            4)
+                echo -e "\n${C_CYAN}--- RIWAYAT TOPUP MEMBER ---${C_RST}"
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let db = crypt.load('database.json');
+                    let members = Object.keys(db).filter(m => db[m].email && db[m].email.trim() !== '-' && db[m].email.trim() !== '');
+                    if(members.length === 0) {
+                        console.log('\x1b[33mBelum ada member yang memiliki email.\x1b[0m');
+                        process.exit(0);
+                    }
+                    members.forEach((m, i) => console.log((i + 1) + '. WA: ' + m + ' | Email: ' + db[m].email));
+                "
+                read -p "Pilih Nomor Urut Member [Contoh: 1]: " urut_member
+                if [[ "$urut_member" =~ ^[0-9]+$ ]]; then
+                    node -e "
+                        const crypt = require('./tendo_crypt.js');
+                        let db = crypt.load('database.json');
+                        let members = Object.keys(db).filter(m => db[m].email && db[m].email.trim() !== '-' && db[m].email.trim() !== '');
+                        let idx = parseInt('$urut_member') - 1;
+                        if(idx >= 0 && idx < members.length) {
+                            let target = members[idx];
+                            let history = db[target].history || [];
+                            let topups = history.filter(h => h.type === 'Topup' || h.type === 'Order QRIS');
+                            console.log('\n\x1b[36m=== RIWAYAT TOPUP: ' + target + ' ===\x1b[0m');
+                            if(topups.length === 0) console.log('\x1b[33mBelum ada riwayat topup di akun ini.\x1b[0m');
+                            else {
+                                topups.forEach(h => console.log('- \x1b[33m' + h.tanggal + '\x1b[0m | ' + h.nama + ' | \x1b[32mRp ' + h.amount.toLocaleString('id-ID') + '\x1b[0m | Status: ' + h.status));
+                            }
+                        } else {
+                            console.log('\x1b[31m❌ Nomor urut tidak valid.\x1b[0m');
+                        }
+                    "
+                fi
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             0) break ;;
@@ -3099,7 +3149,112 @@ menu_backup() {
 }
 
 # ==========================================
-# 11. MENU UTAMA (PANEL KONTROL 15 OPSI)
+# 11. SUB-MENU TAMBAH PRODUK MANUAL
+# ==========================================
+menu_tambah_produk() {
+    clear
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}             ➕ TAMBAH PRODUK MANUAL ➕             ${C_RST}"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "Pilih Kategori untuk produk yang akan ditambahkan:"
+    echo -e "  ${C_GREEN}[1]${C_RST} Pulsa"
+    echo -e "  ${C_GREEN}[2]${C_RST} Data"
+    echo -e "  ${C_GREEN}[3]${C_RST} Game"
+    echo -e "  ${C_GREEN}[4]${C_RST} Voucher"
+    echo -e "  ${C_GREEN}[5]${C_RST} E-Money"
+    echo -e "  ${C_GREEN}[6]${C_RST} PLN"
+    echo -e "  ${C_GREEN}[7]${C_RST} Paket SMS & Telpon"
+    echo -e "  ${C_GREEN}[8]${C_RST} Masa Aktif"
+    echo -e "  ${C_GREEN}[9]${C_RST} Aktivasi Perdana"
+    echo -ne "\n${C_YELLOW}Pilih kategori [1-9]: ${C_RST}"
+    read kat_idx
+    
+    kat_nama=""
+    case $kat_idx in
+        1) kat_nama="Pulsa" ;;
+        2) kat_nama="Data" ;;
+        3) kat_nama="Game" ;;
+        4) kat_nama="Voucher" ;;
+        5) kat_nama="E-Money" ;;
+        6) kat_nama="PLN" ;;
+        7) kat_nama="Paket SMS & Telpon" ;;
+        8) kat_nama="Masa Aktif" ;;
+        9) kat_nama="Aktivasi Perdana" ;;
+        *) echo -e "${C_RED}❌ Pilihan kategori tidak valid.${C_RST}"; sleep 1; return ;;
+    esac
+    
+    read -p "Masukkan KODE SKU Digiflazz: " sku_digi
+    if [ -z "$sku_digi" ]; then 
+        echo -e "${C_RED}❌ Kode SKU tidak boleh kosong.${C_RST}"; sleep 1; return
+    fi
+    
+    echo -e "\n${C_MAG}⏳ Menghubungkan ke API Digiflazz untuk menarik data...${C_RST}"
+    node -e "
+        const axios = require('axios');
+        const crypto = require('crypto');
+        const crypt = require('./tendo_crypt.js');
+        
+        async function addManual() {
+            try {
+                let config = crypt.load('config.json');
+                let username = (config.digiflazzUsername || '').trim();
+                let key = (config.digiflazzApiKey || '').trim();
+                if(!username || !key) return console.log('\x1b[31m❌ API Digiflazz belum diatur (Gunakan Menu 11).\x1b[0m');
+                
+                let sign = crypto.createHash('md5').update(username + key + 'depo').digest('hex');
+                let res = await axios.post('https://api.digiflazz.com/v1/price-list', { cmd: 'prepaid', username, sign });
+                
+                let items = res.data.data || [];
+                let sku = '$sku_digi'.trim();
+                let found = items.find(i => i.buyer_sku_code === sku);
+                
+                if(!found) {
+                    return console.log('\x1b[31m❌ GAGAL: Kode SKU \"' + sku + '\" tidak ditemukan di daftar harga Digiflazz Anda.\x1b[0m');
+                }
+                
+                let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
+                let hargaModal = found.price;
+                let keuntungan = 0;
+                
+                if(hargaModal <= 100) keuntungan = m.t1;
+                else if(hargaModal <= 500) keuntungan = m.t2;
+                else if(hargaModal <= 1000) keuntungan = m.t3;
+                else if(hargaModal <= 2000) keuntungan = m.t4;
+                else if(hargaModal <= 3000) keuntungan = m.t5;
+                else if(hargaModal <= 4000) keuntungan = m.t6;
+                else if(hargaModal <= 5000) keuntungan = m.t7;
+                else if(hargaModal <= 10000) keuntungan = m.t8;
+                else if(hargaModal <= 25000) keuntungan = m.t9;
+                else if(hargaModal <= 50000) keuntungan = m.t10;
+                else if(hargaModal <= 75000) keuntungan = m.t11;
+                else if(hargaModal <= 100000) keuntungan = m.t12;
+                else keuntungan = m.t13;
+
+                let dbProd = crypt.load('produk.json');
+                dbProd[sku] = {
+                    nama: found.product_name,
+                    harga: hargaModal + keuntungan,
+                    kategori: '$kat_nama',
+                    brand: found.brand || 'Lainnya',
+                    sub_kategori: found.type || 'Umum',
+                    deskripsi: found.desc || 'Proses Otomatis',
+                    status_produk: (found.buyer_product_status && found.seller_product_status),
+                    is_manual_cat: true
+                };
+                
+                crypt.save('produk.json', dbProd);
+                console.log('\x1b[32m✅ BERHASIL: Produk \"' + found.product_name + '\" (' + sku + ') telah ditambahkan secara manual ke Kategori $kat_nama!\x1b[0m');
+            } catch(e) {
+                console.log('\x1b[31m❌ Gagal menghubungi server Digiflazz. Periksa koneksi internet Anda.\x1b[0m');
+            }
+        }
+        addManual();
+    "
+    read -p "Tekan Enter untuk kembali..."
+}
+
+# ==========================================
+# 12. MENU UTAMA (PANEL KONTROL 16 OPSI)
 # ==========================================
 while true; do
     clear
@@ -3123,7 +3278,7 @@ while true; do
     echo -e "  ${C_GREEN}[5]${C_RST}  Lihat Log / Error"
     echo ""
     echo -e "${C_MAG}▶ MANAJEMEN TOKO & SISTEM${C_RST}"
-    echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo Member"
+    echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo & Member"
     echo -e "  ${C_GREEN}[7]${C_RST}  💰 Manajemen Keuntungan Harga (13 Tingkat)"
     echo -e "  ${C_GREEN}[8]${C_RST}  🔄 Sinkronisasi Produk Digiflazz (Perbarui Katalog)"
     echo -e "  ${C_GREEN}[9]${C_RST}  ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
@@ -3133,10 +3288,11 @@ while true; do
     echo -e "  ${C_GREEN}[13]${C_RST} 🌐 Kirim Pemberitahuan ke Website Aplikasi"
     echo -e "  ${C_GREEN}[14]${C_RST} 💳 Setup GoPay Merchant API (BHM Biz)"
     echo -e "  ${C_GREEN}[15]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
+    echo -e "  ${C_GREEN}[16]${C_RST} ➕ Tambah Kategori Produk Manual by SKU Digiflazz"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
     echo -e "${C_CYAN}======================================================${C_RST}"
-    echo -ne "${C_YELLOW}Pilih menu [0-15]: ${C_RST}"
+    echo -ne "${C_YELLOW}Pilih menu [0-16]: ${C_RST}"
     read choice
 
     case $choice in
@@ -3288,6 +3444,7 @@ EOF
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
+        16) menu_tambah_produk ;;
         0) echo -e "${C_GREEN}Sampai jumpa!${C_RST}"; exit 0 ;;
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
