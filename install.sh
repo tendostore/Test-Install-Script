@@ -515,8 +515,8 @@ EOF
             <button class="menu-btn" onclick="toggleSidebar()">
                 <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
-            <div class="brand-title">
-                <div class="marquee-text" id="top-title">DIGITAL TENDO STORE</div>
+            <div class="brand-title" style="justify-content: center; padding: 8px 20px; width: auto; white-space: nowrap;">
+                <span id="top-title">Digital tendo store</span>
             </div>
             <div class="trx-badge" id="top-trx-badge" onclick="showHistory('Order')">0 Trx</div>
         </div>
@@ -3153,116 +3153,173 @@ menu_backup() {
 }
 
 # ==========================================
-# 11. SUB-MENU TAMBAH PRODUK MANUAL
+# 11. SUB-MENU MANAJEMEN PRODUK MANUAL
 # ==========================================
-menu_tambah_produk() {
-    clear
-    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_YELLOW}${C_BOLD}             ➕ TAMBAH PRODUK MANUAL ➕             ${C_RST}"
-    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "Pilih Kategori untuk produk yang akan ditambahkan:"
-    echo -e "  ${C_GREEN}[1]${C_RST} Pulsa"
-    echo -e "  ${C_GREEN}[2]${C_RST} Data"
-    echo -e "  ${C_GREEN}[3]${C_RST} Game"
-    echo -e "  ${C_GREEN}[4]${C_RST} Voucher"
-    echo -e "  ${C_GREEN}[5]${C_RST} E-Money"
-    echo -e "  ${C_GREEN}[6]${C_RST} PLN"
-    echo -e "  ${C_GREEN}[7]${C_RST} Paket SMS & Telpon"
-    echo -e "  ${C_GREEN}[8]${C_RST} Masa Aktif"
-    echo -e "  ${C_GREEN}[9]${C_RST} Aktivasi Perdana"
-    echo -ne "\n${C_YELLOW}Pilih kategori [1-9]: ${C_RST}"
-    read kat_idx
-    
-    kat_nama=""
-    case $kat_idx in
-        1) kat_nama="Pulsa" ;;
-        2) kat_nama="Data" ;;
-        3) kat_nama="Game" ;;
-        4) kat_nama="Voucher" ;;
-        5) kat_nama="E-Money" ;;
-        6) kat_nama="PLN" ;;
-        7) kat_nama="Paket SMS & Telpon" ;;
-        8) kat_nama="Masa Aktif" ;;
-        9) kat_nama="Aktivasi Perdana" ;;
-        *) echo -e "${C_RED}❌ Pilihan kategori tidak valid.${C_RST}"; sleep 1; return ;;
-    esac
-    
-    read -p "Masukkan KODE SKU Digiflazz: " sku_digi
-    if [ -z "$sku_digi" ]; then 
-        echo -e "${C_RED}❌ Kode SKU tidak boleh kosong.${C_RST}"; sleep 1; return
-    fi
-    
-    read -p "Masukkan Nama Produk (Kosongkan jika ingin pakai nama asli Digiflazz): " custom_nama
-    read -p "Masukkan Deskripsi Produk (Kosongkan jika ingin pakai default 'Proses Otomatis'): " custom_desc
-    
-    echo -e "\n${C_MAG}⏳ Menghubungkan ke API Digiflazz untuk menarik data...${C_RST}"
-    node -e "
-        const axios = require('axios');
-        const crypto = require('crypto');
-        const crypt = require('./tendo_crypt.js');
-        
-        async function addManual() {
-            try {
-                let config = crypt.load('config.json');
-                let username = (config.digiflazzUsername || '').trim();
-                let key = (config.digiflazzApiKey || '').trim();
-                if(!username || !key) return console.log('\x1b[31m❌ API Digiflazz belum diatur (Gunakan Menu 11).\x1b[0m');
-                
-                let sign = crypto.createHash('md5').update(username + key + 'depo').digest('hex');
-                let res = await axios.post('https://api.digiflazz.com/v1/price-list', { cmd: 'prepaid', username, sign });
-                
-                let items = res.data.data || [];
-                let sku = '$sku_digi'.trim();
-                let found = items.find(i => i.buyer_sku_code === sku);
-                
-                if(!found) {
-                    return console.log('\x1b[31m❌ GAGAL: Kode SKU \"' + sku + '\" tidak ditemukan di daftar harga Digiflazz Anda.\x1b[0m');
-                }
-                
-                let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
-                let hargaModal = found.price;
-                let keuntungan = 0;
-                
-                if(hargaModal <= 100) keuntungan = m.t1;
-                else if(hargaModal <= 500) keuntungan = m.t2;
-                else if(hargaModal <= 1000) keuntungan = m.t3;
-                else if(hargaModal <= 2000) keuntungan = m.t4;
-                else if(hargaModal <= 3000) keuntungan = m.t5;
-                else if(hargaModal <= 4000) keuntungan = m.t6;
-                else if(hargaModal <= 5000) keuntungan = m.t7;
-                else if(hargaModal <= 10000) keuntungan = m.t8;
-                else if(hargaModal <= 25000) keuntungan = m.t9;
-                else if(hargaModal <= 50000) keuntungan = m.t10;
-                else if(hargaModal <= 75000) keuntungan = m.t11;
-                else if(hargaModal <= 100000) keuntungan = m.t12;
-                else keuntungan = m.t13;
+menu_manajemen_produk_manual() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}          📦 MANAJEMEN PRODUK MANUAL 📦             ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Manual (Dari SKU Digiflazz)"
+        echo -e "  ${C_GREEN}[2]${C_RST} Lihat Daftar & Hapus Produk Manual"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-2]: ${C_RST}"
+        read mp_choice
 
-                let customNama = '$custom_nama'.trim();
-                let customDesc = '$custom_desc'.trim();
-                let finalNama = customNama !== '' ? customNama : found.product_name;
-                let finalDesc = customDesc !== '' ? customDesc : (found.desc || 'Proses Otomatis');
-
-                let dbProd = crypt.load('produk.json');
-                dbProd[sku] = {
-                    nama: finalNama,
-                    harga: hargaModal + keuntungan,
-                    kategori: '$kat_nama',
-                    brand: found.brand || 'Lainnya',
-                    sub_kategori: found.type || 'Umum',
-                    deskripsi: finalDesc,
-                    status_produk: (found.buyer_product_status && found.seller_product_status),
-                    is_manual_cat: true
-                };
+        case $mp_choice in
+            1)
+                clear
+                echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+                echo -e "${C_YELLOW}${C_BOLD}             ➕ TAMBAH PRODUK MANUAL ➕             ${C_RST}"
+                echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+                echo -e "Pilih Kategori untuk produk yang akan ditambahkan:"
+                echo -e "  ${C_GREEN}[1]${C_RST} Pulsa"
+                echo -e "  ${C_GREEN}[2]${C_RST} Data"
+                echo -e "  ${C_GREEN}[3]${C_RST} Game"
+                echo -e "  ${C_GREEN}[4]${C_RST} Voucher"
+                echo -e "  ${C_GREEN}[5]${C_RST} E-Money"
+                echo -e "  ${C_GREEN}[6]${C_RST} PLN"
+                echo -e "  ${C_GREEN}[7]${C_RST} Paket SMS & Telpon"
+                echo -e "  ${C_GREEN}[8]${C_RST} Masa Aktif"
+                echo -e "  ${C_GREEN}[9]${C_RST} Aktivasi Perdana"
+                echo -ne "\n${C_YELLOW}Pilih kategori [1-9]: ${C_RST}"
+                read kat_idx
                 
-                crypt.save('produk.json', dbProd);
-                console.log('\x1b[32m✅ BERHASIL: Produk \"' + finalNama + '\" (' + sku + ') telah ditambahkan secara manual ke Kategori $kat_nama!\x1b[0m');
-            } catch(e) {
-                console.log('\x1b[31m❌ Gagal menghubungi server Digiflazz. Periksa koneksi internet Anda.\x1b[0m');
-            }
-        }
-        addManual();
-    "
-    read -p "Tekan Enter untuk kembali..."
+                kat_nama=""
+                case $kat_idx in
+                    1) kat_nama="Pulsa" ;;
+                    2) kat_nama="Data" ;;
+                    3) kat_nama="Game" ;;
+                    4) kat_nama="Voucher" ;;
+                    5) kat_nama="E-Money" ;;
+                    6) kat_nama="PLN" ;;
+                    7) kat_nama="Paket SMS & Telpon" ;;
+                    8) kat_nama="Masa Aktif" ;;
+                    9) kat_nama="Aktivasi Perdana" ;;
+                    *) echo -e "${C_RED}❌ Pilihan kategori tidak valid.${C_RST}"; sleep 1; continue ;;
+                esac
+                
+                read -p "Masukkan KODE SKU Digiflazz: " sku_digi
+                if [ -z "$sku_digi" ]; then 
+                    echo -e "${C_RED}❌ Kode SKU tidak boleh kosong.${C_RST}"; sleep 1; continue
+                fi
+                
+                read -p "Masukkan Nama Produk (Kosongkan jika ingin pakai nama asli Digiflazz): " custom_nama
+                read -p "Masukkan Deskripsi Produk (Kosongkan jika ingin pakai default 'Proses Otomatis'): " custom_desc
+                
+                echo -e "\n${C_MAG}⏳ Menghubungkan ke API Digiflazz untuk menarik data...${C_RST}"
+                node -e "
+                    const axios = require('axios');
+                    const crypto = require('crypto');
+                    const crypt = require('./tendo_crypt.js');
+                    
+                    async function addManual() {
+                        try {
+                            let config = crypt.load('config.json');
+                            let username = (config.digiflazzUsername || '').trim();
+                            let key = (config.digiflazzApiKey || '').trim();
+                            if(!username || !key) return console.log('\x1b[31m❌ API Digiflazz belum diatur.\x1b[0m');
+                            
+                            let sign = crypto.createHash('md5').update(username + key + 'depo').digest('hex');
+                            let res = await axios.post('https://api.digiflazz.com/v1/price-list', { cmd: 'prepaid', username, sign });
+                            
+                            let items = res.data.data || [];
+                            let sku = '$sku_digi'.trim();
+                            let found = items.find(i => i.buyer_sku_code === sku);
+                            
+                            if(!found) {
+                                return console.log('\x1b[31m❌ GAGAL: Kode SKU \"' + sku + '\" tidak ditemukan di daftar harga Digiflazz Anda.\x1b[0m');
+                            }
+                            
+                            let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
+                            let hargaModal = found.price;
+                            let keuntungan = 0;
+                            
+                            if(hargaModal <= 100) keuntungan = m.t1;
+                            else if(hargaModal <= 500) keuntungan = m.t2;
+                            else if(hargaModal <= 1000) keuntungan = m.t3;
+                            else if(hargaModal <= 2000) keuntungan = m.t4;
+                            else if(hargaModal <= 3000) keuntungan = m.t5;
+                            else if(hargaModal <= 4000) keuntungan = m.t6;
+                            else if(hargaModal <= 5000) keuntungan = m.t7;
+                            else if(hargaModal <= 10000) keuntungan = m.t8;
+                            else if(hargaModal <= 25000) keuntungan = m.t9;
+                            else if(hargaModal <= 50000) keuntungan = m.t10;
+                            else if(hargaModal <= 75000) keuntungan = m.t11;
+                            else if(hargaModal <= 100000) keuntungan = m.t12;
+                            else keuntungan = m.t13;
+
+                            let customNama = '$custom_nama'.trim();
+                            let customDesc = '$custom_desc'.trim();
+                            let finalNama = customNama !== '' ? customNama : found.product_name;
+                            let finalDesc = customDesc !== '' ? customDesc : (found.desc || 'Proses Otomatis');
+
+                            let dbProd = crypt.load('produk.json');
+                            dbProd[sku] = {
+                                nama: finalNama,
+                                harga: hargaModal + keuntungan,
+                                kategori: '$kat_nama',
+                                brand: found.brand || 'Lainnya',
+                                sub_kategori: found.type || 'Umum',
+                                deskripsi: finalDesc,
+                                status_produk: (found.buyer_product_status && found.seller_product_status),
+                                is_manual_cat: true
+                            };
+                            
+                            crypt.save('produk.json', dbProd);
+                            console.log('\x1b[32m✅ BERHASIL: Produk \"' + finalNama + '\" (' + sku + ') telah ditambahkan secara manual ke Kategori $kat_nama!\x1b[0m');
+                        } catch(e) {
+                            console.log('\x1b[31m❌ Gagal menghubungi server Digiflazz. Periksa koneksi internet.\x1b[0m');
+                        }
+                    }
+                    addManual();
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo -e "\n${C_CYAN}--- DAFTAR PRODUK MANUAL ---${C_RST}"
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let dbProd = crypt.load('produk.json');
+                    let manualItems = Object.keys(dbProd).filter(k => dbProd[k].is_manual_cat);
+                    if(manualItems.length === 0) {
+                        console.log('\x1b[33mBelum ada produk yang ditambahkan secara manual.\x1b[0m');
+                        process.exit(0);
+                    }
+                    manualItems.forEach((sku, i) => {
+                        console.log('[' + (i + 1) + '] SKU: ' + sku + ' | Nama: ' + dbProd[sku].nama + ' | Kat: ' + dbProd[sku].kategori);
+                    });
+                "
+                echo -e ""
+                read -p "Masukkan Nomor Urut produk yang ingin dihapus (Kosongkan/Ketik 0 untuk batal): " urut_hapus
+                if [[ "$urut_hapus" =~ ^[0-9]+$ ]] && [ "$urut_hapus" -gt 0 ]; then
+                    node -e "
+                        const crypt = require('./tendo_crypt.js');
+                        let dbProd = crypt.load('produk.json');
+                        let manualItems = Object.keys(dbProd).filter(k => dbProd[k].is_manual_cat);
+                        let idx = parseInt('$urut_hapus') - 1;
+                        if(idx >= 0 && idx < manualItems.length) {
+                            let skuToDel = manualItems[idx];
+                            let namaToDel = dbProd[skuToDel].nama;
+                            delete dbProd[skuToDel];
+                            crypt.save('produk.json', dbProd);
+                            console.log('\x1b[32m✅ Berhasil menghapus produk manual: ' + namaToDel + ' (' + skuToDel + ')\x1b[0m');
+                        } else {
+                            console.log('\x1b[31m❌ Nomor urut tidak ditemukan.\x1b[0m');
+                        }
+                    "
+                else
+                    echo -e "${C_YELLOW}Dibatalkan.${C_RST}"
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
 }
 
 # ==========================================
@@ -3300,7 +3357,7 @@ while true; do
     echo -e "  ${C_GREEN}[13]${C_RST} 🌐 Kirim Pemberitahuan ke Website Aplikasi"
     echo -e "  ${C_GREEN}[14]${C_RST} 💳 Setup GoPay Merchant API (BHM Biz)"
     echo -e "  ${C_GREEN}[15]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
-    echo -e "  ${C_GREEN}[16]${C_RST} ➕ Tambah Kategori Produk Manual by SKU Digiflazz"
+    echo -e "  ${C_GREEN}[16]${C_RST} 📦 Manajemen Produk Manual (Tambah & Hapus)"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
     echo -e "${C_CYAN}======================================================${C_RST}"
@@ -3456,7 +3513,7 @@ EOF
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
-        16) menu_tambah_produk ;;
+        16) menu_manajemen_produk_manual ;;
         0) echo -e "${C_GREEN}Sampai jumpa!${C_RST}"; exit 0 ;;
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
