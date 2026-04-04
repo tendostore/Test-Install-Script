@@ -301,9 +301,9 @@ EOF
 
         .stats-container { margin: 25px 20px; padding: 15px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); text-align: center; box-shadow: var(--shadow-outer), var(--shadow-inner);}
         .stats-title { font-size: 14px; font-weight: 900; color: var(--text-main); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;}
-        .stats-grid { display: flex; justify-content: space-between; gap: 10px;}
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;}
         .stat-box { flex: 1; padding: 10px 5px; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer), var(--shadow-inner);}
-        .stat-val { font-size: 18px; font-weight: 900; color: #0ea5e9; margin-bottom: 5px;}
+        .stat-val { font-size: 16px; font-weight: 900; color: #0ea5e9; margin-bottom: 5px;}
         .stat-lbl { font-size: 9px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;}
 
         .brand-list { display: flex; flex-direction: column; padding: 15px 20px; gap: 12px; }
@@ -753,6 +753,10 @@ EOF
                         <div class="stat-val" id="stat-monthly">0</div>
                         <div class="stat-lbl">Bulan Ini</div>
                     </div>
+                    <div class="stat-box">
+                        <div class="stat-val" id="stat-total">0</div>
+                        <div class="stat-lbl">Semua</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1135,6 +1139,7 @@ EOF
                     document.getElementById('stat-daily').innerText = res.daily;
                     document.getElementById('stat-weekly').innerText = res.weekly;
                     document.getElementById('stat-monthly').innerText = res.monthly;
+                    if(document.getElementById('stat-total')) document.getElementById('stat-total').innerText = res.total;
                 }
             } catch(e){}
         }
@@ -1442,8 +1447,8 @@ EOF
                     
                     historyList = historyList.filter(h => {
                         let type = h.type || 'Order';
-                        if (currentHistoryFilter === 'Topup') return (type === 'Topup' || type === 'Order QRIS');
-                        return type === 'Order';
+                        if (currentHistoryFilter === 'Topup') return type === 'Topup';
+                        return type === 'Order' || type === 'Order QRIS';
                     });
 
                     if(historyList.length === 0) histHTML = '<div style="text-align:center; color:var(--text-muted); font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
@@ -1922,6 +1927,7 @@ const { exec } = require('child_process');
 const axios = require('axios'); 
 const crypto = require('crypto'); 
 const crypt = require('./tendo_crypt.js');
+const TelegramBot = require('node-telegram-bot-api');
 
 const app = express();
 app.disable('x-powered-by');
@@ -2034,6 +2040,56 @@ let globalSock = null;
 let tempOtpDB = {}; 
 let otpCooldown = {}; 
 
+// TELEGRAM BOT POLLING UNTUK BROADCAST INFO
+let teleBot = null;
+if (configAwal.teleToken) {
+    try {
+        teleBot = new TelegramBot(configAwal.teleToken, {polling: true});
+        teleBot.on('message', async (msg) => {
+            let cfg = loadJSON(configFile);
+            if (!cfg.teleChatId || msg.chat.id.toString() !== cfg.teleChatId.toString()) return;
+            
+            let text = msg.text || msg.caption || '';
+            if (text.startsWith('/info ')) {
+                text = text.replace('/info ', '');
+                let imageFilename = null;
+                
+                if (msg.photo) {
+                    try {
+                        let fileId = msg.photo[msg.photo.length - 1].file_id;
+                        let file = await teleBot.getFile(fileId);
+                        let url = `https://api.telegram.org/file/bot${cfg.teleToken}/${file.file_path}`;
+                        let ext = file.file_path.split('.').pop() || 'jpg';
+                        imageFilename = 'info_' + Date.now() + '.' + ext;
+                        let res = await axios.get(url, { responseType: 'stream' });
+                        const writer = fs.createWriteStream('./public/info_images/' + imageFilename);
+                        res.data.pipe(writer);
+                        await new Promise((resolve) => writer.on('finish', resolve));
+                    } catch(e) { console.log('Gagal download gambar tele', e); }
+                }
+                
+                let notifs = loadJSON(notifFile);
+                let today = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'long', year:'numeric' });
+                notifs.unshift({ date: today, text: text, image: imageFilename || '' });
+                if(notifs.length > 20) notifs.pop();
+                saveJSON(notifFile, notifs);
+
+                if (cfg.teleChannelId) {
+                    if (imageFilename) teleBot.sendPhoto(cfg.teleChannelId, './public/info_images/' + imageFilename, {caption: text}).catch(e=>{});
+                    else teleBot.sendMessage(cfg.teleChannelId, text).catch(e=>{});
+                }
+                
+                if (cfg.waChannelJid && globalSock) {
+                    if (imageFilename) globalSock.sendMessage(cfg.waChannelJid, { image: fs.readFileSync('./public/info_images/' + imageFilename), caption: text }).catch(e=>{});
+                    else globalSock.sendMessage(cfg.waChannelJid, { text: text }).catch(e=>{});
+                }
+                
+                teleBot.sendMessage(cfg.teleChatId, '✅ Info berhasil disebarkan ke Website, Channel Telegram, dan Saluran WA!').catch(e=>{});
+            }
+        });
+    } catch(e) { console.log("Gagal inisialisasi Telegram Bot Polling"); }
+}
+
 function normalizePhone(phoneStr) {
     if(!phoneStr) return '';
     let num = phoneStr.replace(/[^0-9]/g, '');
@@ -2061,21 +2117,30 @@ app.get('/api/banners', (req, res) => {
 app.get('/api/stats', (req, res) => {
     try {
         let gStats = loadJSON(globalStatsFile);
-        let daily = 0, weekly = 0, monthly = 0;
-        let nowString = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-        let nowDate = new Date(nowString + 'T00:00:00+07:00');
+        let daily = 0, weekly = 0, monthly = 0, total = 0;
         
+        let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
+        let nowYear = now.getFullYear();
+        let nowMonth = now.getMonth();
+        let nowString = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+        
+        let day = now.getDay() || 7; 
+        let monday = new Date(now);
+        monday.setDate(now.getDate() - day + 1);
+        monday.setHours(0,0,0,0);
+
         for(let k in gStats) {
-            let recordDate = new Date(k + 'T00:00:00+07:00');
-            let diffTime = Math.abs(nowDate - recordDate);
-            let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            let count = gStats[k];
+            total += count;
             
-            if(k === nowString) daily += gStats[k];
-            if(diffDays <= 7) weekly += gStats[k];
-            if(diffDays <= 30) monthly += gStats[k];
+            let recordDate = new Date(k + 'T00:00:00+07:00');
+            
+            if(k === nowString) daily += count;
+            if(recordDate >= monday) weekly += count;
+            if(recordDate.getFullYear() === nowYear && recordDate.getMonth() === nowMonth) monthly += count;
         }
-        res.json({ success: true, daily, weekly, monthly });
-    } catch(e) { res.json({ success: false, daily: 0, weekly: 0, monthly: 0 }); }
+        res.json({ success: true, daily, weekly, monthly, total });
+    } catch(e) { res.json({ success: false, daily: 0, weekly: 0, monthly: 0, total: 0 }); }
 });
 
 app.get('/api/produk', (req, res) => { res.json(loadJSON(produkFile)); });
@@ -2788,7 +2853,8 @@ install_dependencies() {
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
     echo -ne "${C_MAG}>> Mengunduh modul utama...${C_RST}"
-    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser > /dev/null 2>&1 &
+    # DITAMBAH DEPENDENSI NODE-TELEGRAM-BOT-API
+    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser node-telegram-bot-api > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
@@ -2883,6 +2949,8 @@ menu_member() {
                     if (deletedCount > 0) crypt.save('database.json', db);
                     
                     members = Object.keys(db); // Update list setelah penghapusan
+                    members.sort((a, b) => (db[b].saldo || 0) - (db[a].saldo || 0)); // Urutkan Saldo Terbanyak
+                    
                     if(members.length === 0) console.log('\x1b[33mBelum ada member aktif (yang terdaftar email).\x1b[0m');
                     else {
                         members.forEach((m, i) => console.log((i + 1) + '. WA: ' + m + ' | Email: ' + db[m].email + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID')));
