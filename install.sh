@@ -548,7 +548,7 @@ EOF
         <div class="sidebar-overlay" id="sb-overlay" onclick="toggleSidebar()"></div>
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <div class="sidebar-avatar" id="sb-avatar">T</div>
+                <div class="sidebar-avatar" id="sb-avatar"></div>
                 <div class="sidebar-name" id="sb-name">Digital Tendo Store</div>
                 <div class="sidebar-phone" id="sb-phone">Belum Login</div>
             </div>
@@ -801,7 +801,7 @@ EOF
         <div id="profile-screen" class="hidden">
             <div class="prof-header">
                 <div class="prof-avatar-wrap">
-                    <div class="prof-avatar" id="p-avatar">T</div>
+                    <div class="prof-avatar" id="p-avatar"></div>
                 </div>
                 <h2 style="margin:0 0 5px 0; font-size: 20px;" id="p-username">Username</h2>
                 <div style="font-size:13px; font-weight: bold; color: rgba(255,255,255,0.8);" id="p-id">ID: TD-000000</div>
@@ -1429,12 +1429,12 @@ EOF
 
                     document.getElementById('top-trx-badge').innerText = (u.trx_count || 0) + ' Trx';
                     
-                    let firstLetter = (u.username || "T").charAt(0).toUpperCase();
-                    document.getElementById('sb-avatar').innerText = firstLetter;
+                    let shanksGif = 'https://media1.tenor.com/m/P4i-O7q61s8AAAAC/shanks-one-piece.gif';
+                    document.getElementById('sb-avatar').innerHTML = '<img src="' + shanksGif + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
                     document.getElementById('sb-name').innerText = u.username || "Member";
                     document.getElementById('sb-phone').innerText = currentUser;
 
-                    document.getElementById('p-avatar').innerText = firstLetter;
+                    document.getElementById('p-avatar').innerHTML = '<img src="' + shanksGif + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
                     document.getElementById('p-username').innerText = u.username || "Member";
                     document.getElementById('p-id').innerText = "ID: " + (u.id_pelanggan || "TD-000");
                     document.getElementById('p-email').innerText = u.email || '-';
@@ -2792,7 +2792,6 @@ async function getSaldo() {
 getSaldo();
 EOF
 }
-
 # ==========================================
 # 5. INSTALASI DEPENDENSI
 # ==========================================
@@ -2853,7 +2852,6 @@ install_dependencies() {
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
     echo -ne "${C_MAG}>> Mengunduh modul utama...${C_RST}"
-    # DITAMBAH DEPENDENSI NODE-TELEGRAM-BOT-API
     npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser node-telegram-bot-api > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
@@ -3085,38 +3083,23 @@ menu_sinkron() {
 }
 
 # ==========================================
-# 9. SUB-MENU TELEGRAM SETUP
+# 9. SUB-MENU AUTO-BACKUP
 # ==========================================
 menu_telegram() {
     while true; do
         clear
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "${C_YELLOW}${C_BOLD}             ⚙️ BOT TELEGRAM SETUP ⚙️              ${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             ⚙️ AUTO-BACKUP KE TELEGRAM ⚙️            ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Change BOT API & CHAT ID"
-        echo -e "  ${C_GREEN}[2]${C_RST} Set Notifikasi Backup Otomatis"
+        echo -e "  ${C_GREEN}[1]${C_RST} Aktifkan/Matikan Notifikasi Backup Otomatis"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
         echo -e "${C_CYAN}======================================================${C_RST}"
-        echo -ne "${C_YELLOW}Pilih menu [0-2]: ${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-1]: ${C_RST}"
         read telechoice
 
         case $telechoice in
             1)
-                echo -e "\n${C_MAG}--- PENGATURAN BOT TELEGRAM ---${C_RST}"
-                read -p "Masukkan Token Bot Telegram: " token
-                read -p "Masukkan Chat ID Anda: " chatid
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let config = crypt.load('config.json');
-                    config.teleToken = '$token';
-                    config.teleChatId = '$chatid';
-                    crypt.save('config.json', config);
-                    console.log('\x1b[32m\n✅ Data Telegram berhasil disimpan!\x1b[0m');
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            2)
                 echo -e "\n${C_MAG}--- SET AUTO BACKUP ---${C_RST}"
                 read -p "Aktifkan Auto-Backup ke Telegram? (y/n): " set_auto
                 if [ "$set_auto" == "y" ] || [ "$set_auto" == "Y" ]; then
@@ -3221,7 +3204,7 @@ menu_backup() {
 }
 
 # ==========================================
-# 11. SUB-MENU MANAJEMEN PRODUK MANUAL
+# 11. SUB-MENU MANAJEMEN PRODUK MANUAL (DIPERLENGKAP)
 # ==========================================
 menu_manajemen_produk_manual() {
     while true; do
@@ -3229,7 +3212,7 @@ menu_manajemen_produk_manual() {
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "${C_YELLOW}${C_BOLD}          📦 MANAJEMEN PRODUK MANUAL 📦             ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Manual (Dari SKU Digiflazz)"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Manual (Lengkap: Kategori, Brand, Tipe)"
         echo -e "  ${C_GREEN}[2]${C_RST} Lihat Daftar & Hapus Produk Manual"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
@@ -3275,10 +3258,12 @@ menu_manajemen_produk_manual() {
                     echo -e "${C_RED}❌ Kode SKU tidak boleh kosong.${C_RST}"; sleep 1; continue
                 fi
                 
-                read -p "Masukkan Nama Produk (Kosongkan jika ingin pakai nama asli Digiflazz): " custom_nama
-                read -p "Masukkan Deskripsi Produk (Kosongkan jika ingin pakai default 'Proses Otomatis'): " custom_desc
+                read -p "Masukkan Nama Produk (Kosongkan utk pakai nama Digiflazz): " custom_nama
+                read -p "Masukkan Brand/Operator (Kosongkan utk pakai brand Digiflazz): " custom_brand
+                read -p "Masukkan Tipe/Sub-Kategori (Kosongkan utk pakai tipe Digiflazz): " custom_tipe
+                read -p "Masukkan Deskripsi Produk (Kosongkan utk pakai 'Proses Otomatis'): " custom_desc
                 
-                echo -e "\n${C_MAG}⏳ Menghubungkan ke API Digiflazz untuk menarik data...${C_RST}"
+                echo -e "\n${C_MAG}⏳ Menghubungkan ke API Digiflazz untuk menarik data harga...${C_RST}"
                 node -e "
                     const axios = require('axios');
                     const crypto = require('crypto');
@@ -3321,8 +3306,13 @@ menu_manajemen_produk_manual() {
                             else keuntungan = m.t13;
 
                             let customNama = '$custom_nama'.trim();
+                            let customBrand = '$custom_brand'.trim();
+                            let customTipe = '$custom_tipe'.trim();
                             let customDesc = '$custom_desc'.trim();
+
                             let finalNama = customNama !== '' ? customNama : found.product_name;
+                            let finalBrand = customBrand !== '' ? customBrand : (found.brand || 'Lainnya');
+                            let finalTipe = customTipe !== '' ? customTipe : (found.type || 'Umum');
                             let finalDesc = customDesc !== '' ? customDesc : (found.desc || 'Proses Otomatis');
 
                             let dbProd = crypt.load('produk.json');
@@ -3330,15 +3320,15 @@ menu_manajemen_produk_manual() {
                                 nama: finalNama,
                                 harga: hargaModal + keuntungan,
                                 kategori: '$kat_nama',
-                                brand: found.brand || 'Lainnya',
-                                sub_kategori: found.type || 'Umum',
+                                brand: finalBrand,
+                                sub_kategori: finalTipe,
                                 deskripsi: finalDesc,
                                 status_produk: (found.buyer_product_status && found.seller_product_status),
                                 is_manual_cat: true
                             };
                             
                             crypt.save('produk.json', dbProd);
-                            console.log('\x1b[32m✅ BERHASIL: Produk \"' + finalNama + '\" (' + sku + ') telah ditambahkan secara manual ke Kategori $kat_nama!\x1b[0m');
+                            console.log('\x1b[32m✅ BERHASIL: Produk \"' + finalNama + '\" (' + sku + ') telah ditambahkan secara manual!\x1b[0m');
                         } catch(e) {
                             console.log('\x1b[31m❌ Gagal menghubungi server Digiflazz. Periksa koneksi internet.\x1b[0m');
                         }
@@ -3358,7 +3348,7 @@ menu_manajemen_produk_manual() {
                         process.exit(0);
                     }
                     manualItems.forEach((sku, i) => {
-                        console.log('[' + (i + 1) + '] SKU: ' + sku + ' | Nama: ' + dbProd[sku].nama + ' | Kat: ' + dbProd[sku].kategori);
+                        console.log('[' + (i + 1) + '] SKU: ' + sku + ' | Nama: ' + dbProd[sku].nama + ' | Kat: ' + dbProd[sku].kategori + ' | Brand: ' + dbProd[sku].brand);
                     });
                 "
                 echo -e ""
@@ -3391,6 +3381,70 @@ menu_manajemen_produk_manual() {
 }
 
 # ==========================================
+# 13. MENU INTEGRASI NOTIFIKASI
+# ==========================================
+menu_notifikasi() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}        📢 SETUP INTEGRASI NOTIFIKASI BROADCAST       ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Set API Telegram (Token & Chat ID Admin)"
+        echo -e "  ${C_GREEN}[2]${C_RST} Set Channel Telegram ID (Untuk Broadcast)"
+        echo -e "  ${C_GREEN}[3]${C_RST} Set Saluran WhatsApp JID (Untuk Broadcast)"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-3]: ${C_RST}"
+        read notif_choice
+
+        case $notif_choice in
+            1)
+                echo -e "\n${C_MAG}--- SET API TELEGRAM ADMIN ---${C_RST}"
+                read -p "Masukkan Token Bot Telegram: " token
+                read -p "Masukkan Chat ID Admin Anda: " chatid
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let config = crypt.load('config.json');
+                    if('$token' !== '') config.teleToken = '$token'.trim();
+                    if('$chatid' !== '') config.teleChatId = '$chatid'.trim();
+                    crypt.save('config.json', config);
+                    console.log('\x1b[32m\n✅ Data Telegram Admin berhasil disimpan!\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo -e "\n${C_MAG}--- SET CHANNEL TELEGRAM ---${C_RST}"
+                echo -e "Pastikan Bot Telegram sudah dimasukkan sebagai Admin di Channel."
+                read -p "Masukkan ID Channel (Contoh: -100123456789): " chanid
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let config = crypt.load('config.json');
+                    if('$chanid' !== '') config.teleChannelId = '$chanid'.trim();
+                    crypt.save('config.json', config);
+                    console.log('\x1b[32m\n✅ ID Channel Telegram berhasil disimpan!\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            3)
+                echo -e "\n${C_MAG}--- SET SALURAN WHATSAPP ---${C_RST}"
+                read -p "Masukkan JID Saluran WA (Contoh: 120363xxxx@newsletter): " wajid
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let config = crypt.load('config.json');
+                    if('$wajid' !== '') config.waChannelJid = '$wajid'.trim();
+                    crypt.save('config.json', config);
+                    console.log('\x1b[32m\n✅ JID Saluran WA berhasil disimpan!\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
+# ==========================================
 # 12. MENU UTAMA (PANEL KONTROL 16 OPSI)
 # ==========================================
 while true; do
@@ -3403,7 +3457,7 @@ while true; do
     fi
 
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_YELLOW}${C_BOLD}             🤖 PANEL ADMIN TENDO STORE 🤖            ${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}             🤖 PANEL ADMIN FIKY STORE 🤖             ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     echo -e "${C_GREEN}${C_BOLD} 💰 Sisa Saldo Digiflazz : ${C_YELLOW}${SALDO_DIGI}${C_RST}"
     echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
@@ -3418,11 +3472,11 @@ while true; do
     echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo & Member"
     echo -e "  ${C_GREEN}[7]${C_RST}  💰 Manajemen Keuntungan Harga (13 Tingkat)"
     echo -e "  ${C_GREEN}[8]${C_RST}  🔄 Sinkronisasi Produk Digiflazz (Perbarui Katalog)"
-    echo -e "  ${C_GREEN}[9]${C_RST}  ⚙️ Pengaturan Bot Telegram (Auto-Backup)"
+    echo -e "  ${C_GREEN}[9]${C_RST}  ⚙️ Pengaturan Auto-Backup Telegram"
     echo -e "  ${C_GREEN}[10]${C_RST} 💾 Backup & Restore Database"
     echo -e "  ${C_GREEN}[11]${C_RST} 🔌 Ganti API Digiflazz"
     echo -e "  ${C_GREEN}[12]${C_RST} 🔄 Ganti Akun Bot WA (Reset Sesi)"
-    echo -e "  ${C_GREEN}[13]${C_RST} 🌐 Kirim Pemberitahuan ke Website Aplikasi"
+    echo -e "  ${C_GREEN}[13]${C_RST} 📢 Setup Integrasi Notifikasi (Tele/WA/Web)"
     echo -e "  ${C_GREEN}[14]${C_RST} 💳 Setup GoPay Merchant API (BHM Biz)"
     echo -e "  ${C_GREEN}[15]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
     echo -e "  ${C_GREEN}[16]${C_RST} 📦 Manajemen Produk Manual (Tambah & Hapus)"
@@ -3443,7 +3497,7 @@ while true; do
                         const crypt = require('./tendo_crypt.js');
                         let config = crypt.load('config.json');
                         config.botNumber = '$nomor_bot';
-                        config.botName = config.botName || 'Tendo Store';
+                        config.botName = config.botName || 'Fiky Store';
                         crypt.save('config.json', config);
                     "
                 fi
@@ -3455,19 +3509,19 @@ while true; do
             read -p "Tekan Enter untuk kembali ke panel utama..."
             ;;
         3) 
-            pm2 delete tendo-bot >/dev/null 2>&1
+            pm2 delete fiky-bot >/dev/null 2>&1
             export IP_ADDRESS=$(curl -s ifconfig.me)
-            pm2 start index.js --name "tendo-bot" >/dev/null 2>&1
+            pm2 start index.js --name "fiky-bot" >/dev/null 2>&1
             pm2 save >/dev/null 2>&1
             pm2 startup >/dev/null 2>&1
             echo -e "\n${C_GREEN}✅ Sistem berjalan di latar belakang!${C_RST}"
             sleep 2 ;;
         4) 
-            pm2 stop tendo-bot >/dev/null 2>&1
-            pm2 delete tendo-bot >/dev/null 2>&1
+            pm2 stop fiky-bot >/dev/null 2>&1
+            pm2 delete fiky-bot >/dev/null 2>&1
             echo -e "\n${C_GREEN}✅ Bot dihentikan dan dibersihkan dari latar belakang.${C_RST}"
             sleep 2 ;;
-        5) pm2 logs tendo-bot ;;
+        5) pm2 logs fiky-bot ;;
         6) menu_member ;;
         7) menu_keuntungan ;;
         8) menu_sinkron ;;
@@ -3491,27 +3545,13 @@ while true; do
             echo -e "\n${C_RED}⚠️ Reset Sesi akan mengeluarkan bot dari WhatsApp saat ini.${C_RST}"
             read -p "Yakin ingin mereset sesi? (y/n): " reset_sesi
             if [ "$reset_sesi" == "y" ]; then
-                pm2 stop tendo-bot >/dev/null 2>&1
+                pm2 stop fiky-bot >/dev/null 2>&1
                 rm -rf sesi_bot
                 echo -e "${C_GREEN}✅ Sesi berhasil dihapus. Silakan jalankan bot kembali untuk menautkan nomor baru.${C_RST}"
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
-        13)
-            echo -e "\n${C_MAG}--- KIRIM PEMBERITAHUAN APLIKASI WEB ---${C_RST}"
-            read -p "Masukkan teks pemberitahuan: " notif_msg
-            read -p "Nama file gambar (Opsional, biarkan kosong jika tidak ada): " notif_img
-            node -e "
-                const crypt = require('./tendo_crypt.js');
-                let notifs = crypt.load('web_notif.json'); if(!Array.isArray(notifs)) notifs = [];
-                let today = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'long', year:'numeric' });
-                notifs.unshift({ date: today, text: '$notif_msg', image: '$notif_img' });
-                if(notifs.length > 10) notifs.pop();
-                crypt.save('web_notif.json', notifs);
-                console.log('\x1b[32m✅ Pemberitahuan Web Berhasil Ditambahkan!\x1b[0m');
-            "
-            read -p "Tekan Enter untuk kembali..."
-            ;;
+        13) menu_notifikasi ;;
         14)
             echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT (BHM BIZ API) ---${C_RST}"
             echo -e "${C_YELLOW}Fitur ini akan menghubungkan merchant GoPay Anda dan mengatur QRIS Dinamis!${C_RST}"
@@ -3555,7 +3595,7 @@ while true; do
             ;;
         15)
             echo -e "\n${C_MAG}--- SETUP DOMAIN & HTTPS ---${C_RST}"
-            read -p "Masukkan Nama Domain Anda (contoh: tendostore.com): " domain_name
+            read -p "Masukkan Nama Domain Anda (contoh: fikystore.com): " domain_name
             read -p "Masukkan Email Aktif (untuk SSL Let's Encrypt): " ssl_email
             if [ ! -z "$domain_name" ] && [ ! -z "$ssl_email" ]; then
                 echo -e "${C_CYAN}>> Menginstal Nginx dan Certbot...${C_RST}"
