@@ -2003,13 +2003,13 @@ const saveJSON = (file, data) => crypt.save(file, data);
 const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
 
 // ==============================================================
-// FITUR: SAMARKAN DATA PRIBADI (MASKING)
+// FITUR: SAMARKAN DATA TUJUAN SAJA (4 ANGKA AWAL)
 // ==============================================================
-function maskString(str) {
+function maskStringTarget(str) {
     if (!str) return '-';
     let s = str.toString().trim();
-    if (s.length < 6) return s.substring(0, 2) + '***';
-    return s.substring(0, 4) + '***' + s.substring(s.length - 3);
+    if (s.length <= 4) return s + '***';
+    return s.substring(0, 4) + '***';
 }
 
 // ==============================================================
@@ -2042,23 +2042,27 @@ function sendTelegramAdmin(message) {
 }
 
 // ==============================================================
-// FITUR: NOTIFIKASI PEMBELIAN SUKSES GLOBAL (TELEGRAM CHANNEL)
+// FITUR: BROADCAST TRANSAKSI SUKSES (TELEGRAM CHANNEL & WA)
 // ==============================================================
-function sendTelegramChannelSuccess(productName, rawUser, rawTarget) {
+function sendBroadcastSuccess(productName, rawUser, rawTarget) {
     try {
         let cfg = loadJSON(configFile);
+        let maskTarget = maskStringTarget(rawTarget);
+        let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+        let msg = `✅ *PEMBELIAN BERHASIL*\n\n👤 Pelanggan: ${rawUser}\n📦 Layanan: ${productName}\n🎯 Tujuan: ${maskTarget}\n🕒 Waktu: ${timeStr} WIB\n\n_🌐 Transaksi diproses otomatis oleh sistem._`;
+
+        // Kirim ke Telegram Channel
         if (cfg.teleTokenInfo && cfg.teleChannelId) {
-            let maskUser = maskString(rawUser);
-            let maskTarget = maskString(rawTarget);
-            let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-            
-            let msg = `✅ *PEMBELIAN BERHASIL*\n\n👤 Pelanggan: ${maskUser}\n📦 Layanan: ${productName}\n🎯 Tujuan: ${maskTarget}\n🕒 Waktu: ${timeStr} WIB\n\n_🌐 Transaksi diproses otomatis oleh sistem._`;
-            
             axios.post(`https://api.telegram.org/bot${cfg.teleTokenInfo}/sendMessage`, {
                 chat_id: cfg.teleChannelId,
                 text: msg,
                 parse_mode: 'Markdown'
             }).catch(e => {});
+        }
+
+        // Kirim ke Saluran / Grup WhatsApp
+        if (globalSock && cfg.waBroadcastId) {
+            globalSock.sendMessage(cfg.waBroadcastId, { text: msg }).catch(e => {});
         }
     } catch(e) {}
 }
@@ -2496,19 +2500,17 @@ app.post('/api/order', async (req, res) => {
 
             let globalTrx = loadJSON(globalTrxFile);
             let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-            globalTrx.unshift({ time: timeStr, product: p.nama, user: maskString(db[targetKey].username || targetKey), target: maskString(tujuan) });
+            globalTrx.unshift({ time: timeStr, product: p.nama, user: (db[targetKey].username || targetKey), target: maskStringTarget(tujuan) });
             if(globalTrx.length > 30) globalTrx.pop();
             saveJSON(globalTrxFile, globalTrx);
 
-            sendTelegramChannelSuccess(p.nama, db[targetKey].username || targetKey, tujuan);
+            sendBroadcastSuccess(p.nama, (db[targetKey].username || targetKey), tujuan);
         }
 
         res.json({success: true, saldo: db[targetKey].saldo});
 
         let teleMsg = `🔔 *PESANAN BARU MASUK*\n\n👤 Akun: ${db[targetKey].username || targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Harga: Rp ${hargaFix.toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
-
-        // WA NOTIF SUDAH DIHAPUS
 
     } catch (error) { if (!res.headersSent) return res.json({success: false, message: 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)'}); }
 });
@@ -2525,19 +2527,24 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         let refId = 'WEB-' + Date.now();
         let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
 
+        // POTONG SALDO SEBELUM TEMBAK
+        db[phone].saldo = parseInt(db[phone].saldo) - hargaFix; 
+
         const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
             username: username, buyer_sku_code: sku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
         });
         
         const statusOrder = response.data.data.status; 
         if (statusOrder === 'Gagal') {
-            sendTelegramAdmin(`⚠️ *INFO ORDER QRIS: GAGAL DIGIFLAZZ*\n\nRef: ${refIdAsal}\nStatus Digiflazz Gagal. Saldo utuh di akun pengguna.`);
+            // REFUND SALDO KARENA GAGAL
+            db[phone].saldo = parseInt(db[phone].saldo) + hargaFix;
+            saveJSON(dbFile, db);
+            
+            sendTelegramAdmin(`⚠️ *INFO ORDER QRIS: GAGAL DIGIFLAZZ*\n\nRef: ${refIdAsal}\nStatus Digiflazz Gagal. Saldo telah otomatis di-refund ke akun pengguna.`);
             return;
         }
         
-        db[phone].saldo = parseInt(db[phone].saldo) - hargaFix; 
         db[phone].trx_count = (db[phone].trx_count || 0) + 1;
-        
         db[phone].history = db[phone].history || [];
         db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId });
         saveJSON(dbFile, db);
@@ -2550,17 +2557,15 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         if (statusOrder === 'Sukses') {
             let globalTrx = loadJSON(globalTrxFile);
             let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-            globalTrx.unshift({ time: timeStr, product: nama_produk, user: maskString(db[phone].username || phone), target: maskString(tujuan) });
+            globalTrx.unshift({ time: timeStr, product: nama_produk, user: (db[phone].username || phone), target: maskStringTarget(tujuan) });
             if(globalTrx.length > 30) globalTrx.pop();
             saveJSON(globalTrxFile, globalTrx);
 
-            sendTelegramChannelSuccess(nama_produk, db[phone].username || phone, tujuan);
+            sendBroadcastSuccess(nama_produk, (db[phone].username || phone), tujuan);
         }
 
         let teleMsg = `🚀 *AUTO ORDER QRIS BERHASIL DITEMBAK*\n\n👤 Akun: ${db[phone].username || phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: *${statusOrder}*`;
         sendTelegramAdmin(teleMsg);
-        
-        // WA NOTIF SUDAH DIHAPUS
 
     } catch(e) {}
 }
@@ -2636,7 +2641,6 @@ async function startBot() {
                                 let teleMsg = `✅ *TOPUP QRIS SUKSES MASUK*\n\n👤 Akun: ${db[req.phone].username || req.phone}\n💰 Saldo Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}`;
                                 sendTelegramAdmin(teleMsg);
                             }
-                            // WA NOTIF SUDAH DIHAPUS
                         }
                     }
                 }
@@ -2671,11 +2675,11 @@ async function startBot() {
                         
                         let globalTrx = loadJSON(globalTrxFile);
                         let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-                        globalTrx.unshift({ time: timeStr, product: trx.nama, user: maskString(db[phoneKey]?.username || phoneKey), target: maskString(trx.tujuan) });
+                        globalTrx.unshift({ time: timeStr, product: trx.nama, user: (db[phoneKey]?.username || phoneKey), target: maskStringTarget(trx.tujuan) });
                         if(globalTrx.length > 30) globalTrx.pop();
                         saveJSON(globalTrxFile, globalTrx);
 
-                        sendTelegramChannelSuccess(trx.nama, db[phoneKey]?.username || phoneKey, trx.tujuan);
+                        sendBroadcastSuccess(trx.nama, (db[phoneKey]?.username || phoneKey), trx.tujuan);
 
                         let teleSuccess = `✅ *PESANAN SUKSES*\n\n👤 Akun: ${db[phoneKey]?.username || phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n🔑 SN: ${resData.sn || '-'}`;
                         sendTelegramAdmin(teleSuccess);
@@ -2694,7 +2698,6 @@ async function startBot() {
                         sendTelegramAdmin(teleFail);
                     }
                     delete trxs[ref]; saveJSON(trxFile, trxs);
-                    // WA NOTIF SUDAH DIHAPUS
                 } else if (Date.now() - trx.tanggal > 24 * 60 * 60 * 1000) { delete trxs[ref]; saveJSON(trxFile, trxs); }
             } catch (err) {}
             await new Promise(r => setTimeout(r, 2000)); 
@@ -3295,8 +3298,7 @@ menu_manajemen_produk_manual() {
                 echo -e "  ${C_GREEN}[7]${C_RST} Paket SMS & Telpon"
                 echo -e "  ${C_GREEN}[8]${C_RST} Masa Aktif"
                 echo -e "  ${C_GREEN}[9]${C_RST} Aktivasi Perdana"
-                echo -e "  ${C_GREEN}[10]${C_RST} Custom (Buat Kategori Sendiri)"
-                echo -ne "\n${C_YELLOW}Pilih kategori [1-10]: ${C_RST}"
+                echo -ne "\n${C_YELLOW}Pilih kategori [1-9]: ${C_RST}"
                 read kat_idx
                 
                 kat_nama=""
@@ -3310,13 +3312,6 @@ menu_manajemen_produk_manual() {
                     7) kat_nama="Paket SMS & Telpon" ;;
                     8) kat_nama="Masa Aktif" ;;
                     9) kat_nama="Aktivasi Perdana" ;;
-                    10) 
-                        read -p "Masukkan Nama Kategori Custom: " kat_custom
-                        if [ -z "$kat_custom" ]; then
-                            echo -e "${C_RED}❌ Kategori tidak boleh kosong.${C_RST}"; sleep 1; continue
-                        fi
-                        kat_nama="$kat_custom"
-                        ;;
                     *) echo -e "${C_RED}❌ Pilihan kategori tidak valid.${C_RST}"; sleep 1; continue ;;
                 esac
                 
@@ -3458,10 +3453,12 @@ menu_notifikasi() {
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "  ${C_GREEN}[1]${C_RST} Set API Telegram (Token Admin & Token Info/Web)"
         echo -e "  ${C_GREEN}[2]${C_RST} Set Channel Telegram ID (Untuk Info & Transaksi Global)"
+        echo -e "  ${C_GREEN}[3]${C_RST} Set ID Grup / Saluran WA (Untuk Broadcast Transaksi)"
+        echo -e "  ${C_GREEN}[4]${C_RST} Hapus / Bersihkan Semua Pemberitahuan di Website"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
         echo -e "${C_CYAN}======================================================${C_RST}"
-        echo -ne "${C_YELLOW}Pilih menu [0-2]: ${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-4]: ${C_RST}"
         read notif_choice
 
         case $notif_choice in
@@ -3492,6 +3489,34 @@ menu_notifikasi() {
                     crypt.save('config.json', config);
                     console.log('\x1b[32m\n✅ ID Channel Telegram berhasil disimpan!\x1b[0m');
                 "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            3)
+                echo -e "\n${C_MAG}--- SET ID GRUP / SALURAN WHATSAPP ---${C_RST}"
+                echo -e "Masukkan ID Grup (contoh: 12345678@g.us) atau Saluran (contoh: 120363xxx@newsletter)."
+                echo -e "Bot WA Anda akan mengirim broadcast notifikasi beli sukses kesini."
+                read -p "Masukkan ID WA: " waid
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let config = crypt.load('config.json');
+                    if('$waid' !== '') config.waBroadcastId = '$waid'.trim();
+                    crypt.save('config.json', config);
+                    console.log('\x1b[32m\n✅ ID WA Broadcast berhasil disimpan!\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            4)
+                echo -e "\n${C_MAG}--- HAPUS PEMBERITAHUAN WEBSITE ---${C_RST}"
+                read -p "Yakin ingin MENGHAPUS semua pemberitahuan di Web? (y/n): " hapus_notif
+                if [ "$hapus_notif" == "y" ] || [ "$hapus_notif" == "Y" ]; then
+                    node -e "
+                        const crypt = require('./tendo_crypt.js');
+                        crypt.save('web_notif.json', []);
+                        console.log('\x1b[32m\n✅ Semua pemberitahuan website berhasil dibersihkan!\x1b[0m');
+                    "
+                else
+                    echo -e "${C_YELLOW}Penghapusan dibatalkan.${C_RST}"
+                fi
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             0) break ;;
