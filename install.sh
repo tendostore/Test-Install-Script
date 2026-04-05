@@ -373,7 +373,7 @@ EOF
         
         .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;}
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
+        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: margin-top: 10px;}
         .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
 
         .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
@@ -2032,8 +2032,9 @@ function sendTelegramAdmin(message) {
     try {
         let cfg = loadJSON(configFile);
         if (cfg.teleToken && cfg.teleChatId) {
+            let chatIdStr = cfg.teleChatId.toString();
             axios.post(`https://api.telegram.org/bot${cfg.teleToken}/sendMessage`, {
-                chat_id: cfg.teleChatId,
+                chat_id: chatIdStr,
                 text: message,
                 parse_mode: 'Markdown'
             }).catch(e => {});
@@ -2053,11 +2054,12 @@ function sendBroadcastSuccess(productName, rawUser, rawTarget) {
 
         // Kirim ke Telegram Channel
         if (cfg.teleTokenInfo && cfg.teleChannelId) {
+            let channelIdStr = cfg.teleChannelId.toString();
             axios.post(`https://api.telegram.org/bot${cfg.teleTokenInfo}/sendMessage`, {
-                chat_id: cfg.teleChannelId,
+                chat_id: channelIdStr,
                 text: msg,
                 parse_mode: 'Markdown'
-            }).catch(e => {});
+            }).catch(e => { console.error("Gagal kirim Telegram Channel:", e.message); });
         }
 
         // Kirim ke Saluran / Grup WhatsApp
@@ -2158,8 +2160,9 @@ if (configAwal.teleTokenInfo) {
                 saveJSON(notifFile, notifs);
 
                 if (cfg.teleChannelId) {
-                    if (imageFilename) teleBotInfo.sendPhoto(cfg.teleChannelId, './public/info_images/' + imageFilename, {caption: text}).catch(e=>{});
-                    else teleBotInfo.sendMessage(cfg.teleChannelId, text).catch(e=>{});
+                    let chanIdStr = cfg.teleChannelId.toString();
+                    if (imageFilename) teleBotInfo.sendPhoto(chanIdStr, './public/info_images/' + imageFilename, {caption: text}).catch(e=>{});
+                    else teleBotInfo.sendMessage(chanIdStr, text).catch(e=>{});
                 }
                 teleBotInfo.sendMessage(cfg.teleChatId, '✅ Info berhasil disebarkan ke Website & Telegram Channel!').catch(e=>{});
             }
@@ -2501,7 +2504,7 @@ app.post('/api/order', async (req, res) => {
             let globalTrx = loadJSON(globalTrxFile);
             let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
             globalTrx.unshift({ time: timeStr, product: p.nama, user: (db[targetKey].username || targetKey), target: maskStringTarget(tujuan) });
-            if(globalTrx.length > 30) globalTrx.pop();
+            if(globalTrx.length > 100) globalTrx.pop();
             saveJSON(globalTrxFile, globalTrx);
 
             sendBroadcastSuccess(p.nama, (db[targetKey].username || targetKey), tujuan);
@@ -2558,7 +2561,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
             let globalTrx = loadJSON(globalTrxFile);
             let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
             globalTrx.unshift({ time: timeStr, product: nama_produk, user: (db[phone].username || phone), target: maskStringTarget(tujuan) });
-            if(globalTrx.length > 30) globalTrx.pop();
+            if(globalTrx.length > 100) globalTrx.pop();
             saveJSON(globalTrxFile, globalTrx);
 
             sendBroadcastSuccess(nama_produk, (db[phone].username || phone), tujuan);
@@ -2676,7 +2679,7 @@ async function startBot() {
                         let globalTrx = loadJSON(globalTrxFile);
                         let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
                         globalTrx.unshift({ time: timeStr, product: trx.nama, user: (db[phoneKey]?.username || phoneKey), target: maskStringTarget(trx.tujuan) });
-                        if(globalTrx.length > 30) globalTrx.pop();
+                        if(globalTrx.length > 100) globalTrx.pop();
                         saveJSON(globalTrxFile, globalTrx);
 
                         sendBroadcastSuccess(trx.nama, (db[phoneKey]?.username || phoneKey), trx.tujuan);
@@ -3043,7 +3046,7 @@ menu_member() {
                             let targetSaldo = db[target].saldo || 0;
                             let topups = history.filter(h => h.type === 'Topup' || h.type === 'Order QRIS');
                             console.log('\n\x1b[36m=== RIWAYAT TOPUP: ' + target + ' ===\x1b[0m');
-                            console.log('\x1b[32m💰 Saldo Saat Ini: Rp ' + targetSaldo.toLocaleString('id-ID') + '\x1b[0m');
+                            console.log('\x1b[32m💰 Saldo Saat Saat Ini: Rp ' + targetSaldo.toLocaleString('id-ID') + '\x1b[0m');
                             if(topups.length === 0) console.log('\x1b[33mBelum ada riwayat topup di akun ini.\x1b[0m');
                             else {
                                 topups.forEach(h => console.log('- \x1b[33m' + h.tanggal + '\x1b[0m | ' + h.nama + ' | \x1b[32mRp ' + h.amount.toLocaleString('id-ID') + '\x1b[0m | Status: ' + h.status));
@@ -3397,6 +3400,10 @@ menu_manajemen_produk_manual() {
                     }
                     addManual();
                 "
+                echo -e "\n${C_MAG}⏳ Melakukan sinkronisasi otomatis dalam hitungan detik...${C_RST}"
+                curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
+                echo -e "${C_GREEN}✅ Sinkronisasi otomatis ke Website selesai!${C_RST}"
+                
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
@@ -3431,6 +3438,8 @@ menu_manajemen_produk_manual() {
                             console.log('\x1b[31m❌ Nomor urut tidak ditemukan.\x1b[0m');
                         }
                     "
+                    echo -e "\n${C_MAG}⏳ Memperbarui katalog website...${C_RST}"
+                    curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
                 else
                     echo -e "${C_YELLOW}Dibatalkan.${C_RST}"
                 fi
