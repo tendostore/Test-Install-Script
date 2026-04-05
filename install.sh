@@ -380,11 +380,11 @@ EOF
         
         .prof-avatar-wrap {
             width: 86px; height: 86px;
-            background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+            background: transparent;
             border-radius: 50%;
-            padding: 4px;
+            padding: 0;
             margin: 0 auto 15px auto;
-            box-shadow: 0 10px 25px rgba(14, 165, 233, 0.4);
+            box-shadow: none;
         }
         .prof-avatar {
             width: 100%; height: 100%;
@@ -522,7 +522,6 @@ EOF
         </div>
 
         <div class="banner-container hidden" id="banner-container-wrap">
-            <div id="live-clock" style="text-align:center; font-size:11.5px; font-weight:800; color:var(--text-main); margin-bottom: 12px; letter-spacing: 0.5px;">Memuat waktu...</div>
             <div class="saldo-card-modern">
                 <div class="sc-left">
                     <div class="sc-icon">
@@ -640,6 +639,8 @@ EOF
             <div id="banner-slider-container" class="banner-slider-container hidden">
                 <div id="banner-slider" class="banner-slider"></div>
             </div>
+            
+            <div id="live-clock" style="text-align:center; font-size:11.5px; font-weight:800; color:var(--text-main); margin: 25px 20px 0; letter-spacing: 0.5px;">Memuat waktu...</div>
 
             <div class="grid-title">Layanan Produk</div>
             <div class="grid-container">
@@ -1429,7 +1430,7 @@ EOF
 
                     document.getElementById('top-trx-badge').innerText = (u.trx_count || 0) + ' Trx';
                     
-                    let shanksGif = 'https://media1.tenor.com/m/P4i-O7q61s8AAAAC/shanks-one-piece.gif';
+                    let shanksGif = 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
                     document.getElementById('sb-avatar').innerHTML = '<img src="' + shanksGif + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
                     document.getElementById('sb-name').innerText = u.username || "Member";
                     document.getElementById('sb-phone').innerText = currentUser;
@@ -1970,7 +1971,7 @@ function cekPemeliharaan() {
 }
 
 // ==============================================================
-// FITUR: NOTIFIKASI TELEGRAM ADMIN
+// FITUR: NOTIFIKASI TELEGRAM ADMIN (Bot Notifikasi Utama)
 // ==============================================================
 function sendTelegramAdmin(message) {
     try {
@@ -2031,6 +2032,7 @@ configAwal.gopayToken = configAwal.gopayToken || "";
 configAwal.gopayMerchantId = configAwal.gopayMerchantId || "";
 configAwal.qrisUrl = configAwal.qrisUrl || "https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg";
 configAwal.qrisText = configAwal.qrisText || "";
+configAwal.teleTokenInfo = configAwal.teleTokenInfo || ""; // Bot khusus untuk update info website
 configAwal.margin = configAwal.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
 saveJSON(configFile, configAwal);
 
@@ -2040,12 +2042,12 @@ let globalSock = null;
 let tempOtpDB = {}; 
 let otpCooldown = {}; 
 
-// TELEGRAM BOT POLLING UNTUK BROADCAST INFO
-let teleBot = null;
-if (configAwal.teleToken) {
+// TELEGRAM BOT POLLING UNTUK BROADCAST INFO (Dipisah dari Notifikasi Admin Utama)
+let teleBotInfo = null;
+if (configAwal.teleTokenInfo) {
     try {
-        teleBot = new TelegramBot(configAwal.teleToken, {polling: true});
-        teleBot.on('message', async (msg) => {
+        teleBotInfo = new TelegramBot(configAwal.teleTokenInfo, {polling: true});
+        teleBotInfo.on('message', async (msg) => {
             let cfg = loadJSON(configFile);
             if (!cfg.teleChatId || msg.chat.id.toString() !== cfg.teleChatId.toString()) return;
             
@@ -2057,15 +2059,15 @@ if (configAwal.teleToken) {
                 if (msg.photo) {
                     try {
                         let fileId = msg.photo[msg.photo.length - 1].file_id;
-                        let file = await teleBot.getFile(fileId);
-                        let url = `https://api.telegram.org/file/bot${cfg.teleToken}/${file.file_path}`;
+                        let file = await teleBotInfo.getFile(fileId);
+                        let url = `https://api.telegram.org/file/bot${cfg.teleTokenInfo}/${file.file_path}`;
                         let ext = file.file_path.split('.').pop() || 'jpg';
                         imageFilename = 'info_' + Date.now() + '.' + ext;
                         let res = await axios.get(url, { responseType: 'stream' });
                         const writer = fs.createWriteStream('./public/info_images/' + imageFilename);
                         res.data.pipe(writer);
                         await new Promise((resolve) => writer.on('finish', resolve));
-                    } catch(e) { console.log('Gagal download gambar tele', e); }
+                    } catch(e) { console.log('Gagal download gambar tele info', e); }
                 }
                 
                 let notifs = loadJSON(notifFile);
@@ -2075,8 +2077,8 @@ if (configAwal.teleToken) {
                 saveJSON(notifFile, notifs);
 
                 if (cfg.teleChannelId) {
-                    if (imageFilename) teleBot.sendPhoto(cfg.teleChannelId, './public/info_images/' + imageFilename, {caption: text}).catch(e=>{});
-                    else teleBot.sendMessage(cfg.teleChannelId, text).catch(e=>{});
+                    if (imageFilename) teleBotInfo.sendPhoto(cfg.teleChannelId, './public/info_images/' + imageFilename, {caption: text}).catch(e=>{});
+                    else teleBotInfo.sendMessage(cfg.teleChannelId, text).catch(e=>{});
                 }
                 
                 if (cfg.waChannelJid && globalSock) {
@@ -2084,10 +2086,10 @@ if (configAwal.teleToken) {
                     else globalSock.sendMessage(cfg.waChannelJid, { text: text }).catch(e=>{});
                 }
                 
-                teleBot.sendMessage(cfg.teleChatId, '✅ Info berhasil disebarkan ke Website, Channel Telegram, dan Saluran WA!').catch(e=>{});
+                teleBotInfo.sendMessage(cfg.teleChatId, '✅ Info berhasil disebarkan ke Website, Channel Telegram, dan Saluran WA!').catch(e=>{});
             }
         });
-    } catch(e) { console.log("Gagal inisialisasi Telegram Bot Polling"); }
+    } catch(e) { console.log("Gagal inisialisasi Telegram Bot Info Polling"); }
 }
 
 function normalizePhone(phoneStr) {
@@ -2766,7 +2768,6 @@ if (require.main === module) {
 }
 EOF
 }
-
 # ==========================================
 # 4.5. SCRIPT CEK SALDO DIGIFLAZZ (UNTUK TERMINAL)
 # ==========================================
@@ -2792,6 +2793,7 @@ async function getSaldo() {
 getSaldo();
 EOF
 }
+
 # ==========================================
 # 5. INSTALASI DEPENDENSI
 # ==========================================
@@ -3236,7 +3238,8 @@ menu_manajemen_produk_manual() {
                 echo -e "  ${C_GREEN}[7]${C_RST} Paket SMS & Telpon"
                 echo -e "  ${C_GREEN}[8]${C_RST} Masa Aktif"
                 echo -e "  ${C_GREEN}[9]${C_RST} Aktivasi Perdana"
-                echo -ne "\n${C_YELLOW}Pilih kategori [1-9]: ${C_RST}"
+                echo -e "  ${C_GREEN}[10]${C_RST} Custom (Buat Kategori Sendiri)"
+                echo -ne "\n${C_YELLOW}Pilih kategori [1-10]: ${C_RST}"
                 read kat_idx
                 
                 kat_nama=""
@@ -3250,6 +3253,13 @@ menu_manajemen_produk_manual() {
                     7) kat_nama="Paket SMS & Telpon" ;;
                     8) kat_nama="Masa Aktif" ;;
                     9) kat_nama="Aktivasi Perdana" ;;
+                    10) 
+                        read -p "Masukkan Nama Kategori Custom: " kat_custom
+                        if [ -z "$kat_custom" ]; then
+                            echo -e "${C_RED}❌ Kategori tidak boleh kosong.${C_RST}"; sleep 1; continue
+                        fi
+                        kat_nama="$kat_custom"
+                        ;;
                     *) echo -e "${C_RED}❌ Pilihan kategori tidak valid.${C_RST}"; sleep 1; continue ;;
                 esac
                 
@@ -3389,7 +3399,7 @@ menu_notifikasi() {
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "${C_YELLOW}${C_BOLD}        📢 SETUP INTEGRASI NOTIFIKASI BROADCAST       ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Set API Telegram (Token & Chat ID Admin)"
+        echo -e "  ${C_GREEN}[1]${C_RST} Set API Telegram (Token Admin & Token Info/Web)"
         echo -e "  ${C_GREEN}[2]${C_RST} Set Channel Telegram ID (Untuk Broadcast)"
         echo -e "  ${C_GREEN}[3]${C_RST} Set Saluran WhatsApp JID (Untuk Broadcast)"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
@@ -3400,22 +3410,24 @@ menu_notifikasi() {
 
         case $notif_choice in
             1)
-                echo -e "\n${C_MAG}--- SET API TELEGRAM ADMIN ---${C_RST}"
-                read -p "Masukkan Token Bot Telegram: " token
+                echo -e "\n${C_MAG}--- SET API TELEGRAM ADMIN & INFO ---${C_RST}"
+                read -p "Masukkan Token Bot Telegram (Untuk Notif Transaksi Admin): " token
+                read -p "Masukkan Token Bot Telegram (Untuk Update Info Website): " token_info
                 read -p "Masukkan Chat ID Admin Anda: " chatid
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let config = crypt.load('config.json');
                     if('$token' !== '') config.teleToken = '$token'.trim();
+                    if('$token_info' !== '') config.teleTokenInfo = '$token_info'.trim();
                     if('$chatid' !== '') config.teleChatId = '$chatid'.trim();
                     crypt.save('config.json', config);
-                    console.log('\x1b[32m\n✅ Data Telegram Admin berhasil disimpan!\x1b[0m');
+                    console.log('\x1b[32m\n✅ Data Telegram Admin & Info berhasil disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
                 echo -e "\n${C_MAG}--- SET CHANNEL TELEGRAM ---${C_RST}"
-                echo -e "Pastikan Bot Telegram sudah dimasukkan sebagai Admin di Channel."
+                echo -e "Pastikan Bot Telegram INFO sudah dimasukkan sebagai Admin di Channel."
                 read -p "Masukkan ID Channel (Contoh: -100123456789): " chanid
                 node -e "
                     const crypt = require('./tendo_crypt.js');
