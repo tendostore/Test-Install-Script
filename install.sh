@@ -1965,7 +1965,6 @@ EOF
 generate_bot_script() {
     cat << 'EOF' > index.js
 process.env.TZ = 'Asia/Jakarta';
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const fs = require('fs');
 const pino = require('pino');
 const express = require('express');
@@ -2056,7 +2055,6 @@ function sendBroadcastSuccess(productName, rawUser, rawTarget) {
 
         if (cfg.teleTokenInfo && cfg.teleChannelId) {
             let channelIdStr = cfg.teleChannelId.toString();
-            // Perbaikan Otomatis ID Channel
             if (!channelIdStr.startsWith('-100') && !channelIdStr.startsWith('@')) {
                 channelIdStr = '-100' + channelIdStr;
             }
@@ -2597,6 +2595,11 @@ function doBackupAndSend() {
 if (configAwal.autoBackup) setInterval(doBackupAndSend, (configAwal.backupInterval || 720) * 60 * 1000); 
 
 async function startBot() {
+    // ==== DYNAMIC IMPORT UPDATE ====
+    const baileys = await import('@whiskeysockets/baileys');
+    const makeWASocket = baileys.default.default || baileys.default;
+    const { useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = baileys;
+
     const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
     let config = loadJSON(configFile);
     const { version } = await fetchLatestBaileysVersion();
@@ -2747,9 +2750,6 @@ async function startBot() {
     });
 }
 
-// ==============================================================
-// TUGAS SINKRONISASI DIGIFLAZZ (DIPERCEPAT MENJADI 10 MENIT SEKALI)
-// ==============================================================
 async function tarikDataLayananOtomatis() {
     try {
         let config = loadJSON(configFile);
@@ -2771,7 +2771,6 @@ async function tarikDataLayananOtomatis() {
             let daftarLokal = {};
             let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
             
-            // Pertahankan Produk Manual (Duplikat/V1/V2)
             let manualItems = Object.keys(produkLama).filter(k => produkLama[k].is_manual_cat);
             manualItems.forEach(k => { daftarLokal[k] = produkLama[k]; });
             
@@ -2796,6 +2795,14 @@ async function tarikDataLayananOtomatis() {
                 else if (catLower === 'aktivasi perdana' || catLower === 'perdana') kategoriBarang = 'Aktivasi Perdana';
                 else kategoriBarang = catDigi; 
 
+                if (produkLama[kodeBarang] && produkLama[kodeBarang].is_manual_cat) {
+                    kategoriBarang = produkLama[kodeBarang].kategori;
+                    namaBarang = produkLama[kodeBarang].nama || namaBarang;
+                    item.brand = produkLama[kodeBarang].brand || item.brand;
+                    item.type = produkLama[kodeBarang].sub_kategori || item.type;
+                    item.desc = produkLama[kodeBarang].deskripsi || item.desc;
+                }
+                
                 let merekBarang = item.brand || 'Lainnya';
                 let subKategori = item.type || 'Umum';
 
@@ -2814,7 +2821,6 @@ async function tarikDataLayananOtomatis() {
                 else if(hargaModal <= 100000) keuntungan = m.t12;
                 else keuntungan = m.t13;
 
-                // Sync produk biasa (yang bukan manual/duplikat)
                 if (!produkLama[kodeBarang] || !produkLama[kodeBarang].is_manual_cat) {
                     daftarLokal[kodeBarang] = {
                         sku_asli: kodeBarang,
@@ -2850,9 +2856,7 @@ if (require.main === module) {
 }
 EOF
 }
-# ==========================================
-# 4.5. SCRIPT CEK SALDO DIGIFLAZZ (UNTUK TERMINAL)
-# ==========================================
+
 generate_cek_saldo_script() {
     cat << 'EOF' > cek_saldo.js
 const crypto = require('crypto');
@@ -2876,9 +2880,6 @@ getSaldo();
 EOF
 }
 
-# ==========================================
-# 5. INSTALASI DEPENDENSI
-# ==========================================
 install_dependencies() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
@@ -2936,7 +2937,7 @@ install_dependencies() {
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
     echo -ne "${C_MAG}>> Mengunduh modul utama...${C_RST}"
-    npm install @whiskeysockets/baileys@6.6.0 pino qrcode-terminal axios express body-parser node-telegram-bot-api > /dev/null 2>&1 &
+    npm install @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
@@ -2946,9 +2947,6 @@ install_dependencies() {
     read -p "Tekan Enter untuk kembali..."
 }
 
-# ==========================================
-# 6. SUB-MENU MANAJEMEN MEMBER
-# ==========================================
 menu_member() {
     while true; do
         clear
@@ -3135,9 +3133,6 @@ menu_member() {
     done
 }
 
-# ==========================================
-# 7. MANAJEMEN KEUNTUNGAN FLEKSIBEL (13 TINGKAT DENGAN PILIHAN)
-# ==========================================
 menu_keuntungan() {
     while true; do
         clear
@@ -3198,9 +3193,6 @@ menu_keuntungan() {
     done
 }
 
-# ==========================================
-# 8. SINKRONISASI MANUAL DIGIFLAZZ
-# ==========================================
 menu_sinkron() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
@@ -3218,9 +3210,6 @@ menu_sinkron() {
     read -p "Tekan Enter untuk kembali..."
 }
 
-# ==========================================
-# 9. SUB-MENU AUTO-BACKUP
-# ==========================================
 menu_telegram() {
     while true; do
         clear
@@ -3265,9 +3254,6 @@ menu_telegram() {
     done
 }
 
-# ==========================================
-# 10. SUB-MENU BACKUP & RESTORE
-# ==========================================
 menu_backup() {
     while true; do
         clear
@@ -3339,9 +3325,6 @@ menu_backup() {
     done
 }
 
-# ==========================================
-# 11. SUB-MENU MANAJEMEN PRODUK MANUAL
-# ==========================================
 menu_manajemen_produk_manual() {
     while true; do
         clear
@@ -3527,9 +3510,6 @@ menu_manajemen_produk_manual() {
     done
 }
 
-# ==========================================
-# 13. MENU INTEGRASI NOTIFIKASI
-# ==========================================
 menu_notifikasi() {
     while true; do
         clear
@@ -3610,9 +3590,6 @@ menu_notifikasi() {
     done
 }
 
-# ==========================================
-# 12. MENU UTAMA (PANEL KONTROL 15 OPSI)
-# ==========================================
 while true; do
     clear
     
