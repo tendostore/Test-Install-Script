@@ -420,6 +420,7 @@ EOF
         .stat-Sukses { background: #dcfce7; color: #166534; } 
         .stat-Pending { background: #ffedd5; color: #c2410c; } 
         .stat-Gagal { background: #fee2e2; color: #b91c1c; text-decoration: line-through; }
+        .stat-Refund { background: #e0e7ff; color: #4338ca; }
 
         .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
         .modal-box { background: var(--bg-card); color: var(--text-main); width: 100%; max-width: 340px; border-radius: 20px; padding: 25px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;}
@@ -1492,7 +1493,7 @@ EOF
                     historyList = historyList.filter(h => {
                         let type = h.type || 'Order';
                         if (currentHistoryFilter === 'Topup') return type === 'Topup';
-                        return type === 'Order' || type === 'Order QRIS';
+                        return type === 'Order' || type === 'Order QRIS' || type === 'Refund';
                     });
 
                     if(historyList.length === 0) histHTML = '<div style="text-align:center; color:var(--text-muted); font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
@@ -1501,6 +1502,7 @@ EOF
                             let statClass = 'stat-Pending';
                             if(h.status === 'Sukses' || h.status === 'Sukses Bayar') statClass = 'stat-Sukses';
                             if(h.status === 'Gagal' || h.status === 'Gagal (Kedaluwarsa)') statClass = 'stat-Gagal';
+                            if(h.type === 'Refund' || h.status === 'Refund') statClass = 'stat-Refund';
                             let safeH = JSON.stringify(h).replace(/"/g, '&quot;');
                             histHTML += `
                                 <div class="hist-item" onclick='openHistoryDetail(${safeH})'>
@@ -1995,7 +1997,7 @@ const trxFile = './trx.json';
 const notifFile = './web_notif.json';
 const globalStatsFile = './global_stats.json';
 const topupFile = './topup.json';
-const globalTrxFile = './global_trx.json'; // File log transaksi untuk website
+const globalTrxFile = './global_trx.json'; 
 
 const loadJSON = (file) => crypt.load(file, (file === notifFile || file === globalTrxFile) ? [] : {});
 const saveJSON = (file, data) => crypt.save(file, data);
@@ -2026,7 +2028,7 @@ function cekPemeliharaan() {
 }
 
 // ==============================================================
-// FITUR: NOTIFIKASI TELEGRAM ADMIN (Bot Notifikasi Utama)
+// FITUR: NOTIFIKASI TELEGRAM ADMIN 
 // ==============================================================
 function sendTelegramAdmin(message) {
     try {
@@ -2052,9 +2054,12 @@ function sendBroadcastSuccess(productName, rawUser, rawTarget) {
         let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
         let msg = `✅ *PEMBELIAN BERHASIL*\n\n👤 Pelanggan: ${rawUser}\n📦 Layanan: ${productName}\n🎯 Tujuan: ${maskTarget}\n🕒 Waktu: ${timeStr} WIB\n\n_🌐 Transaksi diproses otomatis oleh sistem._`;
 
-        // Kirim ke Telegram Channel
         if (cfg.teleTokenInfo && cfg.teleChannelId) {
             let channelIdStr = cfg.teleChannelId.toString();
+            // Perbaikan Otomatis ID Channel
+            if (!channelIdStr.startsWith('-100') && !channelIdStr.startsWith('@')) {
+                channelIdStr = '-100' + channelIdStr;
+            }
             axios.post(`https://api.telegram.org/bot${cfg.teleTokenInfo}/sendMessage`, {
                 chat_id: channelIdStr,
                 text: msg,
@@ -2062,7 +2067,6 @@ function sendBroadcastSuccess(productName, rawUser, rawTarget) {
             }).catch(e => { console.error("Gagal kirim Telegram Channel:", e.message); });
         }
 
-        // Kirim ke Saluran / Grup WhatsApp
         if (globalSock && cfg.waBroadcastId) {
             globalSock.sendMessage(cfg.waBroadcastId, { text: msg }).catch(e => {});
         }
@@ -2125,7 +2129,6 @@ let globalSock = null;
 let tempOtpDB = {}; 
 let otpCooldown = {}; 
 
-// TELEGRAM BOT POLLING UNTUK BROADCAST INFO PENGUMUMAN
 let teleBotInfo = null;
 if (configAwal.teleTokenInfo) {
     try {
@@ -2161,6 +2164,7 @@ if (configAwal.teleTokenInfo) {
 
                 if (cfg.teleChannelId) {
                     let chanIdStr = cfg.teleChannelId.toString();
+                    if (!chanIdStr.startsWith('-100') && !chanIdStr.startsWith('@')) chanIdStr = '-100' + chanIdStr;
                     if (imageFilename) teleBotInfo.sendPhoto(chanIdStr, './public/info_images/' + imageFilename, {caption: text}).catch(e=>{});
                     else teleBotInfo.sendMessage(chanIdStr, text).catch(e=>{});
                 }
@@ -2466,6 +2470,7 @@ app.post('/api/order', async (req, res) => {
         
         let p = produkDB[sku];
         if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
+        let realSku = p.sku_asli || sku;
         
         let hargaFix = parseInt(p.harga);
         if (parseInt(db[targetKey].saldo) < hargaFix) return res.json({success: false, message: 'Saldo tidak cukup.'});
@@ -2476,7 +2481,7 @@ app.post('/api/order', async (req, res) => {
         let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
 
         const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
-            username: username, buyer_sku_code: sku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
+            username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
         });
         
         const statusOrder = response.data.data.status; 
@@ -2492,7 +2497,7 @@ app.post('/api/order', async (req, res) => {
         
         let trxs = loadJSON(trxFile);
         let targetJid = db[targetKey].jid || targetKey + '@s.whatsapp.net';
-        trxs[refId] = { jid: targetJid, sku: sku, tujuan: tujuan, harga: hargaFix, nama: p.nama, tanggal: Date.now(), phone: targetKey };
+        trxs[refId] = { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: p.nama, tanggal: Date.now(), phone: targetKey };
         saveJSON(trxFile, trxs);
 
         if (statusOrder === 'Sukses') {
@@ -2520,8 +2525,10 @@ app.post('/api/order', async (req, res) => {
 
 async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, refIdAsal) {
     try {
-        let db = loadJSON(dbFile); let config = loadJSON(configFile);
+        let db = loadJSON(dbFile); let config = loadJSON(configFile); let produkDB = loadJSON(produkFile);
         let hargaFix = parseInt(harga_asli);
+        let p = produkDB[sku] || {};
+        let realSku = p.sku_asli || sku;
         
         if (parseInt(db[phone].saldo) < hargaFix) return; 
         
@@ -2530,20 +2537,27 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         let refId = 'WEB-' + Date.now();
         let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
 
-        // POTONG SALDO SEBELUM TEMBAK
         db[phone].saldo = parseInt(db[phone].saldo) - hargaFix; 
 
         const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
-            username: username, buyer_sku_code: sku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
+            username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
         });
         
         const statusOrder = response.data.data.status; 
         if (statusOrder === 'Gagal') {
             // REFUND SALDO KARENA GAGAL
             db[phone].saldo = parseInt(db[phone].saldo) + hargaFix;
+            
+            db[phone].history = db[phone].history || [];
+            db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId });
+            
             saveJSON(dbFile, db);
             
-            sendTelegramAdmin(`⚠️ *INFO ORDER QRIS: GAGAL DIGIFLAZZ*\n\nRef: ${refIdAsal}\nStatus Digiflazz Gagal. Saldo telah otomatis di-refund ke akun pengguna.`);
+            if(globalSock) {
+                globalSock.sendMessage(db[phone].jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf, pesanan ${nama_produk} tujuan ${tujuan} ditolak oleh sistem.\n\n💰 Saldo Anda sebesar Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan utuh ke akun Website.` }).catch(e=>{});
+            }
+
+            sendTelegramAdmin(`⚠️ *INFO ORDER QRIS: GAGAL DIGIFLAZZ*\n\nRef: ${refIdAsal}\nStatus Digiflazz Gagal.\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna (${db[phone].username || phone}).`);
             return;
         }
         
@@ -2554,7 +2568,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         
         let trxs = loadJSON(trxFile);
         let targetJid = db[phone].jid || phone + '@s.whatsapp.net';
-        trxs[refId] = { jid: targetJid, sku: sku, tujuan: tujuan, harga: hargaFix, nama: nama_produk, tanggal: Date.now(), phone: phone };
+        trxs[refId] = { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: nama_produk, tanggal: Date.now(), phone: phone };
         saveJSON(trxFile, trxs);
 
         if (statusOrder === 'Sukses') {
@@ -2601,7 +2615,6 @@ async function startBot() {
     sock.ev.on('creds.update', saveCreds);
     sock.ev.on('connection.update', (u) => { if(u.connection === 'close') setTimeout(startBot, 4000); });
 
-    // INTERVAL POLING CEK MUTASI GOPAY MERCHANT BHM BIZ
     setInterval(async () => {
         try {
             let cfg = loadJSON(configFile); let topups = loadJSON(topupFile);
@@ -2653,7 +2666,6 @@ async function startBot() {
         } catch(e) {}
     }, 30000); 
 
-    // DIGIFLAZZ ORDER STATUS CHECKER
     setInterval(async () => {
         let trxs = loadJSON(trxFile); let keys = Object.keys(trxs); if (keys.length === 0) return;
         let cfg = loadJSON(configFile); let userAPI = (cfg.digiflazzUsername || '').trim(); let keyAPI = (cfg.digiflazzApiKey || '').trim();
@@ -2692,12 +2704,21 @@ async function startBot() {
                             db[phoneKey].saldo = parseInt(db[phoneKey].saldo) + parseInt(trx.harga); 
                             if(db[phoneKey].history) {
                                 let hist = db[phoneKey].history.find(h => h.ref_id === ref);
-                                if (hist) hist.status = 'Gagal';
+                                if (hist) {
+                                    hist.status = 'Refund';
+                                    hist.nama = 'Refund: ' + hist.nama;
+                                } else {
+                                    db[phoneKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + trx.nama, tujuan: trx.tujuan, status: 'Refund', sn: '-', amount: parseInt(trx.harga), ref_id: ref });
+                                }
                             }
                             saveJSON(dbFile, db); 
+                            
+                            if (globalSock) {
+                                globalSock.sendMessage(trx.jid, { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf pesanan ${trx.nama} tujuan ${trx.tujuan} gagal diproses pusat.\n\n💰 Saldo Rp ${parseInt(trx.harga).toLocaleString('id-ID')} telah dikembalikan utuh ke akun Anda.` }).catch(e=>{});
+                            }
                         }
                         
-                        let teleFail = `❌ *PESANAN GAGAL*\n\n👤 Akun: ${db[phoneKey]?.username || phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n📝 Alasan: ${resData.message}`;
+                        let teleFail = `❌ *PESANAN GAGAL & REFUND*\n\n👤 Akun: ${db[phoneKey]?.username || phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n📝 Alasan: ${resData.message}\n\n💰 Saldo telah otomatis dikembalikan ke pengguna.`;
                         sendTelegramAdmin(teleFail);
                     }
                     delete trxs[ref]; saveJSON(trxFile, trxs);
@@ -2750,6 +2771,10 @@ async function tarikDataLayananOtomatis() {
             let daftarLokal = {};
             let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
             
+            // Pertahankan Produk Manual (Duplikat/V1/V2)
+            let manualItems = Object.keys(produkLama).filter(k => produkLama[k].is_manual_cat);
+            manualItems.forEach(k => { daftarLokal[k] = produkLama[k]; });
+            
             daftarPusat.forEach(item => {
                 let kodeBarang = item.buyer_sku_code;
                 let namaBarang = item.product_name;
@@ -2771,19 +2796,9 @@ async function tarikDataLayananOtomatis() {
                 else if (catLower === 'aktivasi perdana' || catLower === 'perdana') kategoriBarang = 'Aktivasi Perdana';
                 else kategoriBarang = catDigi; 
 
-                // PROTEKSI AGAR KATEGORI HASIL TAMBAH MANUAL TIDAK TERTABRAK OLEH SINKRONISASI
-                if (produkLama[kodeBarang] && produkLama[kodeBarang].is_manual_cat) {
-                    kategoriBarang = produkLama[kodeBarang].kategori;
-                    namaBarang = produkLama[kodeBarang].nama || namaBarang;
-                    item.brand = produkLama[kodeBarang].brand || item.brand;
-                    item.type = produkLama[kodeBarang].sub_kategori || item.type;
-                    item.desc = produkLama[kodeBarang].deskripsi || item.desc;
-                }
-                
                 let merekBarang = item.brand || 'Lainnya';
                 let subKategori = item.type || 'Umum';
 
-                // PERHITUNGAN KEUNTUNGAN 13 TINGKAT
                 let keuntungan = 0;
                 if(hargaModal <= 100) keuntungan = m.t1;
                 else if(hargaModal <= 500) keuntungan = m.t2;
@@ -2799,16 +2814,20 @@ async function tarikDataLayananOtomatis() {
                 else if(hargaModal <= 100000) keuntungan = m.t12;
                 else keuntungan = m.t13;
 
-                daftarLokal[kodeBarang] = {
-                    nama: namaBarang,
-                    harga: hargaModal + keuntungan,
-                    kategori: kategoriBarang,
-                    brand: merekBarang,
-                    sub_kategori: subKategori,
-                    deskripsi: item.desc || 'Proses Otomatis',
-                    status_produk: statusProduk,
-                    is_manual_cat: (produkLama[kodeBarang] ? produkLama[kodeBarang].is_manual_cat : false)
-                };
+                // Sync produk biasa (yang bukan manual/duplikat)
+                if (!produkLama[kodeBarang] || !produkLama[kodeBarang].is_manual_cat) {
+                    daftarLokal[kodeBarang] = {
+                        sku_asli: kodeBarang,
+                        nama: namaBarang,
+                        harga: hargaModal + keuntungan,
+                        kategori: kategoriBarang,
+                        brand: merekBarang,
+                        sub_kategori: subKategori,
+                        deskripsi: item.desc || 'Proses Otomatis',
+                        status_produk: statusProduk,
+                        is_manual_cat: false
+                    };
+                }
             });
 
             saveJSON(produkFile, daftarLokal);
@@ -2917,7 +2936,7 @@ install_dependencies() {
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
     echo -ne "${C_MAG}>> Mengunduh modul utama...${C_RST}"
-    npm install @whiskeysockets/baileys pino qrcode-terminal axios express body-parser node-telegram-bot-api > /dev/null 2>&1 &
+    npm install @whiskeysockets/baileys@6.6.0 pino qrcode-terminal axios express body-parser node-telegram-bot-api > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
@@ -2939,7 +2958,7 @@ menu_member() {
         echo -e "  ${C_GREEN}[1]${C_RST} Tambah Saldo Member"
         echo -e "  ${C_GREEN}[2]${C_RST} Kurangi Saldo Member"
         echo -e "  ${C_GREEN}[3]${C_RST} Lihat Daftar Semua Member Aktif"
-        echo -e "  ${C_GREEN}[4]${C_RST} Cek Riwayat Topup Member"
+        echo -e "  ${C_GREEN}[4]${C_RST} Cek Riwayat Transaksi/Topup Member"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
         echo -e "${C_CYAN}======================================================${C_RST}"
@@ -2949,60 +2968,103 @@ menu_member() {
         case $subchoice in
             1)
                 echo -e "\n${C_MAG}--- TAMBAH SALDO ---${C_RST}"
-                read -p "Masukkan ID Member (No WA awalan 08/62 atau Email): " nomor
+                read -p "Cari Target (Bisa Nomor WA, Email, ATAU Nama Akun): " pencarian
                 read -p "Masukkan Jumlah Saldo: " jumlah
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let db = crypt.load('database.json');
-                    let input = '$nomor'.trim();
+                    let input = '$pencarian'.trim();
                     let normPhone = input.replace(/[^0-9]/g, '');
-                    if(normPhone.startsWith('0')) normPhone = '62' + normPhone.substring(1);
+                    if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
+                    else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
                     
-                    let target = Object.keys(db).find(k => k === normPhone || db[k].email === input);
+                    let target = Object.keys(db).find(k => 
+                        k === normPhone || 
+                        (db[k].email && db[k].email.toLowerCase() === input.toLowerCase()) || 
+                        (db[k].username && db[k].username.toLowerCase() === input.toLowerCase())
+                    );
                     
                     if(!target) {
-                        target = normPhone || input;
+                        if(normPhone === '') {
+                            console.log('\x1b[31m\n❌ Akun tidak ditemukan dengan nama atau email tersebut.\x1b[0m');
+                            process.exit(0);
+                        }
+                        target = normPhone;
                         db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: target + '@s.whatsapp.net', trx_count: 0, history: [] };
                     }
-                    db[target].saldo = parseInt(db[target].saldo) + parseInt('$jumlah');
+                    
+                    let namaUser = db[target].username || target;
+                    let saldoSebelum = parseInt(db[target].saldo || 0);
+                    let nominalTambah = parseInt('$jumlah');
+                    db[target].saldo = saldoSebelum + nominalTambah;
+                    
+                    db[target].history = db[target].history || [];
+                    db[target].history.unshift({ 
+                        ts: Date.now(), 
+                        tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+                        type: 'Topup', nama: 'Topup Manual (Admin)', tujuan: 'Sistem', status: 'Sukses', sn: '-', amount: nominalTambah, 
+                        saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[target].saldo 
+                    });
+                    
                     crypt.save('database.json', db);
-                    console.log('\x1b[32m\n✅ Saldo Rp $jumlah berhasil ditambahkan ke ' + target + '!\x1b[0m');
+                    console.log('\x1b[32m\n✅ Saldo Rp ' + nominalTambah.toLocaleString('id-ID') + ' berhasil ditambahkan ke ' + namaUser + ' (' + target + ')!\x1b[0m');
+                    console.log('\x1b[33mSaldo Sebelumnya: Rp ' + saldoSebelum.toLocaleString('id-ID') + '\x1b[0m');
+                    console.log('\x1b[36mSaldo Sekarang  : Rp ' + db[target].saldo.toLocaleString('id-ID') + '\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
                 echo -e "\n${C_MAG}--- KURANGI SALDO ---${C_RST}"
-                read -p "Masukkan ID Member (No WA awalan 08/62 atau Email): " nomor
+                read -p "Cari Target (Bisa Nomor WA, Email, ATAU Nama Akun): " pencarian
                 read -p "Masukkan Jumlah Saldo yg dikurangi: " jumlah
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let db = crypt.load('database.json');
-                    let input = '$nomor'.trim();
+                    let input = '$pencarian'.trim();
                     let normPhone = input.replace(/[^0-9]/g, '');
-                    if(normPhone.startsWith('0')) normPhone = '62' + normPhone.substring(1);
+                    if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
+                    else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
                     
-                    let target = Object.keys(db).find(k => k === normPhone || db[k].email === input);
+                    let target = Object.keys(db).find(k => 
+                        k === normPhone || 
+                        (db[k].email && db[k].email.toLowerCase() === input.toLowerCase()) || 
+                        (db[k].username && db[k].username.toLowerCase() === input.toLowerCase())
+                    );
                     
                     if(!target) { 
                         console.log('\x1b[31m\n❌ Akun tidak ditemukan di database.\x1b[0m'); 
                     } else {
-                        db[target].saldo = parseInt(db[target].saldo) - parseInt('$jumlah');
+                        let namaUser = db[target].username || target;
+                        let saldoSebelum = parseInt(db[target].saldo || 0);
+                        let nominalKurang = parseInt('$jumlah');
+                        
+                        db[target].saldo = saldoSebelum - nominalKurang;
                         if(db[target].saldo < 0) db[target].saldo = 0;
+                        
+                        db[target].history = db[target].history || [];
+                        db[target].history.unshift({ 
+                            ts: Date.now(), 
+                            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+                            type: 'Topup', nama: 'Pengurangan Saldo (Admin)', tujuan: 'Sistem', status: 'Sukses', sn: '-', amount: nominalKurang, 
+                            saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[target].saldo 
+                        });
+                        
                         crypt.save('database.json', db);
-                        console.log('\x1b[32m\n✅ Saldo berhasil dikurangi!\x1b[0m');
+                        console.log('\x1b[32m\n✅ Saldo ' + namaUser + ' (' + target + ') berhasil dikurangi!\x1b[0m');
+                        console.log('\x1b[33mSaldo Sebelumnya: Rp ' + saldoSebelum.toLocaleString('id-ID') + '\x1b[0m');
+                        console.log('\x1b[36mSaldo Sekarang  : Rp ' + db[target].saldo.toLocaleString('id-ID') + '\x1b[0m');
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             3)
-                echo -e "\n${C_CYAN}--- DAFTAR MEMBER ---${C_RST}"
+                echo -e "\n${C_CYAN}--- DAFTAR MEMBER AKTIF ---${C_RST}"
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let db = crypt.load('database.json');
                     let members = Object.keys(db);
                     let deletedCount = 0;
                     
-                    // Filter & hapus member tanpa email
                     members.forEach(m => {
                         if (!db[m].email || db[m].email.trim() === '-' || db[m].email.trim() === '') {
                             delete db[m];
@@ -3016,43 +3078,52 @@ menu_member() {
                     
                     if(members.length === 0) console.log('\x1b[33mBelum ada member aktif (yang terdaftar email).\x1b[0m');
                     else {
-                        members.forEach((m, i) => console.log((i + 1) + '. WA: ' + m + ' | Email: ' + db[m].email + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID')));
+                        members.forEach((m, i) => {
+                            let nama = db[m].username || 'Member';
+                            let email = db[m].email || '-';
+                            console.log((i + 1) + '. Nama: ' + nama + ' | WA: ' + m + ' | Email: ' + email + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID'));
+                        });
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             4)
-                echo -e "\n${C_CYAN}--- RIWAYAT TOPUP MEMBER ---${C_RST}"
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let db = crypt.load('database.json');
-                    let members = Object.keys(db).filter(m => db[m].email && db[m].email.trim() !== '-' && db[m].email.trim() !== '');
-                    if(members.length === 0) {
-                        console.log('\x1b[33mBelum ada member yang memiliki email.\x1b[0m');
-                        process.exit(0);
-                    }
-                    members.forEach((m, i) => console.log((i + 1) + '. WA: ' + m + ' | Email: ' + db[m].email));
-                "
-                read -p "Pilih Nomor Urut Member [Contoh: 1]: " urut_member
-                if [[ "$urut_member" =~ ^[0-9]+$ ]]; then
+                echo -e "\n${C_CYAN}--- RIWAYAT TOPUP/TRANSAKSI MEMBER ---${C_RST}"
+                read -p "Cari Target (Bisa Nomor WA, Email, ATAU Nama Akun): " pencarian
+                if [ ! -z "$pencarian" ]; then
                     node -e "
                         const crypt = require('./tendo_crypt.js');
                         let db = crypt.load('database.json');
-                        let members = Object.keys(db).filter(m => db[m].email && db[m].email.trim() !== '-' && db[m].email.trim() !== '');
-                        let idx = parseInt('$urut_member') - 1;
-                        if(idx >= 0 && idx < members.length) {
-                            let target = members[idx];
+                        let input = '$pencarian'.trim();
+                        let normPhone = input.replace(/[^0-9]/g, '');
+                        if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
+                        else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
+                        
+                        let target = Object.keys(db).find(k => 
+                            k === normPhone || 
+                            (db[k].email && db[k].email.toLowerCase() === input.toLowerCase()) || 
+                            (db[k].username && db[k].username.toLowerCase() === input.toLowerCase())
+                        );
+                        
+                        if(target) {
                             let history = db[target].history || [];
                             let targetSaldo = db[target].saldo || 0;
-                            let topups = history.filter(h => h.type === 'Topup' || h.type === 'Order QRIS');
-                            console.log('\n\x1b[36m=== RIWAYAT TOPUP: ' + target + ' ===\x1b[0m');
+                            let targetNama = db[target].username || 'Member';
+                            let topups = history.filter(h => h.type === 'Topup' || h.type === 'Order QRIS' || h.type === 'Refund');
+                            
+                            console.log('\n\x1b[36m=== RIWAYAT: ' + targetNama + ' (' + target + ') ===\x1b[0m');
                             console.log('\x1b[32m💰 Saldo Saat Saat Ini: Rp ' + targetSaldo.toLocaleString('id-ID') + '\x1b[0m');
                             if(topups.length === 0) console.log('\x1b[33mBelum ada riwayat topup di akun ini.\x1b[0m');
                             else {
-                                topups.forEach(h => console.log('- \x1b[33m' + h.tanggal + '\x1b[0m | ' + h.nama + ' | \x1b[32mRp ' + h.amount.toLocaleString('id-ID') + '\x1b[0m | Status: ' + h.status));
+                                topups.forEach(h => {
+                                    let str = '- \x1b[33m' + h.tanggal + '\x1b[0m | ' + h.nama + ' | \x1b[32mRp ' + (h.amount || 0).toLocaleString('id-ID') + '\x1b[0m | Status: ' + h.status;
+                                    if (h.saldo_sebelumnya !== undefined) str += ' | Saldo Sblm: Rp ' + h.saldo_sebelumnya.toLocaleString('id-ID');
+                                    if (h.saldo_sesudah !== undefined) str += ' | Saldo Stlh: Rp ' + h.saldo_sesudah.toLocaleString('id-ID');
+                                    console.log(str);
+                                });
                             }
                         } else {
-                            console.log('\x1b[31m❌ Nomor urut tidak valid.\x1b[0m');
+                            console.log('\x1b[31m❌ Akun tidak ditemukan berdasarkan pencarian Anda.\x1b[0m');
                         }
                     "
                 fi
@@ -3277,7 +3348,7 @@ menu_manajemen_produk_manual() {
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "${C_YELLOW}${C_BOLD}          📦 MANAJEMEN PRODUK MANUAL 📦             ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Instan (Kode Digiflazz)"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Instan (Duplikat SKU Tidak Bentrok)"
         echo -e "  ${C_GREEN}[2]${C_RST} Lihat Daftar & Hapus Produk Manual"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
@@ -3325,7 +3396,7 @@ menu_manajemen_produk_manual() {
                 
                 read -p "Masukkan Nama Produk (Kosongkan utk pakai nama Asli): " custom_nama
                 read -p "Masukkan Brand / Operator (Misal: Telkomsel / Free Fire): " custom_brand
-                read -p "Masukkan Tipe (Misal: Umum / Data Promo): " custom_tipe
+                read -p "Masukkan Tipe (Misal: Umum / V1 / V2): " custom_tipe
                 read -p "Masukkan Deskripsi Produk (Kosongkan utk pakai 'Proses Otomatis'): " custom_desc
                 
                 echo -e "\n${C_MAG}⏳ Menghubungkan ke API Digiflazz untuk menarik data harga dan status...${C_RST}"
@@ -3381,7 +3452,12 @@ menu_manajemen_produk_manual() {
                             let finalDesc = customDesc !== '' ? customDesc : (found.desc || 'Proses Otomatis');
 
                             let dbProd = crypt.load('produk.json');
-                            dbProd[sku] = {
+                            
+                            // FITUR ANTI BENTROK: Membuat Unique Key untuk Duplikat
+                            let uniqueSku = sku + '_' + Date.now();
+                            
+                            dbProd[uniqueSku] = {
+                                sku_asli: sku,
                                 nama: finalNama,
                                 harga: hargaModal + keuntungan,
                                 kategori: '$kat_nama',
@@ -3393,7 +3469,7 @@ menu_manajemen_produk_manual() {
                             };
                             
                             crypt.save('produk.json', dbProd);
-                            console.log('\x1b[32m✅ BERHASIL: Produk \"' + finalNama + '\" (' + sku + ') telah ditambahkan secara manual dan terintegrasi!\x1b[0m');
+                            console.log('\x1b[32m✅ BERHASIL: Produk \"' + finalNama + '\" (' + sku + ') telah diduplikat/ditambahkan secara manual!\x1b[0m');
                         } catch(e) {
                             console.log('\x1b[31m❌ Gagal menghubungi server Digiflazz. Periksa koneksi internet.\x1b[0m');
                         }
@@ -3416,8 +3492,8 @@ menu_manajemen_produk_manual() {
                         console.log('\x1b[33mBelum ada produk yang ditambahkan secara manual.\x1b[0m');
                         process.exit(0);
                     }
-                    manualItems.forEach((sku, i) => {
-                        console.log('[' + (i + 1) + '] SKU: ' + sku + ' | Nama: ' + dbProd[sku].nama + ' | Kat: ' + dbProd[sku].kategori + ' | Brand: ' + dbProd[sku].brand);
+                    manualItems.forEach((key, i) => {
+                        console.log('[' + (i + 1) + '] Key: ' + key + ' | SKU Asli: ' + (dbProd[key].sku_asli || key) + ' | Nama: ' + dbProd[key].nama + ' | Kat: ' + dbProd[key].kategori + ' | Tipe: ' + dbProd[key].sub_kategori);
                     });
                 "
                 echo -e ""
@@ -3429,11 +3505,11 @@ menu_manajemen_produk_manual() {
                         let manualItems = Object.keys(dbProd).filter(k => dbProd[k].is_manual_cat);
                         let idx = parseInt('$urut_hapus') - 1;
                         if(idx >= 0 && idx < manualItems.length) {
-                            let skuToDel = manualItems[idx];
-                            let namaToDel = dbProd[skuToDel].nama;
-                            delete dbProd[skuToDel];
+                            let keyToDel = manualItems[idx];
+                            let namaToDel = dbProd[keyToDel].nama;
+                            delete dbProd[keyToDel];
                             crypt.save('produk.json', dbProd);
-                            console.log('\x1b[32m✅ Berhasil menghapus produk manual: ' + namaToDel + ' (' + skuToDel + ')\x1b[0m');
+                            console.log('\x1b[32m✅ Berhasil menghapus produk manual: ' + namaToDel + '\x1b[0m');
                         } else {
                             console.log('\x1b[31m❌ Nomor urut tidak ditemukan.\x1b[0m');
                         }
