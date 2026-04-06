@@ -197,7 +197,7 @@ EOF
         .menu-btn:active { transform: scale(0.95); }
         .menu-btn svg { width: 24px; height: 24px; stroke: var(--text-main); fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
         
-        .brand-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 17px; font-weight: 900; background: transparent; color: var(--text-main); padding: 8px 0; border-radius: 0; box-shadow: none; z-index: 2; overflow: visible; width: auto; display: flex; align-items: center; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.5px;}
+        .brand-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 20px; font-weight: 900; background: transparent; color: var(--text-main); padding: 8px 0; border-radius: 0; box-shadow: none; z-index: 2; overflow: visible; width: auto; display: flex; align-items: center; white-space: nowrap; text-transform: uppercase; letter-spacing: 1px;}
         .marquee-text { display: inline-block; white-space: nowrap; animation: marquee 6s linear infinite; }
         @keyframes marquee { 0% { transform: translateX(170px); } 100% { transform: translateX(-100%); } }
         
@@ -209,7 +209,7 @@ EOF
             padding: 5px 20px 25px; 
             border-bottom-left-radius: 30px; 
             border-bottom-right-radius: 30px; 
-            box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.25);
             position: relative;
             z-index: 10;
             transition: background 0.3s;
@@ -257,7 +257,7 @@ EOF
         }
         .sc-btn-topup:active { transform: scale(0.95); }
 
-        .banner-slider-container { margin: 20px 20px 0px; border-radius: 16px; overflow: hidden; position: relative; background: var(--bg-card); box-shadow: 0 10px 25px rgba(0,0,0,0.15);}
+        .banner-slider-container { margin: 20px 20px 0px; border-radius: 16px; overflow: hidden; position: relative; background: var(--bg-card); box-shadow: 0 15px 35px rgba(0,0,0,0.3);}
         .banner-slider { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         .banner-slider::-webkit-scrollbar { display: none; }
         .banner-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; justify-content: center; align-items: center; }
@@ -573,9 +573,9 @@ EOF
                 <a href="#" class="sidebar-item" onclick="toggleTheme()">
                     <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg> <span id="theme-text">Mode Gelap</span>
                 </a>
-            </div>
-            <div style="padding: 20px; margin-top: auto;">
-                <button class="btn-outline" style="color: #ef4444; border-color: #ef4444;" onclick="logout()">Keluar Akun</button>
+                <a href="#" class="sidebar-item" onclick="logout()" style="color: #ef4444;">
+                    <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Keluar Akun
+                </a>
             </div>
         </div>
 
