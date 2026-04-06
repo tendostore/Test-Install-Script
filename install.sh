@@ -495,7 +495,7 @@ EOF
             .product-item, .brand-row, .hist-item { margin: 0 !important; }
             #notif-list, #global-trx-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 30px !important; }
             #notif-list .card, #global-trx-list .card { margin-bottom: 0 !important; }
-            #login-screen .card, #register-screen .card, #otp-screen .card, #forgot-screen .card { max-width: 450px; margin: 0 auto; padding: 40px; }
+            #login-screen .card, #register-screen .card, #otp-screen .card, #forgot-screen .card, #login-otp-screen .card { max-width: 450px; margin: 0 auto; padding: 40px; }
             .sidebar { width: 340px; }
         }
 
@@ -586,7 +586,7 @@ EOF
             </div>
             <div class="card">
                 <h2 style="margin-top:0; text-align:center; font-size:18px;">Masuk Akun</h2>
-                <input type="email" id="log-email" placeholder="Alamat Email">
+                <input type="text" id="log-id" placeholder="Email / WA / Username">
                 <input type="password" id="log-pass" placeholder="Password">
                 <label class="checkbox-container">
                     <input type="checkbox" id="rem-login" checked> Tetap masuk
@@ -597,11 +597,21 @@ EOF
             </div>
         </div>
 
+        <div id="login-otp-screen" class="container hidden">
+            <div class="card" style="text-align:center;">
+                <h2 style="margin-top:0; font-size:18px;">Verifikasi Login</h2>
+                <p style="font-size:13px; color:var(--text-muted); margin-bottom: 20px; font-weight: 600;">OTP telah dikirim ke WA Anda.</p>
+                <input type="number" id="login-otp-code" placeholder="----" style="text-align:center; font-size:28px; letter-spacing: 12px; font-weight:bold; background:var(--bg-main);" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
+                <button class="btn" id="btn-login-verify" onclick="verifyLoginOTP()">Masuk Ke Dashboard</button>
+                <button class="btn-outline" style="border:none;" onclick="showScreen('login-screen')">Batal</button>
+            </div>
+        </div>
+
         <div id="register-screen" class="container hidden">
             <div class="card">
                 <h2 style="margin-top:0; text-align:center; font-size:18px;">Daftar Akun</h2>
                 <p style="font-size:12px; color:var(--text-muted); text-align: center; margin-bottom: 20px; font-weight: 600;">Gunakan Nomor WhatsApp Aktif (08/62)</p>
-                <input type="text" id="reg-user" placeholder="Username (Cth: BudiCell)">
+                <input type="text" id="reg-user" placeholder="Username Unik (Cth: BudiCell)">
                 <input type="email" id="reg-email" placeholder="Alamat Email">
                 <input type="number" id="reg-phone" placeholder="Nomor WhatsApp">
                 <input type="password" id="reg-pass" placeholder="Buat Password">
@@ -920,7 +930,7 @@ EOF
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Metode</span><strong id="os-metode" style="color:#0ea5e9;">Saldo Akun</strong></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Harga</span><strong id="os-price" style="text-align:right;"></strong></div>
                 </div>
-                <button class="btn" style="width:100%;" onclick="closeOrderSuccessModal()">Selesai & Cek Riwayat</button>
+                <button class="btn" style="width:100%;" onclick="cekRiwayatBaru()">Cek Riwayat Pembelian Ini</button>
             </div>
         </div>
 
@@ -1104,7 +1114,7 @@ EOF
         });
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 
-        let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let tempForgotPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
+        let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let tempForgotPhone = ""; let tempLoginPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
         let currentCategory = ""; let currentBrand = ""; let currentHistoryFilter = 'Order'; let currentHistoryStatusFilter = 'Semua';
         let bannerInterval; let qrisInterval;
 
@@ -1235,7 +1245,7 @@ EOF
             let loader = document.getElementById('initial-loader');
             if(loader) { loader.style.opacity = '0'; setTimeout(() => { if(loader) loader.style.display = 'none'; }, 300); }
 
-            ['login-screen', 'register-screen', 'otp-screen', 'forgot-screen', 'dashboard-screen', 'brand-screen', 'produk-screen', 'history-screen', 'profile-screen', 'notif-screen', 'global-trx-screen'].forEach(s => {
+            ['login-screen', 'login-otp-screen', 'register-screen', 'otp-screen', 'forgot-screen', 'dashboard-screen', 'brand-screen', 'produk-screen', 'history-screen', 'profile-screen', 'notif-screen', 'global-trx-screen'].forEach(s => {
                 document.getElementById(s).classList.add('hidden');
             });
             document.getElementById(id).classList.remove('hidden');
@@ -1248,7 +1258,7 @@ EOF
                 updateNav(navId);
             }
             
-            if(id === 'login-screen' || id === 'register-screen' || id === 'otp-screen' || id === 'forgot-screen') {
+            if(id === 'login-screen' || id === 'login-otp-screen' || id === 'register-screen' || id === 'otp-screen' || id === 'forgot-screen') {
                 document.getElementById('home-topbar').classList.add('hidden');
                 document.getElementById('main-bottom-nav').classList.add('hidden');
                 document.getElementById('banner-container-wrap').classList.add('hidden');
@@ -1261,46 +1271,13 @@ EOF
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            let savedEmail = localStorage.getItem('tendo_email');
-            let savedPass = localStorage.getItem('tendo_pass');
-            if(savedEmail && savedPass) {
-                try {
-                    let data = await apiCall('/api/login', {email:savedEmail, password:savedPass});
-                    if(data && data.success) {
-                        currentUser = data.phone; userData = data.data;
-                        await fetchAllProducts();
-                        fetchGlobalStats();
-                        loadBanners();
-                        
-                        let lastTab = localStorage.getItem('tendo_last_tab') || 'dashboard-screen';
-                        currentState = { screen: lastTab };
-                        
-                        if (lastTab === 'history-screen') {
-                            let savedFilter = localStorage.getItem('tendo_history_filter') || 'Order';
-                            showHistoryInternal(savedFilter);
-                            currentState.filter = savedFilter;
-                        }
-                        else if (lastTab === 'profile-screen') showProfileInternal();
-                        else if (lastTab === 'notif-screen') showNotifInternal();
-                        else if (lastTab === 'global-trx-screen') showGlobalTrxInternal();
-                        else if (lastTab === 'brand-screen') {
-                            let cCat = localStorage.getItem('tendo_current_cat');
-                            if(cCat) { loadCategoryInternal(cCat); currentState.cat = cCat; currentState.subcat_mode = false; }
-                            else showDashboardInternal();
-                        }
-                        else if (lastTab === 'produk-screen') {
-                            let cCat = localStorage.getItem('tendo_current_cat');
-                            let cBrand = localStorage.getItem('tendo_current_brand');
-                            let cSub = localStorage.getItem('tendo_current_subcat');
-                            if(cCat && cBrand) { 
-                                loadProductsInternal(cCat, cBrand, (cSub === 'null' ? null : cSub)); 
-                                currentState.cat = cCat; currentState.brand = cBrand; currentState.subcat = (cSub === 'null' ? null : cSub);
-                            } else showDashboardInternal();
-                        }
-                        else showDashboardInternal();
-
-                    } else { showScreen('login-screen', null); }
-                } catch(e) { showScreen('login-screen', null); }
+            let savedId = localStorage.getItem('tendo_rem_id');
+            let savedPass = localStorage.getItem('tendo_rem_pass');
+            if(savedId && savedPass) {
+                document.getElementById('log-id').value = savedId;
+                document.getElementById('log-pass').value = savedPass;
+                // Auto trigger login which will ask for OTP
+                login();
             } else {
                 showScreen('login-screen', null);
             }
@@ -1474,7 +1451,7 @@ EOF
 
         function logout() {
             currentUser = ""; userData = {}; 
-            localStorage.removeItem('tendo_email'); localStorage.removeItem('tendo_pass');
+            localStorage.removeItem('tendo_rem_id'); localStorage.removeItem('tendo_rem_pass');
             localStorage.removeItem('tendo_last_tab'); localStorage.removeItem('tendo_last_nav');
             localStorage.removeItem('tendo_history_filter');
             localStorage.removeItem('tendo_current_cat'); localStorage.removeItem('tendo_current_brand');
@@ -1582,7 +1559,7 @@ EOF
             document.getElementById('hd-sn').innerText = h.sn || '-';
             
             let btnComplain = document.getElementById('hd-complain-btn');
-            btnComplain.classList.remove('hidden'); // Memastikan tombol komplain selalu tampil di setiap status transaksi
+            btnComplain.classList.remove('hidden'); 
             
             let qrisBox = document.getElementById('hd-qris-box');
             if((h.type === 'Topup' || h.type === 'Order QRIS') && h.status === 'Pending') {
@@ -1623,23 +1600,79 @@ EOF
         }
 
         async function login() {
-            let email = document.getElementById('log-email').value.trim();
+            let idLogin = document.getElementById('log-id').value.trim();
             let pass = document.getElementById('log-pass').value.trim();
             let rem = document.getElementById('rem-login').checked;
-            if(!email || !pass) return showToast('Isi Email & Password!', 'error');
+            if(!idLogin || !pass) return showToast('Isi Email/WA/Username & Password!', 'error');
             
             let btn = document.getElementById('btn-login');
             let ori = btn.innerText;
             btn.innerText = "Memeriksa..."; btn.disabled = true;
             
             try {
-                let data = await apiCall('/api/login', {email, password:pass});
+                let data = await apiCall('/api/login', {id: idLogin, password:pass});
                 if(data && data.success) {
-                    if(rem) { localStorage.setItem('tendo_email', email); localStorage.setItem('tendo_pass', pass); }
-                    currentUser = data.phone; userData = data.data;
-                    fetchAllProducts(); showDashboard();
+                    if (data.requires_otp) {
+                        tempLoginPhone = data.phone;
+                        showScreen('login-otp-screen', null);
+                        if(rem) { localStorage.setItem('tendo_rem_id', idLogin); localStorage.setItem('tendo_rem_pass', pass); }
+                    }
                 } else {
-                    showToast(data && data.message ? data.message : "Gagal terhubung.", 'error');
+                    showToast(data && data.message ? data.message : "Data tidak cocok atau Gagal terhubung.", 'error');
+                    localStorage.removeItem('tendo_rem_id');
+                    localStorage.removeItem('tendo_rem_pass');
+                }
+            } catch(e) { showToast('Kesalahan jaringan.', 'error'); }
+            
+            btn.innerText = ori; btn.disabled = false;
+        }
+
+        async function verifyLoginOTP() {
+            let otp = document.getElementById('login-otp-code').value.trim();
+            if(!otp) return showToast('Masukkan OTP!', 'error');
+            
+            let btn = document.getElementById('btn-login-verify');
+            let ori = btn.innerText; btn.innerText = "Memproses..."; btn.disabled = true;
+            
+            try {
+                let data = await apiCall('/api/verify-login-otp', {phone: tempLoginPhone, otp: otp});
+                if(data && data.success) {
+                    currentUser = data.phone; userData = data.data;
+                    document.getElementById('login-otp-code').value = '';
+                    await fetchAllProducts(); 
+                    fetchGlobalStats();
+                    loadBanners();
+                    
+                    let lastTab = localStorage.getItem('tendo_last_tab') || 'dashboard-screen';
+                    currentState = { screen: lastTab };
+                    
+                    if (lastTab === 'history-screen') {
+                        let savedFilter = localStorage.getItem('tendo_history_filter') || 'Order';
+                        showHistoryInternal(savedFilter);
+                        currentState.filter = savedFilter;
+                    }
+                    else if (lastTab === 'profile-screen') showProfileInternal();
+                    else if (lastTab === 'notif-screen') showNotifInternal();
+                    else if (lastTab === 'global-trx-screen') showGlobalTrxInternal();
+                    else if (lastTab === 'brand-screen') {
+                        let cCat = localStorage.getItem('tendo_current_cat');
+                        if(cCat) { loadCategoryInternal(cCat); currentState.cat = cCat; currentState.subcat_mode = false; }
+                        else showDashboardInternal();
+                    }
+                    else if (lastTab === 'produk-screen') {
+                        let cCat = localStorage.getItem('tendo_current_cat');
+                        let cBrand = localStorage.getItem('tendo_current_brand');
+                        let cSub = localStorage.getItem('tendo_current_subcat');
+                        if(cCat && cBrand) { 
+                            loadProductsInternal(cCat, cBrand, (cSub === 'null' ? null : cSub)); 
+                            currentState.cat = cCat; currentState.brand = cBrand; currentState.subcat = (cSub === 'null' ? null : cSub);
+                        } else showDashboardInternal();
+                    }
+                    else showDashboardInternal();
+                    
+                    showToast('Berhasil Masuk!', 'success');
+                } else {
+                    showToast(data && data.message ? data.message : "Sistem sibuk, coba sesaat lagi.", 'error');
                 }
             } catch(e) { showToast('Kesalahan jaringan.', 'error'); }
             
@@ -1681,7 +1714,7 @@ EOF
                 let data = await apiCall('/api/verify-otp', {phone: tempRegPhone, otp});
                 if(data && data.success) {
                     showToast('Pendaftaran Berhasil! Silakan Login.', 'success');
-                    document.getElementById('log-email').value = document.getElementById('reg-email').value;
+                    document.getElementById('log-id').value = document.getElementById('reg-user').value;
                     document.getElementById('log-pass').value = document.getElementById('reg-pass').value;
                     showScreen('login-screen', null);
                 } else {
@@ -1941,9 +1974,15 @@ EOF
             document.getElementById('order-modal').classList.remove('hidden');
         }
         function closeOrderModal() { document.getElementById('order-modal').classList.add('hidden'); }
-        function closeOrderSuccessModal() { 
-            document.getElementById('order-success-modal').classList.add('hidden'); 
+        
+        async function cekRiwayatBaru() {
+            document.getElementById('order-success-modal').classList.add('hidden');
+            await syncUserData();
             showHistory('Order');
+            if(userData.history && userData.history.length > 0) {
+                let latest = userData.history[0];
+                openHistoryDetail(latest);
+            }
         }
 
         async function processOrder() {
@@ -1962,7 +2001,7 @@ EOF
                 
                 if(data && data.success) {
                     closeOrderModal();
-                    syncUserData();
+                    await syncUserData();
                     
                     if (method === 'qris') {
                         document.getElementById('topup-success-modal').classList.remove('hidden');
@@ -2273,11 +2312,20 @@ app.get('/api/user/:phone', (req, res) => {
 
 app.post('/api/login', (req, res) => {
     try {
-        let { email, password } = req.body; let db = loadJSON(dbFile);
+        let { id, password } = req.body; let db = loadJSON(dbFile);
         let hashedInput = hashPassword(password);
         
         let userPhone = Object.keys(db).find(k => {
-            if (!db[k] || db[k].email !== email) return false;
+            if (!db[k]) return false;
+            
+            // Mengecek apakah input ID cocok dengan nomor WA (k), Email, atau Username
+            let normInput = normalizePhone(id);
+            let matchId = (k === id) || (k === normInput) ||
+                          (db[k].email && db[k].email.toLowerCase() === id.toLowerCase()) || 
+                          (db[k].username && db[k].username.toLowerCase() === id.toLowerCase());
+                          
+            if (!matchId) return false;
+            
             if (db[k].password === password) {
                 db[k].password = hashedInput; saveJSON(dbFile, db); return true;
             }
@@ -2286,10 +2334,42 @@ app.post('/api/login', (req, res) => {
         });
 
         if (userPhone) {
-            let safeData = { ...db[userPhone] }; delete safeData.password;
-            res.json({success: true, data: safeData, phone: userPhone});
+            // Generate OTP for Login
+            if(otpCooldown[userPhone + '_login'] && Date.now() - otpCooldown[userPhone + '_login'] < 60000) {
+                return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
+            }
+            otpCooldown[userPhone + '_login'] = Date.now();
+            let otp = Math.floor(1000 + Math.random() * 9000).toString();
+            tempOtpDB[userPhone + '_login'] = { otp };
+
+            setTimeout(() => {
+                try {
+                    if (globalSock) {
+                        let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nVerifikasi Login.\nKode OTP: *${otp}*\n\n_⚠️ Jangan bagikan kode ini kepada siapapun!_`;
+                        globalSock.sendMessage(userPhone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
+                    }
+                } catch(err) {}
+            }, 100);
+
+            res.json({success: true, requires_otp: true, phone: userPhone});
         }
-        else res.json({success: false, message: 'Email atau Password salah!'});
+        else res.json({success: false, message: 'Data Akun (Email/WA/Username) atau Password salah!'});
+    } catch(e) { res.json({success: false, message: 'Server error'}); }
+});
+
+app.post('/api/verify-login-otp', (req, res) => {
+    try {
+        let { phone, otp } = req.body;
+        let session = tempOtpDB[phone + '_login'];
+        
+        if(session && session.otp === otp) {
+            let db = loadJSON(dbFile);
+            let safeData = { ...db[phone] }; delete safeData.password;
+            delete tempOtpDB[phone + '_login'];
+            res.json({success: true, data: safeData, phone: phone});
+        } else {
+            res.json({success: false, message: 'Kode OTP Salah!'});
+        }
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
@@ -2303,8 +2383,12 @@ app.post('/api/register', (req, res) => {
         otpCooldown[phone] = Date.now();
         
         let db = loadJSON(dbFile);
-        let isEmailExist = Object.keys(db).some(k => db[k] && db[k].email === email);
+        
+        let isEmailExist = Object.keys(db).some(k => db[k] && db[k].email && db[k].email.toLowerCase() === email.toLowerCase());
         if (isEmailExist) return res.json({success: false, message: 'Email terdaftar!'});
+        
+        let isUsernameExist = Object.keys(db).some(k => db[k] && db[k].username && db[k].username.toLowerCase() === username.toLowerCase());
+        if (isUsernameExist) return res.json({success: false, message: 'Username sudah digunakan, silakan ganti yang lain!'});
 
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
         tempOtpDB[phone] = { username, email, password: hashPassword(password), otp };
@@ -2507,7 +2591,8 @@ app.post('/api/order', async (req, res) => {
         let realSku = p.sku_asli || sku;
         
         let hargaFix = parseInt(p.harga);
-        if (parseInt(db[targetKey].saldo) < hargaFix) return res.json({success: false, message: 'Saldo tidak cukup.'});
+        let saldoSebelum = parseInt(db[targetKey].saldo);
+        if (saldoSebelum < hargaFix) return res.json({success: false, message: 'Saldo tidak cukup.'});
 
         let username = (config.digiflazzUsername || '').trim();
         let apiKey = (config.digiflazzApiKey || '').trim();
@@ -2521,11 +2606,16 @@ app.post('/api/order', async (req, res) => {
         const statusOrder = response.data.data.status; 
         if (statusOrder === 'Gagal') return res.json({success: false, message: response.data.data.message});
         
-        db[targetKey].saldo = parseInt(db[targetKey].saldo) - hargaFix; 
+        db[targetKey].saldo = saldoSebelum - hargaFix; 
         db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
         
         db[targetKey].history = db[targetKey].history || [];
-        db[targetKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId });
+        db[targetKey].history.unshift({ 
+            ts: Date.now(), 
+            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+            type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId,
+            saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[targetKey].saldo
+        });
         if(db[targetKey].history.length > 50) db[targetKey].history.pop();
         saveJSON(dbFile, db);
         
@@ -2563,15 +2653,16 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         let hargaFix = parseInt(harga_asli);
         let p = produkDB[sku] || {};
         let realSku = p.sku_asli || sku;
+        let saldoSebelum = parseInt(db[phone].saldo);
         
-        if (parseInt(db[phone].saldo) < hargaFix) return; 
+        if (saldoSebelum < hargaFix) return; 
         
         let username = (config.digiflazzUsername || '').trim();
         let apiKey = (config.digiflazzApiKey || '').trim();
         let refId = 'WEB-' + Date.now();
         let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
 
-        db[phone].saldo = parseInt(db[phone].saldo) - hargaFix; 
+        db[phone].saldo = saldoSebelum - hargaFix; 
 
         const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
             username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
@@ -2592,8 +2683,10 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
                 hist.amount = hargaFix;
                 hist.ref_id = refId;
                 hist.sn = '-';
+                hist.saldo_sebelumnya = saldoSebelum;
+                hist.saldo_sesudah = db[phone].saldo;
             } else {
-                db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId });
+                db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[phone].saldo });
                 if(db[phone].history.length > 50) db[phone].history.pop();
             }
             saveJSON(dbFile, db);
@@ -2617,8 +2710,10 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
             hist.type = 'Order';
             hist.amount = hargaFix;
             hist.ref_id = refId;
+            hist.saldo_sebelumnya = saldoSebelum;
+            hist.saldo_sesudah = db[phone].saldo;
         } else {
-            db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId });
+            db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[phone].saldo });
             if(db[phone].history.length > 50) db[phone].history.pop();
         }
         saveJSON(dbFile, db);
@@ -2654,7 +2749,6 @@ function doBackupAndSend() {
 if (configAwal.autoBackup) setInterval(doBackupAndSend, (configAwal.backupInterval || 720) * 60 * 1000); 
 
 async function startBot() {
-    // ==== DYNAMIC IMPORT UPDATE ====
     const baileys = await import('@whiskeysockets/baileys');
     const makeWASocket = baileys.default.default || baileys.default;
     const { useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = baileys;
@@ -2708,12 +2802,17 @@ async function startBot() {
                     if(isFound) {
                         req.status = 'sukses'; changedTp = true;
                         if(db[req.phone]) {
-                            db[req.phone].saldo = parseInt(db[req.phone].saldo) + parseInt(req.saldo_to_add); 
+                            let saldoSebelumnya = parseInt(db[req.phone].saldo);
+                            db[req.phone].saldo = saldoSebelumnya + parseInt(req.saldo_to_add); 
                             
                             // Hanya update status untuk Topup. Jika Order, biar prosesAutoOrderQRIS yg menimpa.
                             if (!req.is_order) {
                                 let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
-                                if(hist && hist.status === 'Pending') hist.status = 'Sukses Bayar';
+                                if(hist && hist.status === 'Pending') {
+                                    hist.status = 'Sukses Bayar';
+                                    hist.saldo_sebelumnya = saldoSebelumnya;
+                                    hist.saldo_sesudah = db[req.phone].saldo;
+                                }
                                 changedDb = true;
                                 let teleMsg = `✅ <b>TOPUP QRIS SUKSES MASUK</b>\n\n👤 Akun: ${db[req.phone].username || req.phone}\n💰 Saldo Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}`;
                                 sendTelegramAdmin(teleMsg);
@@ -2766,14 +2865,15 @@ async function startBot() {
                         
                     } else {
                         if (db[phoneKey]) { 
-                            db[phoneKey].saldo = parseInt(db[phoneKey].saldo) + parseInt(trx.harga); 
+                            let saldoSebelum = parseInt(db[phoneKey].saldo);
+                            db[phoneKey].saldo = saldoSebelum + parseInt(trx.harga); 
                             if(db[phoneKey].history) {
                                 let hist = db[phoneKey].history.find(h => h.ref_id === ref);
                                 if (hist) {
                                     hist.status = 'Refund';
                                     hist.nama = 'Refund: ' + hist.nama;
                                 } else {
-                                    db[phoneKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + trx.nama, tujuan: trx.tujuan, status: 'Refund', sn: '-', amount: parseInt(trx.harga), ref_id: ref });
+                                    db[phoneKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + trx.nama, tujuan: trx.tujuan, status: 'Refund', sn: '-', amount: parseInt(trx.harga), ref_id: ref, saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[phoneKey].saldo });
                                 }
                                 if(db[phoneKey].history.length > 50) db[phoneKey].history.pop();
                             }
@@ -3172,15 +3272,15 @@ menu_member() {
                             let history = db[target].history || [];
                             let targetSaldo = db[target].saldo || 0;
                             let targetNama = db[target].username || 'Member';
-                            let topups = history.filter(h => h.type === 'Topup' || h.type === 'Order QRIS' || h.type === 'Refund' || h.type === 'Order');
+                            let topups = history.filter(h => h.type === 'Topup' || h.type === 'Order QRIS' || h.type === 'Refund' || h.type === 'Order').slice(0, 10);
                             
-                            console.log('\n\x1b[36m=== RIWAYAT: ' + targetNama + ' (' + target + ') ===\x1b[0m');
+                            console.log('\n\x1b[36m=== 10 RIWAYAT TERBARU: ' + targetNama + ' (' + target + ') ===\x1b[0m');
                             console.log('\x1b[32m💰 Saldo Saat Saat Ini: Rp ' + targetSaldo.toLocaleString('id-ID') + '\x1b[0m');
                             if(topups.length === 0) console.log('\x1b[33mBelum ada riwayat topup di akun ini.\x1b[0m');
                             else {
                                 topups.forEach(h => {
                                     let str = '- \x1b[33m' + h.tanggal + '\x1b[0m | ' + h.nama + ' | \x1b[32mRp ' + (h.amount || 0).toLocaleString('id-ID') + '\x1b[0m | Status: ' + h.status;
-                                    if (h.saldo_sebelumnya !== undefined) str += ' | Saldo Sblm: Rp ' + h.saldo_sebelumnya.toLocaleString('id-ID');
+                                    if (h.saldo_sebelumnya !== undefined) str += '\n    └ Saldo Sblm: Rp ' + h.saldo_sebelumnya.toLocaleString('id-ID');
                                     if (h.saldo_sesudah !== undefined) str += ' | Saldo Stlh: Rp ' + h.saldo_sesudah.toLocaleString('id-ID');
                                     console.log(str);
                                 });
@@ -3835,4 +3935,4 @@ EOF
     esac
 done
 
-# Selesai
+# Selesai Part 2
