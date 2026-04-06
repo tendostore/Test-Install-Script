@@ -373,7 +373,7 @@ EOF
         
         .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;}
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: margin-top: 10px;}
+        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
         .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
 
         .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
@@ -420,6 +420,7 @@ EOF
         .stat-Sukses { background: #dcfce7; color: #166534; } 
         .stat-Pending { background: #ffedd5; color: #c2410c; } 
         .stat-Gagal { background: #fee2e2; color: #b91c1c; text-decoration: line-through; }
+        .stat-Gagal_Refund { background: #fee2e2; color: #b91c1c; font-style: italic; }
 
         .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
         .modal-box { background: var(--bg-card); color: var(--text-main); width: 100%; max-width: 340px; border-radius: 20px; padding: 25px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;}
@@ -1492,7 +1493,7 @@ EOF
                     historyList = historyList.filter(h => {
                         let type = h.type || 'Order';
                         if (currentHistoryFilter === 'Topup') return type === 'Topup';
-                        return type === 'Order' || type === 'Order QRIS';
+                        return type === 'Order' || type === 'Order QRIS' || type === 'Refund';
                     });
 
                     if(historyList.length === 0) histHTML = '<div style="text-align:center; color:var(--text-muted); font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
@@ -1501,12 +1502,21 @@ EOF
                             let statClass = 'stat-Pending';
                             if(h.status === 'Sukses' || h.status === 'Sukses Bayar') statClass = 'stat-Sukses';
                             if(h.status === 'Gagal' || h.status === 'Gagal (Kedaluwarsa)') statClass = 'stat-Gagal';
+                            if(h.status === 'Gagal (Refund)') statClass = 'stat-Gagal_Refund';
+                            
+                            let targetInfo = h.tujuan;
+                            if (h.type === 'Topup') {
+                                if (h.saldo_sebelumnya !== undefined) {
+                                    targetInfo = `Saldo Awal: Rp ${h.saldo_sebelumnya.toLocaleString('id-ID')}`;
+                                }
+                            }
+
                             let safeH = JSON.stringify(h).replace(/"/g, '&quot;');
                             histHTML += `
                                 <div class="hist-item" onclick='openHistoryDetail(${safeH})'>
                                     <div class="hist-top"><span>${h.tanggal}</span> <span class="stat-badge ${statClass}">${h.status}</span></div>
                                     <div class="hist-title">${h.nama}</div>
-                                    <div class="hist-target">Tujuan: ${h.tujuan}</div>
+                                    <div class="hist-target">${h.type === 'Topup' ? targetInfo : 'Tujuan: ' + targetInfo}</div>
                                 </div>
                             `;
                         });
@@ -1545,11 +1555,17 @@ EOF
             document.getElementById('hd-status').innerText = h.status;
             document.getElementById('hd-name').innerText = h.nama;
             document.getElementById('hd-amount').innerText = h.amount ? 'Rp ' + h.amount.toLocaleString('id-ID') : '-';
-            document.getElementById('hd-target').innerText = h.tujuan;
+            
+            let tTujuan = h.tujuan;
+            if(h.type === 'Topup' && h.saldo_sebelumnya !== undefined) {
+                tTujuan = `Saldo Awal Rp ${h.saldo_sebelumnya.toLocaleString('id-ID')}`;
+            }
+            document.getElementById('hd-target').innerText = tTujuan;
+            
             document.getElementById('hd-sn').innerText = h.sn || '-';
             
             let btnComplain = document.getElementById('hd-complain-btn');
-            if(h.status === 'Pending' || h.status === 'Gagal' || h.status === 'Gagal (Kedaluwarsa)') {
+            if(h.status === 'Pending' || h.status === 'Gagal' || h.status === 'Gagal (Kedaluwarsa)' || h.status === 'Gagal (Refund)') {
                 btnComplain.classList.remove('hidden');
             } else {
                 btnComplain.classList.add('hidden');
@@ -1833,7 +1849,7 @@ EOF
                 let p = allProducts[key];
                 if(p.kategori === cat && (p.brand || 'Lainnya') === brand) {
                     let s = p.sub_kategori || 'Umum';
-                    if(!subs.includes(s)) subs.push(s);
+                    if(!subs.includes(s)) push(s);
                 }
             }
             
@@ -1977,7 +1993,6 @@ const TelegramBot = require('node-telegram-bot-api');
 const app = express();
 app.disable('x-powered-by');
 
-// SECURITY: Memblokir akses langsung file konfigurasi JSON lewat URL
 app.use((req, res, next) => {
     if (req.path.endsWith('.json') && !req.path.endsWith('manifest.json')) {
         return res.status(403).json({success: false, message: 'Akses Ditolak (Sistem Keamanan Tendo)'});
@@ -1995,16 +2010,13 @@ const trxFile = './trx.json';
 const notifFile = './web_notif.json';
 const globalStatsFile = './global_stats.json';
 const topupFile = './topup.json';
-const globalTrxFile = './global_trx.json'; // File log transaksi untuk website
+const globalTrxFile = './global_trx.json';
 
 const loadJSON = (file) => crypt.load(file, (file === notifFile || file === globalTrxFile) ? [] : {});
 const saveJSON = (file, data) => crypt.save(file, data);
 
 const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
 
-// ==============================================================
-// FITUR: SAMARKAN DATA TUJUAN SAJA (4 ANGKA AWAL)
-// ==============================================================
 function maskStringTarget(str) {
     if (!str) return '-';
     let s = str.toString().trim();
@@ -2012,29 +2024,20 @@ function maskStringTarget(str) {
     return s.substring(0, 4) + '***';
 }
 
-// ==============================================================
-// FITUR: CEK PEMELIHARAAN SISTEM (23:00 - 00:30 WIB)
-// ==============================================================
 function cekPemeliharaan() {
     let d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
     let h = d.getHours();
     let m = d.getMinutes();
-    if (h === 23 || (h === 0 && m <= 30)) {
-        return true;
-    }
+    if (h === 23 || (h === 0 && m <= 30)) return true;
     return false;
 }
 
-// ==============================================================
-// FITUR: NOTIFIKASI TELEGRAM ADMIN (Bot Notifikasi Utama)
-// ==============================================================
 function sendTelegramAdmin(message) {
     try {
         let cfg = loadJSON(configFile);
         if (cfg.teleToken && cfg.teleChatId) {
-            let chatIdStr = cfg.teleChatId.toString();
             axios.post(`https://api.telegram.org/bot${cfg.teleToken}/sendMessage`, {
-                chat_id: chatIdStr,
+                chat_id: cfg.teleChatId.toString(),
                 text: message,
                 parse_mode: 'Markdown'
             }).catch(e => {});
@@ -2042,9 +2045,6 @@ function sendTelegramAdmin(message) {
     } catch(e) {}
 }
 
-// ==============================================================
-// FITUR: BROADCAST TRANSAKSI SUKSES (TELEGRAM CHANNEL & WA)
-// ==============================================================
 function sendBroadcastSuccess(productName, rawUser, rawTarget) {
     try {
         let cfg = loadJSON(configFile);
@@ -2052,26 +2052,20 @@ function sendBroadcastSuccess(productName, rawUser, rawTarget) {
         let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
         let msg = `✅ *PEMBELIAN BERHASIL*\n\n👤 Pelanggan: ${rawUser}\n📦 Layanan: ${productName}\n🎯 Tujuan: ${maskTarget}\n🕒 Waktu: ${timeStr} WIB\n\n_🌐 Transaksi diproses otomatis oleh sistem._`;
 
-        // Kirim ke Telegram Channel
         if (cfg.teleTokenInfo && cfg.teleChannelId) {
-            let channelIdStr = cfg.teleChannelId.toString();
             axios.post(`https://api.telegram.org/bot${cfg.teleTokenInfo}/sendMessage`, {
-                chat_id: channelIdStr,
+                chat_id: cfg.teleChannelId.toString(),
                 text: msg,
                 parse_mode: 'Markdown'
-            }).catch(e => { console.error("Gagal kirim Telegram Channel:", e.message); });
+            }).catch(e => {});
         }
 
-        // Kirim ke Saluran / Grup WhatsApp
         if (globalSock && cfg.waBroadcastId) {
             globalSock.sendMessage(cfg.waBroadcastId, { text: msg }).catch(e => {});
         }
     } catch(e) {}
 }
 
-// ==============================================================
-// FUNGSI KONVERSI QRIS SMART PARSER
-// ==============================================================
 function convertToDynamicQris(staticQris, amount) {
     try {
         if(!staticQris || staticQris.length < 30) return staticQris;
@@ -2125,7 +2119,6 @@ let globalSock = null;
 let tempOtpDB = {}; 
 let otpCooldown = {}; 
 
-// TELEGRAM BOT POLLING UNTUK BROADCAST INFO PENGUMUMAN
 let teleBotInfo = null;
 if (configAwal.teleTokenInfo) {
     try {
@@ -2150,7 +2143,7 @@ if (configAwal.teleTokenInfo) {
                         const writer = fs.createWriteStream('./public/info_images/' + imageFilename);
                         res.data.pipe(writer);
                         await new Promise((resolve) => writer.on('finish', resolve));
-                    } catch(e) { console.log('Gagal download gambar tele info', e); }
+                    } catch(e) {}
                 }
                 
                 let notifs = loadJSON(notifFile);
@@ -2160,14 +2153,13 @@ if (configAwal.teleTokenInfo) {
                 saveJSON(notifFile, notifs);
 
                 if (cfg.teleChannelId) {
-                    let chanIdStr = cfg.teleChannelId.toString();
-                    if (imageFilename) teleBotInfo.sendPhoto(chanIdStr, './public/info_images/' + imageFilename, {caption: text}).catch(e=>{});
-                    else teleBotInfo.sendMessage(chanIdStr, text).catch(e=>{});
+                    if (imageFilename) teleBotInfo.sendPhoto(cfg.teleChannelId.toString(), './public/info_images/' + imageFilename, {caption: text}).catch(e=>{});
+                    else teleBotInfo.sendMessage(cfg.teleChannelId.toString(), text).catch(e=>{});
                 }
-                teleBotInfo.sendMessage(cfg.teleChatId, '✅ Info berhasil disebarkan ke Website & Telegram Channel!').catch(e=>{});
+                teleBotInfo.sendMessage(cfg.teleChatId.toString(), '✅ Info berhasil disebarkan ke Website & Telegram Channel!').catch(e=>{});
             }
         });
-    } catch(e) { console.log("Gagal inisialisasi Telegram Bot Info Polling"); }
+    } catch(e) { }
 }
 
 function normalizePhone(phoneStr) {
@@ -2390,13 +2382,14 @@ app.post('/api/topup', async (req, res) => {
         topups[trxId] = { phone, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, status: 'pending', timestamp: Date.now(), expired_at: expiredAt, is_order: false };
         saveJSON(topupFile, topups);
 
+        let sAwal = parseInt(db[phone].saldo) || 0;
         db[phone].history = db[phone].history || [];
         db[phone].history.unshift({ 
             ts: Date.now(), 
             tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-            type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
+            type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt, saldo_sebelumnya: sAwal
         });
-        if(db[phone].history.length > 20) db[phone].history.pop();
+        if(db[phone].history.length > 30) db[phone].history.pop();
         saveJSON(dbFile, db);
 
         res.json({success: true});
@@ -2435,7 +2428,7 @@ app.post('/api/order-qris', async (req, res) => {
         let trxId = "OQ-" + Date.now();
         let expiredAt = Date.now() + 10 * 60 * 1000;
 
-        topups[trxId] = { phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, status: 'pending', timestamp: Date.now(), expired_at: expiredAt, is_order: true, sku: sku, tujuan: tujuan, nama_produk: p.nama, harga_asli: nominalAsli };
+        topups[trxId] = { phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, status: 'pending', timestamp: Date.now(), expired_at: expiredAt, is_order: true, sku: sku, tujuan: tujuan, nama_produk: p.nama, harga_asli: nominalAsli, sku_asli: p.sku_asli || sku };
         saveJSON(topupFile, topups);
 
         db[targetKey].history = db[targetKey].history || [];
@@ -2444,7 +2437,7 @@ app.post('/api/order-qris', async (req, res) => {
             tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
             type: 'Order QRIS', nama: p.nama + ' (QRIS)', tujuan: tujuan, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
         });
-        if(db[targetKey].history.length > 20) db[targetKey].history.pop();
+        if(db[targetKey].history.length > 30) db[targetKey].history.pop();
         saveJSON(dbFile, db);
 
         res.json({success: true});
@@ -2475,8 +2468,10 @@ app.post('/api/order', async (req, res) => {
         let refId = 'WEB-' + Date.now();
         let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
 
+        let realSku = p.sku_asli || sku;
+
         const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
-            username: username, buyer_sku_code: sku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
+            username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
         });
         
         const statusOrder = response.data.data.status; 
@@ -2487,12 +2482,12 @@ app.post('/api/order', async (req, res) => {
         
         db[targetKey].history = db[targetKey].history || [];
         db[targetKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId });
-        if(db[targetKey].history.length > 20) db[targetKey].history.pop();
+        if(db[targetKey].history.length > 30) db[targetKey].history.pop();
         saveJSON(dbFile, db);
         
         let trxs = loadJSON(trxFile);
         let targetJid = db[targetKey].jid || targetKey + '@s.whatsapp.net';
-        trxs[refId] = { jid: targetJid, sku: sku, tujuan: tujuan, harga: hargaFix, nama: p.nama, tanggal: Date.now(), phone: targetKey };
+        trxs[refId] = { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: p.nama, tanggal: Date.now(), phone: targetKey };
         saveJSON(trxFile, trxs);
 
         if (statusOrder === 'Sukses') {
@@ -2518,7 +2513,7 @@ app.post('/api/order', async (req, res) => {
     } catch (error) { if (!res.headersSent) return res.json({success: false, message: 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)'}); }
 });
 
-async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, refIdAsal) {
+async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, refIdAsal, realSkuCode) {
     try {
         let db = loadJSON(dbFile); let config = loadJSON(configFile);
         let hargaFix = parseInt(harga_asli);
@@ -2533,17 +2528,28 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         // POTONG SALDO SEBELUM TEMBAK
         db[phone].saldo = parseInt(db[phone].saldo) - hargaFix; 
 
+        let realSku = realSkuCode || sku;
+
         const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
-            username: username, buyer_sku_code: sku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
+            username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
         });
         
         const statusOrder = response.data.data.status; 
         if (statusOrder === 'Gagal') {
             // REFUND SALDO KARENA GAGAL
             db[phone].saldo = parseInt(db[phone].saldo) + hargaFix;
+            if(db[phone].history) {
+                let hist = db[phone].history.find(h => h.sn === refIdAsal);
+                if (hist) hist.status = 'Gagal (Refund)';
+            }
             saveJSON(dbFile, db);
             
-            sendTelegramAdmin(`⚠️ *INFO ORDER QRIS: GAGAL DIGIFLAZZ*\n\nRef: ${refIdAsal}\nStatus Digiflazz Gagal. Saldo telah otomatis di-refund ke akun pengguna.`);
+            sendTelegramAdmin(`⚠️ *INFO ORDER QRIS: GAGAL DIGIFLAZZ (DI-REFUND)*\n\nRef: ${refIdAsal}\nStatus API Gagal: ${response.data.data.message}.\nSaldo pelanggan telah otomatis dikembalikan utuh ke akun.`);
+            
+            if (globalSock && db[phone].jid) {
+                let msgRefund = `*⚠️ PESANAN GAGAL & REFUND ⚠️*\n\nMohon maaf, pesanan QRIS Otomatis Anda untuk layanan *${nama_produk}* (Tujuan: ${tujuan}) telah gagal dari pusat.\n\nAlasan: ${response.data.data.message}\n\n💰 Saldo sebesar *Rp ${hargaFix.toLocaleString('id-ID')}* telah di-refund (dikembalikan) secara otomatis dan masuk ke Saldo Website Anda.\n\nSilakan cek riwayat Anda atau hubungi Admin jika butuh bantuan.`;
+                globalSock.sendMessage(db[phone].jid, { text: msgRefund }).catch(()=>{});
+            }
             return;
         }
         
@@ -2554,7 +2560,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         
         let trxs = loadJSON(trxFile);
         let targetJid = db[phone].jid || phone + '@s.whatsapp.net';
-        trxs[refId] = { jid: targetJid, sku: sku, tujuan: tujuan, harga: hargaFix, nama: nama_produk, tanggal: Date.now(), phone: phone };
+        trxs[refId] = { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: nama_produk, tanggal: Date.now(), phone: phone };
         saveJSON(trxFile, trxs);
 
         if (statusOrder === 'Sukses') {
@@ -2570,7 +2576,18 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         let teleMsg = `🚀 *AUTO ORDER QRIS BERHASIL DITEMBAK*\n\n👤 Akun: ${db[phone].username || phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: *${statusOrder}*`;
         sendTelegramAdmin(teleMsg);
 
-    } catch(e) {}
+    } catch(e) {
+        // Gagal Network, Kembalikan saldo
+        let db = loadJSON(dbFile);
+        let hargaFix = parseInt(harga_asli);
+        db[phone].saldo = parseInt(db[phone].saldo) + hargaFix;
+        if(db[phone].history) {
+            let hist = db[phone].history.find(h => h.sn === refIdAsal);
+            if (hist) hist.status = 'Gagal (Refund)';
+        }
+        saveJSON(dbFile, db);
+        sendTelegramAdmin(`⚠️ *INFO ORDER QRIS: GAGAL KONEKSI (DI-REFUND)*\n\nRef: ${refIdAsal}\nSistem gagal menghubungi server Digiflazz. Saldo direfund.`);
+    }
 }
 
 function doBackupAndSend() {
@@ -2639,7 +2656,7 @@ async function startBot() {
                             changedDb = true;
                             
                             if (req.is_order) {
-                                prosesAutoOrderQRIS(req.phone, req.sku, req.tujuan, req.nama_produk, req.harga_asli, req.trx_id);
+                                prosesAutoOrderQRIS(req.phone, req.sku, req.tujuan, req.nama_produk, req.harga_asli, req.trx_id, req.sku_asli);
                             } else {
                                 let teleMsg = `✅ *TOPUP QRIS SUKSES MASUK*\n\n👤 Akun: ${db[req.phone].username || req.phone}\n💰 Saldo Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}`;
                                 sendTelegramAdmin(teleMsg);
@@ -2692,13 +2709,18 @@ async function startBot() {
                             db[phoneKey].saldo = parseInt(db[phoneKey].saldo) + parseInt(trx.harga); 
                             if(db[phoneKey].history) {
                                 let hist = db[phoneKey].history.find(h => h.ref_id === ref);
-                                if (hist) hist.status = 'Gagal';
+                                if (hist) hist.status = 'Gagal (Refund)';
                             }
                             saveJSON(dbFile, db); 
                         }
                         
-                        let teleFail = `❌ *PESANAN GAGAL*\n\n👤 Akun: ${db[phoneKey]?.username || phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n📝 Alasan: ${resData.message}`;
+                        let teleFail = `❌ *PESANAN GAGAL & REFUND*\n\n👤 Akun: ${db[phoneKey]?.username || phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n📝 Alasan: ${resData.message}\n💰 Saldo Rp ${trx.harga.toLocaleString('id-ID')} telah dikembalikan.`;
                         sendTelegramAdmin(teleFail);
+
+                        if (globalSock && db[phoneKey]?.jid) {
+                            let msgRefund = `*⚠️ PESANAN GAGAL & REFUND ⚠️*\n\nMohon maaf, pesanan Anda untuk layanan *${trx.nama}* (Tujuan: ${trx.tujuan}) telah gagal dari pusat.\n\nAlasan: ${resData.message}\n\n💰 Saldo sebesar *Rp ${trx.harga.toLocaleString('id-ID')}* telah di-refund secara otomatis dan masuk ke Saldo Website Anda.\n\nSilakan cek riwayat Anda atau hubungi Admin.`;
+                            globalSock.sendMessage(db[phoneKey].jid, { text: msgRefund }).catch(()=>{});
+                        }
                     }
                     delete trxs[ref]; saveJSON(trxFile, trxs);
                 } else if (Date.now() - trx.tanggal > 24 * 60 * 60 * 1000) { delete trxs[ref]; saveJSON(trxFile, trxs); }
@@ -2726,9 +2748,6 @@ async function startBot() {
     });
 }
 
-// ==============================================================
-// TUGAS SINKRONISASI DIGIFLAZZ (DIPERCEPAT MENJADI 10 MENIT SEKALI)
-// ==============================================================
 async function tarikDataLayananOtomatis() {
     try {
         let config = loadJSON(configFile);
@@ -2771,7 +2790,6 @@ async function tarikDataLayananOtomatis() {
                 else if (catLower === 'aktivasi perdana' || catLower === 'perdana') kategoriBarang = 'Aktivasi Perdana';
                 else kategoriBarang = catDigi; 
 
-                // PROTEKSI AGAR KATEGORI HASIL TAMBAH MANUAL TIDAK TERTABRAK OLEH SINKRONISASI
                 if (produkLama[kodeBarang] && produkLama[kodeBarang].is_manual_cat) {
                     kategoriBarang = produkLama[kodeBarang].kategori;
                     namaBarang = produkLama[kodeBarang].nama || namaBarang;
@@ -2783,7 +2801,6 @@ async function tarikDataLayananOtomatis() {
                 let merekBarang = item.brand || 'Lainnya';
                 let subKategori = item.type || 'Umum';
 
-                // PERHITUNGAN KEUNTUNGAN 13 TINGKAT
                 let keuntungan = 0;
                 if(hargaModal <= 100) keuntungan = m.t1;
                 else if(hargaModal <= 500) keuntungan = m.t2;
@@ -2807,9 +2824,17 @@ async function tarikDataLayananOtomatis() {
                     sub_kategori: subKategori,
                     deskripsi: item.desc || 'Proses Otomatis',
                     status_produk: statusProduk,
-                    is_manual_cat: (produkLama[kodeBarang] ? produkLama[kodeBarang].is_manual_cat : false)
+                    is_manual_cat: (produkLama[kodeBarang] ? produkLama[kodeBarang].is_manual_cat : false),
+                    sku_asli: (produkLama[kodeBarang] ? produkLama[kodeBarang].sku_asli : kodeBarang)
                 };
             });
+
+            // Re-inject pure virtual sku
+            for (let k in produkLama) {
+                if (produkLama[k].is_manual_cat && produkLama[k].sku_asli && produkLama[k].sku_asli !== k) {
+                    daftarLokal[k] = produkLama[k];
+                }
+            }
 
             saveJSON(produkFile, daftarLokal);
             console.log('\x1b[32m✅ Data Produk Digiflazz Berhasil Tersinkronisasi!\x1b[0m');
@@ -2949,7 +2974,7 @@ menu_member() {
         case $subchoice in
             1)
                 echo -e "\n${C_MAG}--- TAMBAH SALDO ---${C_RST}"
-                read -p "Masukkan ID Member (No WA awalan 08/62 atau Email): " nomor
+                read -p "Masukkan ID Member (No WA, Email, atau Nama Akun): " nomor
                 read -p "Masukkan Jumlah Saldo: " jumlah
                 node -e "
                     const crypt = require('./tendo_crypt.js');
@@ -2958,21 +2983,21 @@ menu_member() {
                     let normPhone = input.replace(/[^0-9]/g, '');
                     if(normPhone.startsWith('0')) normPhone = '62' + normPhone.substring(1);
                     
-                    let target = Object.keys(db).find(k => k === normPhone || db[k].email === input);
+                    let target = Object.keys(db).find(k => k === normPhone || db[k].email === input || (db[k].username && db[k].username.toLowerCase() === input.toLowerCase()));
                     
                     if(!target) {
                         target = normPhone || input;
-                        db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: target + '@s.whatsapp.net', trx_count: 0, history: [] };
+                        db[target] = { saldo: 0, username: 'Member', tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: target + '@s.whatsapp.net', trx_count: 0, history: [] };
                     }
                     db[target].saldo = parseInt(db[target].saldo) + parseInt('$jumlah');
                     crypt.save('database.json', db);
-                    console.log('\x1b[32m\n✅ Saldo Rp $jumlah berhasil ditambahkan ke ' + target + '!\x1b[0m');
+                    console.log('\x1b[32m\n✅ Saldo Rp $jumlah berhasil ditambahkan ke ' + (db[target].username || target) + '!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
                 echo -e "\n${C_MAG}--- KURANGI SALDO ---${C_RST}"
-                read -p "Masukkan ID Member (No WA awalan 08/62 atau Email): " nomor
+                read -p "Masukkan ID Member (No WA, Email, atau Nama Akun): " nomor
                 read -p "Masukkan Jumlah Saldo yg dikurangi: " jumlah
                 node -e "
                     const crypt = require('./tendo_crypt.js');
@@ -2981,7 +3006,7 @@ menu_member() {
                     let normPhone = input.replace(/[^0-9]/g, '');
                     if(normPhone.startsWith('0')) normPhone = '62' + normPhone.substring(1);
                     
-                    let target = Object.keys(db).find(k => k === normPhone || db[k].email === input);
+                    let target = Object.keys(db).find(k => k === normPhone || db[k].email === input || (db[k].username && db[k].username.toLowerCase() === input.toLowerCase()));
                     
                     if(!target) { 
                         console.log('\x1b[31m\n❌ Akun tidak ditemukan di database.\x1b[0m'); 
@@ -2989,7 +3014,7 @@ menu_member() {
                         db[target].saldo = parseInt(db[target].saldo) - parseInt('$jumlah');
                         if(db[target].saldo < 0) db[target].saldo = 0;
                         crypt.save('database.json', db);
-                        console.log('\x1b[32m\n✅ Saldo berhasil dikurangi!\x1b[0m');
+                        console.log('\x1b[32m\n✅ Saldo berhasil dikurangi untuk ' + (db[target].username || target) + '!\x1b[0m');
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -3002,7 +3027,6 @@ menu_member() {
                     let members = Object.keys(db);
                     let deletedCount = 0;
                     
-                    // Filter & hapus member tanpa email
                     members.forEach(m => {
                         if (!db[m].email || db[m].email.trim() === '-' || db[m].email.trim() === '') {
                             delete db[m];
@@ -3016,7 +3040,7 @@ menu_member() {
                     
                     if(members.length === 0) console.log('\x1b[33mBelum ada member aktif (yang terdaftar email).\x1b[0m');
                     else {
-                        members.forEach((m, i) => console.log((i + 1) + '. WA: ' + m + ' | Email: ' + db[m].email + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID')));
+                        members.forEach((m, i) => console.log('['+(i + 1)+'] Nama: ' + (db[m].username || 'Member') + ' | WA: ' + m + ' | Email: ' + db[m].email + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID')));
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -3031,7 +3055,7 @@ menu_member() {
                         console.log('\x1b[33mBelum ada member yang memiliki email.\x1b[0m');
                         process.exit(0);
                     }
-                    members.forEach((m, i) => console.log((i + 1) + '. WA: ' + m + ' | Email: ' + db[m].email));
+                    members.forEach((m, i) => console.log('['+(i + 1)+'] Nama: ' + (db[m].username || 'Member') + ' | WA: ' + m + ' | Email: ' + db[m].email));
                 "
                 read -p "Pilih Nomor Urut Member [Contoh: 1]: " urut_member
                 if [[ "$urut_member" =~ ^[0-9]+$ ]]; then
@@ -3045,11 +3069,14 @@ menu_member() {
                             let history = db[target].history || [];
                             let targetSaldo = db[target].saldo || 0;
                             let topups = history.filter(h => h.type === 'Topup' || h.type === 'Order QRIS');
-                            console.log('\n\x1b[36m=== RIWAYAT TOPUP: ' + target + ' ===\x1b[0m');
-                            console.log('\x1b[32m💰 Saldo Saat Saat Ini: Rp ' + targetSaldo.toLocaleString('id-ID') + '\x1b[0m');
+                            console.log('\n\x1b[36m=== RIWAYAT TOPUP: ' + (db[target].username || target) + ' ===\x1b[0m');
+                            console.log('\x1b[32m💰 Saldo Akhir Saat Ini: Rp ' + targetSaldo.toLocaleString('id-ID') + '\x1b[0m');
                             if(topups.length === 0) console.log('\x1b[33mBelum ada riwayat topup di akun ini.\x1b[0m');
                             else {
-                                topups.forEach(h => console.log('- \x1b[33m' + h.tanggal + '\x1b[0m | ' + h.nama + ' | \x1b[32mRp ' + h.amount.toLocaleString('id-ID') + '\x1b[0m | Status: ' + h.status));
+                                topups.forEach(h => {
+                                    let prevSaldoText = h.saldo_sebelumnya !== undefined ? ' (Saldo Awal: Rp ' + h.saldo_sebelumnya.toLocaleString('id-ID') + ')' : '';
+                                    console.log('- \x1b[33m' + h.tanggal + '\x1b[0m | ' + h.nama + ' | \x1b[32m+ Rp ' + h.amount.toLocaleString('id-ID') + '\x1b[0m' + prevSaldoText + ' | Status: ' + h.status);
+                                });
                             }
                         } else {
                             console.log('\x1b[31m❌ Nomor urut tidak valid.\x1b[0m');
@@ -3277,7 +3304,7 @@ menu_manajemen_produk_manual() {
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "${C_YELLOW}${C_BOLD}          📦 MANAJEMEN PRODUK MANUAL 📦             ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Instan (Kode Digiflazz)"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Instan (Virtual SKU & Kode Asli)"
         echo -e "  ${C_GREEN}[2]${C_RST} Lihat Daftar & Hapus Produk Manual"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
@@ -3318,17 +3345,30 @@ menu_manajemen_produk_manual() {
                     *) echo -e "${C_RED}❌ Pilihan kategori tidak valid.${C_RST}"; sleep 1; continue ;;
                 esac
                 
-                read -p "Masukkan KODE SKU Digiflazz: " sku_digi
+                echo -e "\n${C_MAG}--- SETUP KODE SKU ---${C_RST}"
+                echo -e "Untuk mencegah bentrok, buat Kode Produk Virtual (cth: PROMO-V1, FF-MURAH-1)"
+                echo -e "Kode ini bebas Anda tentukan, tapi jangan sampai sama dengan produk lain!"
+                read -p "1. Masukkan KODE PRODUK VIRTUAL: " sku_virtual
+                
+                if [ -z "$sku_virtual" ]; then 
+                    echo -e "${C_RED}❌ Kode Produk Virtual tidak boleh kosong.${C_RST}"; sleep 1; continue
+                fi
+
+                echo -e "\nMasukkan Kode SKU Asli dari Digiflazz yang sebenarnya (cth: TL10, FF50)."
+                echo -e "Kode asli ini yang akan ditembakkan ke pusat saat ada pembelian!"
+                read -p "2. Masukkan KODE ASLI DIGIFLAZZ: " sku_digi
+                
                 if [ -z "$sku_digi" ]; then 
-                    echo -e "${C_RED}❌ Kode SKU tidak boleh kosong.${C_RST}"; sleep 1; continue
+                    echo -e "${C_RED}❌ Kode Asli Digiflazz tidak boleh kosong.${C_RST}"; sleep 1; continue
                 fi
                 
-                read -p "Masukkan Nama Produk (Kosongkan utk pakai nama Asli): " custom_nama
+                echo -e "\n${C_MAG}--- SETUP DESKRIPSI ---${C_RST}"
+                read -p "Masukkan Nama Produk (Kosongkan utk pakai nama Asli Digiflazz): " custom_nama
                 read -p "Masukkan Brand / Operator (Misal: Telkomsel / Free Fire): " custom_brand
                 read -p "Masukkan Tipe (Misal: Umum / Data Promo): " custom_tipe
                 read -p "Masukkan Deskripsi Produk (Kosongkan utk pakai 'Proses Otomatis'): " custom_desc
                 
-                echo -e "\n${C_MAG}⏳ Menghubungkan ke API Digiflazz untuk menarik data harga dan status...${C_RST}"
+                echo -e "\n${C_MAG}⏳ Menghubungkan ke API Digiflazz untuk memverifikasi Kode Asli dan Harga...${C_RST}"
                 node -e "
                     const axios = require('axios');
                     const crypto = require('crypto');
@@ -3345,11 +3385,12 @@ menu_manajemen_produk_manual() {
                             let res = await axios.post('https://api.digiflazz.com/v1/price-list', { cmd: 'prepaid', username, sign });
                             
                             let items = res.data.data || [];
-                            let sku = '$sku_digi'.trim();
-                            let found = items.find(i => i.buyer_sku_code === sku);
+                            let skuAsli = '$sku_digi'.trim();
+                            let skuVirtual = '$sku_virtual'.trim();
+                            let found = items.find(i => i.buyer_sku_code === skuAsli);
                             
                             if(!found) {
-                                return console.log('\x1b[31m❌ GAGAL: Kode SKU \"' + sku + '\" tidak ditemukan di daftar harga Digiflazz Anda.\x1b[0m');
+                                return console.log('\x1b[31m❌ GAGAL: Kode Asli \"' + skuAsli + '\" tidak ditemukan di daftar harga Digiflazz Anda.\x1b[0m');
                             }
                             
                             let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
@@ -3381,7 +3422,7 @@ menu_manajemen_produk_manual() {
                             let finalDesc = customDesc !== '' ? customDesc : (found.desc || 'Proses Otomatis');
 
                             let dbProd = crypt.load('produk.json');
-                            dbProd[sku] = {
+                            dbProd[skuVirtual] = {
                                 nama: finalNama,
                                 harga: hargaModal + keuntungan,
                                 kategori: '$kat_nama',
@@ -3389,18 +3430,19 @@ menu_manajemen_produk_manual() {
                                 sub_kategori: finalTipe,
                                 deskripsi: finalDesc,
                                 status_produk: (found.buyer_product_status && found.seller_product_status),
-                                is_manual_cat: true
+                                is_manual_cat: true,
+                                sku_asli: skuAsli
                             };
                             
                             crypt.save('produk.json', dbProd);
-                            console.log('\x1b[32m✅ BERHASIL: Produk \"' + finalNama + '\" (' + sku + ') telah ditambahkan secara manual dan terintegrasi!\x1b[0m');
+                            console.log('\x1b[32m✅ BERHASIL: Produk \"' + finalNama + '\" (VIRTUAL: ' + skuVirtual + ') berhasil ditambahkan dan ditautkan ke Kode Asli (' + skuAsli + ')!\x1b[0m');
                         } catch(e) {
                             console.log('\x1b[31m❌ Gagal menghubungi server Digiflazz. Periksa koneksi internet.\x1b[0m');
                         }
                     }
                     addManual();
                 "
-                echo -e "\n${C_MAG}⏳ Melakukan sinkronisasi otomatis dalam hitungan detik...${C_RST}"
+                echo -e "\n${C_MAG}⏳ Melakukan sinkronisasi otomatis ke Web dalam hitungan detik...${C_RST}"
                 curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
                 echo -e "${C_GREEN}✅ Sinkronisasi otomatis ke Website selesai!${C_RST}"
                 
@@ -3417,7 +3459,7 @@ menu_manajemen_produk_manual() {
                         process.exit(0);
                     }
                     manualItems.forEach((sku, i) => {
-                        console.log('[' + (i + 1) + '] SKU: ' + sku + ' | Nama: ' + dbProd[sku].nama + ' | Kat: ' + dbProd[sku].kategori + ' | Brand: ' + dbProd[sku].brand);
+                        console.log('[' + (i + 1) + '] V-SKU: ' + sku + ' | Asli: ' + (dbProd[sku].sku_asli || sku) + ' | Nama: ' + dbProd[sku].nama);
                     });
                 "
                 echo -e ""
