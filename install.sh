@@ -378,7 +378,7 @@ EOF
         
         .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;}
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: margin-top: 10px;}
+        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
         .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
 
         .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
@@ -594,6 +594,7 @@ EOF
                 <button class="btn" id="btn-login" onclick="login()">Login Sekarang</button>
                 <a href="#" onclick="showScreen('forgot-screen')" style="display:block; text-align:center; font-size:13px; font-weight:600; color:var(--text-muted); margin-top:15px; text-decoration:none;">Lupa Password?</a>
                 <button class="btn-outline" onclick="showScreen('register-screen')">Buat Akun Baru</button>
+                <a href="#" onclick="contactAdmin()" style="display:block; text-align:center; font-size:13px; font-weight:bold; color:#0ea5e9; margin-top:20px; text-decoration:none;">Butuh Bantuan? Hubungi Admin</a>
             </div>
         </div>
 
@@ -617,6 +618,7 @@ EOF
                 <input type="password" id="reg-pass" placeholder="Buat Password">
                 <button class="btn" id="btn-register" onclick="requestOTP()">Kirim OTP WhatsApp</button>
                 <button class="btn-outline" style="border:none;" onclick="showScreen('login-screen')">Kembali ke Login</button>
+                <button class="btn-outline" style="border:none; margin-top:5px; color:#0ea5e9; font-weight:bold;" onclick="contactAdmin()">Butuh Bantuan? Hubungi Admin</button>
             </div>
         </div>
 
@@ -844,8 +846,27 @@ EOF
                 <div style="font-size:13px; font-weight: bold; color: rgba(255,255,255,0.8);" id="p-id">ID: TD-000000</div>
             </div>
             <div class="prof-box">
-                <div class="prof-row"><span class="prof-label">Email</span><span class="prof-val" id="p-email">-</span></div>
-                <div class="prof-row"><span class="prof-label">WhatsApp</span><span class="prof-val" id="p-phone">-</span></div>
+                <div class="prof-row">
+                    <span class="prof-label">Email</span>
+                    <span class="prof-val" style="display:flex; align-items:center; gap:8px;">
+                        <span id="p-email">-</span>
+                        <svg onclick="copyData('p-email', 'Email')" viewBox="0 0 24 24" width="16" height="16" stroke="#0ea5e9" fill="none" stroke-width="2" style="cursor:pointer;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    </span>
+                </div>
+                <div class="prof-row">
+                    <span class="prof-label">Username</span>
+                    <span class="prof-val" style="display:flex; align-items:center; gap:8px;">
+                        <span id="p-username-val">-</span>
+                        <svg onclick="copyData('p-username-val', 'Username')" viewBox="0 0 24 24" width="16" height="16" stroke="#0ea5e9" fill="none" stroke-width="2" style="cursor:pointer;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    </span>
+                </div>
+                <div class="prof-row">
+                    <span class="prof-label">WhatsApp</span>
+                    <span class="prof-val" style="display:flex; align-items:center; gap:8px;">
+                        <span id="p-phone">-</span>
+                        <svg onclick="copyData('p-phone', 'Nomor WA')" viewBox="0 0 24 24" width="16" height="16" stroke="#0ea5e9" fill="none" stroke-width="2" style="cursor:pointer;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    </span>
+                </div>
                 <div class="prof-row"><span class="prof-label">Tgl Daftar</span><span class="prof-val" id="p-date">-</span></div>
                 <div class="prof-row"><span class="prof-label">Total Transaksi</span><span class="prof-val" id="p-trx">0 Kali</span></div>
             </div>
@@ -1108,6 +1129,17 @@ EOF
             setTimeout(() => { t.classList.remove('show'); }, 3500);
         }
 
+        function copyData(elementId, label) {
+            let text = document.getElementById(elementId).innerText;
+            if(text && text !== '-') {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast(label + ' berhasil disalin!', 'success');
+                }).catch(err => {
+                    showToast('Gagal menyalin', 'error');
+                });
+            }
+        }
+
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => { 
             e.preventDefault(); deferredPrompt = e;
@@ -1276,7 +1308,7 @@ EOF
             if(savedId && savedPass) {
                 document.getElementById('log-id').value = savedId;
                 document.getElementById('log-pass').value = savedPass;
-                // Auto trigger login which will ask for OTP
+                // Auto trigger login
                 login();
             } else {
                 showScreen('login-screen', null);
@@ -1481,6 +1513,7 @@ EOF
                     document.getElementById('p-username').innerText = u.username || "Member";
                     document.getElementById('p-id').innerText = "ID: " + (u.id_pelanggan || "TD-000");
                     document.getElementById('p-email').innerText = u.email || '-';
+                    document.getElementById('p-username-val').innerText = u.username || "Member";
                     document.getElementById('p-phone').innerText = currentUser;
                     document.getElementById('p-date').innerText = u.tanggal_daftar || '-';
                     document.getElementById('p-trx').innerText = (u.trx_count || 0) + ' Kali';
@@ -1612,33 +1645,8 @@ EOF
             try {
                 let data = await apiCall('/api/login', {id: idLogin, password:pass});
                 if(data && data.success) {
-                    if (data.requires_otp) {
-                        tempLoginPhone = data.phone;
-                        showScreen('login-otp-screen', null);
-                        if(rem) { localStorage.setItem('tendo_rem_id', idLogin); localStorage.setItem('tendo_rem_pass', pass); }
-                    }
-                } else {
-                    showToast(data && data.message ? data.message : "Data tidak cocok atau Gagal terhubung.", 'error');
-                    localStorage.removeItem('tendo_rem_id');
-                    localStorage.removeItem('tendo_rem_pass');
-                }
-            } catch(e) { showToast('Kesalahan jaringan.', 'error'); }
-            
-            btn.innerText = ori; btn.disabled = false;
-        }
-
-        async function verifyLoginOTP() {
-            let otp = document.getElementById('login-otp-code').value.trim();
-            if(!otp) return showToast('Masukkan OTP!', 'error');
-            
-            let btn = document.getElementById('btn-login-verify');
-            let ori = btn.innerText; btn.innerText = "Memproses..."; btn.disabled = true;
-            
-            try {
-                let data = await apiCall('/api/verify-login-otp', {phone: tempLoginPhone, otp: otp});
-                if(data && data.success) {
+                    // Berhasil masuk tanpa OTP
                     currentUser = data.phone; userData = data.data;
-                    document.getElementById('login-otp-code').value = '';
                     await fetchAllProducts(); 
                     fetchGlobalStats();
                     loadBanners();
@@ -1670,13 +1678,21 @@ EOF
                     }
                     else showDashboardInternal();
                     
+                    if(rem) { localStorage.setItem('tendo_rem_id', idLogin); localStorage.setItem('tendo_rem_pass', pass); }
                     showToast('Berhasil Masuk!', 'success');
                 } else {
-                    showToast(data && data.message ? data.message : "Sistem sibuk, coba sesaat lagi.", 'error');
+                    showToast(data && data.message ? data.message : "Data tidak cocok atau Gagal terhubung.", 'error');
+                    localStorage.removeItem('tendo_rem_id');
+                    localStorage.removeItem('tendo_rem_pass');
                 }
             } catch(e) { showToast('Kesalahan jaringan.', 'error'); }
             
             btn.innerText = ori; btn.disabled = false;
+        }
+
+        async function verifyLoginOTP() {
+            // Fungsi ini sekarang tidak dipanggil lagi oleh sistem login,
+            // Namun tetap saya biarkan jika Anda punya keperluan lain
         }
 
         async function requestOTP() {
@@ -2195,6 +2211,7 @@ loadJSON(dbFile); loadJSON(produkFile); loadJSON(trxFile); loadJSON(globalStatsF
 let globalSock = null;
 let tempOtpDB = {}; 
 let otpCooldown = {}; 
+let isMaintenanceNow = cekPemeliharaan();
 
 let teleBotInfo = null;
 if (configAwal.teleTokenInfo) {
@@ -2317,8 +2334,6 @@ app.post('/api/login', (req, res) => {
         
         let userPhone = Object.keys(db).find(k => {
             if (!db[k]) return false;
-            
-            // Mengecek apakah input ID cocok dengan nomor WA (k), Email, atau Username
             let normInput = normalizePhone(id);
             let matchId = (k === id) || (k === normInput) ||
                           (db[k].email && db[k].email.toLowerCase() === id.toLowerCase()) || 
@@ -2334,42 +2349,11 @@ app.post('/api/login', (req, res) => {
         });
 
         if (userPhone) {
-            // Generate OTP for Login
-            if(otpCooldown[userPhone + '_login'] && Date.now() - otpCooldown[userPhone + '_login'] < 60000) {
-                return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
-            }
-            otpCooldown[userPhone + '_login'] = Date.now();
-            let otp = Math.floor(1000 + Math.random() * 9000).toString();
-            tempOtpDB[userPhone + '_login'] = { otp };
-
-            setTimeout(() => {
-                try {
-                    if (globalSock) {
-                        let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nVerifikasi Login.\nKode OTP: *${otp}*\n\n_⚠️ Jangan bagikan kode ini kepada siapapun!_`;
-                        globalSock.sendMessage(userPhone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
-                    }
-                } catch(err) {}
-            }, 100);
-
-            res.json({success: true, requires_otp: true, phone: userPhone});
+            // Login tanpa perlu verifikasi OTP
+            let safeData = { ...db[userPhone] }; delete safeData.password;
+            res.json({success: true, phone: userPhone, data: safeData});
         }
         else res.json({success: false, message: 'Data Akun (Email/WA/Username) atau Password salah!'});
-    } catch(e) { res.json({success: false, message: 'Server error'}); }
-});
-
-app.post('/api/verify-login-otp', (req, res) => {
-    try {
-        let { phone, otp } = req.body;
-        let session = tempOtpDB[phone + '_login'];
-        
-        if(session && session.otp === otp) {
-            let db = loadJSON(dbFile);
-            let safeData = { ...db[phone] }; delete safeData.password;
-            delete tempOtpDB[phone + '_login'];
-            res.json({success: true, data: safeData, phone: phone});
-        } else {
-            res.json({success: false, message: 'Kode OTP Salah!'});
-        }
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
@@ -2770,6 +2754,51 @@ async function startBot() {
     }
     sock.ev.on('creds.update', saveCreds);
     sock.ev.on('connection.update', (u) => { if(u.connection === 'close') setTimeout(startBot, 4000); });
+
+    // INTERVAL PENGECEKAN PEMELIHARAAN SISTEM
+    setInterval(() => {
+        let currentlyMaintenance = cekPemeliharaan();
+        if (currentlyMaintenance && !isMaintenanceNow) {
+            isMaintenanceNow = true;
+            let msg = "🛠️ *INFO PEMELIHARAAN SISTEM*\n\nSaat ini sistem sedang memasuki jam pemeliharaan rutin (23:00 - 00:30 WIB). Transaksi sementara ditutup. Mohon tunggu hingga pemeliharaan selesai.";
+            let htmlMsg = "🛠️ <b>INFO PEMELIHARAAN SISTEM</b>\n\nSaat ini sistem sedang memasuki jam pemeliharaan rutin (23:00 - 00:30 WIB). Transaksi sementara ditutup. Mohon tunggu hingga pemeliharaan selesai.";
+            
+            let cfg = loadJSON(configFile);
+            if (cfg.teleTokenInfo && cfg.teleChannelId) {
+                let channelIdStr = cfg.teleChannelId.toString();
+                if (!channelIdStr.startsWith('-100') && !channelIdStr.startsWith('@')) channelIdStr = '-100' + channelIdStr;
+                axios.post(`https://api.telegram.org/bot${cfg.teleTokenInfo}/sendMessage`, { chat_id: channelIdStr, text: htmlMsg, parse_mode: 'HTML' }).catch(e=>{});
+            }
+            if (globalSock && cfg.waBroadcastId) {
+                globalSock.sendMessage(cfg.waBroadcastId, { text: msg }).catch(e=>{});
+            }
+            let notifs = loadJSON(notifFile);
+            let today = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'long', year:'numeric' });
+            notifs.unshift({ date: today, text: "Sistem sedang memasuki jam pemeliharaan rutin (23:00 - 00:30 WIB). Transaksi sementara ditutup.", image: "" });
+            if(notifs.length > 20) notifs.pop();
+            saveJSON(notifFile, notifs);
+            
+        } else if (!currentlyMaintenance && isMaintenanceNow) {
+            isMaintenanceNow = false;
+            let msg = "✅ *PEMELIHARAAN SELESAI*\n\nSistem telah beroperasi normal kembali. Silakan lakukan transaksi seperti biasa. Terima kasih atas pengertiannya.";
+            let htmlMsg = "✅ <b>PEMELIHARAAN SELESAI</b>\n\nSistem telah beroperasi normal kembali. Silakan lakukan transaksi seperti biasa. Terima kasih atas pengertiannya.";
+            
+            let cfg = loadJSON(configFile);
+            if (cfg.teleTokenInfo && cfg.teleChannelId) {
+                let channelIdStr = cfg.teleChannelId.toString();
+                if (!channelIdStr.startsWith('-100') && !channelIdStr.startsWith('@')) channelIdStr = '-100' + channelIdStr;
+                axios.post(`https://api.telegram.org/bot${cfg.teleTokenInfo}/sendMessage`, { chat_id: channelIdStr, text: htmlMsg, parse_mode: 'HTML' }).catch(e=>{});
+            }
+            if (globalSock && cfg.waBroadcastId) {
+                globalSock.sendMessage(cfg.waBroadcastId, { text: msg }).catch(e=>{});
+            }
+            let notifs = loadJSON(notifFile);
+            let today = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'long', year:'numeric' });
+            notifs.unshift({ date: today, text: "Pemeliharaan sistem telah selesai. Layanan transaksi kembali beroperasi secara normal.", image: "" });
+            if(notifs.length > 20) notifs.pop();
+            saveJSON(notifFile, notifs);
+        }
+    }, 60000); 
 
     setInterval(async () => {
         try {
