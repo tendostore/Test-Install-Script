@@ -2054,7 +2054,7 @@ function cekPemeliharaan() {
 }
 
 // ==============================================================
-// FITUR: NOTIFIKASI TELEGRAM ADMIN 
+// FITUR: NOTIFIKASI TELEGRAM ADMIN (PARSE HTML)
 // ==============================================================
 function sendTelegramAdmin(message) {
     try {
@@ -2064,7 +2064,7 @@ function sendTelegramAdmin(message) {
             axios.post(`https://api.telegram.org/bot${cfg.teleToken}/sendMessage`, {
                 chat_id: chatIdStr,
                 text: message,
-                parse_mode: 'Markdown'
+                parse_mode: 'HTML'
             }).catch(e => {});
         }
     } catch(e) {}
@@ -2078,7 +2078,9 @@ function sendBroadcastSuccess(productName, rawUser, rawTarget) {
         let cfg = loadJSON(configFile);
         let maskTarget = maskStringTarget(rawTarget);
         let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-        let msg = `✅ *PEMBELIAN BERHASIL*\n\n👤 Pelanggan: ${rawUser}\n📦 Layanan: ${productName}\n🎯 Tujuan: ${maskTarget}\n🕒 Waktu: ${timeStr} WIB\n\n_🌐 Transaksi diproses otomatis oleh sistem._`;
+        
+        // FORMAT HTML UNTUK TELEGRAM (Menghindari Error Parse Mode)
+        let msgTele = `✅ <b>PEMBELIAN BERHASIL</b>\n\n👤 Pelanggan: ${rawUser}\n📦 Layanan: ${productName}\n🎯 Tujuan: ${maskTarget}\n🕒 Waktu: ${timeStr} WIB\n\n<i>🌐 Transaksi diproses otomatis oleh sistem.</i>`;
 
         if (cfg.teleTokenInfo && cfg.teleChannelId) {
             let channelIdStr = cfg.teleChannelId.toString();
@@ -2087,13 +2089,14 @@ function sendBroadcastSuccess(productName, rawUser, rawTarget) {
             }
             axios.post(`https://api.telegram.org/bot${cfg.teleTokenInfo}/sendMessage`, {
                 chat_id: channelIdStr,
-                text: msg,
-                parse_mode: 'Markdown'
+                text: msgTele,
+                parse_mode: 'HTML'
             }).catch(e => { console.error("Gagal kirim Telegram Channel:", e.message); });
         }
 
         if (globalSock && cfg.waBroadcastId) {
-            globalSock.sendMessage(cfg.waBroadcastId, { text: msg }).catch(e => {});
+            let msgWa = `✅ *PEMBELIAN BERHASIL*\n\n👤 Pelanggan: ${rawUser}\n📦 Layanan: ${productName}\n🎯 Tujuan: ${maskTarget}\n🕒 Waktu: ${timeStr} WIB\n\n_🌐 Transaksi diproses otomatis oleh sistem._`;
+            globalSock.sendMessage(cfg.waBroadcastId, { text: msgWa }).catch(e => {});
         }
     } catch(e) {}
 }
@@ -2190,10 +2193,16 @@ if (configAwal.teleTokenInfo) {
                 if (cfg.teleChannelId) {
                     let chanIdStr = cfg.teleChannelId.toString();
                     if (!chanIdStr.startsWith('-100') && !chanIdStr.startsWith('@')) chanIdStr = '-100' + chanIdStr;
-                    if (imageFilename) teleBotInfo.sendPhoto(chanIdStr, './public/info_images/' + imageFilename, {caption: text}).catch(e=>{});
-                    else teleBotInfo.sendMessage(chanIdStr, text).catch(e=>{});
+                    
+                    let sentMsg;
+                    if (imageFilename) sentMsg = await teleBotInfo.sendPhoto(chanIdStr, './public/info_images/' + imageFilename, {caption: text}).catch(e=>{});
+                    else sentMsg = await teleBotInfo.sendMessage(chanIdStr, text).catch(e=>{});
+                    
+                    if (sentMsg && sentMsg.message_id) {
+                        await teleBotInfo.pinChatMessage(chanIdStr, sentMsg.message_id).catch(e=>{});
+                    }
                 }
-                teleBotInfo.sendMessage(cfg.teleChatId, '✅ Info berhasil disebarkan ke Website & Telegram Channel!').catch(e=>{});
+                teleBotInfo.sendMessage(cfg.teleChatId, '✅ Info berhasil disebarkan dan disematkan (Pin) ke Website & Telegram Channel!').catch(e=>{});
             }
         });
     } catch(e) { console.log("Gagal inisialisasi Telegram Bot Info Polling"); }
@@ -2430,7 +2439,7 @@ app.post('/api/topup', async (req, res) => {
 
         res.json({success: true});
 
-        let teleMsg = `⏳ *TOPUP PENDING (QRIS)*\n\n👤 Akun: ${db[phone].username || phone}\n💰 Tagihan: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}`;
+        let teleMsg = `⏳ <b>TOPUP PENDING (QRIS)</b>\n\n👤 Akun: ${db[phone].username || phone}\n💰 Tagihan: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}`;
         sendTelegramAdmin(teleMsg);
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
 });
@@ -2478,7 +2487,7 @@ app.post('/api/order-qris', async (req, res) => {
 
         res.json({success: true});
         
-        let teleMsg = `🛒 *ORDER QRIS PENDING*\n\n👤 Akun: ${db[targetKey].username || targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n💰 Tagihan: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}`;
+        let teleMsg = `🛒 <b>ORDER QRIS PENDING</b>\n\n👤 Akun: ${db[targetKey].username || targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n💰 Tagihan: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}`;
         sendTelegramAdmin(teleMsg);
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
 });
@@ -2542,7 +2551,7 @@ app.post('/api/order', async (req, res) => {
 
         res.json({success: true, saldo: db[targetKey].saldo});
 
-        let teleMsg = `🔔 *PESANAN BARU MASUK*\n\n👤 Akun: ${db[targetKey].username || targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: *${statusOrder}*\n💰 Harga: Rp ${hargaFix.toLocaleString('id-ID')}`;
+        let teleMsg = `🔔 <b>PESANAN BARU MASUK</b>\n\n👤 Akun: ${db[targetKey].username || targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Harga: Rp ${hargaFix.toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
 
     } catch (error) { if (!res.headersSent) return res.json({success: false, message: 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)'}); }
@@ -2569,27 +2578,49 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         });
         
         const statusOrder = response.data.data.status; 
+        
         if (statusOrder === 'Gagal') {
             // REFUND SALDO KARENA GAGAL
             db[phone].saldo = parseInt(db[phone].saldo) + hargaFix;
             
-            db[phone].history = db[phone].history || [];
-            db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId });
-            if(db[phone].history.length > 50) db[phone].history.pop();
+            // TIMPA RIWAYAT PENDING MENJADI REFUND
+            let hist = db[phone].history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
+            if(hist) {
+                hist.status = 'Refund';
+                hist.nama = 'Refund: ' + nama_produk;
+                hist.type = 'Refund';
+                hist.amount = hargaFix;
+                hist.ref_id = refId;
+                hist.sn = '-';
+            } else {
+                db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId });
+                if(db[phone].history.length > 50) db[phone].history.pop();
+            }
             saveJSON(dbFile, db);
             
             if(globalSock) {
                 globalSock.sendMessage(db[phone].jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf, pesanan ${nama_produk} tujuan ${tujuan} ditolak oleh sistem.\n\n💰 Saldo Anda sebesar Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan utuh ke akun Website.` }).catch(e=>{});
             }
 
-            sendTelegramAdmin(`⚠️ *INFO ORDER QRIS: GAGAL DIGIFLAZZ*\n\nRef: ${refIdAsal}\nStatus Digiflazz Gagal.\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna (${db[phone].username || phone}).`);
+            sendTelegramAdmin(`⚠️ <b>INFO ORDER QRIS: GAGAL DIGIFLAZZ</b>\n\nRef: ${refIdAsal}\nStatus Digiflazz Gagal.\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna (${db[phone].username || phone}).`);
             return;
         }
         
         db[phone].trx_count = (db[phone].trx_count || 0) + 1;
-        db[phone].history = db[phone].history || [];
-        db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId });
-        if(db[phone].history.length > 50) db[phone].history.pop();
+        
+        // TIMPA RIWAYAT PENDING MENJADI PROSES/SUKSES DIGIFLAZZ
+        let hist = db[phone].history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
+        if(hist) {
+            hist.status = statusOrder;
+            hist.sn = response.data.data.sn || '-';
+            hist.nama = nama_produk;
+            hist.type = 'Order';
+            hist.amount = hargaFix;
+            hist.ref_id = refId;
+        } else {
+            db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId });
+            if(db[phone].history.length > 50) db[phone].history.pop();
+        }
         saveJSON(dbFile, db);
         
         let trxs = loadJSON(trxFile);
@@ -2607,7 +2638,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
             sendBroadcastSuccess(nama_produk, (db[phone].username || phone), tujuan);
         }
 
-        let teleMsg = `🚀 *AUTO ORDER QRIS BERHASIL DITEMBAK*\n\n👤 Akun: ${db[phone].username || phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: *${statusOrder}*`;
+        let teleMsg = `🚀 <b>AUTO ORDER QRIS BERHASIL DITEMBAK</b>\n\n👤 Akun: ${db[phone].username || phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>`;
         sendTelegramAdmin(teleMsg);
 
     } catch(e) {}
@@ -2667,7 +2698,7 @@ async function startBot() {
                         let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
                         if(hist && hist.status === 'Pending') { hist.status = 'Gagal (Kedaluwarsa)'; changedDb = true; }
                         let tipe = req.is_order ? 'ORDER QRIS' : 'TOPUP';
-                        let teleMsg = `❌ *${tipe} KEDALUWARSA*\n\n👤 Akun: ${db[req.phone].username || req.phone}\n💰 Tagihan: Rp ${req.amount_to_pay.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}`;
+                        let teleMsg = `❌ <b>${tipe} KEDALUWARSA</b>\n\n👤 Akun: ${db[req.phone].username || req.phone}\n💰 Tagihan: Rp ${req.amount_to_pay.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}`;
                         sendTelegramAdmin(teleMsg);
                     }
                 } 
@@ -2678,15 +2709,18 @@ async function startBot() {
                         req.status = 'sukses'; changedTp = true;
                         if(db[req.phone]) {
                             db[req.phone].saldo = parseInt(db[req.phone].saldo) + parseInt(req.saldo_to_add); 
-                            let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
-                            if(hist && hist.status === 'Pending') hist.status = 'Sukses Bayar';
-                            changedDb = true;
+                            
+                            // Hanya update status untuk Topup. Jika Order, biar prosesAutoOrderQRIS yg menimpa.
+                            if (!req.is_order) {
+                                let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
+                                if(hist && hist.status === 'Pending') hist.status = 'Sukses Bayar';
+                                changedDb = true;
+                                let teleMsg = `✅ <b>TOPUP QRIS SUKSES MASUK</b>\n\n👤 Akun: ${db[req.phone].username || req.phone}\n💰 Saldo Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}`;
+                                sendTelegramAdmin(teleMsg);
+                            }
                             
                             if (req.is_order) {
                                 prosesAutoOrderQRIS(req.phone, req.sku, req.tujuan, req.nama_produk, req.harga_asli, req.trx_id);
-                            } else {
-                                let teleMsg = `✅ *TOPUP QRIS SUKSES MASUK*\n\n👤 Akun: ${db[req.phone].username || req.phone}\n💰 Saldo Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}`;
-                                sendTelegramAdmin(teleMsg);
                             }
                         }
                     }
@@ -2727,7 +2761,7 @@ async function startBot() {
 
                         sendBroadcastSuccess(trx.nama, (db[phoneKey]?.username || phoneKey), trx.tujuan);
 
-                        let teleSuccess = `✅ *PESANAN SUKSES*\n\n👤 Akun: ${db[phoneKey]?.username || phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n🔑 SN: ${resData.sn || '-'}`;
+                        let teleSuccess = `✅ <b>PESANAN SUKSES</b>\n\n👤 Akun: ${db[phoneKey]?.username || phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n🔑 SN: ${resData.sn || '-'}`;
                         sendTelegramAdmin(teleSuccess);
                         
                     } else {
@@ -2750,7 +2784,7 @@ async function startBot() {
                             }
                         }
                         
-                        let teleFail = `❌ *PESANAN GAGAL & REFUND*\n\n👤 Akun: ${db[phoneKey]?.username || phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n📝 Alasan: ${resData.message}\n\n💰 Saldo telah otomatis dikembalikan ke pengguna.`;
+                        let teleFail = `❌ <b>PESANAN GAGAL & REFUND</b>\n\n👤 Akun: ${db[phoneKey]?.username || phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n📝 Alasan: ${resData.message}\n\n💰 Saldo telah otomatis dikembalikan ke pengguna.`;
                         sendTelegramAdmin(teleFail);
                     }
                     delete trxs[ref]; saveJSON(trxFile, trxs);
@@ -3138,7 +3172,7 @@ menu_member() {
                             let history = db[target].history || [];
                             let targetSaldo = db[target].saldo || 0;
                             let targetNama = db[target].username || 'Member';
-                            let topups = history.filter(h => h.type === 'Topup' || h.type === 'Order QRIS' || h.type === 'Refund');
+                            let topups = history.filter(h => h.type === 'Topup' || h.type === 'Order QRIS' || h.type === 'Refund' || h.type === 'Order');
                             
                             console.log('\n\x1b[36m=== RIWAYAT: ' + targetNama + ' (' + target + ') ===\x1b[0m');
                             console.log('\x1b[32m💰 Saldo Saat Saat Ini: Rp ' + targetSaldo.toLocaleString('id-ID') + '\x1b[0m');
