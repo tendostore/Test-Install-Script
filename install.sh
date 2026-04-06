@@ -197,7 +197,7 @@ EOF
         .menu-btn:active { transform: scale(0.95); }
         .menu-btn svg { width: 24px; height: 24px; stroke: var(--text-main); fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
         
-        .brand-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 13px; font-weight: 900; background: var(--text-main); color: var(--bg-main); padding: 8px 0; border-radius: 30px; box-shadow: var(--shadow-outer), var(--shadow-inner); z-index: 2; overflow: hidden; width: 170px; display: flex; align-items: center;}
+        .brand-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 17px; font-weight: 900; background: transparent; color: var(--text-main); padding: 8px 0; border-radius: 0; box-shadow: none; z-index: 2; overflow: visible; width: auto; display: flex; align-items: center; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.5px;}
         .marquee-text { display: inline-block; white-space: nowrap; animation: marquee 6s linear infinite; }
         @keyframes marquee { 0% { transform: translateX(170px); } 100% { transform: translateX(-100%); } }
         
@@ -257,7 +257,7 @@ EOF
         }
         .sc-btn-topup:active { transform: scale(0.95); }
 
-        .banner-slider-container { margin: 20px 20px 0px; border-radius: 16px; overflow: hidden; position: relative; background: var(--bg-card); box-shadow: 0 4px 10px rgba(0,0,0,0.03);}
+        .banner-slider-container { margin: 20px 20px 0px; border-radius: 16px; overflow: hidden; position: relative; background: var(--bg-card); box-shadow: 0 10px 25px rgba(0,0,0,0.15);}
         .banner-slider { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         .banner-slider::-webkit-scrollbar { display: none; }
         .banner-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; justify-content: center; align-items: center; }
@@ -507,7 +507,7 @@ EOF
         }
     </style>
 </head>
-<body class="dark-mode"> <div id="app">
+<body> <div id="app">
         <div id="initial-loader" style="display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; background: var(--bg-main); position: fixed; top:0; left:0; width:100%; z-index:9999; transition: opacity 0.3s;">
             <div style="width: 50px; height: 50px; border: 4px solid var(--border-color); border-top-color: #0ea5e9; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
             <div style="font-size:20px; font-weight:900; color:var(--text-main); letter-spacing: 1px;">DIGITAL TENDO</div>
@@ -521,8 +521,8 @@ EOF
             <button class="menu-btn" onclick="toggleSidebar()">
                 <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
-            <div class="brand-title" style="justify-content: center; padding: 8px 20px; width: auto; white-space: nowrap;">
-                <span id="top-title">Digital tendo store</span>
+            <div class="brand-title" style="justify-content: center; padding: 8px 20px;">
+                <span id="top-title">Digital Tendo Store</span>
             </div>
             <div class="trx-badge" id="top-trx-badge" onclick="showHistory('Order')">0 Trx</div>
         </div>
@@ -571,10 +571,10 @@ EOF
                     <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Hubungi Admin
                 </a>
                 <a href="#" class="sidebar-item" onclick="toggleTheme()">
-                    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg> <span id="theme-text">Mode Terang</span>
+                    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg> <span id="theme-text">Mode Gelap</span>
                 </a>
             </div>
-            <div style="padding: 20px;">
+            <div style="padding: 20px; margin-top: auto;">
                 <button class="btn-outline" style="color: #ef4444; border-color: #ef4444;" onclick="logout()">Keluar Akun</button>
             </div>
         </div>
@@ -1151,13 +1151,13 @@ EOF
         let bannerInterval; let qrisInterval;
 
         let savedTheme = localStorage.getItem('tendo_theme');
-        if(savedTheme === 'light') {
-            document.body.classList.remove('dark-mode');
-            document.getElementById('theme-text').innerText = "Mode Terang";
-        } else {
+        if(savedTheme === 'dark') {
             document.body.classList.add('dark-mode');
             document.getElementById('theme-text').innerText = "Mode Terang";
-            localStorage.setItem('tendo_theme', 'dark');
+        } else {
+            document.body.classList.remove('dark-mode');
+            document.getElementById('theme-text').innerText = "Mode Gelap";
+            localStorage.setItem('tendo_theme', 'light');
         }
 
         function toggleTheme() {
@@ -1548,7 +1548,10 @@ EOF
                             histHTML += `
                                 <div class="hist-item" onclick='openHistoryDetail(${safeH})'>
                                     <div class="hist-top"><span>${h.tanggal}</span> <span class="stat-badge ${statClass}">${h.status}</span></div>
-                                    <div class="hist-title">${h.nama}</div>
+                                    <div class="hist-title" style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span style="max-width:65%;">${h.nama}</span>
+                                        <span style="color:#0ea5e9; font-size:13px;">Rp ${h.amount ? h.amount.toLocaleString('id-ID') : '0'}</span>
+                                    </div>
                                     <div class="hist-target">Tujuan: ${h.tujuan}</div>
                                 </div>
                             `;
