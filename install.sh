@@ -350,9 +350,9 @@ EOF
         .hist-tab { flex: 1; text-align: center; padding: 12px 0; font-size: 13px; font-weight: 800; cursor: pointer; color: var(--text-main); background: var(--bg-card); border-radius: 14px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer), var(--shadow-inner); transition: all 0.2s; text-transform: uppercase;}
         .hist-tab.active { background: var(--nav-active); color: #ffffff; border-color: var(--nav-active); }
 
-        .history-status-filters { display: flex; gap: 8px; padding: 0 20px 10px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; margin-top: 10px; position: sticky; top: 110px; z-index: 40;}
+        .history-status-filters { display: flex; gap: 8px; padding: 0 20px 10px; margin-top: 10px; position: sticky; top: 110px; z-index: 40; justify-content: space-between;}
         .history-status-filters::-webkit-scrollbar { display: none; }
-        .status-btn { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 20px; font-size: 11.5px; font-weight: 800; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-outer); white-space: nowrap;}
+        .status-btn { flex: 1; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 0; border-radius: 20px; font-size: 11.5px; font-weight: 800; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-outer); text-align: center; white-space: nowrap;}
         .status-btn.active { background: var(--nav-active); color: #ffffff; border-color: var(--nav-active); }
 
         .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); z-index: 1001; display: none; opacity: 0; transition: opacity 0.3s;}
@@ -362,7 +362,7 @@ EOF
         .sidebar-avatar { width: 70px; height: 70px; background: #ffffff; border-radius: 50%; margin: 0 auto 10px auto; display: flex; justify-content: center; align-items: center; color: #0b2136; font-size: 30px; font-weight: bold; text-transform: uppercase;}
         .sidebar-name { font-weight: bold; font-size: 16px; color: #ffffff;}
         .sidebar-phone { font-size: 12px; color: #cbd5e1;}
-        .sidebar-menu { padding: 10px 0; flex: 1;}
+        .sidebar-menu { padding: 10px 0; }
         
         .sidebar-item { padding: 15px 20px; display: flex; align-items: center; color: var(--text-main); text-decoration: none; font-size: 14px; border: 1px solid var(--border-color); font-weight: 600; gap: 15px; background: var(--bg-card); border-radius: 14px; margin: 10px 15px; box-shadow: var(--shadow-outer), var(--shadow-inner); transition: transform 0.2s; }
         .sidebar-item:active { transform: scale(0.95); background: var(--bg-main); }
@@ -818,7 +818,7 @@ EOF
             <div class="history-status-filters" id="status-filter-container">
                 <button class="status-btn active" onclick="filterHistoryStatus('Semua', this)">Semua</button>
                 <button class="status-btn" onclick="filterHistoryStatus('Sukses', this)">Sukses</button>
-                <button class="status-btn" onclick="filterHistoryStatus('Pending', this)">Proses</button>
+                <button class="status-btn" onclick="filterHistoryStatus('Pending', this)">Pending</button>
                 <button class="status-btn" onclick="filterHistoryStatus('Gagal', this)">Gagal</button>
             </div>
 
@@ -1308,8 +1308,8 @@ EOF
             if(savedId && savedPass) {
                 document.getElementById('log-id').value = savedId;
                 document.getElementById('log-pass').value = savedPass;
-                // Auto trigger login
-                login();
+                // Auto trigger login (silent)
+                login(true);
             } else {
                 showScreen('login-screen', null);
             }
@@ -1632,11 +1632,14 @@ EOF
             window.open(`https://wa.me/6282224460678?text=${pesan}`, '_blank');
         }
 
-        async function login() {
+        async function login(isAuto = false) {
             let idLogin = document.getElementById('log-id').value.trim();
             let pass = document.getElementById('log-pass').value.trim();
             let rem = document.getElementById('rem-login').checked;
-            if(!idLogin || !pass) return showToast('Isi Email/WA/Username & Password!', 'error');
+            if(!idLogin || !pass) {
+                if(!isAuto) showToast('Isi Email/WA/Username & Password!', 'error');
+                return;
+            }
             
             let btn = document.getElementById('btn-login');
             let ori = btn.innerText;
@@ -1679,13 +1682,13 @@ EOF
                     else showDashboardInternal();
                     
                     if(rem) { localStorage.setItem('tendo_rem_id', idLogin); localStorage.setItem('tendo_rem_pass', pass); }
-                    showToast('Berhasil Masuk!', 'success');
+                    if(!isAuto) showToast('Berhasil Masuk!', 'success');
                 } else {
-                    showToast(data && data.message ? data.message : "Data tidak cocok atau Gagal terhubung.", 'error');
+                    if(!isAuto) showToast(data && data.message ? data.message : "Data tidak cocok atau Gagal terhubung.", 'error');
                     localStorage.removeItem('tendo_rem_id');
                     localStorage.removeItem('tendo_rem_pass');
                 }
-            } catch(e) { showToast('Kesalahan jaringan.', 'error'); }
+            } catch(e) { if(!isAuto) showToast('Kesalahan jaringan.', 'error'); }
             
             btn.innerText = ori; btn.disabled = false;
         }
