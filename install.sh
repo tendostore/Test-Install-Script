@@ -350,6 +350,11 @@ EOF
         .hist-tab { flex: 1; text-align: center; padding: 12px 0; font-size: 13px; font-weight: 800; cursor: pointer; color: var(--text-main); background: var(--bg-card); border-radius: 14px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer), var(--shadow-inner); transition: all 0.2s; text-transform: uppercase;}
         .hist-tab.active { background: var(--nav-active); color: #ffffff; border-color: var(--nav-active); }
 
+        .history-status-filters { display: flex; gap: 8px; padding: 0 20px 10px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; margin-top: 10px; position: sticky; top: 110px; z-index: 40;}
+        .history-status-filters::-webkit-scrollbar { display: none; }
+        .status-btn { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 20px; font-size: 11.5px; font-weight: 800; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-outer); white-space: nowrap;}
+        .status-btn.active { background: var(--nav-active); color: #ffffff; border-color: var(--nav-active); }
+
         .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); z-index: 1001; display: none; opacity: 0; transition: opacity 0.3s;}
         .sidebar { position: fixed; top:-10px; left:-300px; width: 280px; height: 100vh; background: var(--bg-card); z-index: 1002; transition: left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 5px 0 15px rgba(0,0,0,0.3);}
         .sidebar.open { left: 0; }
@@ -797,7 +802,15 @@ EOF
                 <div class="hist-tab active" id="tab-hist-order" onclick="showHistory('Order')">Produk</div>
                 <div class="hist-tab" id="tab-hist-topup" onclick="showHistory('Topup')">Topup Saldo</div>
             </div>
-            <div id="history-list" style="padding-top:10px;"></div>
+            
+            <div class="history-status-filters" id="status-filter-container">
+                <button class="status-btn active" onclick="filterHistoryStatus('Semua', this)">Semua</button>
+                <button class="status-btn" onclick="filterHistoryStatus('Sukses', this)">Sukses</button>
+                <button class="status-btn" onclick="filterHistoryStatus('Pending', this)">Proses</button>
+                <button class="status-btn" onclick="filterHistoryStatus('Gagal', this)">Gagal</button>
+            </div>
+
+            <div id="history-list" style="padding-top:0px;"></div>
         </div>
 
         <div id="global-trx-screen" class="hidden">
@@ -979,7 +992,7 @@ EOF
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Tujuan</span><strong id="hd-target"></strong></div>
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">SN/Ref</span><strong id="hd-sn" style="word-break:break-all;"></strong></div>
                 </div>
-                <button class="btn-danger hidden" id="hd-complain-btn" onclick="complainAdmin()" style="margin-bottom: 15px;">Hubungi Admin (Komplain)</button>
+                <button class="btn-danger" id="hd-complain-btn" onclick="complainAdmin()" style="margin-bottom: 15px;">Hubungi Admin (Komplain)</button>
                 <button class="btn-outline" style="margin-top:0;" onclick="closeHistoryModal()">Tutup</button>
             </div>
         </div>
@@ -1092,7 +1105,7 @@ EOF
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 
         let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let tempForgotPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
-        let currentCategory = ""; let currentBrand = ""; let currentHistoryFilter = 'All';
+        let currentCategory = ""; let currentBrand = ""; let currentHistoryFilter = 'Order'; let currentHistoryStatusFilter = 'Semua';
         let bannerInterval; let qrisInterval;
 
         let savedTheme = localStorage.getItem('tendo_theme');
@@ -1315,6 +1328,14 @@ EOF
         }
         function showHistory(filter = 'Order') { pushState({screen: 'history-screen', filter: filter}); showHistoryInternal(filter); }
         
+        function filterHistoryStatus(status, el) {
+            currentHistoryStatusFilter = status;
+            let btns = document.querySelectorAll('#status-filter-container .status-btn');
+            btns.forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            syncUserData();
+        }
+
         function showProfileInternal() { showScreen('profile-screen', 'nav-profile'); syncUserData(); }
         function showProfile() { pushState({screen: 'profile-screen'}); showProfileInternal(); }
 
@@ -1491,12 +1512,22 @@ EOF
                     let historyList = u.history || [];
                     
                     historyList = historyList.filter(h => {
+                        let typeMatch = false;
                         let type = h.type || 'Order';
-                        if (currentHistoryFilter === 'Topup') return type === 'Topup';
-                        return type === 'Order' || type === 'Order QRIS' || type === 'Refund';
+                        if (currentHistoryFilter === 'Topup') typeMatch = (type === 'Topup');
+                        else typeMatch = (type === 'Order' || type === 'Order QRIS' || type === 'Refund');
+                        
+                        if(!typeMatch) return false;
+
+                        if (currentHistoryStatusFilter === 'Semua') return true;
+                        if (currentHistoryStatusFilter === 'Sukses' && (h.status === 'Sukses' || h.status === 'Sukses Bayar')) return true;
+                        if (currentHistoryStatusFilter === 'Pending' && h.status === 'Pending') return true;
+                        if (currentHistoryStatusFilter === 'Gagal' && (h.status === 'Gagal' || h.status === 'Gagal (Kedaluwarsa)' || h.status === 'Refund')) return true;
+                        
+                        return false;
                     });
 
-                    if(historyList.length === 0) histHTML = '<div style="text-align:center; color:var(--text-muted); font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi.</div>';
+                    if(historyList.length === 0) histHTML = '<div style="text-align:center; color:var(--text-muted); font-weight:bold; margin-top: 30px; font-size:13px;">Belum ada transaksi di filter ini.</div>';
                     else {
                         historyList.forEach((h, idx) => {
                             let statClass = 'stat-Pending';
@@ -1551,11 +1582,7 @@ EOF
             document.getElementById('hd-sn').innerText = h.sn || '-';
             
             let btnComplain = document.getElementById('hd-complain-btn');
-            if(h.status === 'Pending' || h.status === 'Gagal' || h.status === 'Gagal (Kedaluwarsa)') {
-                btnComplain.classList.remove('hidden');
-            } else {
-                btnComplain.classList.add('hidden');
-            }
+            btnComplain.classList.remove('hidden'); // Memastikan tombol komplain selalu tampil di setiap status transaksi
             
             let qrisBox = document.getElementById('hd-qris-box');
             if((h.type === 'Topup' || h.type === 'Order QRIS') && h.status === 'Pending') {
@@ -2398,7 +2425,7 @@ app.post('/api/topup', async (req, res) => {
             tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
             type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
         });
-        if(db[phone].history.length > 20) db[phone].history.pop();
+        if(db[phone].history.length > 50) db[phone].history.pop();
         saveJSON(dbFile, db);
 
         res.json({success: true});
@@ -2446,7 +2473,7 @@ app.post('/api/order-qris', async (req, res) => {
             tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
             type: 'Order QRIS', nama: p.nama + ' (QRIS)', tujuan: tujuan, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
         });
-        if(db[targetKey].history.length > 20) db[targetKey].history.pop();
+        if(db[targetKey].history.length > 50) db[targetKey].history.pop();
         saveJSON(dbFile, db);
 
         res.json({success: true});
@@ -2490,7 +2517,7 @@ app.post('/api/order', async (req, res) => {
         
         db[targetKey].history = db[targetKey].history || [];
         db[targetKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId });
-        if(db[targetKey].history.length > 20) db[targetKey].history.pop();
+        if(db[targetKey].history.length > 50) db[targetKey].history.pop();
         saveJSON(dbFile, db);
         
         let trxs = loadJSON(trxFile);
@@ -2548,7 +2575,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
             
             db[phone].history = db[phone].history || [];
             db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId });
-            
+            if(db[phone].history.length > 50) db[phone].history.pop();
             saveJSON(dbFile, db);
             
             if(globalSock) {
@@ -2562,6 +2589,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         db[phone].trx_count = (db[phone].trx_count || 0) + 1;
         db[phone].history = db[phone].history || [];
         db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId });
+        if(db[phone].history.length > 50) db[phone].history.pop();
         saveJSON(dbFile, db);
         
         let trxs = loadJSON(trxFile);
@@ -2713,6 +2741,7 @@ async function startBot() {
                                 } else {
                                     db[phoneKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + trx.nama, tujuan: trx.tujuan, status: 'Refund', sn: '-', amount: parseInt(trx.harga), ref_id: ref });
                                 }
+                                if(db[phoneKey].history.length > 50) db[phoneKey].history.pop();
                             }
                             saveJSON(dbFile, db); 
                             
@@ -3003,6 +3032,7 @@ menu_member() {
                         type: 'Topup', nama: 'Topup Manual (Admin)', tujuan: 'Sistem', status: 'Sukses', sn: '-', amount: nominalTambah, 
                         saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[target].saldo 
                     });
+                    if(db[target].history.length > 50) db[target].history.pop();
                     
                     crypt.save('database.json', db);
                     console.log('\x1b[32m\n✅ Saldo Rp ' + nominalTambah.toLocaleString('id-ID') + ' berhasil ditambahkan ke ' + namaUser + ' (' + target + ')!\x1b[0m');
@@ -3046,6 +3076,7 @@ menu_member() {
                             type: 'Topup', nama: 'Pengurangan Saldo (Admin)', tujuan: 'Sistem', status: 'Sukses', sn: '-', amount: nominalKurang, 
                             saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[target].saldo 
                         });
+                        if(db[target].history.length > 50) db[target].history.pop();
                         
                         crypt.save('database.json', db);
                         console.log('\x1b[32m\n✅ Saldo ' + namaUser + ' (' + target + ') berhasil dikurangi!\x1b[0m');
@@ -3260,7 +3291,7 @@ menu_backup() {
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "${C_YELLOW}${C_BOLD}               💾 BACKUP & RESTORE 💾               ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Backup Data (Kirim ke Telegram)"
+        echo -e "  ${C_GREEN}[1]${C_RST} Backup Data (Kirim ke Telegram Admin)"
         echo -e "  ${C_GREEN}[2]${C_RST} Restore Database & Bot dari Link"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
@@ -3277,20 +3308,20 @@ menu_backup() {
                     sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null
                 fi
                 zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json ssl_backup.tar.gz 2>/dev/null
-                echo -e "${C_GREEN}✅ File backup.zip (termasuk SSL) berhasil dikompresi!${C_RST}"
+                echo -e "${C_GREEN}✅ File backup.zip (termasuk config API/ID) berhasil dikompresi!${C_RST}"
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     const { exec } = require('child_process');
                     let config = crypt.load('config.json');
                     if(config.teleToken && config.teleChatId) {
-                        console.log('\x1b[36m⏳ Sedang mengirim ke Telegram...\x1b[0m');
+                        console.log('\x1b[36m⏳ Sedang mengirim ke Telegram Admin...\x1b[0m');
                         let cmd = \`curl -s -F chat_id=\"\${config.teleChatId}\" -F document=@\"backup.zip\" -F caption=\"📦 Manual Backup Data + SSL\" https://api.telegram.org/bot\${config.teleToken}/sendDocument\`;
                         exec(cmd, (err) => {
                             if(err) console.log('\x1b[31m❌ Gagal mengirim ke Telegram.\x1b[0m');
-                            else console.log('\x1b[32m✅ File Backup berhasil mendarat di Telegram!\x1b[0m');
+                            else console.log('\x1b[32m✅ File Backup berhasil mendarat di Telegram Admin!\x1b[0m');
                         });
                     } else {
-                        console.log('\x1b[33m⚠️ Token Telegram belum diisi.\x1b[0m');
+                        console.log('\x1b[33m⚠️ Token Telegram Admin belum diisi di menu setup notifikasi.\x1b[0m');
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -3516,10 +3547,10 @@ menu_notifikasi() {
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "${C_YELLOW}${C_BOLD}        📢 SETUP INTEGRASI NOTIFIKASI BROADCAST       ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Set API Telegram (Token Admin & Token Info/Web)"
-        echo -e "  ${C_GREEN}[2]${C_RST} Set Channel Telegram ID (Untuk Info & Transaksi Global)"
-        echo -e "  ${C_GREEN}[3]${C_RST} Set ID Grup / Saluran WA (Untuk Broadcast Transaksi)"
-        echo -e "  ${C_GREEN}[4]${C_RST} Hapus / Bersihkan Semua Pemberitahuan di Website"
+        echo -e "  ${C_GREEN}[1]${C_RST} Setup Telegram ADMIN (Laporan Transaksi & Komplain)"
+        echo -e "  ${C_GREEN}[2]${C_RST} Setup Telegram PELANGGAN (Kirim Info Web & Saluran)"
+        echo -e "  ${C_GREEN}[3]${C_RST} Setup Grup / Saluran WA (Broadcast Sukses)"
+        echo -e "  ${C_GREEN}[4]${C_RST} Hapus / Bersihkan Notifikasi di Website"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
         echo -e "${C_CYAN}======================================================${C_RST}"
@@ -3528,36 +3559,37 @@ menu_notifikasi() {
 
         case $notif_choice in
             1)
-                echo -e "\n${C_MAG}--- SET API TELEGRAM ADMIN & INFO ---${C_RST}"
-                read -p "Masukkan Token Bot Telegram (Untuk Notif Transaksi Admin): " token
-                read -p "Masukkan Token Bot Telegram (Untuk Update Info Web & Notif Global): " token_info
+                echo -e "\n${C_MAG}--- SETUP TELEGRAM ADMIN ---${C_RST}"
+                echo -e "Notifikasi pesanan masuk, komplain, topup & backup akan dikirim kesini."
+                read -p "Masukkan Token Bot Telegram Admin: " token
                 read -p "Masukkan Chat ID Admin Anda: " chatid
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let config = crypt.load('config.json');
                     if('$token' !== '') config.teleToken = '$token'.trim();
-                    if('$token_info' !== '') config.teleTokenInfo = '$token_info'.trim();
                     if('$chatid' !== '') config.teleChatId = '$chatid'.trim();
                     crypt.save('config.json', config);
-                    console.log('\x1b[32m\n✅ Data Telegram Admin & Info berhasil disimpan!\x1b[0m');
+                    console.log('\x1b[32m\n✅ Konfigurasi Telegram Admin berhasil disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
-                echo -e "\n${C_MAG}--- SET CHANNEL TELEGRAM ---${C_RST}"
-                echo -e "Pastikan Bot Telegram INFO sudah dimasukkan sebagai Admin di Channel."
-                read -p "Masukkan ID Channel (Contoh: -100123456789): " chanid
+                echo -e "\n${C_MAG}--- SETUP TELEGRAM PELANGGAN (INFO/SALURAN) ---${C_RST}"
+                echo -e "Notifikasi untuk broadcast Global Transaksi Sukses dan Update Info di Web."
+                read -p "Masukkan Token Bot Telegram (Boleh bot yang sama/berbeda dari Admin): " token_info
+                read -p "Masukkan ID Channel/Saluran Pelanggan (Contoh: -100123456789): " chanid
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let config = crypt.load('config.json');
+                    if('$token_info' !== '') config.teleTokenInfo = '$token_info'.trim();
                     if('$chanid' !== '') config.teleChannelId = '$chanid'.trim();
                     crypt.save('config.json', config);
-                    console.log('\x1b[32m\n✅ ID Channel Telegram berhasil disimpan!\x1b[0m');
+                    console.log('\x1b[32m\n✅ Konfigurasi Telegram Pelanggan & Channel berhasil disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             3)
-                echo -e "\n${C_MAG}--- SET ID GRUP / SALURAN WHATSAPP ---${C_RST}"
+                echo -e "\n${C_MAG}--- SETUP GRUP / SALURAN WHATSAPP ---${C_RST}"
                 echo -e "Masukkan ID Grup (contoh: 12345678@g.us) atau Saluran (contoh: 120363xxx@newsletter)."
                 echo -e "Bot WA Anda akan mengirim broadcast notifikasi beli sukses kesini."
                 read -p "Masukkan ID WA: " waid
@@ -3768,3 +3800,5 @@ EOF
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
 done
+
+# Selesai
