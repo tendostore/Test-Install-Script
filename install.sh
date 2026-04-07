@@ -198,8 +198,6 @@ EOF
         .menu-btn svg { width: 24px; height: 24px; stroke: var(--text-main); fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
         
         .brand-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 20px; font-weight: 900; background: transparent; color: var(--text-main); padding: 8px 0; border-radius: 0; box-shadow: none; z-index: 2; overflow: visible; width: auto; display: flex; align-items: center; white-space: nowrap; text-transform: uppercase; letter-spacing: 1px;}
-        .marquee-text { display: inline-block; white-space: nowrap; animation: marquee 6s linear infinite; }
-        @keyframes marquee { 0% { transform: translateX(170px); } 100% { transform: translateX(-100%); } }
         
         .trx-badge { font-size: 11px; background: var(--bg-main); color: var(--text-main); padding: 5px 12px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.2s; z-index: 2;}
         .trx-badge:active { transform: scale(0.95); }
@@ -286,6 +284,7 @@ EOF
         .ic-sms { background: rgba(244, 114, 182, 0.15); color: #db2777; }
         .ic-masa { background: rgba(251, 146, 60, 0.15); color: #ea580c; }
         .ic-perdana { background: rgba(45, 212, 191, 0.15); color: #0d9488; }
+        .ic-vpn { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
         
         .dark-mode .ic-pulsa { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
         .dark-mode .ic-data { background: rgba(52, 211, 153, 0.2); color: #34d399; }
@@ -296,6 +295,7 @@ EOF
         .dark-mode .ic-sms { background: rgba(244, 114, 182, 0.2); color: #f472b6; }
         .dark-mode .ic-masa { background: rgba(251, 146, 60, 0.2); color: #fb923c; }
         .dark-mode .ic-perdana { background: rgba(45, 212, 191, 0.2); color: #2dd4bf; }
+        .dark-mode .ic-vpn { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
 
         .grid-text { font-size: 10.5px; color: var(--text-main); font-weight: 800; line-height: 1.3; text-transform: uppercase; letter-spacing: -0.2px;}
 
@@ -481,6 +481,13 @@ EOF
         .custom-toast.error { background: #ef4444; color: #fff; }
         .custom-toast.success { background: #10b981; color: #fff; }
 
+        .vpn-server-list { display: flex; flex-direction: column; gap: 10px; text-align: left; margin-top: 15px; }
+        .vpn-server-item { background: var(--bg-card); padding: 15px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: transform 0.2s;}
+        .vpn-server-item:active { transform: scale(0.95); }
+        .vpn-server-info { flex: 1; }
+        .vpn-server-name { font-weight: 900; font-size: 14px; display: flex; align-items: center; gap: 8px;}
+        .vpn-server-price { font-size: 13px; color: #0ea5e9; font-weight: 800; margin-top: 3px;}
+
         @media screen and (min-width: 768px) {
             body { padding: 30px 0; background-color: #0f172a; }
             #app { max-width: 800px; border-radius: 36px; min-height: calc(100vh - 60px); box-shadow: 0 25px 60px rgba(0,0,0,0.15); padding-bottom: 130px; }
@@ -660,7 +667,7 @@ EOF
             
             <div id="live-clock" style="text-align:center; font-size:11.5px; font-weight:800; color:var(--text-main); margin: 25px 20px 0; letter-spacing: 0.5px;">Memuat waktu...</div>
 
-            <div class="grid-title">Layanan Produk</div>
+            <div class="grid-title">Layanan Produk PPOB</div>
             <div class="grid-container">
                 <div class="grid-box" onclick="loadCategory('Pulsa')">
                     <div class="grid-icon-wrap ic-pulsa">
@@ -741,6 +748,40 @@ EOF
                         </svg>
                     </div>
                     <div class="grid-text">PERDANA</div>
+                </div>
+            </div>
+
+            <div class="grid-title">Layanan Produk VPN Premium</div>
+            <div class="grid-container">
+                <div class="grid-box" onclick="openVPNServerList('SSH')">
+                    <div class="grid-icon-wrap ic-vpn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    </div>
+                    <div class="grid-text">SSH</div>
+                </div>
+                <div class="grid-box" onclick="openVPNServerList('Vmess')">
+                    <div class="grid-icon-wrap ic-vpn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                    </div>
+                    <div class="grid-text">VMESS</div>
+                </div>
+                <div class="grid-box" onclick="openVPNServerList('Vless')">
+                    <div class="grid-icon-wrap ic-vpn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                    </div>
+                    <div class="grid-text">VLESS</div>
+                </div>
+                <div class="grid-box" onclick="openVPNServerList('Trojan')">
+                    <div class="grid-icon-wrap ic-vpn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                    </div>
+                    <div class="grid-text">TROJAN</div>
+                </div>
+                <div class="grid-box" onclick="openVPNServerList('ZIVPN')">
+                    <div class="grid-icon-wrap ic-vpn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                    </div>
+                    <div class="grid-text">ZIVPN</div>
                 </div>
             </div>
 
@@ -938,6 +979,43 @@ EOF
             </div>
         </div>
 
+        <div id="vpn-server-modal" class="modal-overlay hidden">
+            <div class="modal-box">
+                <h3 id="vpn-modal-title" style="margin-top:0; font-size:18px;">Pilih Server</h3>
+                <div id="vpn-server-list" class="vpn-server-list">
+                    </div>
+                <button class="btn-outline" style="margin-top:15px; width: 100%;" onclick="closeVPNServerModal()">Batal</button>
+            </div>
+        </div>
+
+        <div id="vpn-order-modal" class="modal-overlay hidden">
+            <div class="modal-box">
+                <h3 style="margin-top:0; font-size:18px;">Beli Akun VPN Premium</h3>
+                <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left;">
+                    <strong id="m-vpn-name" style="font-size:14px; line-height:1.4; display:block; margin-bottom:5px;">Produk VPN</strong>
+                    <div id="m-vpn-desc" style="font-size:11px; color:var(--text-muted); margin-bottom:10px; line-height: 1.4;">Deskripsi VPN</div>
+                    <span style="font-weight:900; font-size: 20px;" id="m-vpn-price">Rp 0</span>
+                </div>
+                
+                <input type="text" id="m-vpn-username" placeholder="Buat Username VPN" style="text-align:center; font-size: 14px; font-weight: bold; margin-bottom: 10px;">
+                <input type="password" id="m-vpn-password" placeholder="Buat Password (Jika perlu)" style="text-align:center; font-size: 14px; font-weight: bold; margin-bottom: 10px;" class="hidden">
+                <input type="number" id="m-vpn-expired" placeholder="Masa Aktif (Hari)" value="30" style="text-align:center; font-size: 14px; font-weight: bold;">
+
+                <div style="margin-bottom:15px; text-align:left;">
+                    <label style="font-size:12px; font-weight:800; color:var(--text-muted);">Metode Pembayaran:</label>
+                    <select id="m-vpn-payment" style="width:100%; padding:12px; border-radius:12px; background:var(--bg-main); color:var(--text-main); border:1px solid var(--border-color); font-weight:bold; margin-top:5px; outline:none;">
+                        <option value="saldo">💳 Menggunakan Saldo Akun</option>
+                        <option value="qris">📲 Langsung Bayar QRIS Otomatis</option>
+                    </select>
+                </div>
+
+                <div class="modal-btns">
+                    <button class="btn-outline" style="margin-top:0;" onclick="closeVPNOrderModal()">Batal</button>
+                    <button class="btn" id="m-vpn-submit" onclick="processVPNOrder()">Buat Akun</button>
+                </div>
+            </div>
+        </div>
+
         <div id="order-success-modal" class="modal-overlay hidden">
             <div class="modal-box" style="text-align:center;">
                 <div style="width:60px; height:60px; background:#dcfce7; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
@@ -1013,6 +1091,12 @@ EOF
                     <div style="font-size:11px; color:var(--text-muted); font-weight:bold;">Transfer TEPAT SEBESAR:</div>
                     <div style="font-size:24px; font-weight:900; color:#0ea5e9; margin: 5px 0;" id="hd-qris-amount">Rp 0</div>
                     <div style="font-size:11px; color:#ef4444; font-weight:bold; line-height:1.4;">Harus persis agar otomatis masuk.</div>
+                </div>
+
+                <div id="hd-vpn-info-box" class="hidden" style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; text-align: left; border: 1px solid var(--border-color); font-size: 13px;">
+                    <div style="font-weight: 800; margin-bottom: 8px; color: var(--text-main);">Detail Akun VPN:</div>
+                    <textarea id="hd-vpn-details" readonly style="width:100%; height:80px; font-size:11px; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); resize:none; margin-bottom:10px;" onclick="this.select()"></textarea>
+                    <button class="btn-outline" style="padding:8px; margin:0; width:100%; font-size: 12px; border-color:#0ea5e9; color:#0ea5e9;" onclick="copyData('hd-vpn-details', 'Detail Akun VPN')">Salin Akun VPN</button>
                 </div>
 
                 <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left; font-size:13px; line-height: 1.6;">
@@ -1130,7 +1214,11 @@ EOF
         }
 
         function copyData(elementId, label) {
-            let text = document.getElementById(elementId).innerText;
+            let text = '';
+            let el = document.getElementById(elementId);
+            if(el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') text = el.value;
+            else text = el.innerText;
+
             if(text && text !== '-') {
                 navigator.clipboard.writeText(text).then(() => {
                     showToast(label + ' berhasil disalin!', 'success');
@@ -1148,6 +1236,7 @@ EOF
 
         let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let tempForgotPhone = ""; let tempLoginPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
         let currentCategory = ""; let currentBrand = ""; let currentHistoryFilter = 'Order'; let currentHistoryStatusFilter = 'Semua';
+        let vpnConfigData = null; let selectedVPNProto = ""; let selectedVPNServer = "";
         let bannerInterval; let qrisInterval;
 
         let savedTheme = localStorage.getItem('tendo_theme');
@@ -1215,6 +1304,13 @@ EOF
                     if(document.getElementById('stat-total')) document.getElementById('stat-total').innerText = res.total;
                 }
             } catch(e){}
+        }
+
+        async function fetchVPNConfig() {
+            try {
+                let res = await apiCall('/api/vpn-config');
+                if(res && res.success) vpnConfigData = res.data;
+            } catch(e) {}
         }
 
         async function loadBanners() {
@@ -1315,7 +1411,7 @@ EOF
             }
         });
 
-        function showDashboardInternal() { showScreen('dashboard-screen', 'nav-home'); syncUserData(); fetchAllProducts(); }
+        function showDashboardInternal() { showScreen('dashboard-screen', 'nav-home'); syncUserData(); fetchAllProducts(); fetchVPNConfig(); }
         function showDashboard() { pushState({screen: 'dashboard-screen'}); showDashboardInternal(); }
         
         function showHistoryInternal(filter) { 
@@ -1423,7 +1519,7 @@ EOF
             await syncUserData(); 
             showHistory('Topup');
             if(userData.history && userData.history.length > 0) {
-                let latest = userData.history.find(h => (h.type === 'Topup' || h.type === 'Order QRIS') && h.status === 'Pending');
+                let latest = userData.history.find(h => (h.type === 'Topup' || h.type === 'Order QRIS' || h.type === 'Order VPN QRIS') && h.status === 'Pending');
                 if(latest) openHistoryDetail(latest);
             }
         }
@@ -1525,7 +1621,7 @@ EOF
                         let typeMatch = false;
                         let type = h.type || 'Order';
                         if (currentHistoryFilter === 'Topup') typeMatch = (type === 'Topup');
-                        else typeMatch = (type === 'Order' || type === 'Order QRIS' || type === 'Refund');
+                        else typeMatch = (type === 'Order' || type === 'Order QRIS' || type === 'Refund' || type === 'Order VPN' || type === 'Order VPN QRIS');
                         
                         if(!typeMatch) return false;
 
@@ -1598,7 +1694,7 @@ EOF
             btnComplain.classList.remove('hidden'); 
             
             let qrisBox = document.getElementById('hd-qris-box');
-            if((h.type === 'Topup' || h.type === 'Order QRIS') && h.status === 'Pending') {
+            if((h.type === 'Topup' || h.type === 'Order QRIS' || h.type === 'Order VPN QRIS') && h.status === 'Pending') {
                 if(Date.now() < h.expired_at) {
                     document.getElementById('hd-qris-img').src = h.qris_url;
                     document.getElementById('hd-qris-amount').innerText = 'Rp ' + h.amount.toLocaleString('id-ID');
@@ -1611,6 +1707,14 @@ EOF
             } else {
                 qrisBox.classList.add('hidden');
                 clearInterval(qrisInterval);
+            }
+
+            let vpnInfoBox = document.getElementById('hd-vpn-info-box');
+            if(h.vpn_details) {
+                document.getElementById('hd-vpn-details').value = h.vpn_details;
+                vpnInfoBox.classList.remove('hidden');
+            } else {
+                vpnInfoBox.classList.add('hidden');
             }
             
             document.getElementById('history-detail-modal').classList.remove('hidden');
@@ -1654,6 +1758,7 @@ EOF
                     // Berhasil masuk tanpa OTP
                     currentUser = data.phone; userData = data.data;
                     await fetchAllProducts(); 
+                    await fetchVPNConfig();
                     fetchGlobalStats();
                     loadBanners();
                     
@@ -1696,10 +1801,7 @@ EOF
             btn.innerText = ori; btn.disabled = false;
         }
 
-        async function verifyLoginOTP() {
-            // Fungsi ini sekarang tidak dipanggil lagi oleh sistem login,
-            // Namun tetap saya biarkan jika Anda punya keperluan lain
-        }
+        async function verifyLoginOTP() {}
 
         async function requestOTP() {
             let user = document.getElementById('reg-user').value.trim();
@@ -2041,6 +2143,131 @@ EOF
             
             btn.innerText = ori; btn.disabled = false;
         }
+
+        /* -----------------------------------------
+           FUNGSI ORDER VPN PREMIUM
+        ------------------------------------------*/
+        function openVPNServerList(protocol) {
+            selectedVPNProto = protocol;
+            document.getElementById('vpn-modal-title').innerText = "Pilih Server " + protocol.toUpperCase();
+            
+            if(!vpnConfigData || !vpnConfigData.pricing) {
+                showToast("Data VPN belum diatur admin", "error");
+                return;
+            }
+
+            let html = '';
+            let servers = ['ID', 'SG'];
+            let hasServer = false;
+
+            servers.forEach(srv => {
+                if (vpnConfigData.pricing[srv] && vpnConfigData.pricing[srv][protocol] && vpnConfigData.servers[srv] && vpnConfigData.servers[srv].host) {
+                    let flag = srv === 'ID' ? '🇮🇩' : '🇸🇬';
+                    let price = vpnConfigData.pricing[srv][protocol].price || 0;
+                    let desc = vpnConfigData.pricing[srv][protocol].desc || 'Proses Otomatis';
+                    
+                    let safeDesc = desc.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    
+                    html += `
+                    <div class="vpn-server-item" onclick="openVPNOrderModal('${srv}', ${price}, '${safeDesc}')">
+                        <div class="vpn-server-info">
+                            <div class="vpn-server-name">${flag} Server ${srv} Premium</div>
+                            <div class="vpn-server-price">Rp ${price.toLocaleString('id-ID')} / Bln</div>
+                        </div>
+                        <div>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </div>
+                    </div>`;
+                    hasServer = true;
+                }
+            });
+
+            if(!hasServer) {
+                html = '<div style="text-align:center; font-size:12px; color:var(--text-muted); margin-top:10px;">Layanan server untuk protokol ini belum tersedia.</div>';
+            }
+
+            document.getElementById('vpn-server-list').innerHTML = html;
+            document.getElementById('vpn-server-modal').classList.remove('hidden');
+        }
+
+        function closeVPNServerModal() {
+            document.getElementById('vpn-server-modal').classList.add('hidden');
+        }
+
+        function openVPNOrderModal(server, price, desc) {
+            closeVPNServerModal();
+            selectedVPNServer = server;
+            
+            let passInput = document.getElementById('m-vpn-password');
+            if (selectedVPNProto.toUpperCase() === 'SSH' || selectedVPNProto.toUpperCase() === 'ZIVPN') {
+                passInput.classList.remove('hidden');
+            } else {
+                passInput.classList.add('hidden');
+            }
+
+            document.getElementById('m-vpn-name').innerText = selectedVPNProto.toUpperCase() + " - Server " + server;
+            document.getElementById('m-vpn-desc').innerText = desc;
+            document.getElementById('m-vpn-price').innerText = 'Rp ' + price.toLocaleString('id-ID');
+            document.getElementById('m-vpn-username').value = '';
+            document.getElementById('m-vpn-password').value = '';
+            document.getElementById('m-vpn-expired').value = '30';
+            document.getElementById('m-vpn-payment').value = 'saldo';
+
+            document.getElementById('vpn-order-modal').classList.remove('hidden');
+        }
+
+        function closeVPNOrderModal() {
+            document.getElementById('vpn-order-modal').classList.add('hidden');
+        }
+
+        async function processVPNOrder() {
+            if(!currentUser) { showToast('Sesi Anda habis. Silakan login ulang.', 'error'); logout(); return; }
+            
+            let username = document.getElementById('m-vpn-username').value.trim();
+            let password = document.getElementById('m-vpn-password').value.trim();
+            let expired = document.getElementById('m-vpn-expired').value;
+            let method = document.getElementById('m-vpn-payment').value;
+
+            if(!username) return showToast("Username VPN wajib diisi!", 'error');
+            if((selectedVPNProto.toUpperCase() === 'SSH' || selectedVPNProto.toUpperCase() === 'ZIVPN') && !password) {
+                return showToast("Password VPN wajib diisi!", 'error');
+            }
+            if(!expired || parseInt(expired) < 1) return showToast("Masa aktif tidak valid!", 'error');
+
+            let btn = document.getElementById('m-vpn-submit');
+            let ori = btn.innerText; btn.innerText = 'Membuat Akun...'; btn.disabled = true;
+
+            try {
+                let url = method === 'qris' ? '/api/order-vpn-qris' : '/api/order-vpn';
+                let data = await apiCall(url, {
+                    phone: currentUser, 
+                    protocol: selectedVPNProto, 
+                    server: selectedVPNServer, 
+                    username: username, 
+                    password: password, 
+                    expired: parseInt(expired)
+                });
+                
+                if(data && data.success) {
+                    closeVPNOrderModal();
+                    await syncUserData();
+                    
+                    if (method === 'qris') {
+                        document.getElementById('topup-success-modal').classList.remove('hidden');
+                    } else {
+                        document.getElementById('os-name').innerText = document.getElementById('m-vpn-name').innerText;
+                        document.getElementById('os-target').innerText = username;
+                        document.getElementById('os-metode').innerText = "Saldo Akun";
+                        document.getElementById('os-price').innerText = document.getElementById('m-vpn-price').innerText;
+                        document.getElementById('order-success-modal').classList.remove('hidden');
+                    }
+                } else {
+                    showToast(data && data.message ? 'Gagal: ' + data.message : "Kesalahan server saat memproses order VPN.", 'error');
+                }
+            } catch(e) { showToast('Kesalahan jaringan.', 'error'); }
+
+            btn.innerText = ori; btn.disabled = false;
+        }
     </script>
 </body>
 </html>
@@ -2085,15 +2312,13 @@ const notifFile = './web_notif.json';
 const globalStatsFile = './global_stats.json';
 const topupFile = './topup.json';
 const globalTrxFile = './global_trx.json'; 
+const vpnConfigFile = './vpn_config.json'; // Database VPN Premium
 
 const loadJSON = (file) => crypt.load(file, (file === notifFile || file === globalTrxFile) ? [] : {});
 const saveJSON = (file, data) => crypt.save(file, data);
 
 const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
 
-// ==============================================================
-// FITUR: SAMARKAN DATA TUJUAN SAJA (4 ANGKA AWAL)
-// ==============================================================
 function maskStringTarget(str) {
     if (!str) return '-';
     let s = str.toString().trim();
@@ -2101,9 +2326,6 @@ function maskStringTarget(str) {
     return s.substring(0, 4) + '***';
 }
 
-// ==============================================================
-// FITUR: CEK PEMELIHARAAN SISTEM (23:00 - 00:30 WIB)
-// ==============================================================
 function cekPemeliharaan() {
     let d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
     let h = d.getHours();
@@ -2114,9 +2336,6 @@ function cekPemeliharaan() {
     return false;
 }
 
-// ==============================================================
-// FITUR: NOTIFIKASI TELEGRAM ADMIN (PARSE HTML)
-// ==============================================================
 function sendTelegramAdmin(message) {
     try {
         let cfg = loadJSON(configFile);
@@ -2131,16 +2350,12 @@ function sendTelegramAdmin(message) {
     } catch(e) {}
 }
 
-// ==============================================================
-// FITUR: BROADCAST TRANSAKSI SUKSES (TELEGRAM CHANNEL & WA)
-// ==============================================================
 function sendBroadcastSuccess(productName, rawUser, rawTarget) {
     try {
         let cfg = loadJSON(configFile);
         let maskTarget = maskStringTarget(rawTarget);
         let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
         
-        // FORMAT HTML UNTUK TELEGRAM (Menghindari Error Parse Mode)
         let msgTele = `✅ <b>PEMBELIAN BERHASIL</b>\n\n👤 Pelanggan: ${rawUser}\n📦 Layanan: ${productName}\n🎯 Tujuan: ${maskTarget}\n🕒 Waktu: ${timeStr} WIB\n\n<i>🌐 Transaksi diproses otomatis oleh sistem.</i>`;
 
         if (cfg.teleTokenInfo && cfg.teleChannelId) {
@@ -2162,9 +2377,6 @@ function sendBroadcastSuccess(productName, rawUser, rawTarget) {
     } catch(e) {}
 }
 
-// ==============================================================
-// FUNGSI KONVERSI QRIS SMART PARSER
-// ==============================================================
 function convertToDynamicQris(staticQris, amount) {
     try {
         if(!staticQris || staticQris.length < 30) return staticQris;
@@ -2211,6 +2423,12 @@ configAwal.qrisText = configAwal.qrisText || "";
 configAwal.teleTokenInfo = configAwal.teleTokenInfo || ""; 
 configAwal.margin = configAwal.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
 saveJSON(configFile, configAwal);
+
+// Inisialisasi DB VPN
+let vpnAwal = loadJSON(vpnConfigFile);
+if(!vpnAwal.servers) vpnAwal.servers = { "ID": {}, "SG": {} };
+if(!vpnAwal.pricing) vpnAwal.pricing = { "ID": {}, "SG": {} };
+saveJSON(vpnConfigFile, vpnAwal);
 
 loadJSON(dbFile); loadJSON(produkFile); loadJSON(trxFile); loadJSON(globalStatsFile); loadJSON(topupFile); loadJSON(notifFile); loadJSON(globalTrxFile);
 
@@ -2322,6 +2540,23 @@ app.get('/api/stats', (req, res) => {
 app.get('/api/produk', (req, res) => { res.json(loadJSON(produkFile)); });
 app.get('/api/notif', (req, res) => { res.json(loadJSON(notifFile) || []); });
 app.get('/api/global-trx', (req, res) => { res.json(loadJSON(globalTrxFile) || []); });
+
+// API GET VPN CONFIG (Sanitized for client)
+app.get('/api/vpn-config', (req, res) => {
+    try {
+        let vpn = loadJSON(vpnConfigFile);
+        let safeConfig = JSON.parse(JSON.stringify(vpn));
+        if(safeConfig.servers) {
+            for(let srv in safeConfig.servers) {
+                delete safeConfig.servers[srv].pass;
+                delete safeConfig.servers[srv].user;
+                delete safeConfig.servers[srv].api_key;
+                delete safeConfig.servers[srv].port;
+            }
+        }
+        res.json({success: true, data: safeConfig});
+    } catch(e) { res.json({success: false}); }
+});
 
 app.get('/api/user/:phone', (req, res) => {
     try {
@@ -2637,6 +2872,194 @@ app.post('/api/order', async (req, res) => {
     } catch (error) { if (!res.headersSent) return res.json({success: false, message: 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)'}); }
 });
 
+// ==============================================================
+// CORE LOGIC: EKSEKUSI PEMBUATAN AKUN VPN KE SERVER VPS 
+// ==============================================================
+async function executeVpnOrder(phone, protocol, serverKey, vpnUsername, vpnPassword, expiredDays) {
+    let db = loadJSON(dbFile);
+    let vpnConfig = loadJSON(vpnConfigFile);
+    
+    let targetKey = db[normalizePhone(phone)] ? normalizePhone(phone) : (db[phone] ? phone : null);
+    if(!targetKey) return { success: false, message: "Sesi tidak valid." };
+
+    let srv = vpnConfig.servers[serverKey];
+    let priceInfo = vpnConfig.pricing[serverKey][protocol];
+    
+    if(!srv || !srv.host || !srv.api_key || !priceInfo) {
+        return { success: false, message: "Layanan VPN ini sedang gangguan/belum diatur Admin." };
+    }
+
+    let hargaFix = parseInt(priceInfo.price);
+    let saldoSebelum = parseInt(db[targetKey].saldo);
+    
+    if(saldoSebelum < hargaFix) return { success: false, message: "Saldo tidak mencukupi." };
+
+    // Set Endpoint
+    let endpoint = '';
+    let protoLower = protocol.toLowerCase();
+    
+    // Sesuaikan endpoint sesuai struktur API (ZIVPN dsb jika ada, ini contoh standar dari v2.sh)
+    if(protoLower === 'ssh') endpoint = `http://${srv.host}/vps/sshvpn`;
+    else if(['vless', 'vmess', 'trojan'].includes(protoLower)) endpoint = `http://${srv.host}/vps/${protoLower}all`;
+    else endpoint = `http://${srv.host}/vps/${protoLower}vpn`; // fallback zivpn dll
+
+    let payload = {
+        username: vpnUsername,
+        expired: parseInt(expiredDays),
+        limitip: 2,
+        kuota: 200
+    };
+    if(protoLower === 'ssh' || protoLower === 'zivpn') payload.password = vpnPassword;
+    else payload.uuidv2 = '';
+
+    try {
+        let resApi = await axios.post(endpoint, payload, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': 'Bearer ' + srv.api_key
+            },
+            httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
+        });
+
+        if(resApi.data && resApi.data.data) {
+            let apiData = resApi.data.data;
+            let vpnDetails = `Username: ${apiData.username}\nExp: ${apiData.expired || apiData.exp || apiData.to}\n`;
+            
+            if(protoLower === 'ssh') {
+                vpnDetails += `Password: ${apiData.password}\nHost: ${apiData.hostname}\nPort TLS: ${apiData.port?.tls || '-'}\nPort Non-TLS: ${apiData.port?.none || '-'}\nUDP Custom: ${apiData.port?.udpcustom || '-'}`;
+            } else {
+                if(apiData.link) {
+                    if(apiData.link.tls) vpnDetails += `\nTLS:\n${apiData.link.tls}\n`;
+                    if(apiData.link.none) vpnDetails += `\nNon-TLS:\n${apiData.link.none}\n`;
+                    if(apiData.link.grpc) vpnDetails += `\ngRPC:\n${apiData.link.grpc}\n`;
+                }
+            }
+
+            db[targetKey].saldo = saldoSebelum - hargaFix;
+            db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
+            
+            let refId = "VPN-" + Date.now();
+            let prodName = `${protocol.toUpperCase()} Premium Server ${serverKey}`;
+            
+            db[targetKey].history.unshift({
+                ts: Date.now(), 
+                tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+                type: 'Order VPN', nama: prodName, tujuan: vpnUsername, status: 'Sukses', sn: '-', amount: hargaFix, ref_id: refId,
+                saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[targetKey].saldo,
+                vpn_details: vpnDetails
+            });
+            if(db[targetKey].history.length > 50) db[targetKey].history.pop();
+            saveJSON(dbFile, db);
+
+            // Statistik & Notif
+            let gStats = loadJSON(globalStatsFile);
+            let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+            gStats[dateKey] = (gStats[dateKey] || 0) + 1;
+            saveJSON(globalStatsFile, gStats);
+
+            let globalTrx = loadJSON(globalTrxFile);
+            let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+            globalTrx.unshift({ time: timeStr, product: prodName, user: (db[targetKey].username || targetKey), target: vpnUsername });
+            if(globalTrx.length > 100) globalTrx.pop();
+            saveJSON(globalTrxFile, globalTrx);
+
+            sendBroadcastSuccess(prodName, (db[targetKey].username || targetKey), vpnUsername);
+            sendTelegramAdmin(`🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Akun: ${db[targetKey].username || targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${vpnUsername}\n💰 Harga: Rp ${hargaFix.toLocaleString('id-ID')}`);
+
+            return { success: true };
+        } else {
+            return { success: false, message: "Gagal membuat akun di Server VPN." };
+        }
+    } catch(e) {
+        return { success: false, message: "Koneksi ke Server VPN Gagal / Ditolak." };
+    }
+}
+
+app.post('/api/order-vpn', async (req, res) => {
+    if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
+    let { phone, protocol, server, username, password, expired } = req.body;
+    let result = await executeVpnOrder(phone, protocol, server, username, password, expired);
+    res.json(result);
+});
+
+// AUTO ORDER VPN VIA QRIS
+app.post('/api/order-vpn-qris', async (req, res) => {
+    try {
+        if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
+        
+        let config = loadJSON(configFile);
+        if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
+        
+        let { phone, protocol, server, username, password, expired } = req.body;
+        
+        let db = loadJSON(dbFile); let vpnConfig = loadJSON(vpnConfigFile);
+        let pNorm = normalizePhone(phone);
+        let targetKey = db[pNorm] ? pNorm : (db[phone] ? phone : null);
+        if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid.'});
+        
+        let priceInfo = vpnConfig.pricing[server][protocol];
+        if(!priceInfo) return res.json({success: false, message: 'Harga layanan VPN belum diatur.'});
+
+        let nominalAsli = parseInt(priceInfo.price);
+        let uniqueCode = Math.floor(Math.random() * 50) + 1; 
+        let totalPay = nominalAsli + uniqueCode;
+
+        let finalQrisUrl = config.qrisUrl;
+        if (config.qrisText) {
+            let dynQris = convertToDynamicQris(config.qrisText, totalPay);
+            finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
+        }
+
+        let topups = loadJSON(topupFile);
+        let trxId = "VQ-" + Date.now();
+        let expiredAt = Date.now() + 10 * 60 * 1000;
+        let prodName = `${protocol.toUpperCase()} Premium Server ${server}`;
+
+        topups[trxId] = { 
+            phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
+            status: 'pending', timestamp: Date.now(), expired_at: expiredAt, 
+            is_order: true, vpn_data: { protocol, server, username, password, expired, nama_produk: prodName, harga_asli: nominalAsli }
+        };
+        saveJSON(topupFile, topups);
+
+        db[targetKey].history.unshift({ 
+            ts: Date.now(), 
+            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+            type: 'Order VPN QRIS', nama: prodName + ' (QRIS)', tujuan: username, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
+        });
+        if(db[targetKey].history.length > 50) db[targetKey].history.pop();
+        saveJSON(dbFile, db);
+
+        res.json({success: true});
+        sendTelegramAdmin(`🛒 <b>ORDER VPN QRIS PENDING</b>\n\n👤 Akun: ${db[targetKey].username || targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${username}\n💰 Tagihan: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}`);
+    } catch(e) { res.json({success: false, message: "Gagal memproses QRIS VPN."}); }
+});
+
+async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
+    let result = await executeVpnOrder(phone, vpnData.protocol, vpnData.server, vpnData.username, vpnData.password, vpnData.expired);
+    let db = loadJSON(dbFile);
+    
+    let hist = db[phone].history.find(h => h.sn === refIdAsal && h.type === 'Order VPN QRIS');
+    if(!hist) return;
+
+    if(result.success) {
+        // Hapus history QRIS pending, karena executeVpnOrder sudah buat history baru yang 'Sukses'
+        db[phone].history = db[phone].history.filter(h => h.sn !== refIdAsal);
+        saveJSON(dbFile, db);
+    } else {
+        // Gagal, Refund saldo
+        db[phone].saldo = parseInt(db[phone].saldo) + parseInt(vpnData.harga_asli);
+        hist.status = 'Refund';
+        hist.nama = 'Refund: ' + vpnData.nama_produk;
+        hist.type = 'Refund';
+        hist.amount = vpnData.harga_asli;
+        saveJSON(dbFile, db);
+        
+        sendTelegramAdmin(`⚠️ <b>INFO ORDER VPN QRIS: GAGAL VPS</b>\n\nRef: ${refIdAsal}\n💰 Saldo Rp ${vpnData.harga_asli.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.`);
+    }
+}
+
 async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, refIdAsal) {
     try {
         let db = loadJSON(dbFile); let config = loadJSON(configFile); let produkDB = loadJSON(produkFile);
@@ -2732,7 +3155,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
 function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
-    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json ssl_backup.tar.gz 2>/dev/null`, (err) => {
+    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json vpn_config.json ssl_backup.tar.gz 2>/dev/null`, (err) => {
         if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
     });
 }
@@ -2761,7 +3184,6 @@ async function startBot() {
     sock.ev.on('creds.update', saveCreds);
     sock.ev.on('connection.update', (u) => { if(u.connection === 'close') setTimeout(startBot, 4000); });
 
-    // INTERVAL PENGECEKAN PEMELIHARAAN SISTEM
     setInterval(() => {
         let currentlyMaintenance = cekPemeliharaan();
         if (currentlyMaintenance && !isMaintenanceNow) {
@@ -2826,7 +3248,7 @@ async function startBot() {
                     if(db[req.phone]) {
                         let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
                         if(hist && hist.status === 'Pending') { hist.status = 'Gagal (Kedaluwarsa)'; changedDb = true; }
-                        let tipe = req.is_order ? 'ORDER QRIS' : 'TOPUP';
+                        let tipe = req.is_order ? (req.vpn_data ? 'ORDER VPN QRIS' : 'ORDER QRIS') : 'TOPUP';
                         let teleMsg = `❌ <b>${tipe} KEDALUWARSA</b>\n\n👤 Akun: ${db[req.phone].username || req.phone}\n💰 Tagihan: Rp ${req.amount_to_pay.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}`;
                         sendTelegramAdmin(teleMsg);
                     }
@@ -2840,7 +3262,6 @@ async function startBot() {
                             let saldoSebelumnya = parseInt(db[req.phone].saldo);
                             db[req.phone].saldo = saldoSebelumnya + parseInt(req.saldo_to_add); 
                             
-                            // Hanya update status untuk Topup. Jika Order, biar prosesAutoOrderQRIS yg menimpa.
                             if (!req.is_order) {
                                 let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
                                 if(hist && hist.status === 'Pending') {
@@ -2854,7 +3275,11 @@ async function startBot() {
                             }
                             
                             if (req.is_order) {
-                                prosesAutoOrderQRIS(req.phone, req.sku, req.tujuan, req.nama_produk, req.harga_asli, req.trx_id);
+                                if(req.vpn_data) {
+                                    prosesAutoOrderVPN(req.phone, req.vpn_data, req.trx_id);
+                                } else {
+                                    prosesAutoOrderQRIS(req.phone, req.sku, req.tujuan, req.nama_produk, req.harga_asli, req.trx_id);
+                                }
                             }
                         }
                     }
@@ -3078,6 +3503,347 @@ getSaldo();
 EOF
 }
 
+generate_vpn_panel_php() {
+    # Skrip ini adalah integrasi dari v2.sh milik bosss
+    echo "Menginstal file tendo_vpn_panel.php ke public web..."
+    sudo mkdir -p /var/www/html/
+    cat << 'EOF' > /var/www/html/tendo_vpn_panel.php
+<?php
+/**
+ * ==============================================================================
+ * SCRIPT FULL INTEGRASI API WEB BILLING KE VPS VPN POTATO (ULTIMATE FINAL)
+ * Dibuat utuh tanpa dipotong, sesuai data JSON Swagger API.
+ * Fitur: Membuat Akun Reguler & Trial (SSH, Vless, Vmess, Trojan)
+ * Auto-Config: IP Limit = 2 | Kuota Reguler = 200GB | Trial = 30m & 2GB
+ * Sistem: Tulisan Digital Tendo Store
+ * ==============================================================================
+ */
+
+// 1. KUNCI API DAN KONFIGURASI SERVER VPN
+$auth_api_key = 'ChangeIPqhJ10UroYJSf46rekJDi0thD2GXj';
+$ip_vps_vpn   = 'http://103.168.147.157';
+
+// Inisialisasi variabel pesan hasil
+$html_hasil = '';
+
+// 2. LOGIKA PEMROSESAN JIKA FORMULIR DIKIRIM (Metode POST)
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    
+    // Mengambil data dari form
+    $account_mode = isset($_POST['account_mode']) ? $_POST['account_mode'] : 'regular';
+    $vpn_type     = isset($_POST['vpn_type']) ? $_POST['vpn_type'] : '';
+    
+    // Data input user (Hanya untuk Reguler)
+    $username = isset($_POST['username']) ? trim($_POST['username']) : '';
+    $password = isset($_POST['password']) ? trim($_POST['password']) : '';
+    $expired  = isset($_POST['expired']) ? (int)$_POST['expired'] : 30;
+
+    // --- ATURAN SISTEM HARDCODED SESUAI REQUEST TENDO STORE ---
+    $limitip_all      = 2;     // Semua akun maksimal 2 IP
+    $kuota_reguler    = 200;   // Reguler maksimal 200 GB
+    $kuota_trial      = 2;     // Trial maksimal 2 GB
+    $timelimit_trial  = "30m"; // Trial maksimal 30 Menit
+
+    $endpoint_url = '';
+    $payload_json = '';
+
+    // 3. PENGATURAN ENDPOINT DAN PAYLOAD BERDASARKAN MODE & JENIS VPN
+    if ($account_mode === 'trial') {
+        // --- LOGIKA PEMBUATAN AKUN TRIAL ---
+        $data_body = array(
+            'timelimit' => $timelimit_trial,
+            'kuota'     => $kuota_trial,
+            'limitip'   => $limitip_all
+        );
+        $payload_json = json_encode($data_body);
+
+        switch ($vpn_type) {
+            case 'ssh':
+                $endpoint_url = $ip_vps_vpn . '/vps/trialsshvpn';
+                break;
+            case 'vless':
+                $endpoint_url = $ip_vps_vpn . '/vps/trialvlessall';
+                break;
+            case 'vmess':
+                $endpoint_url = $ip_vps_vpn . '/vps/trialvmessall';
+                break;
+            case 'trojan':
+                $endpoint_url = $ip_vps_vpn . '/vps/trialtrojanall';
+                break;
+            default:
+                $html_hasil = "<div class='alert-error'>Jenis VPN tidak valid!</div>";
+        }
+
+    } else {
+        // --- LOGIKA PEMBUATAN AKUN REGULER ---
+        switch ($vpn_type) {
+            case 'ssh':
+                $endpoint_url = $ip_vps_vpn . '/vps/sshvpn';
+                $data_body = array(
+                    'username' => $username,
+                    'password' => $password,
+                    'expired'  => $expired,
+                    'limitip'  => $limitip_all
+                );
+                $payload_json = json_encode($data_body);
+                break;
+            case 'vless':
+            case 'vmess':
+            case 'trojan':
+                $endpoint_url = $ip_vps_vpn . '/vps/' . $vpn_type . 'all';
+                $data_body = array(
+                    'username' => $username,
+                    'expired'  => $expired,
+                    'kuota'    => $kuota_reguler,
+                    'limitip'  => $limitip_all,
+                    'uuidv2'   => ''
+                );
+                $payload_json = json_encode($data_body);
+                break;
+            default:
+                $html_hasil = "<div class='alert-error'>Jenis VPN tidak valid!</div>";
+        }
+    }
+
+    // 4. EKSEKUSI API DENGAN cURL
+    if ($endpoint_url !== '') {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $endpoint_url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload_json);
+
+        // Header wajib dengan Bearer Auth
+        $headers = array(
+            'Content-Type: application/json',
+            'Accept: application/json',
+            'Authorization: Bearer ' . $auth_api_key 
+        );
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+
+        $response   = curl_exec($ch);
+        $http_code  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($ch);
+        curl_close($ch);
+
+        // 5. MEMFORMAT BALASAN API (TAMPILAN HASIL TRANSAKSI)
+        if ($curl_error) {
+            $html_hasil = "<div class='alert-error'><strong>Koneksi API Gagal:</strong> " . htmlspecialchars($curl_error) . "</div>";
+        } elseif ($http_code == 401) {
+            $html_hasil = "<div class='alert-error'><strong>Otorisasi Ditolak (401):</strong> Pastikan Kunci Auth API benar.</div>";
+        } elseif ($http_code == 200) {
+            $res_array = json_decode($response, true);
+            
+            if (isset($res_array['data'])) {
+                $data_api = $res_array['data'];
+                $status_title = ($account_mode === 'trial') ? 'Trial ' . strtoupper($vpn_type) . ' (30 Menit)' : 'Premium ' . strtoupper($vpn_type);
+                
+                $html_hasil .= "<div class='result-box'>";
+                $html_hasil .= "<div class='alert-success'><strong>&#10004; Sukses!</strong> Akun ".$status_title." berhasil dibuat.</div>";
+                
+                // --- TAMPILAN UNTUK SSH ---
+                if ($vpn_type == 'ssh') {
+                    $html_hasil .= "<h4>Detail Akun SSH / OpenVPN</h4>";
+                    $html_hasil .= "<table class='detail-table'>";
+                    $html_hasil .= "<tr><td><strong>Username</strong></td><td>".htmlspecialchars($data_api['username'])."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>Password</strong></td><td>".htmlspecialchars($data_api['password'])."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>Host / IP</strong></td><td>".htmlspecialchars($data_api['hostname'])."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>Masa Aktif</strong></td><td>".htmlspecialchars($data_api['exp'])."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>Limit IP</strong></td><td>".$limitip_all." Device</td></tr>";
+                    $html_hasil .= "</table>";
+                    
+                    $html_hasil .= "<h4>Informasi Port:</h4>";
+                    $html_hasil .= "<ul style='font-size:14px; color:#555;'>";
+                    $html_hasil .= "<li><strong>TLS/SSL:</strong> ".htmlspecialchars($data_api['port']['tls'])."</li>";
+                    $html_hasil .= "<li><strong>Non-TLS:</strong> ".htmlspecialchars($data_api['port']['none'])."</li>";
+                    $html_hasil .= "<li><strong>UDP Custom:</strong> ".htmlspecialchars($data_api['port']['udpcustom'])."</li>";
+                    $html_hasil .= "</ul>";
+
+                } 
+                // --- TAMPILAN UNTUK XRAY (VLESS / VMESS / TROJAN) ---
+                else {
+                    $html_hasil .= "<h4>Detail Akun ".strtoupper($vpn_type)."</h4>";
+                    $html_hasil .= "<table class='detail-table'>";
+                    $html_hasil .= "<tr><td><strong>Username</strong></td><td>".htmlspecialchars($data_api['username'])."</td></tr>";
+                    
+                    // Mengambil data expired sesuai struktur balasan
+                    $display_exp = isset($data_api['expired']) ? $data_api['expired'] : (isset($data_api['to']) ? $data_api['to'] : '-');
+                    $html_hasil .= "<tr><td><strong>Masa Aktif</strong></td><td>".htmlspecialchars($display_exp)."</td></tr>";
+                    
+                    // Menampilkan Kuota Sesuai Mode
+                    $tampil_kuota = ($account_mode === 'trial') ? $kuota_trial . ' GB' : $kuota_reguler . ' GB';
+                    $html_hasil .= "<tr><td><strong>Limit Kuota</strong></td><td>".$tampil_kuota."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>Limit IP</strong></td><td>".$limitip_all." Device</td></tr>";
+                    $html_hasil .= "</table>";
+
+                    // Data link (tls, none, grpc) dikembalikan oleh server
+                    if (isset($data_api['link'])) {
+                        $html_hasil .= "<h4>Link Konfigurasi:</h4>";
+                        if (!empty($data_api['link']['tls'])) {
+                            $html_hasil .= "<label class='link-label'>".strtoupper($vpn_type)." TLS:</label>";
+                            $html_hasil .= "<textarea readonly class='link-textarea' onclick='this.select()'>".htmlspecialchars($data_api['link']['tls'])."</textarea>";
+                        }
+                        if (!empty($data_api['link']['none'])) {
+                            $html_hasil .= "<label class='link-label'>".strtoupper($vpn_type)." Non-TLS:</label>";
+                            $html_hasil .= "<textarea readonly class='link-textarea' onclick='this.select()'>".htmlspecialchars($data_api['link']['none'])."</textarea>";
+                        }
+                        if (!empty($data_api['link']['grpc'])) {
+                            $html_hasil .= "<label class='link-label'>".strtoupper($vpn_type)." gRPC:</label>";
+                            $html_hasil .= "<textarea readonly class='link-textarea' onclick='this.select()'>".htmlspecialchars($data_api['link']['grpc'])."</textarea>";
+                        }
+                    } else {
+                        $html_hasil .= "<p style='font-size:13px; color:#d35400; margin-top:15px; font-weight:bold;'>Info: Link akun telah dibuat di server. Silakan cek panel/aplikasi VPN.</p>";
+                    }
+                }
+                
+                $html_hasil .= "</div>"; // Tutup result-box
+            } else {
+                $html_hasil = "<div class='alert-error'><strong>Error:</strong> Format JSON dari server tidak sesuai.</div>";
+            }
+        } else {
+            $html_hasil = "<div class='alert-error'><strong>Gagal (Code $http_code):</strong> <pre class='raw-response'>".htmlspecialchars($response)."</pre></div>";
+        }
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Generator VPN - Tulisan Digital Tendo Store</title>
+    <style>
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        .container { max-width: 700px; margin: 30px auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); overflow: hidden; }
+        .header-banner { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px 20px; text-align: center; color: #ffffff; }
+        .header-banner h2 { margin: 0 0 5px 0; font-size: 26px; font-weight: 800; letter-spacing: 0.5px; }
+        .header-banner p { margin: 0; font-size: 15px; font-weight: 400; opacity: 0.9; }
+        .content { padding: 30px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-weight: 600; color: #34495e; margin-bottom: 8px; font-size: 14px; }
+        .form-control { width: 100%; padding: 12px 15px; border: 1px solid #dcdde1; border-radius: 6px; font-size: 15px; box-sizing: border-box; transition: border-color 0.3s; }
+        .form-control:focus { border-color: #2a5298; outline: none; }
+        .form-row { display: flex; gap: 15px; }
+        .form-row .form-group { flex: 1; }
+        .btn-submit { display: block; width: 100%; background-color: #2a5298; color: #ffffff; border: none; padding: 15px; font-size: 16px; font-weight: 700; border-radius: 6px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 6px rgba(42, 82, 152, 0.3); transition: background-color 0.3s, transform 0.1s; margin-top: 10px; }
+        .btn-submit:hover { background-color: #1e3c72; }
+        .btn-submit:active { transform: scale(0.98); }
+        .result-box { background: #fdfbf7; padding: 25px; border-radius: 8px; border: 1px solid #eaeaea; margin-top: 30px; }
+        .alert-success { background: #e8f5e9; color: #2e7d32; padding: 15px; border-radius: 6px; margin-bottom: 20px; border-left: 5px solid #2e7d32; }
+        .alert-error { background: #ffebee; color: #c62828; padding: 15px; border-radius: 6px; margin-top: 30px; border-left: 5px solid #c62828; }
+        .detail-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 20px; }
+        .detail-table td { padding: 12px 8px; border-bottom: 1px dashed #ddd; color: #333; }
+        .detail-table td:last-child { text-align: right; font-weight: 600; color: #2a5298; }
+        .link-label { display: block; font-size: 13px; font-weight: 700; color: #333; margin-top: 10px; margin-bottom: 5px; }
+        .link-textarea { width: 100%; height: 70px; padding: 10px; border-radius: 5px; border: 1px solid #ccc; font-size: 11px; resize: none; box-sizing: border-box; background-color: #f9f9f9; cursor: pointer; }
+        .raw-response { font-size: 11px; background: #fff; padding: 10px; border: 1px solid #ffcdd2; overflow-x: auto; }
+        .trial-info { display: none; background: #e3f2fd; color: #1565c0; padding: 15px; border-radius: 6px; margin-bottom: 20px; border-left: 5px solid #1565c0; font-size: 14px; font-weight: 500;}
+        #password-group { display: none; }
+    </style>
+    <script>
+        function toggleFields() {
+            var mode = document.getElementById("account_mode").value;
+            var vpnType = document.getElementById("vpn_type").value;
+            
+            var regularGroups = document.getElementsByClassName("regular-group");
+            var trialInfo = document.getElementById("trial-info-box");
+            var passGroup = document.getElementById("password-group");
+
+            if (mode === "trial") {
+                for (var i = 0; i < regularGroups.length; i++) {
+                    regularGroups[i].style.display = "none";
+                }
+                trialInfo.style.display = "block";
+                passGroup.style.display = "none";
+            } else {
+                for (var i = 0; i < regularGroups.length; i++) {
+                    regularGroups[i].style.display = "block";
+                }
+                trialInfo.style.display = "none";
+                
+                if (vpnType === "ssh") {
+                    passGroup.style.display = "block";
+                } else {
+                    passGroup.style.display = "none";
+                }
+            }
+        }
+        window.onload = toggleFields;
+    </script>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-banner">
+        <h2>Panel Generator VPN</h2>
+        <p>Tulisan Digital Tendo Store</p>
+    </div>
+
+    <div class="content">
+        <form method="POST" action="">
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="account_mode">Tipe Akun</label>
+                    <select name="account_mode" id="account_mode" class="form-control" onchange="toggleFields()" required>
+                        <option value="regular">Reguler (Premium)</option>
+                        <option value="trial">Trial (Uji Coba)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="vpn_type">Jenis VPN</label>
+                    <select name="vpn_type" id="vpn_type" class="form-control" onchange="toggleFields()" required>
+                        <option value="vless">VLESS</option>
+                        <option value="vmess">VMESS</option>
+                        <option value="ssh">SSH / OpenVPN</option>
+                        <option value="trojan">TROJAN</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="trial-info-box" class="trial-info">
+                Mode Uji Coba (Trial) aktif. Sistem akan otomatis meng-generate username & password acak dengan durasi <strong>30 Menit</strong>, Kuota <strong>2 GB</strong>, dan Limit <strong>2 Device</strong>.
+            </div>
+
+            <div class="form-group regular-group">
+                <label for="username">Username Pelanggan</label>
+                <input type="text" name="username" id="username" class="form-control" placeholder="Contoh: tendo_user1">
+            </div>
+
+            <div class="form-group" id="password-group">
+                <label for="password">Password (Hanya untuk SSH)</label>
+                <input type="text" name="password" id="password" class="form-control" placeholder="Masukkan password SSH">
+            </div>
+
+            <div class="form-group regular-group">
+                <label for="expired">Masa Aktif (Hari)</label>
+                <input type="number" name="expired" id="expired" class="form-control" value="30" min="1">
+            </div>
+
+            <div class="regular-group" style="margin-bottom: 20px; font-size: 13px; color: #7f8c8d;">
+                <em>*Limit IP otomatis diatur <strong>2 Device</strong> dan Kuota <strong>200 GB</strong>.</em>
+            </div>
+
+            <button type="submit" class="btn-submit">Eksekusi Sekarang</button>
+            
+        </form>
+
+        <?php echo $html_hasil; ?>
+
+    </div>
+</div>
+
+</body>
+</html>
+EOF
+    sudo chmod 644 /var/www/html/tendo_vpn_panel.php 2>/dev/null || true
+    echo "Instalasi file tendo_vpn_panel.php selesai!"
+}
+
 install_dependencies() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
@@ -3129,6 +3895,7 @@ install_dependencies() {
     generate_crypt_module
     generate_bot_script
     generate_cek_saldo_script
+    generate_vpn_panel_php
     generate_web_app
     if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
     rm -rf node_modules package-lock.json
@@ -3307,7 +4074,7 @@ menu_member() {
                             let history = db[target].history || [];
                             let targetSaldo = db[target].saldo || 0;
                             let targetNama = db[target].username || 'Member';
-                            let topups = history.filter(h => h.type === 'Topup' || h.type === 'Order QRIS' || h.type === 'Refund' || h.type === 'Order').slice(0, 10);
+                            let topups = history.filter(h => h.type === 'Topup' || h.type === 'Order QRIS' || h.type === 'Refund' || h.type === 'Order' || h.type === 'Order VPN' || h.type === 'Order VPN QRIS').slice(0, 10);
                             
                             console.log('\n\x1b[36m=== 10 RIWAYAT TERBARU: ' + targetNama + ' (' + target + ') ===\x1b[0m');
                             console.log('\x1b[32m💰 Saldo Saat Saat Ini: Rp ' + targetSaldo.toLocaleString('id-ID') + '\x1b[0m');
@@ -3476,7 +4243,7 @@ menu_backup() {
                 if [ -d "/etc/letsencrypt" ]; then
                     sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null
                 fi
-                zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json ssl_backup.tar.gz 2>/dev/null
+                zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json vpn_config.json ssl_backup.tar.gz 2>/dev/null
                 echo -e "${C_GREEN}✅ File backup.zip (termasuk config API/ID) berhasil dikompresi!${C_RST}"
                 node -e "
                     const crypt = require('./tendo_crypt.js');
@@ -3791,6 +4558,122 @@ menu_notifikasi() {
     done
 }
 
+menu_manajemen_vpn() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             🛡️ MANAJEMEN VPN PREMIUM 🛡️            ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Atur Koneksi Server ID (Indonesia)"
+        echo -e "  ${C_GREEN}[2]${C_RST} Atur Koneksi Server SG (Singapura)"
+        echo -e "  ${C_GREEN}[3]${C_RST} Atur Harga & Deskripsi Protokol VPN"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-3]: ${C_RST}"
+        read vpn_choice
+
+        case $vpn_choice in
+            1)
+                echo -e "\n${C_MAG}--- ATUR KONEKSI SERVER ID ---${C_RST}"
+                read -p "Masukkan Hostname / IP Server: " srv_host
+                read -p "Masukkan Port Server (Biarkan kosong jika default): " srv_port
+                read -p "Masukkan Username VPS: " srv_user
+                read -p "Masukkan Password VPS: " srv_pass
+                read -p "Masukkan API Key VPN: " srv_api
+                
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let vpnDb = crypt.load('vpn_config.json');
+                    if(!vpnDb.servers) vpnDb.servers = {};
+                    vpnDb.servers['ID'] = {
+                        host: '$srv_host',
+                        port: '$srv_port',
+                        user: '$srv_user',
+                        pass: '$srv_pass',
+                        api_key: '$srv_api'
+                    };
+                    crypt.save('vpn_config.json', vpnDb);
+                    console.log('\x1b[32m\n✅ Konfigurasi Server ID berhasil disimpan!\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo -e "\n${C_MAG}--- ATUR KONEKSI SERVER SG ---${C_RST}"
+                read -p "Masukkan Hostname / IP Server: " srv_host
+                read -p "Masukkan Port Server (Biarkan kosong jika default): " srv_port
+                read -p "Masukkan Username VPS: " srv_user
+                read -p "Masukkan Password VPS: " srv_pass
+                read -p "Masukkan API Key VPN: " srv_api
+                
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let vpnDb = crypt.load('vpn_config.json');
+                    if(!vpnDb.servers) vpnDb.servers = {};
+                    vpnDb.servers['SG'] = {
+                        host: '$srv_host',
+                        port: '$srv_port',
+                        user: '$srv_user',
+                        pass: '$srv_pass',
+                        api_key: '$srv_api'
+                    };
+                    crypt.save('vpn_config.json', vpnDb);
+                    console.log('\x1b[32m\n✅ Konfigurasi Server SG berhasil disimpan!\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            3)
+                echo -e "\n${C_MAG}--- ATUR HARGA & DESKRIPSI PROTOKOL VPN ---${C_RST}"
+                echo -e "Pilih Server Target:"
+                echo -e "  [1] Server ID\n  [2] Server SG"
+                read -p "Pilihan: " srv_opt
+                
+                target_srv=""
+                if [ "$srv_opt" == "1" ]; then target_srv="ID"; elif [ "$srv_opt" == "2" ]; then target_srv="SG"; else echo "Batal."; sleep 1; continue; fi
+                
+                echo -e "\nPilih Protokol yang ingin diatur:"
+                echo -e "  [1] SSH\n  [2] Vmess\n  [3] Vless\n  [4] Trojan\n  [5] ZIVPN"
+                read -p "Pilihan: " proto_opt
+                
+                target_proto=""
+                case $proto_opt in
+                    1) target_proto="SSH" ;;
+                    2) target_proto="Vmess" ;;
+                    3) target_proto="Vless" ;;
+                    4) target_proto="Trojan" ;;
+                    5) target_proto="ZIVPN" ;;
+                    *) echo "Batal."; sleep 1; continue ;;
+                esac
+                
+                read -p "Harga Per Bulan (Rp): " p_harga
+                read -p "Deskripsi / Fitur Singkat: " p_desc
+                
+                if [[ "$p_harga" =~ ^[0-9]+$ ]]; then
+                    node -e "
+                        const crypt = require('./tendo_crypt.js');
+                        let vpnDb = crypt.load('vpn_config.json');
+                        if(!vpnDb.pricing) vpnDb.pricing = { 'ID': {}, 'SG': {} };
+                        if(!vpnDb.pricing['$target_srv']) vpnDb.pricing['$target_srv'] = {};
+                        
+                        vpnDb.pricing['$target_srv']['$target_proto'] = {
+                            price: parseInt('$p_harga'),
+                            desc: '$p_desc'
+                        };
+                        
+                        crypt.save('vpn_config.json', vpnDb);
+                        console.log('\x1b[32m\n✅ Harga & Deskripsi $target_proto untuk Server $target_srv berhasil disimpan!\x1b[0m');
+                    "
+                else
+                    echo -e "${C_RED}❌ Harga harus berupa angka!${C_RST}"
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
 while true; do
     clear
     
@@ -3823,10 +4706,11 @@ while true; do
     echo -e "  ${C_GREEN}[14]${C_RST} 💳 Setup GoPay Merchant API (BHM Biz)"
     echo -e "  ${C_GREEN}[15]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
     echo -e "  ${C_GREEN}[16]${C_RST} 📦 Manajemen Produk Manual Instan"
+    echo -e "  ${C_GREEN}[17]${C_RST} 🛡️ Manajemen VPN Premium"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
     echo -e "${C_CYAN}======================================================${C_RST}"
-    echo -ne "${C_YELLOW}Pilih menu [0-16]: ${C_RST}"
+    echo -ne "${C_YELLOW}Pilih menu [0-17]: ${C_RST}"
     read choice
 
     case $choice in
@@ -3965,9 +4849,10 @@ EOF
             read -p "Tekan Enter untuk kembali..."
             ;;
         16) menu_manajemen_produk_manual ;;
+        17) menu_manajemen_vpn ;;
         0) echo -e "${C_GREEN}Sampai jumpa!${C_RST}"; exit 0 ;;
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
 done
 
-# Selesai Part 2
+# Selesai bosss!
