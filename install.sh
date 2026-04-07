@@ -994,14 +994,29 @@ EOF
                 <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left;">
                     <strong id="m-vpn-name" style="font-size:14px; line-height:1.4; display:block; margin-bottom:5px;">Produk VPN</strong>
                     <div id="m-vpn-desc" style="font-size:11px; color:var(--text-muted); margin-bottom:10px; line-height: 1.4;">Deskripsi VPN</div>
-                    <span style="font-weight:900; font-size: 20px;" id="m-vpn-price">Rp 0</span>
+                    <span style="font-weight:900; font-size: 20px; color:#0ea5e9;" id="m-vpn-price">Rp 0</span>
                 </div>
                 
-                <input type="text" id="m-vpn-username" placeholder="Buat Username VPN" style="text-align:center; font-size: 14px; font-weight: bold; margin-bottom: 10px;">
-                <input type="password" id="m-vpn-password" placeholder="Buat Password (Jika perlu)" style="text-align:center; font-size: 14px; font-weight: bold; margin-bottom: 10px;" class="hidden">
-                <input type="number" id="m-vpn-expired" placeholder="Masa Aktif (Hari)" value="30" style="text-align:center; font-size: 14px; font-weight: bold;">
-
                 <div style="margin-bottom:15px; text-align:left;">
+                    <label style="font-size:12px; font-weight:800; color:var(--text-muted);">Mode Pembelian:</label>
+                    <select id="m-vpn-mode" onchange="updateVpnMode()" style="width:100%; padding:12px; border-radius:12px; background:var(--bg-main); color:var(--text-main); border:1px solid var(--border-color); font-weight:bold; margin-top:5px; outline:none;">
+                        <option value="reguler">🟢 Reguler (Premium Custom Hari)</option>
+                        <option value="trial">🆓 Trial Gratis (30 Menit - 1x/2 Jam)</option>
+                    </select>
+                </div>
+
+                <div id="vpn-input-container">
+                    <div style="font-size:10px; color:#ef4444; font-weight:bold; margin-bottom:5px; text-align:left;">⚠️ WAJIB: Gunakan huruf kecil semua tanpa spasi!</div>
+                    <input type="text" id="m-vpn-username" placeholder="Buat Username VPN" style="text-align:center; font-size: 14px; font-weight: bold; margin-bottom: 10px;" oninput="this.value = this.value.toLowerCase().replace(/\s/g, '');">
+                    <input type="password" id="m-vpn-password" placeholder="Buat Password (Jika perlu)" style="text-align:center; font-size: 14px; font-weight: bold; margin-bottom: 10px;" class="hidden" oninput="this.value = this.value.toLowerCase().replace(/\s/g, '');">
+                </div>
+
+                <div id="m-vpn-duration-wrap">
+                    <label style="font-size:12px; font-weight:800; color:var(--text-muted); display:block; text-align:left; margin-bottom:5px;">Durasi Aktif (1 - 30 Hari):</label>
+                    <input type="number" id="m-vpn-expired" placeholder="Masa Aktif (Hari)" value="30" min="1" max="30" style="text-align:center; font-size: 14px; font-weight: bold; margin-bottom: 10px;" oninput="updateVpnPrice()">
+                </div>
+
+                <div id="m-vpn-payment-wrap" style="margin-bottom:15px; text-align:left;">
                     <label style="font-size:12px; font-weight:800; color:var(--text-muted);">Metode Pembayaran:</label>
                     <select id="m-vpn-payment" style="width:100%; padding:12px; border-radius:12px; background:var(--bg-main); color:var(--text-main); border:1px solid var(--border-color); font-weight:bold; margin-top:5px; outline:none;">
                         <option value="saldo">💳 Menggunakan Saldo Akun</option>
@@ -1095,7 +1110,7 @@ EOF
 
                 <div id="hd-vpn-info-box" class="hidden" style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; text-align: left; border: 1px solid var(--border-color); font-size: 13px;">
                     <div style="font-weight: 800; margin-bottom: 8px; color: var(--text-main);">Detail Akun VPN:</div>
-                    <textarea id="hd-vpn-details" readonly style="width:100%; height:80px; font-size:11px; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); resize:none; margin-bottom:10px;" onclick="this.select()"></textarea>
+                    <textarea id="hd-vpn-details" readonly style="width:100%; height:180px; font-size:10px; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); resize:none; margin-bottom:10px; font-family: monospace;" onclick="this.focus(); this.select();"></textarea>
                     <button class="btn-outline" style="padding:8px; margin:0; width:100%; font-size: 12px; border-color:#0ea5e9; color:#0ea5e9;" onclick="copyData('hd-vpn-details', 'Detail Akun VPN')">Salin Akun VPN</button>
                 </div>
 
@@ -1237,6 +1252,7 @@ EOF
         let currentUser = ""; let userData = {}; let allProducts = {}; let selectedSKU = ""; let tempRegPhone = ""; let tempForgotPhone = ""; let tempLoginPhone = ""; let currentEditMode = ""; let currentHistoryItem = null;
         let currentCategory = ""; let currentBrand = ""; let currentHistoryFilter = 'Order'; let currentHistoryStatusFilter = 'Semua';
         let vpnConfigData = null; let selectedVPNProto = ""; let selectedVPNServer = "";
+        let currentVpnBasePrice = 0; let currentVpnBaseDesc = "";
         let bannerInterval; let qrisInterval;
 
         let savedTheme = localStorage.getItem('tendo_theme');
@@ -2145,8 +2161,43 @@ EOF
         }
 
         /* -----------------------------------------
-           FUNGSI ORDER VPN PREMIUM
+           FUNGSI ORDER VPN PREMIUM & TRIAL
         ------------------------------------------*/
+        function updateVpnMode() {
+            let mode = document.getElementById('m-vpn-mode').value;
+            let proto = selectedVPNProto.toUpperCase();
+            
+            if(mode === 'trial') {
+                document.getElementById('m-vpn-duration-wrap').classList.add('hidden');
+                document.getElementById('m-vpn-payment-wrap').classList.add('hidden');
+                document.getElementById('vpn-input-container').classList.add('hidden');
+                document.getElementById('m-vpn-price').innerText = 'Gratis (Trial)';
+                document.getElementById('m-vpn-desc').innerText = 'Mode Uji Coba: Masa aktif 30 Menit, Limit 2GB, 1x Claim per 2 Jam untuk server ini.';
+            } else {
+                document.getElementById('m-vpn-duration-wrap').classList.remove('hidden');
+                document.getElementById('m-vpn-payment-wrap').classList.remove('hidden');
+                document.getElementById('vpn-input-container').classList.remove('hidden');
+                
+                document.getElementById('m-vpn-username').classList.remove('hidden');
+                if(proto === 'SSH' || proto === 'ZIVPN') {
+                    document.getElementById('m-vpn-password').classList.remove('hidden');
+                } else {
+                    document.getElementById('m-vpn-password').classList.add('hidden');
+                }
+                document.getElementById('m-vpn-desc').innerText = currentVpnBaseDesc;
+                updateVpnPrice();
+            }
+        }
+
+        function updateVpnPrice() {
+            let days = parseInt(document.getElementById('m-vpn-expired').value) || 30;
+            if(days > 30) { days = 30; document.getElementById('m-vpn-expired').value = 30; }
+            if(days < 1) { days = 1; document.getElementById('m-vpn-expired').value = 1; }
+            
+            let finalPrice = Math.ceil((currentVpnBasePrice / 30) * days);
+            document.getElementById('m-vpn-price').innerText = 'Rp ' + finalPrice.toLocaleString('id-ID');
+        }
+
         function openVPNServerList(protocol) {
             selectedVPNProto = protocol;
             document.getElementById('vpn-modal-title').innerText = "Pilih Server " + protocol.toUpperCase();
@@ -2165,14 +2216,16 @@ EOF
                     let flag = srv === 'ID' ? '🇮🇩' : '🇸🇬';
                     let price = vpnConfigData.pricing[srv][protocol].price || 0;
                     let desc = vpnConfigData.pricing[srv][protocol].desc || 'Proses Otomatis';
+                    let customName = vpnConfigData.pricing[srv][protocol].name || `${protocol.toUpperCase()} Premium Server ${srv}`;
                     
                     let safeDesc = desc.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    let safeName = customName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                     
                     html += `
-                    <div class="vpn-server-item" onclick="openVPNOrderModal('${srv}', ${price}, '${safeDesc}')">
+                    <div class="vpn-server-item" onclick="openVPNOrderModal('${srv}', ${price}, '${safeDesc}', '${safeName}')">
                         <div class="vpn-server-info">
-                            <div class="vpn-server-name">${flag} Server ${srv} Premium</div>
-                            <div class="vpn-server-price">Rp ${price.toLocaleString('id-ID')} / Bln</div>
+                            <div class="vpn-server-name">${flag} ${customName}</div>
+                            <div class="vpn-server-price">Rp ${price.toLocaleString('id-ID')} / 30 Hari</div>
                         </div>
                         <div>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -2194,24 +2247,20 @@ EOF
             document.getElementById('vpn-server-modal').classList.add('hidden');
         }
 
-        function openVPNOrderModal(server, price, desc) {
+        function openVPNOrderModal(server, price, desc, customName) {
             closeVPNServerModal();
             selectedVPNServer = server;
+            currentVpnBasePrice = price;
+            currentVpnBaseDesc = desc;
             
-            let passInput = document.getElementById('m-vpn-password');
-            if (selectedVPNProto.toUpperCase() === 'SSH' || selectedVPNProto.toUpperCase() === 'ZIVPN') {
-                passInput.classList.remove('hidden');
-            } else {
-                passInput.classList.add('hidden');
-            }
-
-            document.getElementById('m-vpn-name').innerText = selectedVPNProto.toUpperCase() + " - Server " + server;
-            document.getElementById('m-vpn-desc').innerText = desc;
-            document.getElementById('m-vpn-price').innerText = 'Rp ' + price.toLocaleString('id-ID');
+            document.getElementById('m-vpn-mode').value = 'reguler';
+            document.getElementById('m-vpn-name').innerText = customName;
             document.getElementById('m-vpn-username').value = '';
             document.getElementById('m-vpn-password').value = '';
             document.getElementById('m-vpn-expired').value = '30';
             document.getElementById('m-vpn-payment').value = 'saldo';
+            
+            updateVpnMode();
 
             document.getElementById('vpn-order-modal').classList.remove('hidden');
         }
@@ -2223,41 +2272,47 @@ EOF
         async function processVPNOrder() {
             if(!currentUser) { showToast('Sesi Anda habis. Silakan login ulang.', 'error'); logout(); return; }
             
+            let mode = document.getElementById('m-vpn-mode').value;
             let username = document.getElementById('m-vpn-username').value.trim();
             let password = document.getElementById('m-vpn-password').value.trim();
             let expired = document.getElementById('m-vpn-expired').value;
             let method = document.getElementById('m-vpn-payment').value;
 
-            if(!username) return showToast("Username VPN wajib diisi!", 'error');
-            if((selectedVPNProto.toUpperCase() === 'SSH' || selectedVPNProto.toUpperCase() === 'ZIVPN') && !password) {
-                return showToast("Password VPN wajib diisi!", 'error');
+            if(mode !== 'trial') {
+                if(!username) return showToast("Username VPN wajib diisi!", 'error');
+                if((selectedVPNProto.toUpperCase() === 'SSH' || selectedVPNProto.toUpperCase() === 'ZIVPN') && !password) {
+                    return showToast("Password VPN wajib diisi!", 'error');
+                }
+                if(!expired || parseInt(expired) < 1) return showToast("Masa aktif tidak valid!", 'error');
             }
-            if(!expired || parseInt(expired) < 1) return showToast("Masa aktif tidak valid!", 'error');
 
             let btn = document.getElementById('m-vpn-submit');
             let ori = btn.innerText; btn.innerText = 'Membuat Akun...'; btn.disabled = true;
 
             try {
-                let url = method === 'qris' ? '/api/order-vpn-qris' : '/api/order-vpn';
-                let data = await apiCall(url, {
+                let url = (method === 'qris' && mode !== 'trial') ? '/api/order-vpn-qris' : '/api/order-vpn';
+                let payload = {
                     phone: currentUser, 
                     protocol: selectedVPNProto, 
                     server: selectedVPNServer, 
+                    mode: mode,
                     username: username, 
                     password: password, 
                     expired: parseInt(expired)
-                });
+                };
+
+                let data = await apiCall(url, payload);
                 
                 if(data && data.success) {
                     closeVPNOrderModal();
                     await syncUserData();
                     
-                    if (method === 'qris') {
+                    if (method === 'qris' && mode !== 'trial') {
                         document.getElementById('topup-success-modal').classList.remove('hidden');
                     } else {
-                        document.getElementById('os-name').innerText = document.getElementById('m-vpn-name').innerText;
-                        document.getElementById('os-target').innerText = username;
-                        document.getElementById('os-metode').innerText = "Saldo Akun";
+                        document.getElementById('os-name').innerText = document.getElementById('m-vpn-name').innerText + (mode==='trial' ? ' (TRIAL)' : '');
+                        document.getElementById('os-target').innerText = mode==='trial' ? 'Sistem' : username;
+                        document.getElementById('os-metode').innerText = mode==='trial' ? 'Gratis' : 'Saldo Akun';
                         document.getElementById('os-price').innerText = document.getElementById('m-vpn-price').innerText;
                         document.getElementById('order-success-modal').classList.remove('hidden');
                     }
@@ -2312,7 +2367,7 @@ const notifFile = './web_notif.json';
 const globalStatsFile = './global_stats.json';
 const topupFile = './topup.json';
 const globalTrxFile = './global_trx.json'; 
-const vpnConfigFile = './vpn_config.json'; // Database VPN Premium
+const vpnConfigFile = './vpn_config.json'; 
 
 const loadJSON = (file) => crypt.load(file, (file === notifFile || file === globalTrxFile) ? [] : {});
 const saveJSON = (file, data) => crypt.save(file, data);
@@ -2322,8 +2377,8 @@ const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('he
 function maskStringTarget(str) {
     if (!str) return '-';
     let s = str.toString().trim();
-    if (s.length <= 4) return s + '***';
-    return s.substring(0, 4) + '***';
+    if (s.length <= 4) return s.substring(0, 2) + '***';
+    return s.substring(0, 4) + '***' + s.substring(s.length - 2);
 }
 
 function cekPemeliharaan() {
@@ -2335,6 +2390,26 @@ function cekPemeliharaan() {
     }
     return false;
 }
+
+// Fitur Otomatis Menghapus Riwayat > 30 Hari
+function cleanupOldHistory() {
+    try {
+        let db = loadJSON(dbFile);
+        let changed = false;
+        let now = Date.now();
+        let thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+        
+        for (let phone in db) {
+            if (db[phone] && db[phone].history && db[phone].history.length > 0) {
+                let origLen = db[phone].history.length;
+                db[phone].history = db[phone].history.filter(h => (now - h.ts) < thirtyDaysMs);
+                if (db[phone].history.length !== origLen) changed = true;
+            }
+        }
+        if (changed) saveJSON(dbFile, db);
+    } catch (e) {}
+}
+setInterval(cleanupOldHistory, 6 * 60 * 60 * 1000); // Jalan otomatis setiap 6 Jam
 
 function sendTelegramAdmin(message) {
     try {
@@ -2424,7 +2499,6 @@ configAwal.teleTokenInfo = configAwal.teleTokenInfo || "";
 configAwal.margin = configAwal.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
 saveJSON(configFile, configAwal);
 
-// Inisialisasi DB VPN
 let vpnAwal = loadJSON(vpnConfigFile);
 if(!vpnAwal.servers) vpnAwal.servers = { "ID": {}, "SG": {} };
 if(!vpnAwal.pricing) vpnAwal.pricing = { "ID": {}, "SG": {} };
@@ -2461,7 +2535,7 @@ if (configAwal.teleTokenInfo) {
                         const writer = fs.createWriteStream('./public/info_images/' + imageFilename);
                         res.data.pipe(writer);
                         await new Promise((resolve) => writer.on('finish', resolve));
-                    } catch(e) { console.log('Gagal download gambar tele info', e); }
+                    } catch(e) {}
                 }
                 
                 let notifs = loadJSON(notifFile);
@@ -2485,7 +2559,7 @@ if (configAwal.teleTokenInfo) {
                 teleBotInfo.sendMessage(cfg.teleChatId, '✅ Info berhasil disebarkan dan disematkan (Pin) ke Website & Telegram Channel!').catch(e=>{});
             }
         });
-    } catch(e) { console.log("Gagal inisialisasi Telegram Bot Info Polling"); }
+    } catch(e) {}
 }
 
 function normalizePhone(phoneStr) {
@@ -2541,7 +2615,6 @@ app.get('/api/produk', (req, res) => { res.json(loadJSON(produkFile)); });
 app.get('/api/notif', (req, res) => { res.json(loadJSON(notifFile) || []); });
 app.get('/api/global-trx', (req, res) => { res.json(loadJSON(globalTrxFile) || []); });
 
-// API GET VPN CONFIG (Sanitized for client)
 app.get('/api/vpn-config', (req, res) => {
     try {
         let vpn = loadJSON(vpnConfigFile);
@@ -2590,7 +2663,6 @@ app.post('/api/login', (req, res) => {
         });
 
         if (userPhone) {
-            // Login tanpa perlu verifikasi OTP
             let safeData = { ...db[userPhone] }; delete safeData.password;
             res.json({success: true, phone: userPhone, data: safeData});
         }
@@ -2713,7 +2785,6 @@ app.post('/api/verify-forgot-otp', (req, res) => {
 app.post('/api/topup', async (req, res) => {
     try {
         if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan (23:00-00:30 WIB).'});
-        
         let config = loadJSON(configFile);
         if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
         
@@ -2747,7 +2818,6 @@ app.post('/api/topup', async (req, res) => {
         saveJSON(dbFile, db);
 
         res.json({success: true});
-
         let teleMsg = `⏳ <b>TOPUP PENDING (QRIS)</b>\n\n👤 Akun: ${db[phone].username || phone}\n💰 Tagihan: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}`;
         sendTelegramAdmin(teleMsg);
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
@@ -2875,42 +2945,70 @@ app.post('/api/order', async (req, res) => {
 // ==============================================================
 // CORE LOGIC: EKSEKUSI PEMBUATAN AKUN VPN KE SERVER VPS 
 // ==============================================================
-async function executeVpnOrder(phone, protocol, serverKey, vpnUsername, vpnPassword, expiredDays) {
+async function executeVpnOrder(phone, protocol, serverKey, mode, vpnUsername, vpnPassword, expiredDays) {
     let db = loadJSON(dbFile);
     let vpnConfig = loadJSON(vpnConfigFile);
-    
     let targetKey = db[normalizePhone(phone)] ? normalizePhone(phone) : (db[phone] ? phone : null);
     if(!targetKey) return { success: false, message: "Sesi tidak valid." };
 
     let srv = vpnConfig.servers[serverKey];
     let priceInfo = vpnConfig.pricing[serverKey][protocol];
-    
     if(!srv || !srv.host || !srv.api_key || !priceInfo) {
         return { success: false, message: "Layanan VPN ini sedang gangguan/belum diatur Admin." };
     }
 
-    let hargaFix = parseInt(priceInfo.price);
-    let saldoSebelum = parseInt(db[targetKey].saldo);
-    
-    if(saldoSebelum < hargaFix) return { success: false, message: "Saldo tidak mencukupi." };
+    // LOGIKA TRIAL (1x per 2 JAM PER SERVER)
+    if (mode === 'trial') {
+        if (!db[targetKey].trial_claims) db[targetKey].trial_claims = {};
+        let lastClaim = db[targetKey].trial_claims[serverKey] || 0;
+        if (Date.now() - lastClaim < 2 * 60 * 60 * 1000) { // 2 Jam
+            return { success: false, message: "⚠️ Gagal: Anda sudah melakukan trial di Server ini. Silakan coba 2 Jam lagi." };
+        }
+    }
 
-    // Set Endpoint
-    let endpoint = '';
+    let hargaFix = 0;
+    if (mode === 'reguler') {
+        let basePrice = parseInt(priceInfo.price) || 0;
+        let hari = parseInt(expiredDays);
+        if (hari > 30) hari = 30;
+        if (hari < 1) hari = 1;
+        hargaFix = Math.ceil((basePrice / 30) * hari);
+        
+        let saldoSebelum = parseInt(db[targetKey].saldo);
+        if(saldoSebelum < hargaFix) return { success: false, message: "Saldo tidak mencukupi." };
+    }
+
     let protoLower = protocol.toLowerCase();
+    let endpoint = '';
     
-    // Sesuaikan endpoint sesuai struktur API (ZIVPN dsb jika ada, ini contoh standar dari v2.sh)
-    if(protoLower === 'ssh') endpoint = `http://${srv.host}/vps/sshvpn`;
-    else if(['vless', 'vmess', 'trojan'].includes(protoLower)) endpoint = `http://${srv.host}/vps/${protoLower}all`;
-    else endpoint = `http://${srv.host}/vps/${protoLower}vpn`; // fallback zivpn dll
-
-    let payload = {
-        username: vpnUsername,
-        expired: parseInt(expiredDays),
-        limitip: 2,
-        kuota: 200
-    };
-    if(protoLower === 'ssh' || protoLower === 'zivpn') payload.password = vpnPassword;
-    else payload.uuidv2 = '';
+    // LIMIT IP DAN KUOTA CONFIG
+    let vpnLimitIp = parseInt(priceInfo.limit_ip) || 2;
+    let vpnKuota = parseInt(priceInfo.kuota) || 200;
+    
+    let payload = {};
+    if (mode === 'trial') {
+        vpnUsername = "trial_" + Math.floor(Math.random()*9999);
+        vpnPassword = "1";
+        payload = {
+            timelimit: "30m",
+            kuota: 2, // Trial 2GB
+            limitip: 2
+        };
+        if(protoLower === 'ssh') endpoint = `http://${srv.host}/vps/trialsshvpn`;
+        else endpoint = `http://${srv.host}/vps/trial${protoLower}all`;
+    } else {
+        payload = {
+            username: vpnUsername,
+            expired: parseInt(expiredDays),
+            limitip: vpnLimitIp,
+            kuota: vpnKuota
+        };
+        if(protoLower === 'ssh' || protoLower === 'zivpn') payload.password = vpnPassword;
+        else payload.uuidv2 = '';
+        
+        if(protoLower === 'ssh') endpoint = `http://${srv.host}/vps/sshvpn`;
+        else endpoint = `http://${srv.host}/vps/${protoLower}all`; 
+    }
 
     try {
         let resApi = await axios.post(endpoint, payload, {
@@ -2919,33 +3017,47 @@ async function executeVpnOrder(phone, protocol, serverKey, vpnUsername, vpnPassw
                 'Accept': 'application/json',
                 'Authorization': 'Bearer ' + srv.api_key
             },
+            timeout: 10000,
             httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
         });
 
         if(resApi.data && resApi.data.data) {
             let apiData = resApi.data.data;
-            let vpnDetails = `Username: ${apiData.username}\nExp: ${apiData.expired || apiData.exp || apiData.to}\n`;
-            
-            if(protoLower === 'ssh') {
-                vpnDetails += `Password: ${apiData.password}\nHost: ${apiData.hostname}\nPort TLS: ${apiData.port?.tls || '-'}\nPort Non-TLS: ${apiData.port?.none || '-'}\nUDP Custom: ${apiData.port?.udpcustom || '-'}`;
+            let domain = srv.host;
+            let expDate = apiData.expired || apiData.exp || apiData.to || (mode === 'trial' ? '30 Menit' : `${expiredDays} Hari`);
+            let vpnDetails = '';
+
+            // ======= FORMATTING DETAIL AKUN SESUAI FILE DETAIL.TXT =======
+            if (protoLower === 'ssh') {
+                vpnDetails = `Account Created Successfully\n————————————————————————————————————\nHOST            : ${domain}\nUsername        : ${apiData.username}\nPassword        : ${apiData.password}\n————————————————————————————————————\nExpired         : ${expDate}\n————————————————————————————————————\nTLS             : ${apiData.port?.tls || '443,8443'}\nNone TLS        : ${apiData.port?.none || '80,8080'}\nAny             : 2082,2083,8880\nOpenSSH         : 444\nDropbear        : 90\n————————————————————————————————————\nSlowDNS         : 53,5300\nUDP-Custom      : 1-65535\nOHP + SSH       : 9080\nSquid Proxy     : 3128\nUDPGW           : 7100-7600\nOpenVPN TCP     : 80,1194\nOpenVPN SSL     : 443\nOpenVPN UDP     : 25000\nOpenVPN DNS     : 53\nOHP + OVPN      : 9088\n————————————————————————————————————`;
+            } else if (protoLower === 'vmess') {
+                vpnDetails = `————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : ${apiData.username}\nDomain         : ${domain}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nalterId        : 0\nSecurity       : auto\nnetwork        : ws,grpc,upgrade\npath ws        : /vmess\nserviceName    : vmess\npath upgrade   : /upvmess\nExpired On     : ${expDate}\n————————————————————————————————————\n           VMESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VMESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VMESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+            } else if (protoLower === 'vless') {
+                vpnDetails = `————————————————————————————————————\n               VLESS\n————————————————————————————————————\nRemarks        : ${apiData.username}\nDomain         : ${domain}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nEncryption     : none\nNetwork        : ws,grpc,upgrade\nPath ws        : /vless\nserviceName    : vless\nPath upgrade   : /upvless\nExpired On     : ${expDate}\n————————————————————————————————————\n            VLESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VLESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VLESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+            } else if (protoLower === 'trojan') {
+                vpnDetails = `————————————————————————————————————\n               TROJAN\n————————————————————————————————————\nRemarks      : ${apiData.username}\nDomain       : ${domain}\nPort         : 443,8443\nPort any     : 2052,2053,8880\nKey          : ${apiData.uuid || apiData.id || '-'}\nNetwork      : ws,grpc,upgrade\nPath ws      : /trojan\nserviceName  : trojan\nPath upgrade : /uptrojan\nExpired On   : ${expDate}\n————————————————————————————————————\n           TROJAN WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n            TROJAN GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
             } else {
-                if(apiData.link) {
-                    if(apiData.link.tls) vpnDetails += `\nTLS:\n${apiData.link.tls}\n`;
-                    if(apiData.link.none) vpnDetails += `\nNon-TLS:\n${apiData.link.none}\n`;
-                    if(apiData.link.grpc) vpnDetails += `\ngRPC:\n${apiData.link.grpc}\n`;
-                }
+                vpnDetails = `Detail Akun ZIVPN:\nUsername: ${apiData.username}\nExp: ${expDate}\nLimit IP: ${vpnLimitIp}\n\nInfo selengkapnya cek di aplikasi.`;
             }
 
-            db[targetKey].saldo = saldoSebelum - hargaFix;
-            db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
+            let prodName = `${protocol.toUpperCase()} Premium Server ${serverKey}`;
+            if (mode === 'trial') prodName += ' (TRIAL)';
+            
+            let saldoSebelum = parseInt(db[targetKey].saldo);
+            if (mode === 'reguler') {
+                db[targetKey].saldo = saldoSebelum - hargaFix;
+                db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
+            } else {
+                // Update claim time
+                db[targetKey].trial_claims[serverKey] = Date.now();
+            }
             
             let refId = "VPN-" + Date.now();
-            let prodName = `${protocol.toUpperCase()} Premium Server ${serverKey}`;
             
             db[targetKey].history.unshift({
                 ts: Date.now(), 
                 tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-                type: 'Order VPN', nama: prodName, tujuan: vpnUsername, status: 'Sukses', sn: '-', amount: hargaFix, ref_id: refId,
+                type: 'Order VPN', nama: prodName, tujuan: (mode==='trial'?'Sistem':apiData.username), status: 'Sukses', sn: '-', amount: hargaFix, ref_id: refId,
                 saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[targetKey].saldo,
                 vpn_details: vpnDetails
             });
@@ -2960,12 +3072,13 @@ async function executeVpnOrder(phone, protocol, serverKey, vpnUsername, vpnPassw
 
             let globalTrx = loadJSON(globalTrxFile);
             let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-            globalTrx.unshift({ time: timeStr, product: prodName, user: (db[targetKey].username || targetKey), target: vpnUsername });
+            // Sensor tujuan VPN (username) untuk Trx Global 
+            globalTrx.unshift({ time: timeStr, product: prodName, user: (db[targetKey].username || targetKey), target: maskStringTarget(apiData.username) });
             if(globalTrx.length > 100) globalTrx.pop();
             saveJSON(globalTrxFile, globalTrx);
 
-            sendBroadcastSuccess(prodName, (db[targetKey].username || targetKey), vpnUsername);
-            sendTelegramAdmin(`🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Akun: ${db[targetKey].username || targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${vpnUsername}\n💰 Harga: Rp ${hargaFix.toLocaleString('id-ID')}`);
+            sendBroadcastSuccess(prodName, (db[targetKey].username || targetKey), apiData.username);
+            sendTelegramAdmin(`🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Akun: ${db[targetKey].username || targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${apiData.username}\n💰 Harga: Rp ${hargaFix.toLocaleString('id-ID')}`);
 
             return { success: true };
         } else {
@@ -2978,8 +3091,8 @@ async function executeVpnOrder(phone, protocol, serverKey, vpnUsername, vpnPassw
 
 app.post('/api/order-vpn', async (req, res) => {
     if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
-    let { phone, protocol, server, username, password, expired } = req.body;
-    let result = await executeVpnOrder(phone, protocol, server, username, password, expired);
+    let { phone, protocol, server, mode, username, password, expired } = req.body;
+    let result = await executeVpnOrder(phone, protocol, server, mode, username, password, expired);
     res.json(result);
 });
 
@@ -2991,7 +3104,7 @@ app.post('/api/order-vpn-qris', async (req, res) => {
         let config = loadJSON(configFile);
         if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
         
-        let { phone, protocol, server, username, password, expired } = req.body;
+        let { phone, protocol, server, mode, username, password, expired } = req.body;
         
         let db = loadJSON(dbFile); let vpnConfig = loadJSON(vpnConfigFile);
         let pNorm = normalizePhone(phone);
@@ -3001,7 +3114,11 @@ app.post('/api/order-vpn-qris', async (req, res) => {
         let priceInfo = vpnConfig.pricing[server][protocol];
         if(!priceInfo) return res.json({success: false, message: 'Harga layanan VPN belum diatur.'});
 
-        let nominalAsli = parseInt(priceInfo.price);
+        let basePrice = parseInt(priceInfo.price) || 0;
+        let hari = parseInt(expired);
+        if(hari > 30) hari = 30; if(hari < 1) hari = 1;
+        let nominalAsli = Math.ceil((basePrice / 30) * hari);
+        
         let uniqueCode = Math.floor(Math.random() * 50) + 1; 
         let totalPay = nominalAsli + uniqueCode;
 
@@ -3019,7 +3136,7 @@ app.post('/api/order-vpn-qris', async (req, res) => {
         topups[trxId] = { 
             phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
             status: 'pending', timestamp: Date.now(), expired_at: expiredAt, 
-            is_order: true, vpn_data: { protocol, server, username, password, expired, nama_produk: prodName, harga_asli: nominalAsli }
+            is_order: true, vpn_data: { protocol, server, mode, username, password, expired, nama_produk: prodName, harga_asli: nominalAsli }
         };
         saveJSON(topupFile, topups);
 
@@ -3037,25 +3154,22 @@ app.post('/api/order-vpn-qris', async (req, res) => {
 });
 
 async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
-    let result = await executeVpnOrder(phone, vpnData.protocol, vpnData.server, vpnData.username, vpnData.password, vpnData.expired);
+    let result = await executeVpnOrder(phone, vpnData.protocol, vpnData.server, vpnData.mode, vpnData.username, vpnData.password, vpnData.expired);
     let db = loadJSON(dbFile);
     
     let hist = db[phone].history.find(h => h.sn === refIdAsal && h.type === 'Order VPN QRIS');
     if(!hist) return;
 
     if(result.success) {
-        // Hapus history QRIS pending, karena executeVpnOrder sudah buat history baru yang 'Sukses'
         db[phone].history = db[phone].history.filter(h => h.sn !== refIdAsal);
         saveJSON(dbFile, db);
     } else {
-        // Gagal, Refund saldo
         db[phone].saldo = parseInt(db[phone].saldo) + parseInt(vpnData.harga_asli);
         hist.status = 'Refund';
         hist.nama = 'Refund: ' + vpnData.nama_produk;
         hist.type = 'Refund';
         hist.amount = vpnData.harga_asli;
         saveJSON(dbFile, db);
-        
         sendTelegramAdmin(`⚠️ <b>INFO ORDER VPN QRIS: GAGAL VPS</b>\n\nRef: ${refIdAsal}\n💰 Saldo Rp ${vpnData.harga_asli.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.`);
     }
 }
@@ -3084,10 +3198,8 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         const statusOrder = response.data.data.status; 
         
         if (statusOrder === 'Gagal') {
-            // REFUND SALDO KARENA GAGAL
             db[phone].saldo = parseInt(db[phone].saldo) + hargaFix;
             
-            // TIMPA RIWAYAT PENDING MENJADI REFUND
             let hist = db[phone].history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
             if(hist) {
                 hist.status = 'Refund';
@@ -3114,7 +3226,6 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         
         db[phone].trx_count = (db[phone].trx_count || 0) + 1;
         
-        // TIMPA RIWAYAT PENDING MENJADI PROSES/SUKSES DIGIFLAZZ
         let hist = db[phone].history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
         if(hist) {
             hist.status = statusOrder;
@@ -3504,7 +3615,6 @@ EOF
 }
 
 generate_vpn_panel_php() {
-    # Skrip ini adalah integrasi dari v2.sh milik bosss
     echo "Menginstal file tendo_vpn_panel.php ke public web..."
     sudo mkdir -p /var/www/html/
     cat << 'EOF' > /var/www/html/tendo_vpn_panel.php
@@ -3698,7 +3808,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     }
                 }
                 
-                $html_hasil .= "</div>"; // Tutup result-box
+                $html_hasil .= "</div>"; 
             } else {
                 $html_hasil = "<div class='alert-error'><strong>Error:</strong> Format JSON dari server tidak sesuai.</div>";
             }
@@ -4403,7 +4513,6 @@ menu_manajemen_produk_manual() {
 
                             let dbProd = crypt.load('produk.json');
                             
-                            // FITUR ANTI BENTROK: Membuat Unique Key untuk Duplikat
                             let uniqueSku = sku + '_' + Date.now();
                             
                             dbProd[uniqueSku] = {
@@ -4566,7 +4675,7 @@ menu_manajemen_vpn() {
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "  ${C_GREEN}[1]${C_RST} Atur Koneksi Server ID (Indonesia)"
         echo -e "  ${C_GREEN}[2]${C_RST} Atur Koneksi Server SG (Singapura)"
-        echo -e "  ${C_GREEN}[3]${C_RST} Atur Harga & Deskripsi Protokol VPN"
+        echo -e "  ${C_GREEN}[3]${C_RST} Atur Harga, Limit & Deskripsi Protokol VPN"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
         echo -e "${C_CYAN}======================================================${C_RST}"
@@ -4623,7 +4732,7 @@ menu_manajemen_vpn() {
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             3)
-                echo -e "\n${C_MAG}--- ATUR HARGA & DESKRIPSI PROTOKOL VPN ---${C_RST}"
+                echo -e "\n${C_MAG}--- ATUR HARGA, LIMIT & DESKRIPSI PROTOKOL VPN ---${C_RST}"
                 echo -e "Pilih Server Target:"
                 echo -e "  [1] Server ID\n  [2] Server SG"
                 read -p "Pilihan: " srv_opt
@@ -4645,7 +4754,9 @@ menu_manajemen_vpn() {
                     *) echo "Batal."; sleep 1; continue ;;
                 esac
                 
-                read -p "Harga Per Bulan (Rp): " p_harga
+                read -p "Harga Patokan 30 Hari (Rp): " p_harga
+                read -p "Limit IP (contoh: 2): " p_limitip
+                read -p "Limit Bandwidth Kuota GB (contoh: 200, Kosongkan untuk SSH): " p_kuota
                 read -p "Deskripsi / Fitur Singkat: " p_desc
                 
                 if [[ "$p_harga" =~ ^[0-9]+$ ]]; then
@@ -4657,11 +4768,13 @@ menu_manajemen_vpn() {
                         
                         vpnDb.pricing['$target_srv']['$target_proto'] = {
                             price: parseInt('$p_harga'),
-                            desc: '$p_desc'
+                            desc: '$p_desc',
+                            limit_ip: parseInt('$p_limitip') || 2,
+                            kuota: parseInt('$p_kuota') || 200
                         };
                         
                         crypt.save('vpn_config.json', vpnDb);
-                        console.log('\x1b[32m\n✅ Harga & Deskripsi $target_proto untuk Server $target_srv berhasil disimpan!\x1b[0m');
+                        console.log('\x1b[32m\n✅ Konfigurasi $target_proto untuk Server $target_srv berhasil disimpan!\x1b[0m');
                     "
                 else
                     echo -e "${C_RED}❌ Harga harus berupa angka!${C_RST}"
@@ -4854,5 +4967,3 @@ EOF
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
 done
-
-# Selesai bosss!
