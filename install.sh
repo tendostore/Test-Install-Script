@@ -1235,11 +1235,29 @@ EOF
             else text = el.innerText;
 
             if(text && text !== '-') {
-                navigator.clipboard.writeText(text).then(() => {
-                    showToast(label + ' berhasil disalin!', 'success');
-                }).catch(err => {
-                    showToast('Gagal menyalin', 'error');
-                });
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        showToast(label + ' berhasil disalin!', 'success');
+                    }).catch(err => {
+                        showToast('Gagal menyalin', 'error');
+                    });
+                } else {
+                    let textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    textArea.style.position = "fixed";
+                    textArea.style.left = "-999999px";
+                    textArea.style.top = "-999999px";
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        showToast(label + ' berhasil disalin!', 'success');
+                    } catch (err) {
+                        showToast('Gagal menyalin', 'error');
+                    }
+                    document.body.removeChild(textArea);
+                }
             }
         }
 
@@ -2329,6 +2347,7 @@ EOF
 EOF
 }
 # Selesai Part 1
+// --- SELESAI PART 1 BOSSS ---
 # ==========================================
 # 4. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND)
 # ==========================================
@@ -3027,20 +3046,20 @@ async function executeVpnOrder(phone, protocol, serverKey, mode, vpnUsername, vp
             let expDate = apiData.expired || apiData.exp || apiData.to || (mode === 'trial' ? '30 Menit' : `${expiredDays} Hari`);
             let vpnDetails = '';
 
-            // ======= FORMATTING DETAIL AKUN SESUAI FILE DETAIL.TXT =======
+            // ======= FORMATTING DETAIL AKUN (Mengganti IP menjadi Domain Host, City, ISP) =======
             if (protoLower === 'ssh') {
-                vpnDetails = `Account Created Successfully\n————————————————————————————————————\nHOST            : ${domain}\nUsername        : ${apiData.username}\nPassword        : ${apiData.password}\n————————————————————————————————————\nExpired         : ${expDate}\n————————————————————————————————————\nTLS             : ${apiData.port?.tls || '443,8443'}\nNone TLS        : ${apiData.port?.none || '80,8080'}\nAny             : 2082,2083,8880\nOpenSSH         : 444\nDropbear        : 90\n————————————————————————————————————\nSlowDNS         : 53,5300\nUDP-Custom      : 1-65535\nOHP + SSH       : 9080\nSquid Proxy     : 3128\nUDPGW           : 7100-7600\nOpenVPN TCP     : 80,1194\nOpenVPN SSL     : 443\nOpenVPN UDP     : 25000\nOpenVPN DNS     : 53\nOHP + OVPN      : 9088\n————————————————————————————————————`;
+                vpnDetails = `Account Created Successfully\n————————————————————————————————————\nDomain Host     : ${domain}\nCity            : ${apiData.city || '-'}\nISP             : ${apiData.isp || '-'}\nUsername        : ${apiData.username}\nPassword        : ${apiData.password}\n————————————————————————————————————\nExpired         : ${expDate}\n————————————————————————————————————\nTLS             : ${apiData.port?.tls || '443,8443'}\nNone TLS        : ${apiData.port?.none || '80,8080'}\nAny             : 2082,2083,8880\nOpenSSH         : 444\nDropbear        : 90\n————————————————————————————————————\nSlowDNS         : 53,5300\nUDP-Custom      : 1-65535\nOHP + SSH       : 9080\nSquid Proxy     : 3128\nUDPGW           : 7100-7600\nOpenVPN TCP     : 80,1194\nOpenVPN SSL     : 443\nOpenVPN UDP     : 25000\nOpenVPN DNS     : 53\nOHP + OVPN      : 9088\n————————————————————————————————————`;
             } else if (protoLower === 'vmess') {
-                vpnDetails = `————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : ${apiData.username}\nDomain         : ${domain}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nalterId        : 0\nSecurity       : auto\nnetwork        : ws,grpc,upgrade\npath ws        : /vmess\nserviceName    : vmess\npath upgrade   : /upvmess\nExpired On     : ${expDate}\n————————————————————————————————————\n           VMESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VMESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VMESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+                vpnDetails = `————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : ${apiData.username}\nDomain Host    : ${domain}\nCity           : ${apiData.city || '-'}\nISP            : ${apiData.isp || '-'}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nalterId        : 0\nSecurity       : auto\nnetwork        : ws,grpc,upgrade\npath ws        : /vmess\nserviceName    : vmess\npath upgrade   : /upvmess\nExpired On     : ${expDate}\n————————————————————————————————————\n           VMESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VMESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VMESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
             } else if (protoLower === 'vless') {
-                vpnDetails = `————————————————————————————————————\n               VLESS\n————————————————————————————————————\nRemarks        : ${apiData.username}\nDomain         : ${domain}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nEncryption     : none\nNetwork        : ws,grpc,upgrade\nPath ws        : /vless\nserviceName    : vless\nPath upgrade   : /upvless\nExpired On     : ${expDate}\n————————————————————————————————————\n            VLESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VLESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VLESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+                vpnDetails = `————————————————————————————————————\n               VLESS\n————————————————————————————————————\nRemarks        : ${apiData.username}\nDomain Host    : ${domain}\nCity           : ${apiData.city || '-'}\nISP            : ${apiData.isp || '-'}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nEncryption     : none\nNetwork        : ws,grpc,upgrade\nPath ws        : /vless\nserviceName    : vless\nPath upgrade   : /upvless\nExpired On     : ${expDate}\n————————————————————————————————————\n            VLESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VLESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VLESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
             } else if (protoLower === 'trojan') {
-                vpnDetails = `————————————————————————————————————\n               TROJAN\n————————————————————————————————————\nRemarks      : ${apiData.username}\nDomain       : ${domain}\nPort         : 443,8443\nPort any     : 2052,2053,8880\nKey          : ${apiData.uuid || apiData.id || '-'}\nNetwork      : ws,grpc,upgrade\nPath ws      : /trojan\nserviceName  : trojan\nPath upgrade : /uptrojan\nExpired On   : ${expDate}\n————————————————————————————————————\n           TROJAN WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n            TROJAN GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+                vpnDetails = `————————————————————————————————————\n               TROJAN\n————————————————————————————————————\nRemarks      : ${apiData.username}\nDomain Host  : ${domain}\nCity         : ${apiData.city || '-'}\nISP          : ${apiData.isp || '-'}\nPort         : 443,8443\nPort any     : 2052,2053,8880\nKey          : ${apiData.uuid || apiData.id || '-'}\nNetwork      : ws,grpc,upgrade\nPath ws      : /trojan\nserviceName  : trojan\nPath upgrade : /uptrojan\nExpired On   : ${expDate}\n————————————————————————————————————\n           TROJAN WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n            TROJAN GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
             } else {
-                vpnDetails = `Detail Akun ZIVPN:\nUsername: ${apiData.username}\nExp: ${expDate}\nLimit IP: ${vpnLimitIp}\n\nInfo selengkapnya cek di aplikasi.`;
+                vpnDetails = `Detail Akun ZIVPN:\nDomain Host: ${domain}\nCity: ${apiData.city || '-'}\nISP: ${apiData.isp || '-'}\nUsername: ${apiData.username}\nExp: ${expDate}\nLimit IP: ${vpnLimitIp}\n\nInfo selengkapnya cek di aplikasi.`;
             }
 
-            let prodName = `${protocol.toUpperCase()} Premium Server ${serverKey}`;
+            let prodName = priceInfo.name || `${protocol.toUpperCase()} Premium Server ${serverKey}`;
             if (mode === 'trial') prodName += ' (TRIAL)';
             
             let saldoSebelum = parseInt(db[targetKey].saldo);
@@ -3131,7 +3150,7 @@ app.post('/api/order-vpn-qris', async (req, res) => {
         let topups = loadJSON(topupFile);
         let trxId = "VQ-" + Date.now();
         let expiredAt = Date.now() + 10 * 60 * 1000;
-        let prodName = `${protocol.toUpperCase()} Premium Server ${server}`;
+        let prodName = priceInfo.name || `${protocol.toUpperCase()} Premium Server ${server}`;
 
         topups[trxId] = { 
             phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
@@ -3759,7 +3778,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $html_hasil .= "<table class='detail-table'>";
                     $html_hasil .= "<tr><td><strong>Username</strong></td><td>".htmlspecialchars($data_api['username'])."</td></tr>";
                     $html_hasil .= "<tr><td><strong>Password</strong></td><td>".htmlspecialchars($data_api['password'])."</td></tr>";
-                    $html_hasil .= "<tr><td><strong>Host / IP</strong></td><td>".htmlspecialchars($data_api['hostname'])."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>Domain Host</strong></td><td>".htmlspecialchars($data_api['hostname'])."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>City</strong></td><td>".htmlspecialchars(isset($data_api['city']) ? $data_api['city'] : '-')."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>ISP</strong></td><td>".htmlspecialchars(isset($data_api['isp']) ? $data_api['isp'] : '-')."</td></tr>";
                     $html_hasil .= "<tr><td><strong>Masa Aktif</strong></td><td>".htmlspecialchars($data_api['exp'])."</td></tr>";
                     $html_hasil .= "<tr><td><strong>Limit IP</strong></td><td>".$limitip_all." Device</td></tr>";
                     $html_hasil .= "</table>";
@@ -3777,6 +3798,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $html_hasil .= "<h4>Detail Akun ".strtoupper($vpn_type)."</h4>";
                     $html_hasil .= "<table class='detail-table'>";
                     $html_hasil .= "<tr><td><strong>Username</strong></td><td>".htmlspecialchars($data_api['username'])."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>Domain Host</strong></td><td>".htmlspecialchars($data_api['hostname'])."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>City</strong></td><td>".htmlspecialchars(isset($data_api['city']) ? $data_api['city'] : '-')."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>ISP</strong></td><td>".htmlspecialchars(isset($data_api['isp']) ? $data_api['isp'] : '-')."</td></tr>";
                     
                     // Mengambil data expired sesuai struktur balasan
                     $display_exp = isset($data_api['expired']) ? $data_api['expired'] : (isset($data_api['to']) ? $data_api['to'] : '-');
@@ -4675,11 +4699,12 @@ menu_manajemen_vpn() {
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "  ${C_GREEN}[1]${C_RST} Atur Koneksi Server ID (Indonesia)"
         echo -e "  ${C_GREEN}[2]${C_RST} Atur Koneksi Server SG (Singapura)"
-        echo -e "  ${C_GREEN}[3]${C_RST} Atur Harga, Limit & Deskripsi Protokol VPN"
+        echo -e "  ${C_GREEN}[3]${C_RST} Atur Harga, Limit, Nama & Deskripsi Protokol VPN"
+        echo -e "  ${C_GREEN}[4]${C_RST} Hapus Produk / Layanan VPN"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
         echo -e "${C_CYAN}======================================================${C_RST}"
-        echo -ne "${C_YELLOW}Pilih menu [0-3]: ${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-4]: ${C_RST}"
         read vpn_choice
 
         case $vpn_choice in
@@ -4732,7 +4757,7 @@ menu_manajemen_vpn() {
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             3)
-                echo -e "\n${C_MAG}--- ATUR HARGA, LIMIT & DESKRIPSI PROTOKOL VPN ---${C_RST}"
+                echo -e "\n${C_MAG}--- ATUR HARGA, NAMA, LIMIT & DESKRIPSI VPN ---${C_RST}"
                 echo -e "Pilih Server Target:"
                 echo -e "  [1] Server ID\n  [2] Server SG"
                 read -p "Pilihan: " srv_opt
@@ -4754,6 +4779,7 @@ menu_manajemen_vpn() {
                     *) echo "Batal."; sleep 1; continue ;;
                 esac
                 
+                read -p "Nama Produk (Custom, misal: SSH Premium SG): " p_nama
                 read -p "Harga Patokan 30 Hari (Rp): " p_harga
                 read -p "Limit IP (contoh: 2): " p_limitip
                 read -p "Limit Bandwidth Kuota GB (contoh: 200, Kosongkan untuk SSH): " p_kuota
@@ -4767,6 +4793,7 @@ menu_manajemen_vpn() {
                         if(!vpnDb.pricing['$target_srv']) vpnDb.pricing['$target_srv'] = {};
                         
                         vpnDb.pricing['$target_srv']['$target_proto'] = {
+                            name: '$p_nama',
                             price: parseInt('$p_harga'),
                             desc: '$p_desc',
                             limit_ip: parseInt('$p_limitip') || 2,
@@ -4779,6 +4806,42 @@ menu_manajemen_vpn() {
                 else
                     echo -e "${C_RED}❌ Harga harus berupa angka!${C_RST}"
                 fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            4)
+                echo -e "\n${C_MAG}--- HAPUS PROTOKOL / PRODUK VPN ---${C_RST}"
+                echo -e "Pilih Server Target:"
+                echo -e "  [1] Server ID\n  [2] Server SG"
+                read -p "Pilihan: " srv_opt
+                
+                target_srv=""
+                if [ "$srv_opt" == "1" ]; then target_srv="ID"; elif [ "$srv_opt" == "2" ]; then target_srv="SG"; else echo "Batal."; sleep 1; continue; fi
+                
+                echo -e "\nPilih Protokol yang ingin dihapus:"
+                echo -e "  [1] SSH\n  [2] Vmess\n  [3] Vless\n  [4] Trojan\n  [5] ZIVPN"
+                read -p "Pilihan: " proto_opt
+                
+                target_proto=""
+                case $proto_opt in
+                    1) target_proto="SSH" ;;
+                    2) target_proto="Vmess" ;;
+                    3) target_proto="Vless" ;;
+                    4) target_proto="Trojan" ;;
+                    5) target_proto="ZIVPN" ;;
+                    *) echo "Batal."; sleep 1; continue ;;
+                esac
+                
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let vpnDb = crypt.load('vpn_config.json');
+                    if(vpnDb.pricing && vpnDb.pricing['$target_srv'] && vpnDb.pricing['$target_srv']['$target_proto']) {
+                        delete vpnDb.pricing['$target_srv']['$target_proto'];
+                        crypt.save('vpn_config.json', vpnDb);
+                        console.log('\x1b[32m\n✅ Produk $target_proto di Server $target_srv berhasil dihapus!\x1b[0m');
+                    } else {
+                        console.log('\x1b[31m\n❌ Produk tidak ditemukan.\x1b[0m');
+                    }
+                "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             0) break ;;
@@ -4967,3 +5030,4 @@ EOF
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
 done
+// --- SELESAI PART 2 BOSSS ---
