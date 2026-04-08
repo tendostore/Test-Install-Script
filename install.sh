@@ -1323,7 +1323,7 @@ EOF
 
         function renderVpnGrid() {
             let container = document.getElementById('vpn-grid-container');
-            if(!vpnConfigData || !vpnConfigData.servers) return;
+            if(!vpnConfigData || !vpnConfigData.products) return;
 
             let protocols = ['SSH', 'Vmess', 'Vless', 'Trojan', 'ZIVPN'];
             let html = '';
@@ -2212,38 +2212,47 @@ EOF
         }
 
         function openVPNServerSelection(protocol) {
-            document.getElementById('vpn-modal-title').innerText = "Pilih Server " + protocol;
+            document.getElementById('vpn-modal-title').innerText = "Pilih Produk " + protocol;
 
             let html = '';
-            if(vpnConfigData && vpnConfigData.servers && vpnConfigData.pricing) {
-                for(let srvKey in vpnConfigData.servers) {
-                    let srv = vpnConfigData.servers[srvKey];
-                    let pInfo = vpnConfigData.pricing[srvKey] ? vpnConfigData.pricing[srvKey][protocol] : null;
-                    
-                    if(srv && srv.host && pInfo) {
-                        let srvName = srv.server_name || ('Server ' + srvKey);
-                        let flag = srvKey === 'ID' ? '🇮🇩 ' : (srvKey === 'SG' ? '🇸🇬 ' : '🌐 ');
-                        let price = pInfo.price || 0;
-                        let desc = pInfo.desc || 'Proses Otomatis';
-                        let customName = pInfo.name || `${protocol} Premium`;
-                        let safeDesc = desc.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                        let safeName = customName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            if(vpnConfigData && vpnConfigData.products && vpnConfigData.servers) {
+                for(let pId in vpnConfigData.products) {
+                    let prod = vpnConfigData.products[pId];
+                    if(prod.protocol.toUpperCase() === protocol.toUpperCase()) {
+                        let srv = vpnConfigData.servers[prod.server_id];
+                        if(srv && srv.host) {
+                            let srvName = srv.server_name || prod.server_id;
+                            let flag = (srv.city && srv.city.toLowerCase().includes('sg')) ? '🇸🇬 ' : ((srv.city && srv.city.toLowerCase().includes('id')) ? '🇮🇩 ' : '🌐 ');
+                            let price = prod.price || 0;
+                            let stok = prod.stok !== undefined ? parseInt(prod.stok) : 0;
+                            let desc = prod.desc || 'Proses Otomatis';
+                            let customName = prod.name || `${protocol} Premium`;
+                            let safeDesc = desc.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                            let safeName = customName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-                        html += `
-                        <div class="vpn-server-item" onclick="openVPNOrderModal('${srvKey}', '${protocol}', ${price}, '${safeDesc}', '${safeName}')">
-                            <div class="vpn-server-info">
-                                <div class="vpn-server-name">${flag} ${srvName}</div>
-                                <div class="vpn-server-price">Rp ${price.toLocaleString('id-ID')} / 30 Hari</div>
-                            </div>
-                            <div>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                            </div>
-                        </div>`;
+                            let stokBadge = stok > 0 ? `<span style="color:#10b981; font-weight:bold; font-size:11px;">Stok: ${stok}</span>` : `<span style="color:#ef4444; font-weight:bold; font-size:11px;">Stok Habis</span>`;
+                            let onClick = stok > 0 ? `openVPNOrderModal('${pId}', '${protocol}', ${price}, '${safeDesc}', '${safeName}')` : `showToast('Maaf, stok produk ini sedang habis.', 'error')`;
+
+                            html += `
+                            <div class="vpn-server-item" onclick="${onClick}">
+                                <div class="vpn-server-info">
+                                    <div class="vpn-server-name">${flag} ${customName}</div>
+                                    <div style="font-size:11.5px; color:var(--text-muted); margin-top:3px; font-weight:bold;">Server: ${srvName}</div>
+                                    <div class="vpn-server-price" style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
+                                        <span>Rp ${price.toLocaleString('id-ID')} / 30 Hari</span>
+                                        ${stokBadge}
+                                    </div>
+                                </div>
+                                <div>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                </div>
+                            </div>`;
+                        }
                     }
                 }
             }
 
-            if(html === '') html = '<div style="text-align:center; font-size:12px; color:var(--text-muted); margin-top:10px;">Belum ada server diatur untuk protokol ini.</div>';
+            if(html === '') html = '<div style="text-align:center; font-size:12px; color:var(--text-muted); margin-top:10px;">Belum ada produk diatur untuk protokol ini.</div>';
 
             document.getElementById('vpn-server-list').innerHTML = html;
             document.getElementById('vpn-server-modal').classList.remove('hidden');
@@ -2253,9 +2262,9 @@ EOF
             document.getElementById('vpn-server-modal').classList.add('hidden');
         }
 
-        function openVPNOrderModal(server, protocol, price, desc, customName) {
+        function openVPNOrderModal(productId, protocol, price, desc, customName) {
             closeVPNServerModal();
-            selectedVPNServer = server;
+            selectedVPNServer = productId; 
             selectedVPNProto = protocol;
             currentVpnBasePrice = price;
             currentVpnBaseDesc = desc;
@@ -2301,7 +2310,7 @@ EOF
                 let payload = {
                     phone: currentUser, 
                     protocol: selectedVPNProto, 
-                    server: selectedVPNServer, 
+                    product_id: selectedVPNServer, 
                     mode: mode,
                     username: username, 
                     password: password, 
@@ -2507,8 +2516,8 @@ configAwal.margin = configAwal.margin || { t1:50, t2:100, t3:250, t4:500, t5:100
 saveJSON(configFile, configAwal);
 
 let vpnAwal = loadJSON(vpnConfigFile);
-if(!vpnAwal.servers) vpnAwal.servers = { "ID": {}, "SG": {} };
-if(!vpnAwal.pricing) vpnAwal.pricing = { "ID": {}, "SG": {} };
+if(!vpnAwal.servers) vpnAwal.servers = {};
+if(!vpnAwal.products) vpnAwal.products = {};
 saveJSON(vpnConfigFile, vpnAwal);
 
 loadJSON(dbFile); loadJSON(produkFile); loadJSON(trxFile); loadJSON(globalStatsFile); loadJSON(topupFile); loadJSON(notifFile); loadJSON(globalTrxFile);
@@ -2952,30 +2961,34 @@ app.post('/api/order', async (req, res) => {
 // ==============================================================
 // CORE LOGIC: EKSEKUSI PEMBUATAN AKUN VPN KE SERVER VPS 
 // ==============================================================
-async function executeVpnOrder(phone, protocol, serverKey, mode, vpnUsername, vpnPassword, expiredDays) {
+async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vpnPassword, expiredDays) {
     let db = loadJSON(dbFile);
     let vpnConfig = loadJSON(vpnConfigFile);
     let targetKey = db[normalizePhone(phone)] ? normalizePhone(phone) : (db[phone] ? phone : null);
     if(!targetKey) return { success: false, message: "Sesi tidak valid." };
 
+    let prod = vpnConfig.products[productId];
+    if(!prod) return { success: false, message: "Produk VPN tidak ditemukan atau telah dihapus." };
+    if(mode === 'reguler' && parseInt(prod.stok) <= 0) return { success: false, message: "Stok untuk produk ini sedang habis." };
+
+    let serverKey = prod.server_id;
     let srv = vpnConfig.servers[serverKey];
-    let priceInfo = vpnConfig.pricing[serverKey][protocol];
-    if(!srv || !srv.host || !srv.api_key || !priceInfo) {
-        return { success: false, message: "Layanan VPN ini sedang gangguan/belum diatur Admin." };
+    if(!srv || !srv.host || !srv.api_key) {
+        return { success: false, message: "Server VPN ini sedang gangguan / konfigurasi tidak valid." };
     }
 
     // LOGIKA TRIAL (1x per 2 JAM PER SERVER)
     if (mode === 'trial') {
         if (!db[targetKey].trial_claims) db[targetKey].trial_claims = {};
         let lastClaim = db[targetKey].trial_claims[serverKey] || 0;
-        if (Date.now() - lastClaim < 2 * 60 * 60 * 1000) { // 2 Jam
+        if (Date.now() - lastClaim < 2 * 60 * 60 * 1000) { 
             return { success: false, message: "⚠️ Gagal: Anda sudah melakukan trial di Server ini. Silakan coba 2 Jam lagi." };
         }
     }
 
     let hargaFix = 0;
     if (mode === 'reguler') {
-        let basePrice = parseInt(priceInfo.price) || 0;
+        let basePrice = parseInt(prod.price) || 0;
         let hari = parseInt(expiredDays);
         if (hari > 30) hari = 30;
         if (hari < 1) hari = 1;
@@ -2988,28 +3001,18 @@ async function executeVpnOrder(phone, protocol, serverKey, mode, vpnUsername, vp
     let protoLower = protocol.toLowerCase();
     let endpoint = '';
     
-    // LIMIT IP DAN KUOTA CONFIG
-    let vpnLimitIp = parseInt(priceInfo.limit_ip) || 2;
-    let vpnKuota = parseInt(priceInfo.kuota) || 200;
+    let vpnLimitIp = parseInt(prod.limit_ip) || 2;
+    let vpnKuota = parseInt(prod.kuota) || 200;
     
     let payload = {};
     if (mode === 'trial') {
         vpnUsername = "trial_" + Math.floor(Math.random()*9999);
         vpnPassword = "1";
-        payload = {
-            timelimit: "30m",
-            kuota: 2, // Trial 2GB
-            limitip: 2
-        };
+        payload = { timelimit: "30m", kuota: 2, limitip: 2 };
         if(protoLower === 'ssh') endpoint = `http://${srv.host}/vps/trialsshvpn`;
         else endpoint = `http://${srv.host}/vps/trial${protoLower}all`;
     } else {
-        payload = {
-            username: vpnUsername,
-            expired: parseInt(expiredDays),
-            limitip: vpnLimitIp,
-            kuota: vpnKuota
-        };
+        payload = { username: vpnUsername, expired: parseInt(expiredDays), limitip: vpnLimitIp, kuota: vpnKuota };
         if(protoLower === 'ssh' || protoLower === 'zivpn') payload.password = vpnPassword;
         else payload.uuidv2 = '';
         
@@ -3019,11 +3022,7 @@ async function executeVpnOrder(phone, protocol, serverKey, mode, vpnUsername, vp
 
     try {
         let resApi = await axios.post(endpoint, payload, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': 'Bearer ' + srv.api_key
-            },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer ' + srv.api_key },
             timeout: 10000,
             httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
         });
@@ -3034,11 +3033,9 @@ async function executeVpnOrder(phone, protocol, serverKey, mode, vpnUsername, vp
             let expDate = apiData.expired || apiData.exp || apiData.to || (mode === 'trial' ? '30 Menit' : `${expiredDays} Hari`);
             let vpnDetails = '';
             
-            // Konfigurasi info City dan ISP (Baca dari Manual di panel Admin atau dari API response)
             let fixCity = srv.city || apiData.city || '-';
             let fixIsp = srv.isp || apiData.isp || '-';
 
-            // ======= FORMATTING DETAIL AKUN (Mengganti IP menjadi Domain Host, City, ISP) =======
             if (protoLower === 'ssh') {
                 vpnDetails = `Account Created Successfully\n————————————————————————————————————\nDomain Host     : ${domain}\nCity            : ${fixCity}\nISP             : ${fixIsp}\nUsername        : ${apiData.username}\nPassword        : ${apiData.password}\n————————————————————————————————————\nExpired         : ${expDate}\n————————————————————————————————————\nTLS             : ${apiData.port?.tls || '443,8443'}\nNone TLS        : ${apiData.port?.none || '80,8080'}\nAny             : 2082,2083,8880\nOpenSSH         : 444\nDropbear        : 90\n————————————————————————————————————\nSlowDNS         : 53,5300\nUDP-Custom      : 1-65535\nOHP + SSH       : 9080\nSquid Proxy     : 3128\nUDPGW           : 7100-7600\nOpenVPN TCP     : 80,1194\nOpenVPN SSL     : 443\nOpenVPN UDP     : 25000\nOpenVPN DNS     : 53\nOHP + OVPN      : 9088\n————————————————————————————————————`;
             } else if (protoLower === 'vmess') {
@@ -3051,15 +3048,18 @@ async function executeVpnOrder(phone, protocol, serverKey, mode, vpnUsername, vp
                 vpnDetails = `Detail Akun ZIVPN:\nDomain Host: ${domain}\nCity: ${fixCity}\nISP: ${fixIsp}\nUsername: ${apiData.username}\nExp: ${expDate}\nLimit IP: ${vpnLimitIp}\n\nInfo selengkapnya cek di aplikasi.`;
             }
 
-            let prodName = priceInfo.name || `${protocol.toUpperCase()} Premium Server ${serverKey}`;
+            let prodName = prod.name;
             if (mode === 'trial') prodName += ' (TRIAL)';
             
             let saldoSebelum = parseInt(db[targetKey].saldo);
             if (mode === 'reguler') {
                 db[targetKey].saldo = saldoSebelum - hargaFix;
                 db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
+                
+                // KURANGI STOK PRODUK
+                vpnConfig.products[productId].stok -= 1;
+                saveJSON(vpnConfigFile, vpnConfig);
             } else {
-                // Update claim time
                 db[targetKey].trial_claims[serverKey] = Date.now();
             }
             
@@ -3083,13 +3083,12 @@ async function executeVpnOrder(phone, protocol, serverKey, mode, vpnUsername, vp
 
             let globalTrx = loadJSON(globalTrxFile);
             let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-            // Sensor tujuan VPN (username) untuk Trx Global 
             globalTrx.unshift({ time: timeStr, product: prodName, user: (db[targetKey].username || targetKey), target: maskStringTarget(apiData.username) });
             if(globalTrx.length > 100) globalTrx.pop();
             saveJSON(globalTrxFile, globalTrx);
 
             sendBroadcastSuccess(prodName, (db[targetKey].username || targetKey), apiData.username);
-            sendTelegramAdmin(`🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Akun: ${db[targetKey].username || targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${apiData.username}\n💰 Harga: Rp ${hargaFix.toLocaleString('id-ID')}`);
+            sendTelegramAdmin(`🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Akun: ${db[targetKey].username || targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${apiData.username}\n💰 Harga: Rp ${hargaFix.toLocaleString('id-ID')}\n📦 Sisa Stok: ${mode === 'reguler' ? vpnConfig.products[productId].stok : 'Trial'}`);
 
             return { success: true };
         } else {
@@ -3106,8 +3105,8 @@ async function executeVpnOrder(phone, protocol, serverKey, mode, vpnUsername, vp
 
 app.post('/api/order-vpn', async (req, res) => {
     if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
-    let { phone, protocol, server, mode, username, password, expired } = req.body;
-    let result = await executeVpnOrder(phone, protocol, server, mode, username, password, expired);
+    let { phone, protocol, product_id, mode, username, password, expired } = req.body;
+    let result = await executeVpnOrder(phone, protocol, product_id, mode, username, password, expired);
     res.json(result);
 });
 
@@ -3119,17 +3118,18 @@ app.post('/api/order-vpn-qris', async (req, res) => {
         let config = loadJSON(configFile);
         if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
         
-        let { phone, protocol, server, mode, username, password, expired } = req.body;
+        let { phone, protocol, product_id, mode, username, password, expired } = req.body;
         
         let db = loadJSON(dbFile); let vpnConfig = loadJSON(vpnConfigFile);
         let pNorm = normalizePhone(phone);
         let targetKey = db[pNorm] ? pNorm : (db[phone] ? phone : null);
         if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid.'});
         
-        let priceInfo = vpnConfig.pricing[server][protocol];
-        if(!priceInfo) return res.json({success: false, message: 'Harga layanan VPN belum diatur.'});
+        let prod = vpnConfig.products[product_id];
+        if(!prod) return res.json({success: false, message: 'Produk VPN tidak ditemukan.'});
+        if(mode === 'reguler' && parseInt(prod.stok) <= 0) return res.json({success: false, message: 'Stok habis.'});
 
-        let basePrice = parseInt(priceInfo.price) || 0;
+        let basePrice = parseInt(prod.price) || 0;
         let hari = parseInt(expired);
         if(hari > 30) hari = 30; if(hari < 1) hari = 1;
         let nominalAsli = Math.ceil((basePrice / 30) * hari);
@@ -3146,12 +3146,12 @@ app.post('/api/order-vpn-qris', async (req, res) => {
         let topups = loadJSON(topupFile);
         let trxId = "VQ-" + Date.now();
         let expiredAt = Date.now() + 10 * 60 * 1000;
-        let prodName = priceInfo.name || `${protocol.toUpperCase()} Premium Server ${server}`;
+        let prodName = prod.name;
 
         topups[trxId] = { 
             phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
             status: 'pending', timestamp: Date.now(), expired_at: expiredAt, 
-            is_order: true, vpn_data: { protocol, server, mode, username, password, expired, nama_produk: prodName, harga_asli: nominalAsli }
+            is_order: true, vpn_data: { protocol, product_id, mode, username, password, expired, nama_produk: prodName, harga_asli: nominalAsli }
         };
         saveJSON(topupFile, topups);
 
@@ -3169,7 +3169,7 @@ app.post('/api/order-vpn-qris', async (req, res) => {
 });
 
 async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
-    let result = await executeVpnOrder(phone, vpnData.protocol, vpnData.server, vpnData.mode, vpnData.username, vpnData.password, vpnData.expired);
+    let result = await executeVpnOrder(phone, vpnData.protocol, vpnData.product_id, vpnData.mode, vpnData.username, vpnData.password, vpnData.expired);
     let db = loadJSON(dbFile);
     
     let hist = db[phone].history.find(h => h.sn === refIdAsal && h.type === 'Order VPN QRIS');
@@ -4692,96 +4692,113 @@ menu_notifikasi() {
     done
 }
 
-menu_manajemen_vpn() {
+submenu_server_vpn() {
     while true; do
         clear
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "${C_YELLOW}${C_BOLD}             🛡️ MANAJEMEN VPN PREMIUM 🛡️            ${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             🌍 MANAJEMEN SERVER VPN 🌍             ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Atur Koneksi Server ID (Indonesia)"
-        echo -e "  ${C_GREEN}[2]${C_RST} Atur Koneksi Server SG (Singapura)"
-        echo -e "  ${C_GREEN}[3]${C_RST} Atur Harga, Limit, Nama & Deskripsi Protokol VPN"
-        echo -e "  ${C_GREEN}[4]${C_RST} Hapus Produk / Layanan VPN"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah / Edit Koneksi Server"
+        echo -e "  ${C_GREEN}[2]${C_RST} List Daftar Server"
+        echo -e "  ${C_GREEN}[3]${C_RST} Hapus Koneksi Server"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
-        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali"
         echo -e "${C_CYAN}======================================================${C_RST}"
-        echo -ne "${C_YELLOW}Pilih menu [0-4]: ${C_RST}"
-        read vpn_choice
+        echo -ne "${C_YELLOW}Pilih menu [0-3]: ${C_RST}"
+        read srv_choice
 
-        case $vpn_choice in
+        case $srv_choice in
             1)
-                echo -e "\n${C_MAG}--- ATUR KONEKSI SERVER ID ---${C_RST}"
-                read -p "Masukkan Nama Server VPN (Misal: VIP Indonesia): " srv_name
+                echo -e "\n${C_MAG}--- TAMBAH / EDIT KONEKSI SERVER ---${C_RST}"
+                read -p "Buat ID Server (Unik, misal: srv1 atau SG-VIP): " srv_id
+                if [ -z "$srv_id" ]; then echo "Batal."; sleep 1; continue; fi
+                
+                read -p "Masukkan Nama Server (Misal: VIP Singapura): " srv_name
                 read -p "Masukkan Hostname / IP Server: " srv_host
                 read -p "Masukkan Port Server (Biarkan kosong jika default): " srv_port
                 read -p "Masukkan Username VPS: " srv_user
                 read -p "Masukkan Password VPS: " srv_pass
-                read -p "Masukkan API Key VPN: " srv_api
-                read -p "Masukkan Nama ISP Server (Tampil di Detail Akun): " srv_isp
-                read -p "Masukkan Nama Kota/City Server: " srv_city
+                read -p "Masukkan API Key VPN Panel: " srv_api
+                read -p "Masukkan Nama ISP Server: " srv_isp
+                read -p "Masukkan Nama Kota/City: " srv_city
                 
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let vpnDb = crypt.load('vpn_config.json');
                     if(!vpnDb.servers) vpnDb.servers = {};
-                    vpnDb.servers['ID'] = {
-                        server_name: '$srv_name',
-                        host: '$srv_host',
-                        port: '$srv_port',
-                        user: '$srv_user',
-                        pass: '$srv_pass',
-                        api_key: '$srv_api',
-                        isp: '$srv_isp',
-                        city: '$srv_city'
+                    vpnDb.servers['$srv_id'] = {
+                        server_name: '$srv_name', host: '$srv_host', port: '$srv_port',
+                        user: '$srv_user', pass: '$srv_pass', api_key: '$srv_api',
+                        isp: '$srv_isp', city: '$srv_city'
                     };
                     crypt.save('vpn_config.json', vpnDb);
-                    console.log('\x1b[32m\n✅ Konfigurasi Server ID berhasil disimpan!\x1b[0m');
+                    console.log('\x1b[32m\n✅ Konfigurasi Server ($srv_id) berhasil disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
-                echo -e "\n${C_MAG}--- ATUR KONEKSI SERVER SG ---${C_RST}"
-                read -p "Masukkan Nama Server VPN (Misal: VIP Singapura): " srv_name
-                read -p "Masukkan Hostname / IP Server: " srv_host
-                read -p "Masukkan Port Server (Biarkan kosong jika default): " srv_port
-                read -p "Masukkan Username VPS: " srv_user
-                read -p "Masukkan Password VPS: " srv_pass
-                read -p "Masukkan API Key VPN: " srv_api
-                read -p "Masukkan Nama ISP Server (Tampil di Detail Akun): " srv_isp
-                read -p "Masukkan Nama Kota/City Server: " srv_city
-                
+                echo -e "\n${C_CYAN}--- DAFTAR SERVER VPN ---${C_RST}"
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let vpnDb = crypt.load('vpn_config.json');
-                    if(!vpnDb.servers) vpnDb.servers = {};
-                    vpnDb.servers['SG'] = {
-                        server_name: '$srv_name',
-                        host: '$srv_host',
-                        port: '$srv_port',
-                        user: '$srv_user',
-                        pass: '$srv_pass',
-                        api_key: '$srv_api',
-                        isp: '$srv_isp',
-                        city: '$srv_city'
-                    };
-                    crypt.save('vpn_config.json', vpnDb);
-                    console.log('\x1b[32m\n✅ Konfigurasi Server SG berhasil disimpan!\x1b[0m');
+                    let servers = vpnDb.servers || {};
+                    let count = 0;
+                    for(let id in servers) {
+                        count++;
+                        let s = servers[id];
+                        console.log('- ID: \x1b[33m' + id + '\x1b[0m | Nama: ' + s.server_name + ' | Host: ' + s.host);
+                    }
+                    if(count === 0) console.log('\x1b[31mBelum ada server VPN yang ditambahkan.\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             3)
-                echo -e "\n${C_MAG}--- ATUR HARGA, NAMA, LIMIT & DESKRIPSI VPN ---${C_RST}"
-                echo -e "Pilih Server Target:"
-                echo -e "  [1] Server ID\n  [2] Server SG"
-                read -p "Pilihan: " srv_opt
-                
-                target_srv=""
-                if [ "$srv_opt" == "1" ]; then target_srv="ID"; elif [ "$srv_opt" == "2" ]; then target_srv="SG"; else echo "Batal."; sleep 1; continue; fi
-                
-                echo -e "\nPilih Protokol yang ingin diatur:"
+                echo -e "\n${C_MAG}--- HAPUS KONEKSI SERVER ---${C_RST}"
+                read -p "Masukkan ID Server yang ingin dihapus: " del_id
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let vpnDb = crypt.load('vpn_config.json');
+                    if(vpnDb.servers && vpnDb.servers['$del_id']) {
+                        delete vpnDb.servers['$del_id'];
+                        crypt.save('vpn_config.json', vpnDb);
+                        console.log('\x1b[32m\n✅ Server dengan ID ($del_id) berhasil dihapus!\x1b[0m');
+                    } else {
+                        console.log('\x1b[31m\n❌ Server dengan ID ($del_id) tidak ditemukan.\x1b[0m');
+                    }
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
+submenu_produk_vpn() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             📦 MANAJEMEN PRODUK VPN 📦             ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah / Edit Produk VPN"
+        echo -e "  ${C_GREEN}[2]${C_RST} List Daftar Produk"
+        echo -e "  ${C_GREEN}[3]${C_RST} Atur Ulang Stok Produk"
+        echo -e "  ${C_GREEN}[4]${C_RST} Hapus Produk"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-4]: ${C_RST}"
+        read prod_choice
+
+        case $prod_choice in
+            1)
+                echo -e "\n${C_MAG}--- TAMBAH / EDIT PRODUK VPN ---${C_RST}"
+                read -p "Buat/Masukkan ID Produk (Unik, misal: p1 atau SSH-VIP): " prod_id
+                if [ -z "$prod_id" ]; then echo "Batal."; sleep 1; continue; fi
+
+                echo -e "\nPilih Protokol:"
                 echo -e "  [1] SSH\n  [2] Vmess\n  [3] Vless\n  [4] Trojan\n  [5] ZIVPN"
-                read -p "Pilihan: " proto_opt
-                
+                read -p "Pilihan [1-5]: " proto_opt
                 target_proto=""
                 case $proto_opt in
                     1) target_proto="SSH" ;;
@@ -4791,72 +4808,120 @@ menu_manajemen_vpn() {
                     5) target_proto="ZIVPN" ;;
                     *) echo "Batal."; sleep 1; continue ;;
                 esac
+
+                echo -e "\nServer Tersedia:"
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let vpnDb = crypt.load('vpn_config.json');
+                    let servers = vpnDb.servers || {};
+                    for(let id in servers) console.log('  - ' + id + ' (' + servers[id].server_name + ')');
+                "
+                read -p "Ketik ID Server yang ingin dihubungkan (contoh: srv1): " srv_id_target
                 
-                read -p "Nama Produk (Custom, misal: SSH Premium SG): " p_nama
+                read -p "Nama Layanan (Misal: SSH Premium SG VIP): " p_nama
                 read -p "Harga Patokan 30 Hari (Rp): " p_harga
                 read -p "Limit IP (contoh: 2): " p_limitip
-                read -p "Limit Bandwidth Kuota GB (contoh: 200, Kosongkan untuk SSH): " p_kuota
+                read -p "Limit Bandwidth Kuota GB (contoh: 200, Kosongkan utk SSH): " p_kuota
+                read -p "Jumlah Stok Awal: " p_stok
                 read -p "Deskripsi / Fitur Singkat: " p_desc
                 
                 if [[ "$p_harga" =~ ^[0-9]+$ ]]; then
                     node -e "
                         const crypt = require('./tendo_crypt.js');
                         let vpnDb = crypt.load('vpn_config.json');
-                        if(!vpnDb.pricing) vpnDb.pricing = { 'ID': {}, 'SG': {} };
-                        if(!vpnDb.pricing['$target_srv']) vpnDb.pricing['$target_srv'] = {};
+                        if(!vpnDb.products) vpnDb.products = {};
                         
-                        vpnDb.pricing['$target_srv']['$target_proto'] = {
+                        vpnDb.products['$prod_id'] = {
+                            protocol: '$target_proto',
+                            server_id: '$srv_id_target',
                             name: '$p_nama',
                             price: parseInt('$p_harga'),
                             desc: '$p_desc',
                             limit_ip: parseInt('$p_limitip') || 2,
-                            kuota: parseInt('$p_kuota') || 200
+                            kuota: parseInt('$p_kuota') || 200,
+                            stok: parseInt('$p_stok') || 0
                         };
                         
                         crypt.save('vpn_config.json', vpnDb);
-                        console.log('\x1b[32m\n✅ Konfigurasi $target_proto untuk Server $target_srv berhasil disimpan!\x1b[0m');
+                        console.log('\x1b[32m\n✅ Produk VPN ($prod_id) berhasil disimpan dan terhubung ke Server ($srv_id_target)!\x1b[0m');
                     "
                 else
                     echo -e "${C_RED}❌ Harga harus berupa angka!${C_RST}"
                 fi
                 read -p "Tekan Enter untuk kembali..."
                 ;;
-            4)
-                echo -e "\n${C_MAG}--- HAPUS PROTOKOL / PRODUK VPN ---${C_RST}"
-                echo -e "Pilih Server Target:"
-                echo -e "  [1] Server ID\n  [2] Server SG"
-                read -p "Pilihan: " srv_opt
-                
-                target_srv=""
-                if [ "$srv_opt" == "1" ]; then target_srv="ID"; elif [ "$srv_opt" == "2" ]; then target_srv="SG"; else echo "Batal."; sleep 1; continue; fi
-                
-                echo -e "\nPilih Protokol yang ingin dihapus:"
-                echo -e "  [1] SSH\n  [2] Vmess\n  [3] Vless\n  [4] Trojan\n  [5] ZIVPN"
-                read -p "Pilihan: " proto_opt
-                
-                target_proto=""
-                case $proto_opt in
-                    1) target_proto="SSH" ;;
-                    2) target_proto="Vmess" ;;
-                    3) target_proto="Vless" ;;
-                    4) target_proto="Trojan" ;;
-                    5) target_proto="ZIVPN" ;;
-                    *) echo "Batal."; sleep 1; continue ;;
-                esac
-                
+            2)
+                echo -e "\n${C_CYAN}--- DAFTAR PRODUK VPN ---${C_RST}"
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let vpnDb = crypt.load('vpn_config.json');
-                    if(vpnDb.pricing && vpnDb.pricing['$target_srv'] && vpnDb.pricing['$target_srv']['$target_proto']) {
-                        delete vpnDb.pricing['$target_srv']['$target_proto'];
+                    let products = vpnDb.products || {};
+                    let count = 0;
+                    for(let id in products) {
+                        count++;
+                        let p = products[id];
+                        console.log('- ID: \x1b[33m' + id + '\x1b[0m | Nama: ' + p.name + ' | Proto: ' + p.protocol + ' | Server: ' + p.server_id + ' | Stok: ' + p.stok + ' | Harga: Rp ' + p.price);
+                    }
+                    if(count === 0) console.log('\x1b[31mBelum ada produk VPN yang ditambahkan.\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            3)
+                echo -e "\n${C_MAG}--- ATUR ULANG STOK PRODUK ---${C_RST}"
+                read -p "Masukkan ID Produk: " stok_id
+                read -p "Masukkan Jumlah Stok Baru: " stok_baru
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let vpnDb = crypt.load('vpn_config.json');
+                    if(vpnDb.products && vpnDb.products['$stok_id']) {
+                        vpnDb.products['$stok_id'].stok = parseInt('$stok_baru') || 0;
                         crypt.save('vpn_config.json', vpnDb);
-                        console.log('\x1b[32m\n✅ Produk $target_proto di Server $target_srv berhasil dihapus!\x1b[0m');
+                        console.log('\x1b[32m\n✅ Stok Produk ($stok_id) berhasil diupdate menjadi ' + vpnDb.products['$stok_id'].stok + '!\x1b[0m');
                     } else {
-                        console.log('\x1b[31m\n❌ Produk tidak ditemukan.\x1b[0m');
+                        console.log('\x1b[31m\n❌ ID Produk tidak ditemukan.\x1b[0m');
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
+            4)
+                echo -e "\n${C_MAG}--- HAPUS PRODUK ---${C_RST}"
+                read -p "Masukkan ID Produk yang ingin dihapus: " del_id
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let vpnDb = crypt.load('vpn_config.json');
+                    if(vpnDb.products && vpnDb.products['$del_id']) {
+                        delete vpnDb.products['$del_id'];
+                        crypt.save('vpn_config.json', vpnDb);
+                        console.log('\x1b[32m\n✅ Produk ($del_id) berhasil dihapus!\x1b[0m');
+                    } else {
+                        console.log('\x1b[31m\n❌ ID Produk tidak ditemukan.\x1b[0m');
+                    }
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
+menu_manajemen_vpn() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             🛡️ MANAJEMEN VPN PREMIUM 🛡️            ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Manajemen Server VPN"
+        echo -e "  ${C_GREEN}[2]${C_RST} Manajemen Produk VPN & Stok"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-2]: ${C_RST}"
+        read vpn_choice
+
+        case $vpn_choice in
+            1) submenu_server_vpn ;;
+            2) submenu_produk_vpn ;;
             0) break ;;
             *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
         esac
