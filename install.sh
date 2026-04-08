@@ -752,37 +752,8 @@ EOF
             </div>
 
             <div class="grid-title">Layanan Produk VPN Premium</div>
-            <div class="grid-container">
-                <div class="grid-box" onclick="openVPNServerList('SSH')">
-                    <div class="grid-icon-wrap ic-vpn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                    </div>
-                    <div class="grid-text">SSH</div>
-                </div>
-                <div class="grid-box" onclick="openVPNServerList('Vmess')">
-                    <div class="grid-icon-wrap ic-vpn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
-                    </div>
-                    <div class="grid-text">VMESS</div>
-                </div>
-                <div class="grid-box" onclick="openVPNServerList('Vless')">
-                    <div class="grid-icon-wrap ic-vpn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-                    </div>
-                    <div class="grid-text">VLESS</div>
-                </div>
-                <div class="grid-box" onclick="openVPNServerList('Trojan')">
-                    <div class="grid-icon-wrap ic-vpn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                    </div>
-                    <div class="grid-text">TROJAN</div>
-                </div>
-                <div class="grid-box" onclick="openVPNServerList('ZIVPN')">
-                    <div class="grid-icon-wrap ic-vpn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
-                    </div>
-                    <div class="grid-text">ZIVPN</div>
-                </div>
+            <div class="grid-container" id="vpn-grid-container">
+                <div style="text-align:center; grid-column: 1 / -1; font-size:12px; color:var(--text-muted);">Memuat server VPN...</div>
             </div>
 
             <div style="margin: 25px 20px 0; padding: 15px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer), var(--shadow-inner);">
@@ -981,9 +952,9 @@ EOF
 
         <div id="vpn-server-modal" class="modal-overlay hidden">
             <div class="modal-box">
-                <h3 id="vpn-modal-title" style="margin-top:0; font-size:18px;">Pilih Server</h3>
+                <h3 id="vpn-modal-title" style="margin-top:0; font-size:18px;">Pilih Produk</h3>
                 <div id="vpn-server-list" class="vpn-server-list">
-                    </div>
+                </div>
                 <button class="btn-outline" style="margin-top:15px; width: 100%;" onclick="closeVPNServerModal()">Batal</button>
             </div>
         </div>
@@ -1343,8 +1314,34 @@ EOF
         async function fetchVPNConfig() {
             try {
                 let res = await apiCall('/api/vpn-config');
-                if(res && res.success) vpnConfigData = res.data;
+                if(res && res.success) {
+                    vpnConfigData = res.data;
+                    renderVpnGrid();
+                }
             } catch(e) {}
+        }
+
+        function renderVpnGrid() {
+            let container = document.getElementById('vpn-grid-container');
+            if(!vpnConfigData || !vpnConfigData.servers) return;
+
+            let html = '';
+            for(let srvKey in vpnConfigData.servers) {
+                let srv = vpnConfigData.servers[srvKey];
+                if(srv && srv.host) {
+                    let flag = srvKey === 'ID' ? '🇮🇩' : (srvKey === 'SG' ? '🇸🇬' : '🌐');
+                    let srvName = srv.server_name || ('Server ' + srvKey);
+                    html += `
+                    <div class="grid-box" onclick="openVPNProductList('${srvKey}')">
+                        <div class="grid-icon-wrap ic-vpn">
+                            <span style="font-size: 26px;">${flag}</span>
+                        </div>
+                        <div class="grid-text">${srvName}</div>
+                    </div>`;
+                }
+            }
+            if(html === '') html = '<div style="text-align:center; grid-column: 1 / -1; font-size:12px; color:var(--text-muted);">Belum ada server VPN tersedia.</div>';
+            container.innerHTML = html;
         }
 
         async function loadBanners() {
@@ -2216,46 +2213,39 @@ EOF
             document.getElementById('m-vpn-price').innerText = 'Rp ' + finalPrice.toLocaleString('id-ID');
         }
 
-        function openVPNServerList(protocol) {
-            selectedVPNProto = protocol;
-            document.getElementById('vpn-modal-title').innerText = "Pilih Server " + protocol.toUpperCase();
-            
-            if(!vpnConfigData || !vpnConfigData.pricing) {
-                showToast("Data VPN belum diatur admin", "error");
-                return;
-            }
+        function openVPNProductList(serverKey) {
+            let srv = vpnConfigData.servers[serverKey];
+            let srvName = srv.server_name || ('Server ' + serverKey);
+            document.getElementById('vpn-modal-title').innerText = "Layanan " + srvName;
 
             let html = '';
-            let servers = ['ID', 'SG'];
-            let hasServer = false;
+            let pricing = vpnConfigData.pricing[serverKey];
+            if(pricing) {
+                let protocols = ['SSH', 'Vmess', 'Vless', 'Trojan', 'ZIVPN'];
+                protocols.forEach(proto => {
+                    let pInfo = pricing[proto];
+                    if(pInfo) {
+                        let price = pInfo.price || 0;
+                        let desc = pInfo.desc || 'Proses Otomatis';
+                        let customName = pInfo.name || `${proto} Premium`;
+                        let safeDesc = desc.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                        let safeName = customName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-            servers.forEach(srv => {
-                if (vpnConfigData.pricing[srv] && vpnConfigData.pricing[srv][protocol] && vpnConfigData.servers[srv] && vpnConfigData.servers[srv].host) {
-                    let flag = srv === 'ID' ? '🇮🇩' : '🇸🇬';
-                    let price = vpnConfigData.pricing[srv][protocol].price || 0;
-                    let desc = vpnConfigData.pricing[srv][protocol].desc || 'Proses Otomatis';
-                    let customName = vpnConfigData.pricing[srv][protocol].name || `${protocol.toUpperCase()} Premium Server ${srv}`;
-                    
-                    let safeDesc = desc.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                    let safeName = customName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                    
-                    html += `
-                    <div class="vpn-server-item" onclick="openVPNOrderModal('${srv}', ${price}, '${safeDesc}', '${safeName}')">
-                        <div class="vpn-server-info">
-                            <div class="vpn-server-name">${flag} ${customName}</div>
-                            <div class="vpn-server-price">Rp ${price.toLocaleString('id-ID')} / 30 Hari</div>
-                        </div>
-                        <div>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                        </div>
-                    </div>`;
-                    hasServer = true;
-                }
-            });
-
-            if(!hasServer) {
-                html = '<div style="text-align:center; font-size:12px; color:var(--text-muted); margin-top:10px;">Layanan server untuk protokol ini belum tersedia.</div>';
+                        html += `
+                        <div class="vpn-server-item" onclick="openVPNOrderModal('${serverKey}', '${proto}', ${price}, '${safeDesc}', '${safeName}')">
+                            <div class="vpn-server-info">
+                                <div class="vpn-server-name">${customName}</div>
+                                <div class="vpn-server-price">Rp ${price.toLocaleString('id-ID')} / 30 Hari</div>
+                            </div>
+                            <div>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            </div>
+                        </div>`;
+                    }
+                });
             }
+
+            if(html === '') html = '<div style="text-align:center; font-size:12px; color:var(--text-muted); margin-top:10px;">Belum ada produk di server ini.</div>';
 
             document.getElementById('vpn-server-list').innerHTML = html;
             document.getElementById('vpn-server-modal').classList.remove('hidden');
@@ -2265,9 +2255,10 @@ EOF
             document.getElementById('vpn-server-modal').classList.add('hidden');
         }
 
-        function openVPNOrderModal(server, price, desc, customName) {
+        function openVPNOrderModal(server, protocol, price, desc, customName) {
             closeVPNServerModal();
             selectedVPNServer = server;
+            selectedVPNProto = protocol;
             currentVpnBasePrice = price;
             currentVpnBaseDesc = desc;
             
@@ -2346,7 +2337,6 @@ EOF
 </html>
 EOF
 }
-# Selesai Part 1
 // --- SELESAI PART 1 BOSSS ---
 # ==========================================
 # 4. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND)
@@ -3045,18 +3035,22 @@ async function executeVpnOrder(phone, protocol, serverKey, mode, vpnUsername, vp
             let domain = srv.host;
             let expDate = apiData.expired || apiData.exp || apiData.to || (mode === 'trial' ? '30 Menit' : `${expiredDays} Hari`);
             let vpnDetails = '';
+            
+            // Konfigurasi info City dan ISP (Baca dari Manual di panel Admin atau dari API response)
+            let fixCity = srv.city || apiData.city || '-';
+            let fixIsp = srv.isp || apiData.isp || '-';
 
             // ======= FORMATTING DETAIL AKUN (Mengganti IP menjadi Domain Host, City, ISP) =======
             if (protoLower === 'ssh') {
-                vpnDetails = `Account Created Successfully\n————————————————————————————————————\nDomain Host     : ${domain}\nCity            : ${apiData.city || '-'}\nISP             : ${apiData.isp || '-'}\nUsername        : ${apiData.username}\nPassword        : ${apiData.password}\n————————————————————————————————————\nExpired         : ${expDate}\n————————————————————————————————————\nTLS             : ${apiData.port?.tls || '443,8443'}\nNone TLS        : ${apiData.port?.none || '80,8080'}\nAny             : 2082,2083,8880\nOpenSSH         : 444\nDropbear        : 90\n————————————————————————————————————\nSlowDNS         : 53,5300\nUDP-Custom      : 1-65535\nOHP + SSH       : 9080\nSquid Proxy     : 3128\nUDPGW           : 7100-7600\nOpenVPN TCP     : 80,1194\nOpenVPN SSL     : 443\nOpenVPN UDP     : 25000\nOpenVPN DNS     : 53\nOHP + OVPN      : 9088\n————————————————————————————————————`;
+                vpnDetails = `Account Created Successfully\n————————————————————————————————————\nDomain Host     : ${domain}\nCity            : ${fixCity}\nISP             : ${fixIsp}\nUsername        : ${apiData.username}\nPassword        : ${apiData.password}\n————————————————————————————————————\nExpired         : ${expDate}\n————————————————————————————————————\nTLS             : ${apiData.port?.tls || '443,8443'}\nNone TLS        : ${apiData.port?.none || '80,8080'}\nAny             : 2082,2083,8880\nOpenSSH         : 444\nDropbear        : 90\n————————————————————————————————————\nSlowDNS         : 53,5300\nUDP-Custom      : 1-65535\nOHP + SSH       : 9080\nSquid Proxy     : 3128\nUDPGW           : 7100-7600\nOpenVPN TCP     : 80,1194\nOpenVPN SSL     : 443\nOpenVPN UDP     : 25000\nOpenVPN DNS     : 53\nOHP + OVPN      : 9088\n————————————————————————————————————`;
             } else if (protoLower === 'vmess') {
-                vpnDetails = `————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : ${apiData.username}\nDomain Host    : ${domain}\nCity           : ${apiData.city || '-'}\nISP            : ${apiData.isp || '-'}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nalterId        : 0\nSecurity       : auto\nnetwork        : ws,grpc,upgrade\npath ws        : /vmess\nserviceName    : vmess\npath upgrade   : /upvmess\nExpired On     : ${expDate}\n————————————————————————————————————\n           VMESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VMESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VMESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+                vpnDetails = `————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : ${apiData.username}\nDomain Host    : ${domain}\nCity           : ${fixCity}\nISP            : ${fixIsp}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nalterId        : 0\nSecurity       : auto\nnetwork        : ws,grpc,upgrade\npath ws        : /vmess\nserviceName    : vmess\npath upgrade   : /upvmess\nExpired On     : ${expDate}\n————————————————————————————————————\n           VMESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VMESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VMESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
             } else if (protoLower === 'vless') {
-                vpnDetails = `————————————————————————————————————\n               VLESS\n————————————————————————————————————\nRemarks        : ${apiData.username}\nDomain Host    : ${domain}\nCity           : ${apiData.city || '-'}\nISP            : ${apiData.isp || '-'}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nEncryption     : none\nNetwork        : ws,grpc,upgrade\nPath ws        : /vless\nserviceName    : vless\nPath upgrade   : /upvless\nExpired On     : ${expDate}\n————————————————————————————————————\n            VLESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VLESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VLESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+                vpnDetails = `————————————————————————————————————\n               VLESS\n————————————————————————————————————\nRemarks        : ${apiData.username}\nDomain Host    : ${domain}\nCity           : ${fixCity}\nISP            : ${fixIsp}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nEncryption     : none\nNetwork        : ws,grpc,upgrade\nPath ws        : /vless\nserviceName    : vless\nPath upgrade   : /upvless\nExpired On     : ${expDate}\n————————————————————————————————————\n            VLESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VLESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VLESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
             } else if (protoLower === 'trojan') {
-                vpnDetails = `————————————————————————————————————\n               TROJAN\n————————————————————————————————————\nRemarks      : ${apiData.username}\nDomain Host  : ${domain}\nCity         : ${apiData.city || '-'}\nISP          : ${apiData.isp || '-'}\nPort         : 443,8443\nPort any     : 2052,2053,8880\nKey          : ${apiData.uuid || apiData.id || '-'}\nNetwork      : ws,grpc,upgrade\nPath ws      : /trojan\nserviceName  : trojan\nPath upgrade : /uptrojan\nExpired On   : ${expDate}\n————————————————————————————————————\n           TROJAN WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n            TROJAN GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+                vpnDetails = `————————————————————————————————————\n               TROJAN\n————————————————————————————————————\nRemarks      : ${apiData.username}\nDomain Host  : ${domain}\nCity         : ${fixCity}\nISP          : ${fixIsp}\nPort         : 443,8443\nPort any     : 2052,2053,8880\nKey          : ${apiData.uuid || apiData.id || '-'}\nNetwork      : ws,grpc,upgrade\nPath ws      : /trojan\nserviceName  : trojan\nPath upgrade : /uptrojan\nExpired On   : ${expDate}\n————————————————————————————————————\n           TROJAN WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n            TROJAN GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
             } else {
-                vpnDetails = `Detail Akun ZIVPN:\nDomain Host: ${domain}\nCity: ${apiData.city || '-'}\nISP: ${apiData.isp || '-'}\nUsername: ${apiData.username}\nExp: ${expDate}\nLimit IP: ${vpnLimitIp}\n\nInfo selengkapnya cek di aplikasi.`;
+                vpnDetails = `Detail Akun ZIVPN:\nDomain Host: ${domain}\nCity: ${fixCity}\nISP: ${fixIsp}\nUsername: ${apiData.username}\nExp: ${expDate}\nLimit IP: ${vpnLimitIp}\n\nInfo selengkapnya cek di aplikasi.`;
             }
 
             let prodName = priceInfo.name || `${protocol.toUpperCase()} Premium Server ${serverKey}`;
@@ -3101,6 +3095,10 @@ async function executeVpnOrder(phone, protocol, serverKey, mode, vpnUsername, vp
 
             return { success: true };
         } else {
+            let errMsg = (resApi.data && resApi.data.message) ? resApi.data.message.toLowerCase() : "";
+            if(errMsg.includes('exist') || errMsg.includes('already') || errMsg.includes('sudah ada')) {
+                return { success: false, message: "Username sudah ada/terpakai, silakan ganti username lain." };
+            }
             return { success: false, message: "Gagal membuat akun di Server VPN." };
         }
     } catch(e) {
@@ -3189,7 +3187,9 @@ async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
         hist.type = 'Refund';
         hist.amount = vpnData.harga_asli;
         saveJSON(dbFile, db);
-        sendTelegramAdmin(`⚠️ <b>INFO ORDER VPN QRIS: GAGAL VPS</b>\n\nRef: ${refIdAsal}\n💰 Saldo Rp ${vpnData.harga_asli.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.`);
+        
+        let failMsg = result.message || "GAGAL VPS";
+        sendTelegramAdmin(`⚠️ <b>INFO ORDER VPN QRIS: GAGAL VPS</b>\n\nRef: ${refIdAsal}\nAlasan: ${failMsg}\n💰 Saldo Rp ${vpnData.harga_asli.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.`);
     }
 }
 
@@ -3399,11 +3399,14 @@ async function startBot() {
                                     hist.saldo_sebelumnya = saldoSebelumnya;
                                     hist.saldo_sesudah = db[req.phone].saldo;
                                 }
-                                changedDb = true;
                                 let teleMsg = `✅ <b>TOPUP QRIS SUKSES MASUK</b>\n\n👤 Akun: ${db[req.phone].username || req.phone}\n💰 Saldo Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}`;
                                 sendTelegramAdmin(teleMsg);
                             }
                             
+                            // FIX: Kita simpan DB di sini, sehingga prosesAutoOrderVPN membaca Saldo yang baru masuk!
+                            saveJSON(dbFile, db);
+                            changedDb = false; 
+
                             if (req.is_order) {
                                 if(req.vpn_data) {
                                     prosesAutoOrderVPN(req.phone, req.vpn_data, req.trx_id);
@@ -4710,22 +4713,28 @@ menu_manajemen_vpn() {
         case $vpn_choice in
             1)
                 echo -e "\n${C_MAG}--- ATUR KONEKSI SERVER ID ---${C_RST}"
+                read -p "Masukkan Nama Server VPN (Misal: VIP Indonesia): " srv_name
                 read -p "Masukkan Hostname / IP Server: " srv_host
                 read -p "Masukkan Port Server (Biarkan kosong jika default): " srv_port
                 read -p "Masukkan Username VPS: " srv_user
                 read -p "Masukkan Password VPS: " srv_pass
                 read -p "Masukkan API Key VPN: " srv_api
+                read -p "Masukkan Nama ISP Server (Tampil di Detail Akun): " srv_isp
+                read -p "Masukkan Nama Kota/City Server: " srv_city
                 
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let vpnDb = crypt.load('vpn_config.json');
                     if(!vpnDb.servers) vpnDb.servers = {};
                     vpnDb.servers['ID'] = {
+                        server_name: '$srv_name',
                         host: '$srv_host',
                         port: '$srv_port',
                         user: '$srv_user',
                         pass: '$srv_pass',
-                        api_key: '$srv_api'
+                        api_key: '$srv_api',
+                        isp: '$srv_isp',
+                        city: '$srv_city'
                     };
                     crypt.save('vpn_config.json', vpnDb);
                     console.log('\x1b[32m\n✅ Konfigurasi Server ID berhasil disimpan!\x1b[0m');
@@ -4734,22 +4743,28 @@ menu_manajemen_vpn() {
                 ;;
             2)
                 echo -e "\n${C_MAG}--- ATUR KONEKSI SERVER SG ---${C_RST}"
+                read -p "Masukkan Nama Server VPN (Misal: VIP Singapura): " srv_name
                 read -p "Masukkan Hostname / IP Server: " srv_host
                 read -p "Masukkan Port Server (Biarkan kosong jika default): " srv_port
                 read -p "Masukkan Username VPS: " srv_user
                 read -p "Masukkan Password VPS: " srv_pass
                 read -p "Masukkan API Key VPN: " srv_api
+                read -p "Masukkan Nama ISP Server (Tampil di Detail Akun): " srv_isp
+                read -p "Masukkan Nama Kota/City Server: " srv_city
                 
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let vpnDb = crypt.load('vpn_config.json');
                     if(!vpnDb.servers) vpnDb.servers = {};
                     vpnDb.servers['SG'] = {
+                        server_name: '$srv_name',
                         host: '$srv_host',
                         port: '$srv_port',
                         user: '$srv_user',
                         pass: '$srv_pass',
-                        api_key: '$srv_api'
+                        api_key: '$srv_api',
+                        isp: '$srv_isp',
+                        city: '$srv_city'
                     };
                     crypt.save('vpn_config.json', vpnDb);
                     console.log('\x1b[32m\n✅ Konfigurasi Server SG berhasil disimpan!\x1b[0m');
