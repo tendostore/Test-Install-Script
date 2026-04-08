@@ -753,7 +753,7 @@ EOF
 
             <div class="grid-title">Layanan Produk VPN Premium</div>
             <div class="grid-container" id="vpn-grid-container">
-                <div style="text-align:center; grid-column: 1 / -1; font-size:12px; color:var(--text-muted);">Memuat server VPN...</div>
+                <div style="text-align:center; grid-column: 1 / -1; font-size:12px; color:var(--text-muted);">Memuat protokol VPN...</div>
             </div>
 
             <div style="margin: 25px 20px 0; padding: 15px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer), var(--shadow-inner);">
@@ -1325,22 +1325,20 @@ EOF
             let container = document.getElementById('vpn-grid-container');
             if(!vpnConfigData || !vpnConfigData.servers) return;
 
+            let protocols = ['SSH', 'Vmess', 'Vless', 'Trojan', 'ZIVPN'];
             let html = '';
-            for(let srvKey in vpnConfigData.servers) {
-                let srv = vpnConfigData.servers[srvKey];
-                if(srv && srv.host) {
-                    let flag = srvKey === 'ID' ? '🇮🇩' : (srvKey === 'SG' ? '🇸🇬' : '🌐');
-                    let srvName = srv.server_name || ('Server ' + srvKey);
-                    html += `
-                    <div class="grid-box" onclick="openVPNProductList('${srvKey}')">
-                        <div class="grid-icon-wrap ic-vpn">
-                            <span style="font-size: 26px;">${flag}</span>
-                        </div>
-                        <div class="grid-text">${srvName}</div>
-                    </div>`;
-                }
-            }
-            if(html === '') html = '<div style="text-align:center; grid-column: 1 / -1; font-size:12px; color:var(--text-muted);">Belum ada server VPN tersedia.</div>';
+            protocols.forEach(proto => {
+                html += `
+                <div class="grid-box" onclick="openVPNServerSelection('${proto}')">
+                    <div class="grid-icon-wrap ic-vpn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                    </div>
+                    <div class="grid-text">${proto}</div>
+                </div>`;
+            });
+            if(html === '') html = '<div style="text-align:center; grid-column: 1 / -1; font-size:12px; color:var(--text-muted);">Belum ada produk VPN tersedia.</div>';
             container.innerHTML = html;
         }
 
@@ -2213,28 +2211,28 @@ EOF
             document.getElementById('m-vpn-price').innerText = 'Rp ' + finalPrice.toLocaleString('id-ID');
         }
 
-        function openVPNProductList(serverKey) {
-            let srv = vpnConfigData.servers[serverKey];
-            let srvName = srv.server_name || ('Server ' + serverKey);
-            document.getElementById('vpn-modal-title').innerText = "Layanan " + srvName;
+        function openVPNServerSelection(protocol) {
+            document.getElementById('vpn-modal-title').innerText = "Pilih Server " + protocol;
 
             let html = '';
-            let pricing = vpnConfigData.pricing[serverKey];
-            if(pricing) {
-                let protocols = ['SSH', 'Vmess', 'Vless', 'Trojan', 'ZIVPN'];
-                protocols.forEach(proto => {
-                    let pInfo = pricing[proto];
-                    if(pInfo) {
+            if(vpnConfigData && vpnConfigData.servers && vpnConfigData.pricing) {
+                for(let srvKey in vpnConfigData.servers) {
+                    let srv = vpnConfigData.servers[srvKey];
+                    let pInfo = vpnConfigData.pricing[srvKey] ? vpnConfigData.pricing[srvKey][protocol] : null;
+                    
+                    if(srv && srv.host && pInfo) {
+                        let srvName = srv.server_name || ('Server ' + srvKey);
+                        let flag = srvKey === 'ID' ? '🇮🇩 ' : (srvKey === 'SG' ? '🇸🇬 ' : '🌐 ');
                         let price = pInfo.price || 0;
                         let desc = pInfo.desc || 'Proses Otomatis';
-                        let customName = pInfo.name || `${proto} Premium`;
+                        let customName = pInfo.name || `${protocol} Premium`;
                         let safeDesc = desc.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                         let safeName = customName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
                         html += `
-                        <div class="vpn-server-item" onclick="openVPNOrderModal('${serverKey}', '${proto}', ${price}, '${safeDesc}', '${safeName}')">
+                        <div class="vpn-server-item" onclick="openVPNOrderModal('${srvKey}', '${protocol}', ${price}, '${safeDesc}', '${safeName}')">
                             <div class="vpn-server-info">
-                                <div class="vpn-server-name">${customName}</div>
+                                <div class="vpn-server-name">${flag} ${srvName}</div>
                                 <div class="vpn-server-price">Rp ${price.toLocaleString('id-ID')} / 30 Hari</div>
                             </div>
                             <div>
@@ -2242,10 +2240,10 @@ EOF
                             </div>
                         </div>`;
                     }
-                });
+                }
             }
 
-            if(html === '') html = '<div style="text-align:center; font-size:12px; color:var(--text-muted); margin-top:10px;">Belum ada produk di server ini.</div>';
+            if(html === '') html = '<div style="text-align:center; font-size:12px; color:var(--text-muted); margin-top:10px;">Belum ada server diatur untuk protokol ini.</div>';
 
             document.getElementById('vpn-server-list').innerHTML = html;
             document.getElementById('vpn-server-modal').classList.remove('hidden');
