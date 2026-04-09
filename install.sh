@@ -977,9 +977,9 @@ EOF
                 </div>
 
                 <div id="vpn-input-container">
-                    <div style="font-size:10px; color:#ef4444; font-weight:bold; margin-bottom:5px; text-align:left;">⚠️ WAJIB: Gunakan huruf kecil semua tanpa spasi!</div>
-                    <input type="text" id="m-vpn-username" placeholder="Buat Username VPN" style="text-align:center; font-size: 14px; font-weight: bold; margin-bottom: 10px;" oninput="this.value = this.value.toLowerCase().replace(/\s/g, '');">
-                    <input type="password" id="m-vpn-password" placeholder="Buat Password (Jika perlu)" style="text-align:center; font-size: 14px; font-weight: bold; margin-bottom: 10px;" class="hidden" oninput="this.value = this.value.toLowerCase().replace(/\s/g, '');">
+                    <div style="font-size:10px; color:#ef4444; font-weight:bold; margin-bottom:5px; text-align:left;">⚠️ WAJIB: Huruf kecil tanpa spasi (4-17 Karakter)!</div>
+                    <input type="text" id="m-vpn-username" placeholder="Buat Username VPN (4-17 Karakter)" maxlength="17" style="text-align:center; font-size: 14px; font-weight: bold; margin-bottom: 10px;" oninput="this.value = this.value.toLowerCase().replace(/\s/g, '');">
+                    <input type="password" id="m-vpn-password" placeholder="Buat Password (4-17 Karakter)" maxlength="17" style="text-align:center; font-size: 14px; font-weight: bold; margin-bottom: 10px;" class="hidden" oninput="this.value = this.value.toLowerCase().replace(/\s/g, '');">
                 </div>
 
                 <div id="m-vpn-duration-wrap">
@@ -1330,6 +1330,22 @@ EOF
             let protocols = ['SSH', 'Vmess', 'Vless', 'Trojan', 'ZIVPN'];
             let html = '';
             protocols.forEach(proto => {
+                let isAvailable = false;
+                for(let pId in vpnConfigData.products) {
+                    let prod = vpnConfigData.products[pId];
+                    if(prod.protocol.toUpperCase() === proto.toUpperCase()) {
+                        let sId = prod.server_id;
+                        if(vpnConfigData.servers && vpnConfigData.servers[sId]) {
+                            isAvailable = true;
+                            break;
+                        }
+                    }
+                }
+                
+                let statusBadge = isAvailable 
+                    ? '<div style="font-size:9px; background:#dcfce7; color:#166534; padding:2px 5px; border-radius:4px; margin-top:5px; font-weight:800; border: 1px solid #bbf7d0;">Tersedia</div>' 
+                    : '<div style="font-size:9px; background:#fee2e2; color:#b91c1c; padding:2px 5px; border-radius:4px; margin-top:5px; font-weight:800; border: 1px solid #fca5a5;">Kosong</div>';
+
                 html += `
                 <div class="grid-box" onclick="loadVpnCategory('${proto}')">
                     <div class="grid-icon-wrap ic-vpn">
@@ -1338,6 +1354,7 @@ EOF
                         </svg>
                     </div>
                     <div class="grid-text">${proto}</div>
+                    ${statusBadge}
                 </div>`;
             });
             if(html === '') html = '<div style="text-align:center; grid-column: 1 / -1; font-size:12px; color:var(--text-muted);">Belum ada produk VPN tersedia.</div>';
@@ -1753,6 +1770,12 @@ EOF
                             if(h.status === 'Sukses' || h.status === 'Sukses Bayar') statClass = 'stat-Sukses';
                             if(h.status === 'Gagal' || h.status === 'Gagal (Kedaluwarsa)') statClass = 'stat-Gagal';
                             if(h.type === 'Refund' || h.status === 'Refund') statClass = 'stat-Refund';
+                            
+                            let displayTujuan = h.tujuan;
+                            if(h.type && h.type.includes('VPN') && h.tujuan !== 'Sistem') {
+                                displayTujuan = (h.tujuan.length > 2 ? h.tujuan.substring(0,2) + '***' : h.tujuan + '***');
+                            }
+                            
                             let safeH = JSON.stringify(h).replace(/"/g, '&quot;');
                             histHTML += `
                                 <div class="hist-item" onclick='openHistoryDetail(${safeH})'>
@@ -1761,7 +1784,7 @@ EOF
                                         <span style="max-width:65%;">${h.nama}</span>
                                         <span style="color:#0ea5e9; font-size:13px;">Rp ${h.amount ? h.amount.toLocaleString('id-ID') : '0'}</span>
                                     </div>
-                                    <div class="hist-target">Tujuan: ${h.tujuan}</div>
+                                    <div class="hist-target">Tujuan: ${displayTujuan}</div>
                                 </div>
                             `;
                         });
@@ -1800,7 +1823,13 @@ EOF
             document.getElementById('hd-status').innerText = h.status;
             document.getElementById('hd-name').innerText = h.nama;
             document.getElementById('hd-amount').innerText = h.amount ? 'Rp ' + h.amount.toLocaleString('id-ID') : '-';
-            document.getElementById('hd-target').innerText = h.tujuan;
+            
+            let displayTujuan = h.tujuan;
+            if(h.type && h.type.includes('VPN') && h.tujuan !== 'Sistem') {
+                displayTujuan = (h.tujuan.length > 2 ? h.tujuan.substring(0,2) + '***' : h.tujuan + '***');
+            }
+            document.getElementById('hd-target').innerText = displayTujuan;
+            
             document.getElementById('hd-sn').innerText = h.sn || '-';
             
             let btnComplain = document.getElementById('hd-complain-btn');
@@ -2379,9 +2408,9 @@ EOF
             let method = document.getElementById('m-vpn-payment').value;
 
             if(mode !== 'trial') {
-                if(!username) return showToast("Username VPN wajib diisi!", 'error');
-                if((selectedVPNProto.toUpperCase() === 'SSH' || selectedVPNProto.toUpperCase() === 'ZIVPN') && !password) {
-                    return showToast("Password VPN wajib diisi!", 'error');
+                if(!username || username.length < 4 || username.length > 17) return showToast("Username VPN harus 4-17 Karakter!", 'error');
+                if((selectedVPNProto.toUpperCase() === 'SSH' || selectedVPNProto.toUpperCase() === 'ZIVPN') && (!password || password.length < 4 || password.length > 17)) {
+                    return showToast("Password VPN harus 4-17 Karakter!", 'error');
                 }
                 if(!expired || parseInt(expired) < 1) return showToast("Masa aktif tidak valid!", 'error');
             }
@@ -2477,8 +2506,8 @@ const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('he
 function maskStringTarget(str) {
     if (!str) return '-';
     let s = str.toString().trim();
-    if (s.length <= 4) return s.substring(0, 2) + '***';
-    return s.substring(0, 4) + '***' + s.substring(s.length - 2);
+    // Sensor hanya memperlihatkan 2 karakter pertama sesuai permintaan
+    return s.substring(0, 2) + '***';
 }
 
 function cekPemeliharaan() {
@@ -3440,6 +3469,7 @@ async function startBot() {
         }
     }, 60000); 
 
+    // LOOP PENGECEKAN QRIS AGAR TIDAK PENDING (RELOAD DATABASE SETIAP KALI CEK)
     setInterval(async () => {
         try {
             let cfg = loadJSON(configFile); let topups = loadJSON(topupFile);
@@ -3451,10 +3481,15 @@ async function startBot() {
             );
             
             let responseStr = JSON.stringify(gopayRes.data);
-            let db = loadJSON(dbFile); let changedTp = false; let changedDb = false;
+            let changedTp = false;
 
             for(let key of pendingKeys) {
                 let req = topups[key];
+                
+                // MENGGUNAKAN RELOAD DB SECARA SPESIFIK AGAR TIDAK BENTROK
+                let db = loadJSON(dbFile); 
+                let changedDb = false;
+
                 if (Date.now() > req.expired_at) {
                     req.status = 'gagal'; changedTp = true;
                     if(db[req.phone]) {
@@ -3485,7 +3520,6 @@ async function startBot() {
                                 sendTelegramAdmin(teleMsg);
                             }
                             
-                            // FIX: Kita simpan DB di sini, sehingga prosesAutoOrderVPN membaca Saldo yang baru masuk!
                             saveJSON(dbFile, db);
                             changedDb = false; 
 
@@ -3499,9 +3533,9 @@ async function startBot() {
                         }
                     }
                 }
+                if(changedDb) saveJSON(dbFile, db);
             }
             if(changedTp) saveJSON(topupFile, topups);
-            if(changedDb) saveJSON(dbFile, db);
         } catch(e) {}
     }, 30000); 
 
