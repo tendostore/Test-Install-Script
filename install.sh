@@ -1179,6 +1179,8 @@ EOF
                 if(s.subcat_mode) loadSubCategoryInternal(s.cat, s.brand);
                 else loadCategoryInternal(s.cat);
             }
+            else if(s.screen === 'brand-vpn') loadVpnCategoryInternal(s.proto);
+            else if(s.screen === 'produk-vpn') loadVpnProductsListInternal(s.proto, s.serverId);
             else if(s.screen === 'produk-screen') loadProductsInternal(s.cat, s.brand, s.subcat);
             else if(s.screen === 'history-screen') showHistoryInternal(s.filter);
             else if(s.screen === 'profile-screen') showProfileInternal();
@@ -1329,7 +1331,7 @@ EOF
             let html = '';
             protocols.forEach(proto => {
                 html += `
-                <div class="grid-box" onclick="openVPNServerSelection('${proto}')">
+                <div class="grid-box" onclick="loadVpnCategory('${proto}')">
                     <div class="grid-icon-wrap ic-vpn">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
@@ -1341,6 +1343,88 @@ EOF
             if(html === '') html = '<div style="text-align:center; grid-column: 1 / -1; font-size:12px; color:var(--text-muted);">Belum ada produk VPN tersedia.</div>';
             container.innerHTML = html;
         }
+
+        // --- TAMBAHAN FITUR ALUR VPN SEPERTI PPOB ---
+        function loadVpnCategoryInternal(proto) {
+            document.getElementById('brand-cat-title').innerText = proto;
+            let serversMap = {};
+            if(vpnConfigData && vpnConfigData.products && vpnConfigData.servers) {
+                for(let pId in vpnConfigData.products) {
+                    let prod = vpnConfigData.products[pId];
+                    if(prod.protocol.toUpperCase() === proto.toUpperCase()) {
+                        let sId = prod.server_id;
+                        if(!serversMap[sId]) {
+                            let srv = vpnConfigData.servers[sId];
+                            if(srv && srv.host) {
+                                let srvName = srv.server_name || sId;
+                                let flag = (srv.city && srv.city.toLowerCase().includes('sg')) ? '🇸🇬' : ((srv.city && srv.city.toLowerCase().includes('id')) ? '🇮🇩' : '🌐');
+                                serversMap[sId] = { name: srvName, flag: flag };
+                            }
+                        }
+                    }
+                }
+            }
+
+            let html = '';
+            for(let sId in serversMap) {
+                let s = serversMap[sId];
+                html += `
+                <div class="brand-row" onclick="loadVpnProductsList('${proto}', '${sId}')">
+                    <div class="b-logo">${s.flag}</div>
+                    <div class="b-name">Server ${s.name}</div>
+                    <div style="margin-left:auto">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                </div>`;
+            }
+
+            if(html === '') html = '<div style="text-align:center; padding:30px; font-weight:bold; color:var(--text-muted);">Belum ada server untuk protokol ini.</div>';
+            document.getElementById('brand-list').innerHTML = html;
+            showScreen('brand-screen', 'nav-home');
+        }
+        function loadVpnCategory(proto) { pushState({screen: 'brand-vpn', proto: proto}); loadVpnCategoryInternal(proto); }
+
+        function loadVpnProductsListInternal(proto, serverId) {
+            let srv = vpnConfigData.servers[serverId];
+            let srvName = srv ? (srv.server_name || serverId) : serverId;
+            document.getElementById('cat-title-text').innerText = "Server " + srvName;
+            document.getElementById('search-product').value = '';
+
+            let html = '';
+            if(vpnConfigData && vpnConfigData.products) {
+                for(let pId in vpnConfigData.products) {
+                    let prod = vpnConfigData.products[pId];
+                    if(prod.protocol.toUpperCase() === proto.toUpperCase() && prod.server_id === serverId) {
+                        let price = prod.price || 0;
+                        let stok = prod.stok !== undefined ? parseInt(prod.stok) : 0;
+                        let desc = prod.desc || 'Proses Otomatis';
+                        let customName = prod.name || `${proto} Premium`;
+                        let safeDesc = desc.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                        let safeName = customName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                        let statusBadge = stok > 0 ? '<span class="badge-open" style="background:#dcfce7; color:#166534; border-color:#bbf7d0;">STOK: '+stok+'</span>' : '<span style="background:#fee2e2; color:#b91c1c; font-size:9px; padding:2px 6px; border-radius:4px; font-weight:800; border:1px solid #fca5a5; flex-shrink:0; margin-left:8px;">HABIS</span>';
+
+                        let onClickAction = stok > 0 ? `openVPNOrderModal('${pId}', '${proto}', ${price}, '${safeDesc}', '${safeName}')` : `showToast('Maaf, stok produk ini sedang habis.', 'error')`;
+
+                        let initial = proto.substring(0,2).toUpperCase();
+
+                        html += `
+                        <div class="product-item" onclick="${onClickAction}">
+                            <div class="prod-logo">${initial}</div>
+                            <div class="prod-info">
+                                <div class="prod-name">${customName} ${statusBadge}</div>
+                                <div class="prod-desc">${desc.substring(0,40)}...</div>
+                                <div class="prod-price">Rp ${price.toLocaleString('id-ID')}</div>
+                            </div>
+                        </div>`;
+                    }
+                }
+            }
+
+            document.getElementById('product-list').innerHTML = html || '<div style="text-align:center; padding:30px; font-weight:bold; color:var(--text-muted);">KOSONG</div>';
+            showScreen('produk-screen', 'nav-home');
+        }
+        function loadVpnProductsList(proto, serverId) { pushState({screen: 'produk-vpn', proto: proto, serverId: serverId}); loadVpnProductsListInternal(proto, serverId); }
 
         async function loadBanners() {
             try {
