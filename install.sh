@@ -16,7 +16,7 @@ sudo apt install -y nodejs
 # 3. Install PM2 secara global untuk menjaga server tetap hidup di VPS
 sudo npm install -y pm2 -g
 
-# 4. Buat direktori proyek toko tas (Akan menimpa/membuat ulang jika belum ada)
+# 4. Buat direktori proyek toko tas
 mkdir -p /var/www/tokotas
 cd /var/www/tokotas
 
@@ -60,7 +60,7 @@ const path = require('path');
 const { exec } = require('child_process');
 
 const app = express();
-const port = 80; // Berjalan di port 80 agar bisa diakses langsung via IP VPS
+const port = 80;
 
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
@@ -77,7 +77,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// Rute: Halaman Utama Toko Tas (Frontend)
+// Rute: Halaman Utama Toko Tas (Frontend - BERSIH DARI MENU UNINSTALL)
 app.get('/', (req, res) => {
   db.all("SELECT * FROM products ORDER BY id DESC", [], (err, rows) => {
     if (err) throw err;
@@ -85,7 +85,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// Rute: Panel Admin VPS (Manajemen Produk)
+// Rute: Panel Admin VPS (Manajemen Produk & Uninstall)
 app.get('/vps-panel', (req, res) => {
   db.all("SELECT * FROM products ORDER BY id DESC", [], (err, rows) => {
     if (err) throw err;
@@ -93,7 +93,7 @@ app.get('/vps-panel', (req, res) => {
   });
 });
 
-// Aksi: Tambah Produk Tas Baru dari VPS Panel
+// Aksi: Tambah Produk
 app.post('/vps-panel/add', upload.single('image'), (req, res) => {
   const { name, price, description } = req.body;
   const imageUrl = req.file ? '/uploads/' + req.file.filename : '/uploads/default.jpg';
@@ -106,7 +106,7 @@ app.post('/vps-panel/add', upload.single('image'), (req, res) => {
   });
 });
 
-// Aksi: Hapus Produk Tas
+// Aksi: Hapus Produk
 app.post('/vps-panel/delete/:id', (req, res) => {
   db.run("DELETE FROM products WHERE id = ?", req.params.id, (err) => {
     if (err) throw err;
@@ -114,31 +114,29 @@ app.post('/vps-panel/delete/:id', (req, res) => {
   });
 });
 
-// Aksi: UNINSTALL & RESET SISTEM
+// Aksi: UNINSTALL & RESET SISTEM (HANYA ADA DI PANEL VPS)
 app.post('/vps-panel/uninstall', (req, res) => {
   res.send(`
     <html>
       <body style="font-family: sans-serif; text-align: center; padding: 50px; background: #ecf0f1;">
-        <h1 style="color: #c0392b;">Proses Uninstall Dimulai!</h1>
-        <p>Sistem sedang menghapus data, database, dan mematikan server VPS.</p>
-        <p>Website ini akan mati dalam beberapa detik. Silakan jalankan script instalasi baru dari GitHub Anda melalui terminal VPS.</p>
+        <h1 style="color: #c0392b;">Uninstall Berhasil!</h1>
+        <p>Sistem telah dihapus dari direktori /var/www/tokotas.</p>
+        <p>Proses PM2 telah dihentikan. VPS sekarang bersih dan siap untuk instalasi baru.</p>
       </body>
     </html>
   `);
   
-  // Memberikan jeda 2 detik agar halaman di atas sempat dimuat oleh browser sebelum server bunuh diri
   setTimeout(() => {
-    console.log("Mengeksekusi perintah uninstall...");
+    console.log("Mengeksekusi pembersihan sistem...");
     exec('pm2 delete tokotas && rm -rf /var/www/tokotas', (error, stdout, stderr) => {
       if (error) {
-        console.error(`Error saat uninstall: ${error.message}`);
+        console.error(`Error: ${error.message}`);
         return;
       }
     });
   }, 2000);
 });
 
-// Jalankan Server
 app.listen(port, () => {
   console.log(`Server toko berjalan pada port ${port}`);
 });
@@ -151,42 +149,35 @@ cat << 'EOF' > views/index.ejs
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Toko Tas Elegan</title>
+  <title>Katalog Tas Online</title>
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; margin: 0; padding: 0; }
-    .header { background: #2c3e50; color: white; text-align: center; padding: 40px 20px; margin-bottom: 30px; }
-    .header h1 { margin: 0; font-size: 2.5em; }
-    .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
-    .grid { display: flex; flex-wrap: wrap; gap: 25px; justify-content: center; padding-bottom: 50px; }
-    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); width: 280px; text-align: center; transition: transform 0.3s ease; }
-    .card:hover { transform: translateY(-5px); }
-    .card img { max-width: 100%; height: 220px; object-fit: cover; border-radius: 8px; margin-bottom: 15px; }
-    .card h3 { margin: 0 0 10px 0; color: #333; font-size: 1.2em; }
-    .desc { color: #7f8c8d; font-size: 0.9em; margin-bottom: 15px; height: 60px; overflow: hidden; }
-    .price { color: #e67e22; font-weight: bold; font-size: 1.4em; margin-bottom: 15px; }
-    .buy-btn { background: #27ae60; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; font-weight: bold; width: 100%; box-sizing: border-box; }
-    .buy-btn:hover { background: #2ecc71; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; margin: 0; padding: 0; }
+    .nav { background: #2c3e50; color: white; padding: 20px; text-align: center; }
+    .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
+    .product-grid { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+    .product-card { background: white; width: 250px; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .product-card img { width: 100%; height: 200px; object-fit: cover; }
+    .product-info { padding: 15px; text-align: center; }
+    .product-info h3 { margin: 10px 0; color: #333; }
+    .price { color: #e67e22; font-size: 1.2em; font-weight: bold; }
+    .wa-btn { display: block; background: #25d366; color: white; text-decoration: none; padding: 10px; border-radius: 5px; margin-top: 10px; font-weight: bold; }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>Toko Tas Elegan</h1>
-    <p>Koleksi tas pria dan wanita kualitas premium</p>
+  <div class="nav">
+    <h1>Toko Tas Online</h1>
   </div>
-  
   <div class="container">
-    <div class="grid">
-      <% if (products.length === 0) { %>
-        <p style="text-align:center; width:100%; color:#7f8c8d;">Belum ada tas yang dijual. Silakan tambahkan dari Panel VPS.</p>
-      <% } %>
-      
+    <div class="product-grid">
       <% products.forEach(function(product) { %>
-        <div class="card">
-          <img src="<%= product.image_url %>" alt="<%= product.name %>">
-          <h3><%= product.name %></h3>
-          <p class="desc"><%= product.description %></p>
-          <div class="price">Rp <%= parseInt(product.price).toLocaleString('id-ID') %></div>
-          <a href="https://wa.me/6281234567890?text=Halo,%20saya%20tertarik%20membeli%20<%= encodeURIComponent(product.name) %>" class="buy-btn">Beli via WhatsApp</a>
+        <div class="product-card">
+          <img src="<%= product.image_url %>">
+          <div class="product-info">
+            <h3><%= product.name %></h3>
+            <p style="font-size: 0.9em; color: #666;"><%= product.description %></p>
+            <div class="price">Rp <%= parseInt(product.price).toLocaleString('id-ID') %></div>
+            <a href="https://wa.me/6281234567890?text=Halo,%20saya%20mau%20beli%20<%= encodeURIComponent(product.name) %>" class="wa-btn">Order via WA</a>
+          </div>
         </div>
       <% }); %>
     </div>
@@ -204,108 +195,70 @@ cat << 'EOF' > views/admin.ejs
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Panel Manajemen VPS</title>
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #ecf0f1; margin: 0; padding: 20px; }
-    .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    h1, h3 { color: #2c3e50; }
+    body { font-family: 'Segoe UI', sans-serif; background: #ecf0f1; padding: 20px; }
+    .panel { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+    h2 { border-bottom: 2px solid #3498db; padding-bottom: 10px; color: #2c3e50; }
     .form-group { margin-bottom: 15px; }
-    label { display: block; margin-bottom: 5px; font-weight: bold; color: #34495e; }
-    input[type="text"], input[type="number"], textarea, input[type="file"] { width: 100%; padding: 12px; border: 1px solid #bdc3c7; border-radius: 6px; box-sizing: border-box; }
-    textarea { resize: vertical; height: 100px; }
-    .btn-submit { background: #3498db; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 1em; font-weight: bold; }
-    .btn-submit:hover { background: #2980b9; }
+    input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+    .btn-add { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { padding: 15px; border-bottom: 1px solid #ecf0f1; text-align: left; }
-    th { background: #34495e; color: white; }
-    .delete-btn { background: #e74c3c; padding: 8px 12px; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    .delete-btn:hover { background: #c0392b; }
-    .link-store { display: inline-block; margin-top: 20px; color: #16a085; text-decoration: none; font-weight: bold; }
-    .danger-zone { margin-top: 50px; padding: 20px; border: 2px dashed #e74c3c; border-radius: 8px; background: #fadbd8; }
-    .btn-danger { background: #c0392b; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 1em; font-weight: bold; width: 100%; }
-    .btn-danger:hover { background: #a93226; }
+    th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+    .btn-delete { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+    .danger-zone { margin-top: 50px; background: #fdf2f2; border: 2px dashed #e74c3c; padding: 20px; border-radius: 10px; }
+    .btn-uninstall { background: #c0392b; color: white; border: none; width: 100%; padding: 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 1.1em; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Panel Manajemen VPS - Toko Tas</h1>
-    <hr>
-    
-    <h3>Tambah Stok Tas Baru</h3>
+  <div class="panel">
+    <h2>Manajemen Produk Tas</h2>
     <form action="/vps-panel/add" method="POST" enctype="multipart/form-data">
-      <div class="form-group">
-        <label>Nama Tas:</label>
-        <input type="text" name="name" placeholder="Misal: Tas Selempang Canvas" required>
-      </div>
-      <div class="form-group">
-        <label>Harga (Hanya Angka):</label>
-        <input type="number" name="price" placeholder="Misal: 150000" required>
-      </div>
-      <div class="form-group">
-        <label>Deskripsi:</label>
-        <textarea name="description" placeholder="Jelaskan bahan, ukuran, dan keunggulan tas ini..." required></textarea>
-      </div>
-      <div class="form-group">
-        <label>Upload Foto Tas:</label>
-        <input type="file" name="image" accept="image/*" required>
-      </div>
-      <button type="submit" class="btn-submit">+ Simpan Produk</button>
+      <div class="form-group"><input type="text" name="name" placeholder="Nama Tas" required></div>
+      <div class="form-group"><input type="number" name="price" placeholder="Harga (Contoh: 200000)" required></div>
+      <div class="form-group"><textarea name="description" placeholder="Deskripsi Singkat"></textarea></div>
+      <div class="form-group"><input type="file" name="image" required></div>
+      <button type="submit" class="btn-add">+ Simpan Tas Baru</button>
     </form>
 
-    <h3 style="margin-top:40px;">Daftar Produk Saat Ini</h3>
     <table>
       <tr>
-        <th>Foto</th>
-        <th>Nama Tas</th>
+        <th>Tas</th>
         <th>Harga</th>
         <th>Aksi</th>
       </tr>
       <% products.forEach(function(product) { %>
         <tr>
-          <td><img src="<%= product.image_url %>" width="60" height="60" style="object-fit:cover; border-radius:4px;"></td>
-          <td><strong><%= product.name %></strong></td>
+          <td><%= product.name %></td>
           <td>Rp <%= parseInt(product.price).toLocaleString('id-ID') %></td>
           <td>
-            <form action="/vps-panel/delete/<%= product.id %>" method="POST" style="margin:0;">
-              <button type="submit" class="delete-btn">Hapus</button>
+            <form action="/vps-panel/delete/<%= product.id %>" method="POST">
+              <button type="submit" class="btn-delete">Hapus</button>
             </form>
           </td>
         </tr>
       <% }); %>
     </table>
-    
-    <a href="/" class="link-store">← Kembali Lihat Halaman Toko</a>
 
     <div class="danger-zone">
-      <h3 style="margin-top: 0; color: #c0392b;">Zona Berbahaya (Reset Sistem)</h3>
-      <p style="color: #7f8c8d;">Gunakan fitur ini <strong>HANYA</strong> jika Anda ingin mengupdate script dari GitHub. Tombol ini akan menghapus seluruh file website, gambar produk, dan database, lalu mematikan server agar Anda bisa menjalankan instalasi ulang tanpa rebuild VPS.</p>
-      
-      <form action="/vps-panel/uninstall" method="POST" onsubmit="return confirm('PERINGATAN KERAS!\n\nApakah Anda yakin ingin menghapus SEMUA script dan data toko ini?\nWebsite akan mati total setelah Anda menekan OK sampai Anda menginstallnya kembali dari terminal VPS.');">
-        <button type="submit" class="btn-danger">Uninstall & Reset Website Sekarang</button>
+      <h3 style="color: #c0392b; margin-top:0;">🔧 Panel Uninstall & Reset</h3>
+      <p style="font-size: 0.9em; color: #666;">Klik tombol di bawah untuk menghapus seluruh file website dan database. Gunakan ini jika Anda ingin melakukan update skrip dari GitHub tanpa perlu rebuild VPS.</p>
+      <form action="/vps-panel/uninstall" method="POST" onsubmit="return confirm('APAKAH ANDA YAKIN?\nSemua data produk dan file website akan terhapus permanen.');">
+        <button type="submit" class="btn-uninstall">Uninstall & Reset Website Sekarang</button>
       </form>
     </div>
-
   </div>
 </body>
 </html>
 EOF
 
-# 12. Menghentikan proses lama (jika ada) dan menjalankan server baru melalui PM2
-# pm2 delete digunakan agar jika script ini dijalankan ulang, port tidak tabrakan
+# 12. Menjalankan server
 sudo pm2 delete tokotas 2>/dev/null || true
 sudo pm2 start server.js --name "tokotas"
 sudo pm2 save
 sudo pm2 startup
 
-# 13. Selesai
 echo "================================================================"
-echo " INSTALASI SELESAI DENGAN SUKSES! "
+echo " UPDATE BERHASIL! "
 echo "================================================================"
-echo "Website toko tas kamu sudah berjalan."
-echo "Untuk mengaksesnya, buka browser dan ketik Alamat IP VPS kamu:"
-echo " "
-echo " -> Toko Utama         : http://[IP_VPS_KAMU]/"
-echo " -> Panel Manajemen VPS: http://[IP_VPS_KAMU]/vps-panel"
-echo " "
-echo "Ganti [IP_VPS_KAMU] dengan alamat IP server kamu yang asli."
-echo "Catatan: Jangan lupa edit nomor WhatsApp pada file views/index.ejs agar pesanan masuk ke nomor kamu!"
+echo "Halaman Toko: http://[IP_VPS]/"
+echo "Panel Manajemen & Uninstall: http://[IP_VPS]/vps-panel"
 echo "================================================================"
-
