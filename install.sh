@@ -50,14 +50,13 @@ EOF
 # Jalankan inisialisasi database
 node init_db.js
 
-# 9. Buat script utama server (server.js)
+# 9. Buat script utama server (server.js) - BERSIH DARI MENU UNINSTALL
 cat << 'EOF' > server.js
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
 const multer = require('multer');
 const path = require('path');
-const { exec } = require('child_process');
 
 const app = express();
 const port = 80;
@@ -77,7 +76,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// Rute: Halaman Utama Toko Tas (Frontend - BERSIH DARI MENU UNINSTALL)
+// Rute: Halaman Utama Toko Tas (Frontend)
 app.get('/', (req, res) => {
   db.all("SELECT * FROM products ORDER BY id DESC", [], (err, rows) => {
     if (err) throw err;
@@ -85,7 +84,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// Rute: Panel Admin VPS (Manajemen Produk & Uninstall)
+// Rute: Panel Admin VPS (Manajemen Produk)
 app.get('/vps-panel', (req, res) => {
   db.all("SELECT * FROM products ORDER BY id DESC", [], (err, rows) => {
     if (err) throw err;
@@ -114,29 +113,7 @@ app.post('/vps-panel/delete/:id', (req, res) => {
   });
 });
 
-// Aksi: UNINSTALL & RESET SISTEM (HANYA ADA DI PANEL VPS)
-app.post('/vps-panel/uninstall', (req, res) => {
-  res.send(`
-    <html>
-      <body style="font-family: sans-serif; text-align: center; padding: 50px; background: #ecf0f1;">
-        <h1 style="color: #c0392b;">Uninstall Berhasil!</h1>
-        <p>Sistem telah dihapus dari direktori /var/www/tokotas.</p>
-        <p>Proses PM2 telah dihentikan. VPS sekarang bersih dan siap untuk instalasi baru.</p>
-      </body>
-    </html>
-  `);
-  
-  setTimeout(() => {
-    console.log("Mengeksekusi pembersihan sistem...");
-    exec('pm2 delete tokotas && rm -rf /var/www/tokotas', (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error: ${error.message}`);
-        return;
-      }
-    });
-  }, 2000);
-});
-
+// Jalankan Server
 app.listen(port, () => {
   console.log(`Server toko berjalan pada port ${port}`);
 });
@@ -186,7 +163,7 @@ cat << 'EOF' > views/index.ejs
 </html>
 EOF
 
-# 11. Buat Tampilan Panel Admin VPS (views/admin.ejs)
+# 11. Buat Tampilan Panel Admin VPS (views/admin.ejs) - BERSIH DARI MENU UNINSTALL
 cat << 'EOF' > views/admin.ejs
 <!DOCTYPE html>
 <html lang="id">
@@ -204,8 +181,6 @@ cat << 'EOF' > views/admin.ejs
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
     .btn-delete { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
-    .danger-zone { margin-top: 50px; background: #fdf2f2; border: 2px dashed #e74c3c; padding: 20px; border-radius: 10px; }
-    .btn-uninstall { background: #c0392b; color: white; border: none; width: 100%; padding: 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 1.1em; }
   </style>
 </head>
 <body>
@@ -237,28 +212,104 @@ cat << 'EOF' > views/admin.ejs
         </tr>
       <% }); %>
     </table>
-
-    <div class="danger-zone">
-      <h3 style="color: #c0392b; margin-top:0;">🔧 Panel Uninstall & Reset</h3>
-      <p style="font-size: 0.9em; color: #666;">Klik tombol di bawah untuk menghapus seluruh file website dan database. Gunakan ini jika Anda ingin melakukan update skrip dari GitHub tanpa perlu rebuild VPS.</p>
-      <form action="/vps-panel/uninstall" method="POST" onsubmit="return confirm('APAKAH ANDA YAKIN?\nSemua data produk dan file website akan terhapus permanen.');">
-        <button type="submit" class="btn-uninstall">Uninstall & Reset Website Sekarang</button>
-      </form>
-    </div>
+    <br>
+    <a href="/" style="color: #3498db; text-decoration: none; font-weight: bold;">← Kembali ke Toko</a>
   </div>
 </body>
 </html>
 EOF
 
-# 12. Menjalankan server
+# 12. MEMBUAT MENU COMMAND LINE DI TERMINAL VPS (toko)
+cat << 'EOF' > /usr/local/bin/toko
+#!/bin/bash
+clear
+echo "==================================================="
+echo "         MENU MANAJEMEN TOKO TAS (VPS CLI)         "
+echo "==================================================="
+echo "1. Backup Website & Database"
+echo "2. Restore Website & Database"
+echo "3. Uninstall & Reset Sistem"
+echo "4. Keluar"
+echo "==================================================="
+read -p "Pilih menu (1-4): " pilihan
+
+case $pilihan in
+  1)
+    echo ""
+    echo "Memproses Backup..."
+    TANGGAL=$(date +%Y%m%d_%H%M%S)
+    NAMA_BACKUP="/root/backup_tokotas_${TANGGAL}.tar.gz"
+    tar -czvf $NAMA_BACKUP -C /var/www tokotas
+    echo "==================================================="
+    echo "Backup Berhasil!"
+    echo "File tersimpan di: $NAMA_BACKUP"
+    echo "==================================================="
+    ;;
+  2)
+    echo ""
+    echo "Daftar Backup Tersedia di /root/ :"
+    ls -1 /root/backup_tokotas_*.tar.gz 2>/dev/null || echo "Belum ada file backup ditemukan."
+    echo ""
+    read -p "Masukkan NAMA FILE backup (contoh: backup_tokotas_2026...tar.gz) atau ketik 'batal': " file_restore
+    if [ "$file_restore" == "batal" ]; then
+      echo "Restore dibatalkan."
+    elif [ -f "/root/$file_restore" ]; then
+      echo "Memproses Restore..."
+      pm2 stop tokotas
+      rm -rf /var/www/tokotas
+      tar -xzvf /root/$file_restore -C /var/www
+      pm2 restart tokotas
+      echo "==================================================="
+      echo "Restore Berhasil! Website telah dipulihkan."
+      echo "==================================================="
+    else
+      echo "File tidak ditemukan! Pastikan nama file benar."
+    fi
+    ;;
+  3)
+    echo ""
+    echo "PERINGATAN BAHAYA!"
+    echo "Ini akan menghapus seluruh file website, gambar, dan database toko."
+    read -p "Ketik 'YAKIN' untuk melanjutkan uninstall: " konfirmasi
+    if [ "$konfirmasi" == "YAKIN" ]; then
+      echo "Menghapus sistem..."
+      pm2 delete tokotas 2>/dev/null || true
+      rm -rf /var/www/tokotas
+      echo "==================================================="
+      echo "Uninstall Selesai! VPS sekarang bersih."
+      echo "Silakan jalankan script instalasi GitHub lagi jika ingin memasang ulang."
+      echo "==================================================="
+    else
+      echo "Uninstall dibatalkan."
+    fi
+    ;;
+  4)
+    echo "Keluar dari menu."
+    ;;
+  *)
+    echo "Pilihan tidak valid!"
+    ;;
+esac
+EOF
+
+# Berikan akses eksekusi agar command 'toko' bisa dijalankan
+sudo chmod +x /usr/local/bin/toko
+
+# 13. Menjalankan server
 sudo pm2 delete tokotas 2>/dev/null || true
 sudo pm2 start server.js --name "tokotas"
 sudo pm2 save
 sudo pm2 startup
 
 echo "================================================================"
-echo " UPDATE BERHASIL! "
+echo " INSTALASI & UPDATE BERHASIL! "
 echo "================================================================"
 echo "Halaman Toko: http://[IP_VPS]/"
-echo "Panel Manajemen & Uninstall: http://[IP_VPS]/vps-panel"
+echo "Panel Tambah Produk: http://[IP_VPS]/vps-panel"
+echo " "
+echo ">>> CARA BUKA MENU TERMINAL (BACKUP/RESTORE/UNINSTALL) <<<"
+echo "Ketik perintah ini di layar terminal VPS kamu lalu tekan Enter:"
+echo " "
+echo "toko"
+echo " "
 echo "================================================================"
