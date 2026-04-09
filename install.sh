@@ -4939,7 +4939,7 @@ submenu_produk_vpn() {
                 read -p "Buat/Masukkan ID Produk (Unik, misal: p1 atau SSH-VIP): " prod_id
                 if [ -z "$prod_id" ]; then echo "Batal."; sleep 1; continue; fi
 
-                echo -e "\nPilih Protokol:"
+                echo -e "\nPilih Protokol (KOSONGKAN jika edit & tidak ingin diubah):"
                 echo -e "  [1] SSH\n  [2] Vmess\n  [3] Vless\n  [4] Trojan\n  [5] ZIVPN"
                 read -p "Pilihan [1-5]: " proto_opt
                 target_proto=""
@@ -4949,7 +4949,7 @@ submenu_produk_vpn() {
                     3) target_proto="Vless" ;;
                     4) target_proto="Trojan" ;;
                     5) target_proto="ZIVPN" ;;
-                    *) echo "Batal."; sleep 1; continue ;;
+                    *) target_proto="" ;;
                 esac
 
                 echo -e "\nServer Tersedia:"
@@ -4959,8 +4959,9 @@ submenu_produk_vpn() {
                     let servers = vpnDb.servers || {};
                     for(let id in servers) console.log('  - ' + id + ' (' + servers[id].server_name + ')');
                 "
-                read -p "Ketik ID Server yang ingin dihubungkan (contoh: srv1): " srv_id_target
+                read -p "Ketik ID Server target (Kosongkan jika edit & tidak ingin diubah): " srv_id_target
                 
+                echo -e "\n${C_MAG}*Catatan: Jika sedang mengedit produk, KOSONGKAN isian jika tidak ingin mengubah data lama.${C_RST}"
                 read -p "Nama Layanan (Misal: SSH Premium SG VIP): " p_nama
                 read -p "Harga Patokan 30 Hari (Rp): " p_harga
                 read -p "Limit IP (contoh: 2): " p_limitip
@@ -4968,29 +4969,27 @@ submenu_produk_vpn() {
                 read -p "Jumlah Stok Awal: " p_stok
                 read -p "Deskripsi / Fitur Singkat: " p_desc
                 
-                if [[ "$p_harga" =~ ^[0-9]+$ ]]; then
-                    node -e "
-                        const crypt = require('./tendo_crypt.js');
-                        let vpnDb = crypt.load('vpn_config.json');
-                        if(!vpnDb.products) vpnDb.products = {};
-                        
-                        vpnDb.products['$prod_id'] = {
-                            protocol: '$target_proto',
-                            server_id: '$srv_id_target',
-                            name: '$p_nama',
-                            price: parseInt('$p_harga'),
-                            desc: '$p_desc',
-                            limit_ip: parseInt('$p_limitip') || 2,
-                            kuota: parseInt('$p_kuota') || 200,
-                            stok: parseInt('$p_stok') || 0
-                        };
-                        
-                        crypt.save('vpn_config.json', vpnDb);
-                        console.log('\x1b[32m\n✅ Produk VPN ($prod_id) berhasil disimpan dan terhubung ke Server ($srv_id_target)!\x1b[0m');
-                    "
-                else
-                    echo -e "${C_RED}❌ Harga harus berupa angka!${C_RST}"
-                fi
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let vpnDb = crypt.load('vpn_config.json');
+                    if(!vpnDb.products) vpnDb.products = {};
+                    
+                    let existing = vpnDb.products['$prod_id'] || {};
+                    
+                    vpnDb.products['$prod_id'] = {
+                        protocol: '$target_proto' !== '' ? '$target_proto' : (existing.protocol || 'SSH'),
+                        server_id: '$srv_id_target' !== '' ? '$srv_id_target' : (existing.server_id || ''),
+                        name: '$p_nama' !== '' ? '$p_nama' : (existing.name || 'VPN Premium'),
+                        price: '$p_harga' !== '' ? parseInt('$p_harga') : (existing.price || 0),
+                        desc: '$p_desc' !== '' ? '$p_desc' : (existing.desc || 'Proses Otomatis'),
+                        limit_ip: '$p_limitip' !== '' ? parseInt('$p_limitip') : (existing.limit_ip || 2),
+                        kuota: '$p_kuota' !== '' ? parseInt('$p_kuota') : (existing.kuota || 200),
+                        stok: '$p_stok' !== '' ? parseInt('$p_stok') : (existing.stok || 0)
+                    };
+                    
+                    crypt.save('vpn_config.json', vpnDb);
+                    console.log('\x1b[32m\n✅ Produk VPN ($prod_id) berhasil disimpan/diupdate dan terhubung ke Server!\x1b[0m');
+                "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
