@@ -50,7 +50,7 @@ EOF
 # Jalankan inisialisasi database
 node init_db.js
 
-# 9. Buat script utama server (server.js) - BERSIH DARI MENU UNINSTALL
+# 9. Buat script utama server (server.js)
 cat << 'EOF' > server.js
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
@@ -126,44 +126,111 @@ cat << 'EOF' > views/index.ejs
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Katalog Tas Online</title>
+  <title>Katalog Toko Online</title>
   <style>
     body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; margin: 0; padding: 0; }
-    .nav { background: #2c3e50; color: white; padding: 20px; text-align: center; }
-    .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
-    .product-grid { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
-    .product-card { background: white; width: 250px; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    .product-card img { width: 100%; height: 200px; object-fit: cover; }
-    .product-info { padding: 15px; text-align: center; }
-    .product-info h3 { margin: 10px 0; color: #333; }
-    .price { color: #e67e22; font-size: 1.2em; font-weight: bold; }
-    .wa-btn { display: block; background: #25d366; color: white; text-decoration: none; padding: 10px; border-radius: 5px; margin-top: 10px; font-weight: bold; }
+    
+    /* Navigasi Atas */
+    .nav { background: #2c3e50; color: white; padding: 20px; text-align: center; position: relative; }
+    .nav h1 { margin: 0; font-size: 2em; }
+    
+    /* Tombol Garis Tiga (Hamburger Menu) */
+    .menu-btn { font-size: 30px; cursor: pointer; position: absolute; left: 20px; top: 15px; color: white; user-select: none; }
+    
+    /* Sidebar Menu Kiri */
+    .sidebar { height: 100%; width: 0; position: fixed; z-index: 100; top: 0; left: 0; background-color: #1a252f; overflow-x: hidden; transition: 0.3s; padding-top: 60px; box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
+    .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 1.2em; color: #bdc3c7; display: block; transition: 0.2s; border-bottom: 1px solid #2c3e50; }
+    .sidebar a:hover { color: #ffffff; background-color: #34495e; }
+    .sidebar .closebtn { position: absolute; top: 10px; right: 25px; font-size: 36px; padding: 0; border: none; background: none; margin-left: 50px; }
+
+    .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+    
+    /* Kategori Tas, Sepatu, Baju */
+    .categories { text-align: center; margin-bottom: 40px; }
+    .categories h2 { color: #2c3e50; margin-bottom: 15px; font-size: 1.5em; }
+    .cat-badges { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+    .badge { background: #3498db; color: white; padding: 10px 30px; border-radius: 25px; font-weight: bold; text-decoration: none; font-size: 1.1em; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .badge:hover { background: #2980b9; transform: translateY(-2px); }
+
+    /* Product Grid: 3 Menyamping */
+    .product-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; }
+    
+    /* Jika layar mengecil (HP/Tablet) ukurannya menyesuaikan */
+    @media (max-width: 900px) { .product-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .product-grid { grid-template-columns: 1fr; } }
+    
+    /* Desain Kartu Produk */
+    .product-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.08); display: flex; flex-direction: column; transition: transform 0.3s ease; }
+    .product-card:hover { transform: translateY(-5px); }
+    .product-card img { width: 100%; height: 250px; object-fit: cover; }
+    .product-info { padding: 20px; text-align: center; display: flex; flex-direction: column; flex-grow: 1; }
+    .product-info h3 { margin: 0 0 10px 0; color: #333; font-size: 1.3em; }
+    .desc { font-size: 0.9em; color: #7f8c8d; flex-grow: 1; margin-bottom: 15px; }
+    .price { color: #e67e22; font-size: 1.4em; font-weight: bold; }
+    .wa-btn { display: block; background: #25d366; color: white; text-decoration: none; padding: 12px; border-radius: 8px; margin-top: 15px; font-weight: bold; transition: 0.2s; }
+    .wa-btn:hover { background: #20b858; }
   </style>
 </head>
 <body>
-  <div class="nav">
-    <h1>Toko Tas Online</h1>
+
+  <div id="mySidebar" class="sidebar">
+    <a href="javascript:void(0)" class="closebtn" onclick="toggleMenu()">&times;</a>
+    <a href="/">🏠 Beranda</a>
+    <a href="#">👜 Tas</a>
+    <a href="#">👟 Sepatu</a>
+    <a href="#">👕 Baju</a>
+    <a href="#">📞 Hubungi Kami</a>
   </div>
+
+  <div class="nav">
+    <div class="menu-btn" onclick="toggleMenu()">&#9776;</div>
+    <h1>Toko Online Kekinian</h1>
+  </div>
+  
   <div class="container">
+    <div class="categories">
+      <h2>Kategori Belanja:</h2>
+      <div class="cat-badges">
+        <span class="badge">Tas</span>
+        <span class="badge">Sepatu</span>
+        <span class="badge">Baju</span>
+      </div>
+    </div>
+
     <div class="product-grid">
+      <% if (products.length === 0) { %>
+        <p style="text-align:center; grid-column: 1 / -1; color:#7f8c8d; font-size: 1.2em;">Belum ada produk yang dijual. Silakan tambahkan lewat Panel VPS.</p>
+      <% } %>
+      
       <% products.forEach(function(product) { %>
         <div class="product-card">
-          <img src="<%= product.image_url %>">
+          <img src="<%= product.image_url %>" alt="<%= product.name %>">
           <div class="product-info">
             <h3><%= product.name %></h3>
-            <p style="font-size: 0.9em; color: #666;"><%= product.description %></p>
+            <p class="desc"><%= product.description %></p>
             <div class="price">Rp <%= parseInt(product.price).toLocaleString('id-ID') %></div>
-            <a href="https://wa.me/6281234567890?text=Halo,%20saya%20mau%20beli%20<%= encodeURIComponent(product.name) %>" class="wa-btn">Order via WA</a>
+            <a href="https://wa.me/6281234567890?text=Halo,%20saya%20mau%20beli%20<%= encodeURIComponent(product.name) %>" class="wa-btn">Order via WhatsApp</a>
           </div>
         </div>
       <% }); %>
     </div>
   </div>
+
+  <script>
+    function toggleMenu() {
+      var sidebar = document.getElementById("mySidebar");
+      if (sidebar.style.width === "250px") {
+        sidebar.style.width = "0";
+      } else {
+        sidebar.style.width = "250px";
+      }
+    }
+  </script>
 </body>
 </html>
 EOF
 
-# 11. Buat Tampilan Panel Admin VPS (views/admin.ejs) - BERSIH DARI MENU UNINSTALL
+# 11. Buat Tampilan Panel Admin VPS (views/admin.ejs)
 cat << 'EOF' > views/admin.ejs
 <!DOCTYPE html>
 <html lang="id">
@@ -176,8 +243,8 @@ cat << 'EOF' > views/admin.ejs
     .panel { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
     h2 { border-bottom: 2px solid #3498db; padding-bottom: 10px; color: #2c3e50; }
     .form-group { margin-bottom: 15px; }
-    input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
-    .btn-add { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+    input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+    .btn-add { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 1.1em; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
     .btn-delete { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
@@ -185,27 +252,29 @@ cat << 'EOF' > views/admin.ejs
 </head>
 <body>
   <div class="panel">
-    <h2>Manajemen Produk Tas</h2>
+    <h2>Manajemen Produk Toko</h2>
     <form action="/vps-panel/add" method="POST" enctype="multipart/form-data">
-      <div class="form-group"><input type="text" name="name" placeholder="Nama Tas" required></div>
+      <div class="form-group"><input type="text" name="name" placeholder="Nama Barang" required></div>
       <div class="form-group"><input type="number" name="price" placeholder="Harga (Contoh: 200000)" required></div>
-      <div class="form-group"><textarea name="description" placeholder="Deskripsi Singkat"></textarea></div>
+      <div class="form-group"><textarea name="description" placeholder="Deskripsi Barang"></textarea></div>
       <div class="form-group"><input type="file" name="image" required></div>
-      <button type="submit" class="btn-add">+ Simpan Tas Baru</button>
+      <button type="submit" class="btn-add">+ Simpan Barang Baru</button>
     </form>
 
     <table>
       <tr>
-        <th>Tas</th>
+        <th>Foto</th>
+        <th>Nama Barang</th>
         <th>Harga</th>
         <th>Aksi</th>
       </tr>
       <% products.forEach(function(product) { %>
         <tr>
+          <td><img src="<%= product.image_url %>" style="width:50px; height:50px; object-fit:cover; border-radius:5px;"></td>
           <td><%= product.name %></td>
           <td>Rp <%= parseInt(product.price).toLocaleString('id-ID') %></td>
           <td>
-            <form action="/vps-panel/delete/<%= product.id %>" method="POST">
+            <form action="/vps-panel/delete/<%= product.id %>" method="POST" style="margin:0;">
               <button type="submit" class="btn-delete">Hapus</button>
             </form>
           </td>
@@ -213,7 +282,7 @@ cat << 'EOF' > views/admin.ejs
       <% }); %>
     </table>
     <br>
-    <a href="/" style="color: #3498db; text-decoration: none; font-weight: bold;">← Kembali ke Toko</a>
+    <a href="/" style="color: #3498db; text-decoration: none; font-weight: bold;">← Kembali Lihat Toko</a>
   </div>
 </body>
 </html>
@@ -302,14 +371,12 @@ sudo pm2 save
 sudo pm2 startup
 
 echo "================================================================"
-echo " INSTALASI & UPDATE BERHASIL! "
+echo " UPDATE TAMPILAN BERHASIL! "
 echo "================================================================"
+echo "Website sudah diperbarui dengan Grid 3 Kolom & Garis Tiga Menu."
 echo "Halaman Toko: http://[IP_VPS]/"
 echo "Panel Tambah Produk: http://[IP_VPS]/vps-panel"
 echo " "
 echo ">>> CARA BUKA MENU TERMINAL (BACKUP/RESTORE/UNINSTALL) <<<"
-echo "Ketik perintah ini di layar terminal VPS kamu lalu tekan Enter:"
-echo " "
-echo "toko"
-echo " "
+echo "Ketik: toko (lalu tekan Enter)"
 echo "================================================================"
