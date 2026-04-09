@@ -378,7 +378,7 @@ EOF
         
         .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;}
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
+        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: margin-top: 10px;}
         .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
 
         .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
@@ -3012,6 +3012,10 @@ app.post('/api/order', async (req, res) => {
         let saldoSebelum = parseInt(db[targetKey].saldo);
         if (saldoSebelum < hargaFix) return res.json({success: false, message: 'Saldo tidak cukup.'});
 
+        // Potong Saldo Sebelum Eksekusi agar terhindar dari Race Condition
+        db[targetKey].saldo = saldoSebelum - hargaFix;
+        saveJSON(dbFile, db);
+
         let username = (config.digiflazzUsername || '').trim();
         let apiKey = (config.digiflazzApiKey || '').trim();
         let refId = 'WEB-' + Date.now();
@@ -3022,9 +3026,17 @@ app.post('/api/order', async (req, res) => {
         });
         
         const statusOrder = response.data.data.status; 
-        if (statusOrder === 'Gagal') return res.json({success: false, message: response.data.data.message});
         
-        db[targetKey].saldo = saldoSebelum - hargaFix; 
+        // MUAT ULANG DATABASE SESUDAH AWAIT UNTUK MENCEGAH RACE CONDITION!
+        db = loadJSON(dbFile);
+        let saldoTerkini = parseInt(db[targetKey].saldo);
+        
+        if (statusOrder === 'Gagal') {
+            db[targetKey].saldo = saldoTerkini + hargaFix;
+            saveJSON(dbFile, db);
+            return res.json({success: false, message: response.data.data.message});
+        }
+        
         db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
         
         db[targetKey].history = db[targetKey].history || [];
@@ -3134,6 +3146,9 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
             httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
         });
 
+        // MUAT ULANG DATABASE SESUDAH AWAIT UNTUK MENCEGAH RACE CONDITION!
+        db = loadJSON(dbFile);
+
         if(resApi.data && resApi.data.data) {
             let apiData = resApi.data.data;
             let domain = srv.host;
@@ -3164,6 +3179,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
                 db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
                 
                 // KURANGI STOK PRODUK
+                vpnConfig = loadJSON(vpnConfigFile); // Muat config lagi utk keamanan
                 vpnConfig.products[productId].stok -= 1;
                 saveJSON(vpnConfigFile, vpnConfig);
             } else {
@@ -3317,12 +3333,14 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         
         if (saldoSebelum < hargaFix) return; 
         
+        // POTONG SALDO SEBELUM AWAIT AGAR AMAN (FIX RACE CONDITION)
+        db[phone].saldo = saldoSebelum - hargaFix; 
+        saveJSON(dbFile, db);
+
         let username = (config.digiflazzUsername || '').trim();
         let apiKey = (config.digiflazzApiKey || '').trim();
         let refId = 'WEB-' + Date.now();
         let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
-
-        db[phone].saldo = saldoSebelum - hargaFix; 
 
         const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
             username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
@@ -3330,8 +3348,12 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         
         const statusOrder = response.data.data.status; 
         
+        // MUAT ULANG DATABASE SESUDAH AWAIT UNTUK MENCEGAH RACE CONDITION!
+        db = loadJSON(dbFile);
+        let saldoTerkini = parseInt(db[phone].saldo);
+
         if (statusOrder === 'Gagal') {
-            db[phone].saldo = parseInt(db[phone].saldo) + hargaFix;
+            db[phone].saldo = saldoTerkini + hargaFix;
             
             let hist = db[phone].history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
             if(hist) {
@@ -3341,10 +3363,10 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
                 hist.amount = hargaFix;
                 hist.ref_id = refId;
                 hist.sn = '-';
-                hist.saldo_sebelumnya = saldoSebelum;
+                hist.saldo_sebelumnya = saldoTerkini;
                 hist.saldo_sesudah = db[phone].saldo;
             } else {
-                db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[phone].saldo });
+                db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoTerkini, saldo_sesudah: db[phone].saldo });
                 if(db[phone].history.length > 50) db[phone].history.pop();
             }
             saveJSON(dbFile, db);
@@ -3367,10 +3389,10 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
             hist.type = 'Order';
             hist.amount = hargaFix;
             hist.ref_id = refId;
-            hist.saldo_sebelumnya = saldoSebelum;
+            hist.saldo_sebelumnya = saldoTerkini;
             hist.saldo_sesudah = db[phone].saldo;
         } else {
-            db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[phone].saldo });
+            db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoTerkini, saldo_sesudah: db[phone].saldo });
             if(db[phone].history.length > 50) db[phone].history.pop();
         }
         saveJSON(dbFile, db);
