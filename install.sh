@@ -1771,10 +1771,7 @@ EOF
                             if(h.status === 'Gagal' || h.status === 'Gagal (Kedaluwarsa)') statClass = 'stat-Gagal';
                             if(h.type === 'Refund' || h.status === 'Refund') statClass = 'stat-Refund';
                             
-                            let displayTujuan = h.tujuan;
-                            if(h.type && h.type.includes('VPN') && h.tujuan !== 'Sistem') {
-                                displayTujuan = (h.tujuan.length > 2 ? h.tujuan.substring(0,2) + '***' : h.tujuan + '***');
-                            }
+                            let displayTujuan = h.tujuan; // Sensor dihapus sesuai request
                             
                             let safeH = JSON.stringify(h).replace(/"/g, '&quot;');
                             histHTML += `
@@ -1824,10 +1821,7 @@ EOF
             document.getElementById('hd-name').innerText = h.nama;
             document.getElementById('hd-amount').innerText = h.amount ? 'Rp ' + h.amount.toLocaleString('id-ID') : '-';
             
-            let displayTujuan = h.tujuan;
-            if(h.type && h.type.includes('VPN') && h.tujuan !== 'Sistem') {
-                displayTujuan = (h.tujuan.length > 2 ? h.tujuan.substring(0,2) + '***' : h.tujuan + '***');
-            }
+            let displayTujuan = h.tujuan; // Sensor dihapus sesuai request
             document.getElementById('hd-target').innerText = displayTujuan;
             
             document.getElementById('hd-sn').innerText = h.sn || '-';
@@ -2506,7 +2500,7 @@ const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('he
 function maskStringTarget(str) {
     if (!str) return '-';
     let s = str.toString().trim();
-    // Sensor hanya memperlihatkan 2 karakter pertama sesuai permintaan
+    // Sensor hanya memperlihatkan 2 karakter pertama sesuai permintaan (Digunakan Global/Notif)
     return s.substring(0, 2) + '***';
 }
 
@@ -2557,7 +2551,7 @@ function sendTelegramAdmin(message) {
 function sendBroadcastSuccess(productName, rawUser, rawTarget) {
     try {
         let cfg = loadJSON(configFile);
-        let maskTarget = maskStringTarget(rawTarget);
+        let maskTarget = maskStringTarget(rawTarget); // Target disensor untuk broadcast
         let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
         
         let msgTele = `✅ <b>PEMBELIAN BERHASIL</b>\n\n👤 Pelanggan: ${rawUser}\n📦 Layanan: ${productName}\n🎯 Tujuan: ${maskTarget}\n🕒 Waktu: ${timeStr} WIB\n\n<i>🌐 Transaksi diproses otomatis oleh sistem.</i>`;
@@ -3074,7 +3068,7 @@ app.post('/api/order', async (req, res) => {
 // ==============================================================
 // CORE LOGIC: EKSEKUSI PEMBUATAN AKUN VPN KE SERVER VPS 
 // ==============================================================
-async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vpnPassword, expiredDays) {
+async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vpnPassword, expiredDays, refIdAsal = null) {
     let db = loadJSON(dbFile);
     let vpnConfig = loadJSON(vpnConfigFile);
     let targetKey = db[normalizePhone(phone)] ? normalizePhone(phone) : (db[phone] ? phone : null);
@@ -3176,19 +3170,31 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
                 db[targetKey].trial_claims[serverKey] = Date.now();
             }
             
-            let refId = "VPN-" + Date.now();
+            let refId = refIdAsal || ("VPN-" + Date.now());
             
-            db[targetKey].history.unshift({
-                ts: Date.now(), 
-                tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-                type: 'Order VPN', nama: prodName, tujuan: (mode==='trial'?'Sistem':apiData.username), status: 'Sukses', sn: '-', amount: hargaFix, ref_id: refId,
-                saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[targetKey].saldo,
-                vpn_details: vpnDetails
-            });
-            if(db[targetKey].history.length > 50) db[targetKey].history.pop();
+            if (refIdAsal) {
+                let existingHist = db[targetKey].history.find(h => h.sn === refIdAsal);
+                if (existingHist) {
+                    existingHist.status = 'Sukses';
+                    existingHist.vpn_details = vpnDetails;
+                    existingHist.nama = prodName;
+                    existingHist.type = 'Order VPN';
+                    existingHist.saldo_sebelumnya = saldoSebelum;
+                    existingHist.saldo_sesudah = db[targetKey].saldo;
+                }
+            } else {
+                db[targetKey].history.unshift({
+                    ts: Date.now(), 
+                    tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+                    type: 'Order VPN', nama: prodName, tujuan: (mode==='trial'?'Sistem':apiData.username), status: 'Sukses', sn: '-', amount: hargaFix, ref_id: refId,
+                    saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[targetKey].saldo,
+                    vpn_details: vpnDetails
+                });
+                if(db[targetKey].history.length > 50) db[targetKey].history.pop();
+            }
             saveJSON(dbFile, db);
 
-            // Statistik & Notif
+            // Statistik & Notif (Tujuan sudah aman tersensor berkat maskStringTarget)
             let gStats = loadJSON(globalStatsFile);
             let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
             gStats[dateKey] = (gStats[dateKey] || 0) + 1;
@@ -3282,16 +3288,13 @@ app.post('/api/order-vpn-qris', async (req, res) => {
 });
 
 async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
-    let result = await executeVpnOrder(phone, vpnData.protocol, vpnData.product_id, vpnData.mode, vpnData.username, vpnData.password, vpnData.expired);
+    let result = await executeVpnOrder(phone, vpnData.protocol, vpnData.product_id, vpnData.mode, vpnData.username, vpnData.password, vpnData.expired, refIdAsal);
     let db = loadJSON(dbFile);
     
-    let hist = db[phone].history.find(h => h.sn === refIdAsal && h.type === 'Order VPN QRIS');
+    let hist = db[phone].history.find(h => h.sn === refIdAsal);
     if(!hist) return;
 
-    if(result.success) {
-        db[phone].history = db[phone].history.filter(h => h.sn !== refIdAsal);
-        saveJSON(dbFile, db);
-    } else {
+    if(!result.success) {
         db[phone].saldo = parseInt(db[phone].saldo) + parseInt(vpnData.harga_asli);
         hist.status = 'Refund';
         hist.nama = 'Refund: ' + vpnData.nama_produk;
