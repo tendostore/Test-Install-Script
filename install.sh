@@ -171,7 +171,7 @@ app.listen(port, () => {
 });
 EOF
 
-# 9. Buat Tampilan Halaman Toko (views/index.ejs) - DESAIN ALA MARKETPLACE & RAPAT KIRI
+# 9. Buat Tampilan Halaman Toko (views/index.ejs) - UPDATE DESAIN BANNER MELENGKUNG
 cat << 'EOF' > views/index.ejs
 <!DOCTYPE html>
 <html lang="id">
@@ -181,27 +181,17 @@ cat << 'EOF' > views/index.ejs
   <title>Toko Online Premium</title>
   <style>
     /* Reset CSS dasar */
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-    }
+    html, body { margin: 0; padding: 0; width: 100%; }
     
-    :root {
-      --black: #000000;
-      --dark-gray: #333333;
-      --light-gray: #f9f9f9;
-      --white: #ffffff;
-      --border: #e0e0e0;
-    }
+    :root { --black: #000000; --dark-gray: #333333; --light-gray: #f9f9f9; --white: #ffffff; --border: #e0e0e0; }
     
     body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--light-gray); color: var(--black); }
     
-    /* Header Utama Hitam - Dirapatkan ke kiri, biarkan padding */
-    .header { background: var(--black); padding: 12px 15px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 50; }
+    /* Header Utama Hitam - Rapat ke Kiri */
+    .header { background: var(--black); padding: 12px 15px 12px 2px; display: flex; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 50; }
     
-    /* Ikon SVG Clean - Tambahkan margin negatif untuk merapat ke kiri penuh */
-    .icon-btn { background: none; border: none; color: var(--white); cursor: pointer; display: flex; align-items: center; padding: 0; margin-left: -15px; padding-left: 10px; }
+    /* Ikon SVG Clean */
+    .icon-btn { background: none; border: none; color: var(--white); cursor: pointer; display: flex; align-items: center; padding: 5px; margin: 0; }
     .icon-btn svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
     
     /* Search Box Putih Minimalis */
@@ -210,15 +200,15 @@ cat << 'EOF' > views/index.ejs
     .search-box button { background: none; border: none; cursor: pointer; color: var(--dark-gray); display: flex; align-items: center; padding: 0; }
     .search-box button svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
-    /* Banner Placeholder Minimalis */
-    .banner-wrapper { width: 100%; overflow: hidden; position: relative; background: var(--black); }
-    .banner-container { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 0; padding: 0; scrollbar-width: none; scroll-behavior: smooth;}
+    /* Banner Slider - UPDATE: Menambahkan Padding dan Rounded */
+    .banner-wrapper { padding: 15px; background: var(--light-gray); } /* Beri padding agar curve terlihat */
+    .banner-container { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 15px; padding: 0; scrollbar-width: none; scroll-behavior: smooth;}
     .banner-container::-webkit-scrollbar { display: none; }
-    .banner-item { flex: 0 0 100%; scroll-snap-align: center; height: 180px; display: flex; justify-content: center; align-items: center; background: #222; color: #fff; text-transform: uppercase; letter-spacing: 2px; }
-    .banner-item img { width: 100%; height: 100%; object-fit: cover; }
+    .banner-item { flex: 0 0 100%; scroll-snap-align: center; height: 180px; display: flex; justify-content: center; align-items: center; background: #222; color: #fff; border-radius: 12px; overflow: hidden; text-transform: uppercase; letter-spacing: 2px; }
+    .banner-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px;} /* Pastikan gambar juga rounded */
     
-    /* Kategori Minimalis (Tanpa Emoji) */
-    .category-container { display: flex; justify-content: center; gap: 10px; padding: 20px 20px 20px; flex-wrap: wrap; }
+    /* Kategori Minimalis */
+    .category-container { display: flex; justify-content: center; gap: 10px; padding: 5px 20px 20px; flex-wrap: wrap; }
     .cat-item { padding: 8px 18px; border: 1px solid var(--black); border-radius: 4px; color: var(--black); text-decoration: none; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; background: var(--white); }
     .cat-item.active { background: var(--black); color: var(--white); }
     .cat-item:hover { background: var(--black); color: var(--white); }
@@ -279,7 +269,7 @@ cat << 'EOF' > views/index.ejs
       </button>
     </form>
     
-    <div class="icon-btn">
+    <div class="icon-btn" style="padding-right: 0;">
       <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
     </div>
   </div>
@@ -329,17 +319,11 @@ cat << 'EOF' > views/index.ejs
   </div>
 
   <script>
-    // JS Buka/Tutup Menu
     function toggleMenu() {
       var sidebar = document.getElementById("mySidebar");
-      if (sidebar.style.width === "260px") {
-        sidebar.style.width = "0";
-      } else {
-        sidebar.style.width = "260px";
-      }
+      sidebar.style.width = sidebar.style.width === "260px" ? "0" : "260px";
     }
 
-    // JS Auto Slider Banner (Geser tiap 4 detik)
     const bannerContainer = document.getElementById('bannerContainer');
     const banners = document.querySelectorAll('.banner-item');
     let currentBanner = 0;
@@ -469,8 +453,8 @@ cat << 'EOF' > views/admin.ejs
 </html>
 EOF
 
-# 11. MEMBUAT MENU COMMAND LINE DI TERMINAL VPS (toko)
-cat << 'EOF' > /usr/local/bin/toko
+# 11. MEMBUAT MENU COMMAND LINE DI TERMINAL VPS (menu)
+cat << 'EOF' > /usr/local/bin/menu
 #!/bin/bash
 clear
 echo "==================================================="
@@ -518,20 +502,13 @@ case $pilihan in
     ;;
   3)
     echo ""
-    echo "PERINGATAN BAHAYA!"
-    echo "Ini akan menghapus seluruh file website, gambar, dan database toko."
-    read -p "Ketik 'YAKIN' untuk melanjutkan uninstall: " konfirmasi
-    if [ "$konfirmasi" == "YAKIN" ]; then
-      echo "Menghapus sistem..."
-      pm2 delete tokotas 2>/dev/null || true
-      rm -rf /var/www/tokotas
-      echo "==================================================="
-      echo "Uninstall Selesai! VPS sekarang bersih."
-      echo "Silakan jalankan script instalasi GitHub lagi jika ingin memasang ulang."
-      echo "==================================================="
-    else
-      echo "Uninstall dibatalkan."
-    fi
+    echo "Menghapus sistem..."
+    pm2 delete tokotas 2>/dev/null || true
+    rm -rf /var/www/tokotas
+    echo "==================================================="
+    echo "Uninstall Selesai! VPS sekarang bersih."
+    echo "Silakan jalankan script instalasi GitHub lagi jika ingin memasang ulang."
+    echo "==================================================="
     ;;
   4)
     echo "Keluar dari menu."
@@ -542,20 +519,18 @@ case $pilihan in
 esac
 EOF
 
-# Berikan akses eksekusi agar command 'toko' bisa dijalankan
-sudo chmod +x /usr/local/bin/toko
+# Berikan akses eksekusi agar command 'menu' bisa dijalankan
+sudo chmod +x /usr/local/bin/menu
 
-# 12. Menjalankan server melalui PM2 agar port 80 tidak tabrakan
+# 12. Menjalankan server melalui PM2
 sudo pm2 delete tokotas 2>/dev/null || true
 sudo pm2 start server.js --name "tokotas"
 sudo pm2 save
 sudo pm2 startup
 
 echo "================================================================"
-echo " UPDATE BERHASIL! Rapat Kiri Sempurna & Kategori Admin "
+echo " UPDATE BERHASIL! (Pojok Banner Melengkung) "
 echo "================================================================"
-echo "Halaman Utama (Dilihat Pembeli): http://[IP_VPS]/"
-echo " "
-echo "Halaman Admin Tambah Produk/Banner (Rahasia):"
-echo "-> http://[IP_VPS]/vps-panel"
+echo "Halaman Utama: http://[IP_VPS]/"
+echo "Untuk melihat kelengkungan, silakan upload Banner di Panel Admin."
 echo "================================================================"
