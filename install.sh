@@ -114,16 +114,16 @@ app.get('/', (req, res) => {
   });
 });
 
-// Rute BARU: Halaman Detail Produk
+// Rute: Halaman Detail Produk
 app.get('/product/:id', (req, res) => {
   db.get("SELECT * FROM products WHERE id = ?", [req.params.id], (err, product) => {
     if (err) throw err;
-    if (!product) return res.redirect('/'); // Jika produk tidak ada, kembali ke halaman utama
+    if (!product) return res.redirect('/');
     res.render('detail', { product: product });
   });
 });
 
-// Rute: Panel Admin VPS (Manajemen Produk & Banner - RAHASIA)
+// Rute: Panel Admin VPS
 app.get('/vps-panel', (req, res) => {
   db.all("SELECT * FROM products ORDER BY id DESC", [], (err, products) => {
     if (err) throw err;
@@ -180,7 +180,7 @@ app.listen(port, () => {
 });
 EOF
 
-# 9. Buat Tampilan Halaman Utama Toko (views/index.ejs) - UPDATE: TOMBOL DETAIL
+# 9. Buat Tampilan Halaman Utama Toko (views/index.ejs)
 cat << 'EOF' > views/index.ejs
 <!DOCTYPE html>
 <html lang="id">
@@ -193,34 +193,28 @@ cat << 'EOF' > views/index.ejs
     :root { --black: #000000; --dark-gray: #333333; --light-gray: #f9f9f9; --white: #ffffff; --border: #e0e0e0; }
     body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--light-gray); color: var(--black); }
     
-    /* Header Utama Hitam - Rapat Kiri */
     .header { background: var(--black); padding: 12px 15px 12px 2px; display: flex; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 50; }
     .icon-btn { background: none; border: none; color: var(--white); cursor: pointer; display: flex; align-items: center; padding: 5px; margin: 0; }
     .icon-btn svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
     
-    /* Search Box Putih Minimalis */
     .search-box { flex-grow: 1; background: var(--white); border-radius: 4px; display: flex; align-items: center; padding: 8px 12px; }
     .search-box input { border: none; outline: none; width: 100%; font-size: 14px; color: var(--black); }
     .search-box button { background: none; border: none; cursor: pointer; color: var(--dark-gray); display: flex; align-items: center; padding: 0; }
     .search-box button svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
-    /* Banner Slider Melengkung */
     .banner-wrapper { padding: 15px; background: var(--light-gray); }
     .banner-container { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 15px; padding: 0; scrollbar-width: none; scroll-behavior: smooth;}
     .banner-container::-webkit-scrollbar { display: none; }
     .banner-item { flex: 0 0 100%; scroll-snap-align: center; height: 180px; display: flex; justify-content: center; align-items: center; background: #222; color: #fff; border-radius: 12px; overflow: hidden; text-transform: uppercase; letter-spacing: 2px; }
     .banner-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px;}
     
-    /* Kategori Minimalis */
     .category-container { display: flex; justify-content: center; gap: 10px; padding: 5px 20px 20px; flex-wrap: wrap; }
     .cat-item { padding: 8px 18px; border: 1px solid var(--black); border-radius: 4px; color: var(--black); text-decoration: none; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; background: var(--white); }
     .cat-item.active { background: var(--black); color: var(--white); }
     .cat-item:hover { background: var(--black); color: var(--white); }
 
-    /* Produk Rekomendasi */
     .section-title { font-size: 18px; font-weight: bold; padding: 0 20px; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
     
-    /* Grid Produk */
     .product-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 20px; }
     @media (min-width: 768px) { .product-grid { grid-template-columns: repeat(4, 1fr); } }
     
@@ -233,11 +227,9 @@ cat << 'EOF' > views/index.ejs
     .product-title { font-size: 14px; margin: 0 0 8px; color: var(--dark-gray); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .product-price { font-size: 16px; font-weight: bold; color: var(--black); margin-bottom: 15px; }
     
-    /* Tombol Hitam: Menuju Detail Produk (BUKAN langsung beli) */
     .btn-detail { background: var(--white); color: var(--black); border: 1px solid var(--black); text-align: center; text-decoration: none; padding: 10px; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-top: auto; cursor: pointer; transition: 0.2s; }
     .btn-detail:hover { background: var(--black); color: var(--white); }
 
-    /* Sidebar Menu Kiri */
     .sidebar { height: 100%; width: 0; position: fixed; z-index: 1000; top: 0; left: 0; background-color: var(--white); overflow-x: hidden; transition: 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.1); border-right: 1px solid var(--border); }
     .sidebar-header { background: var(--black); color: var(--white); padding: 20px; font-size: 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; letter-spacing: 1px; text-transform: uppercase; }
     .closebtn { color: var(--white); font-size: 28px; text-decoration: none; font-weight: normal; }
@@ -308,7 +300,6 @@ cat << 'EOF' > views/index.ejs
         <div class="product-info">
           <h3 class="product-title"><%= product.name %></h3>
           <div class="product-price">Rp <%= parseInt(product.price).toLocaleString('id-ID') %></div>
-          
           <a href="/product/<%= product.id %>" class="btn-detail">Detail Produk</a>
         </div>
       </div>
@@ -334,7 +325,7 @@ cat << 'EOF' > views/index.ejs
 </html>
 EOF
 
-# 10. Buat Tampilan Halaman Detail Produk Baru (views/detail.ejs)
+# 10. Buat Tampilan Halaman Detail Produk (views/detail.ejs) - UPDATE TOMBOL KERANJANG & BELI
 cat << 'EOF' > views/detail.ejs
 <!DOCTYPE html>
 <html lang="id">
@@ -347,7 +338,6 @@ cat << 'EOF' > views/detail.ejs
     :root { --black: #000000; --dark-gray: #333333; --light-gray: #f9f9f9; --white: #ffffff; --border: #e0e0e0; }
     body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--light-gray); color: var(--black); }
     
-    /* Header (Sama persis dengan index) */
     .header { background: var(--black); padding: 12px 15px 12px 2px; display: flex; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 50; }
     .icon-btn { background: none; border: none; color: var(--white); cursor: pointer; display: flex; align-items: center; padding: 5px; margin: 0; }
     .icon-btn svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
@@ -356,28 +346,30 @@ cat << 'EOF' > views/detail.ejs
     .search-box button { background: none; border: none; cursor: pointer; color: var(--dark-gray); display: flex; align-items: center; padding: 0; }
     .search-box button svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
-    /* Wrapper Halaman Detail */
     .detail-wrapper { max-width: 800px; margin: 20px auto; background: var(--white); border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; }
     @media (min-width: 768px) { .detail-wrapper { flex-direction: row; margin: 40px auto; border-radius: 8px; } }
 
-    /* Area Gambar */
     .detail-img-box { flex: 1; border-bottom: 1px solid var(--border); background: var(--light-gray); }
     @media (min-width: 768px) { .detail-img-box { border-bottom: none; border-right: 1px solid var(--border); } }
     .detail-img-box img { width: 100%; height: 100%; object-fit: cover; display: block; max-height: 400px; }
 
-    /* Area Informasi */
     .detail-info-box { flex: 1; padding: 25px; display: flex; flex-direction: column; }
     .badge { display: inline-block; background: var(--black); color: var(--white); padding: 4px 10px; font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 1px; }
     .title { margin: 0 0 10px 0; font-size: 22px; color: var(--black); line-height: 1.3; }
     .price { font-size: 24px; font-weight: bold; color: var(--dark-gray); margin-bottom: 20px; }
     
     .desc-title { font-size: 13px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-bottom: 10px; color: var(--black); }
-    .description { font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 30px; white-space: pre-wrap; }
+    .description { font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 30px; white-space: pre-wrap; flex-grow: 1;}
     
-    /* Tombol Aksi */
-    .btn-buy { background: var(--black); color: var(--white); text-align: center; text-decoration: none; padding: 15px; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; border: none; cursor: pointer; transition: 0.2s; margin-bottom: 10px; }
-    .btn-buy:hover { background: var(--dark-gray); }
-    .btn-back { background: var(--white); color: var(--black); border: 1px solid var(--black); text-align: center; text-decoration: none; padding: 12px; font-size: 13px; font-weight: bold; text-transform: uppercase; transition: 0.2s; }
+    /* UPDATE: CSS Grup Tombol (Keranjang & Beli) Berdampingan */
+    .action-group { display: flex; gap: 10px; margin-bottom: 15px; }
+    .btn-cart { flex: 1; background: var(--white); color: var(--black); border: 2px solid var(--black); text-align: center; text-decoration: none; padding: 15px 5px; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; border-radius: 4px; }
+    .btn-cart:hover { background: var(--black); color: var(--white); }
+    
+    .btn-buy { flex: 1; background: var(--black); color: var(--white); border: 2px solid var(--black); text-align: center; text-decoration: none; padding: 15px 5px; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; border-radius: 4px; }
+    .btn-buy:hover { background: var(--dark-gray); border-color: var(--dark-gray); }
+
+    .btn-back { display: block; background: var(--white); color: var(--black); border: 1px solid var(--border); text-align: center; text-decoration: none; padding: 12px; font-size: 12px; font-weight: bold; text-transform: uppercase; transition: 0.2s; border-radius: 4px; }
     .btn-back:hover { background: var(--light-gray); }
   </style>
 </head>
@@ -388,9 +380,7 @@ cat << 'EOF' > views/detail.ejs
     </a>
     <form action="/" method="GET" class="search-box">
       <input type="text" name="q" placeholder="Cari barang lain..." value="">
-      <button type="submit">
-        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-      </button>
+      <button type="submit"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></button>
     </form>
     <a href="/" class="icon-btn" style="padding-right: 0; text-decoration:none;">
       <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
@@ -409,7 +399,11 @@ cat << 'EOF' > views/detail.ejs
       <div class="desc-title">Deskripsi Lengkap</div>
       <div class="description"><%= product.description || 'Tidak ada deskripsi tambahan untuk produk ini.' %></div>
       
-      <a href="https://wa.me/628222446067?text=Halo%20Admin,%20saya%20mau%20pesan:%0A%0ABarang:%20<%= encodeURIComponent(product.name) %>%0AHarga:%20Rp%20<%= parseInt(product.price).toLocaleString('id-ID') %>%0AKategori:%20<%= product.category %>%0A%0AMohon%20info%20ketersediaannya." class="btn-buy" target="_blank">🛒 Beli via WhatsApp</a>
+      <div class="action-group">
+        <a href="#" onclick="alert('Produk berhasil ditambahkan ke keranjang!'); return false;" class="btn-cart">Masuk Keranjang</a>
+        
+        <a href="https://wa.me/628222446067?text=Halo%20Admin,%20saya%20mau%20pesan:%0A%0ABarang:%20<%= encodeURIComponent(product.name) %>%0AHarga:%20Rp%20<%= parseInt(product.price).toLocaleString('id-ID') %>%0AKategori:%20<%= product.category %>%0A%0AMohon%20info%20ketersediaannya." class="btn-buy" target="_blank">Beli</a>
+      </div>
       
       <a href="/" class="btn-back">Lihat Produk Lainnya</a>
     </div>
@@ -574,7 +568,7 @@ sudo pm2 save
 sudo pm2 startup
 
 echo "================================================================"
-echo " UPDATE BERHASIL! (Fitur Halaman Detail & Tombol Detail) "
+echo " UPDATE BERHASIL! (Tombol Masuk Keranjang ditambahkan) "
 echo "================================================================"
 echo "Halaman Utama: http://[IP_VPS]/"
 echo "================================================================"
