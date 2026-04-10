@@ -7,7 +7,15 @@ echo "Memulai instalasi sistem Toko Tas (Versi Enterprise)..."
 
 # 1. Update sistem dan install dependensi dasar (Termasuk Nginx untuk Domain)
 sudo apt update -y
-sudo apt install -y curl build-essential nginx cron wget jq
+sudo apt install -y curl build-essential nginx cron wget jq ufw
+
+# 1.5 BUKA FIREWALL (MENCEGAH ERROR 521 CLOUDFLARE)
+echo "Membuka port firewall agar website bisa diakses dari luar..."
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw allow 22/tcp
+sudo ufw --force enable
+sudo ufw reload
 
 # 2. Install Node.js (Versi 20.x)
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -51,7 +59,7 @@ EOF
 # Jalankan inisialisasi database
 node init_db.js
 
-# 8. Buat script utama server (server.js) - SEKARANG JALAN DI PORT 3000
+# 8. Buat script utama server (server.js) - JALAN DI PORT 3000
 cat << 'EOF' > server.js
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
@@ -60,7 +68,7 @@ const multer = require('multer');
 const path = require('path');
 
 const app = express();
-const port = 3000; // Berubah ke 3000 agar port 80 bisa dipakai Nginx untuk Domain
+const port = 3000; // Berjalan di port 3000 agar Nginx bisa proxy dari port 80
 
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
@@ -219,7 +227,10 @@ cat << 'EOF' > views/index.ejs
   <div id="mySidebar" class="sidebar">
     <div class="sidebar-header"><span>Menu Toko</span><a href="javascript:void(0)" class="closebtn" onclick="toggleMenu()">&times;</a></div>
     <div class="sidebar-menu">
-      <a href="/">Semua Produk</a><a href="/?category=Tas">Kategori Tas</a><a href="/?category=Sepatu">Kategori Sepatu</a><a href="/?category=Baju">Kategori Baju</a>
+      <a href="/">Semua Produk</a>
+      <a href="/?category=Tas">Kategori Tas</a>
+      <a href="/?category=Sepatu">Kategori Sepatu</a>
+      <a href="/?category=Baju">Kategori Baju</a>
       <a href="/cart" style="display: flex; align-items: center;">
         <svg class="sidebar-icon" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg> Keranjang Saya
       </a>
@@ -228,7 +239,10 @@ cat << 'EOF' > views/index.ejs
 
   <div class="header">
     <button class="icon-btn" onclick="toggleMenu()"><svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
-    <form action="/" method="GET" class="search-box"><input type="text" name="q" placeholder="Temukan produk disini" value="<%= searchQuery %>"><button type="submit"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></button></form>
+    <form action="/" method="GET" class="search-box">
+      <input type="text" name="q" placeholder="Temukan produk disini" value="<%= searchQuery %>">
+      <button type="submit"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></button>
+    </form>
     <a href="/cart" class="icon-btn" style="padding-right: 0; text-decoration:none;">
       <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
       <span id="cart-badge" class="cart-badge">0</span>
@@ -267,6 +281,7 @@ cat << 'EOF' > views/index.ejs
     function toggleMenu() { document.getElementById("mySidebar").style.width = document.getElementById("mySidebar").style.width === "260px" ? "0" : "260px"; }
     const bc = document.getElementById('bannerContainer'); const bs = document.querySelectorAll('.banner-item'); let cb = 0;
     if (bs.length > 1) setInterval(() => { cb = (cb + 1) % bs.length; bc.scrollTo({ left: bs[cb].offsetLeft, behavior: 'smooth' }); }, 4000);
+    
     function updateCartBadge() {
       let cart = JSON.parse(localStorage.getItem('tokotas_cart')) || [];
       let badge = document.getElementById('cart-badge');
@@ -290,6 +305,7 @@ cat << 'EOF' > views/detail.ejs
     html, body { margin: 0; padding: 0; width: 100%; }
     :root { --black: #000000; --dark-gray: #333333; --light-gray: #f9f9f9; --white: #ffffff; --border: #e0e0e0; --red: #e74c3c; }
     body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--light-gray); color: var(--black); }
+    
     .header { background: var(--black); padding: 12px 15px 12px 2px; display: flex; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 50; }
     .icon-btn { background: none; border: none; color: var(--white); cursor: pointer; display: flex; align-items: center; padding: 5px; margin: 0; position:relative;}
     .icon-btn svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
@@ -388,6 +404,7 @@ cat << 'EOF' > views/cart.ejs
     .icon-btn svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
     
     .cart-container { max-width: 800px; margin: 20px auto; padding: 0 15px; }
+    
     .cart-header-actions { background: var(--white); padding: 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; font-weight: bold; font-size: 14px; }
     .cart-header-actions input[type="checkbox"] { transform: scale(1.4); margin-right: 15px; cursor: pointer; accent-color: var(--black); }
 
@@ -423,23 +440,40 @@ cat << 'EOF' > views/cart.ejs
     function loadCart() {
       const cartContainer = document.getElementById('cart-content');
       let cart = JSON.parse(localStorage.getItem('tokotas_cart')) || [];
+      
       if (cart.length === 0) {
         cartContainer.innerHTML = '<div class="empty-cart">Keranjang Anda masih kosong.<br><br><a href="/" style="color: black; font-weight: bold; padding: 10px; border: 1px solid black; display:inline-block; margin-top:15px; border-radius:4px; text-decoration:none;">Mulai Belanja</a></div>';
         return;
       }
+
       let html = `<div class="cart-header-actions"><label style="display:flex; align-items:center; cursor:pointer; width:100%;"><input type="checkbox" id="check-all" checked onchange="toggleAll()"> Pilih Semua</label></div>`;
+
       cart.forEach((item, index) => {
-        html += `<div class="cart-item"><input type="checkbox" class="item-check" checked onchange="updateCheckout()"><img src="${item.img}"><div class="item-info"><div class="item-title">${item.name}</div><div class="item-cat">${item.category}</div><div class="item-price">Rp ${item.price.toLocaleString('id-ID')}</div></div><button class="btn-remove" onclick="removeItem(${index})">Hapus</button></div>`;
+        html += `
+          <div class="cart-item">
+            <input type="checkbox" class="item-check" checked onchange="updateCheckout()">
+            <img src="${item.img}" alt="${item.name}">
+            <div class="item-info">
+              <div class="item-title">${item.name}</div>
+              <div class="item-cat">${item.category}</div>
+              <div class="item-price">Rp ${item.price.toLocaleString('id-ID')}</div>
+            </div>
+            <button class="btn-remove" onclick="removeItem(${index})">Hapus</button>
+          </div>
+        `;
       });
+
       html += `<div class="cart-summary"><div class="total-text">Total Harga <span id="total-price-display" class="total-price">Rp 0</span></div><button id="btn-checkout" class="btn-buy-all">BELI SEKARANG</button></div>`;
       cartContainer.innerHTML = html;
       updateCheckout(); 
     }
+
     function toggleAll() {
       let checkAll = document.getElementById('check-all').checked;
       document.querySelectorAll('.item-check').forEach(cb => cb.checked = checkAll);
       updateCheckout();
     }
+
     function updateCheckout() {
       let cart = JSON.parse(localStorage.getItem('tokotas_cart')) || [];
       let checkboxes = document.querySelectorAll('.item-check');
@@ -456,6 +490,7 @@ cat << 'EOF' > views/cart.ejs
           waText += `${selectedCount}. ${item.name}\n   Kategori: ${item.category}\n   Harga: Rp ${item.price.toLocaleString('id-ID')}\n\n`;
         } else { allChecked = false; }
       });
+
       if(checkAllBox) checkAllBox.checked = allChecked;
       document.getElementById('total-price-display').innerText = `Rp ${total.toLocaleString('id-ID')}`;
 
@@ -471,12 +506,14 @@ cat << 'EOF' > views/cart.ejs
         btnCheckout.onclick = function() { window.open(waLink, '_blank'); };
       }
     }
+
     function removeItem(index) {
       let cart = JSON.parse(localStorage.getItem('tokotas_cart')) || [];
       cart.splice(index, 1);
       localStorage.setItem('tokotas_cart', JSON.stringify(cart));
       loadCart();
     }
+
     loadCart();
   </script>
 </body>
@@ -582,11 +619,7 @@ cat << 'EOF' > /etc/nginx/sites-available/tokotas_default
 server {
     listen 80 default_server;
     server_name _;
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
+    location / { proxy_pass http://localhost:3000; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; }
 }
 EOF
 ln -sf /etc/nginx/sites-available/tokotas_default /etc/nginx/sites-enabled/
@@ -602,11 +635,9 @@ if [ -z "$TOKEN" ] || [ -z "$CHAT_ID" ]; then exit 0; fi
 TANGGAL=$(date +%Y%m%d_%H%M%S)
 NAMA_BACKUP="/root/backup_tokotas_${TANGGAL}.tar.gz"
 tar -czf $NAMA_BACKUP -C /var/www tokotas 2>/dev/null
-if [ -f /etc/nginx/sites-available/tokotas_domain ]; then
-  tar -rf $NAMA_BACKUP -C /etc/nginx sites-available/tokotas_domain 2>/dev/null
-fi
+if [ -f /etc/nginx/sites-available/tokotas_domain ]; then tar -rf $NAMA_BACKUP -C /etc/nginx sites-available/tokotas_domain 2>/dev/null; fi
 curl -s -F document=@"$NAMA_BACKUP" https://api.telegram.org/bot$TOKEN/sendDocument?chat_id=$CHAT_ID > /dev/null
-rm -f $NAMA_BACKUP # Hapus file lokal setelah dikirim agar VPS tidak penuh
+rm -f $NAMA_BACKUP
 EOF
 chmod +x /usr/local/bin/autobackup
 
@@ -630,130 +661,63 @@ case $pilihan in
     echo ""
     read -p "Masukkan Domain Anda (contoh: toko.com): " domain_name
     cat <<NGINX > /etc/nginx/sites-available/tokotas_domain
-server {
-    listen 80;
-    server_name $domain_name;
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-    }
-}
+server { listen 80; server_name $domain_name; location / { proxy_pass http://localhost:3000; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; } }
 NGINX
     ln -sf /etc/nginx/sites-available/tokotas_domain /etc/nginx/sites-enabled/
     rm -f /etc/nginx/sites-enabled/tokotas_default
     systemctl restart nginx
     echo "$domain_name" > /var/www/tokotas/domain.txt
     echo "==================================================="
-    echo "Domain $domain_name berhasil dipasang ke toko Anda!"
-    echo "Pastikan DNS A Record domain sudah diarahkan ke IP VPS ini."
+    echo "Domain $domain_name berhasil dipasang!"
     echo "==================================================="
     ;;
   2)
     echo ""
     echo "--- MANAJEMEN BACKUP TELEGRAM ---"
-    echo "1. Backup Manual Sekarang (Kirim ke Telegram)"
-    echo "2. Set / Ubah Token & ID Bot Telegram"
-    echo "3. Set Waktu Auto-Backup (Menit / Jam)"
+    echo "1. Backup Manual Sekarang"
+    echo "2. Set Token & ID Bot"
+    echo "3. Set Waktu Auto-Backup"
     echo "4. Matikan Auto-Backup"
     read -p "Pilih (1-4): " pil_backup
-    if [ "$pil_backup" == "1" ]; then
-       echo "Memproses Backup & Mengirim ke Telegram..."
-       /usr/local/bin/autobackup
-       echo "Selesai! Cek Telegram Anda."
-    elif [ "$pil_backup" == "2" ]; then
-       read -p "Masukkan Token Bot Telegram: " tg_token
-       read -p "Masukkan Chat ID Anda: " tg_chat
-       echo "$tg_token" > /root/.tg_token
-       echo "$tg_chat" > /root/.tg_chat
-       echo "Data Bot Telegram berhasil disimpan!"
+    if [ "$pil_backup" == "1" ]; then /usr/local/bin/autobackup; echo "Selesai! Cek Telegram Anda.";
+    elif [ "$pil_backup" == "2" ]; then read -p "Token Bot: " tg_token; read -p "Chat ID: " tg_chat; echo "$tg_token" > /root/.tg_token; echo "$tg_chat" > /root/.tg_chat; echo "Tersimpan!";
     elif [ "$pil_backup" == "3" ]; then
-       echo "Pilih interval:"
-       echo "A. Setiap X Menit"
-       echo "B. Setiap X Jam"
+       echo "A. Setiap X Menit | B. Setiap X Jam"
        read -p "Pilihan (A/B): " pil_waktu
-       if [ "$pil_waktu" == "A" ] || [ "$pil_waktu" == "a" ]; then
-          read -p "Berapa menit sekali? (contoh: 30): " waktu_menit
-          (crontab -l 2>/dev/null | grep -v "/usr/local/bin/autobackup"; echo "*/$waktu_menit * * * * /usr/local/bin/autobackup") | crontab -
-          echo "Auto Backup diset setiap $waktu_menit menit!"
-       elif [ "$pil_waktu" == "B" ] || [ "$pil_waktu" == "b" ]; then
-          read -p "Berapa jam sekali? (contoh: 12): " waktu_jam
-          (crontab -l 2>/dev/null | grep -v "/usr/local/bin/autobackup"; echo "0 */$waktu_jam * * * /usr/local/bin/autobackup") | crontab -
-          echo "Auto Backup diset setiap $waktu_jam jam!"
-       fi
-    elif [ "$pil_backup" == "4" ]; then
-       (crontab -l 2>/dev/null | grep -v "/usr/local/bin/autobackup") | crontab -
-       echo "Auto-Backup telah dimatikan."
-    fi
+       if [ "$pil_waktu" == "A" ] || [ "$pil_waktu" == "a" ]; then read -p "Berapa menit?: " wkt; (crontab -l 2>/dev/null | grep -v "autobackup"; echo "*/$wkt * * * * /usr/local/bin/autobackup") | crontab -; echo "Set setiap $wkt menit.";
+       elif [ "$pil_waktu" == "B" ] || [ "$pil_waktu" == "b" ]; then read -p "Berapa jam?: " wkt; (crontab -l 2>/dev/null | grep -v "autobackup"; echo "0 */$wkt * * * /usr/local/bin/autobackup") | crontab -; echo "Set setiap $wkt jam."; fi
+    elif [ "$pil_backup" == "4" ]; then (crontab -l 2>/dev/null | grep -v "autobackup") | crontab -; echo "Auto-Backup dimatikan."; fi
     ;;
   3)
     echo ""
     echo "--- RESTORE WEBSITE ---"
-    echo "1. Dari File Backup Lokal di VPS"
-    echo "2. Dari Direct Link (URL Google Drive / Server lain)"
+    echo "1. Dari File Backup Lokal"
+    echo "2. Dari Direct Link"
     read -p "Pilih (1/2): " pil_restore
-    if [ "$pil_restore" == "2" ]; then
-       read -p "Masukkan URL / Direct Link File Backup (.tar.gz): " url_dl
-       echo "Mendownload file dari link..."
-       wget -qO /root/backup_restore.tar.gz "$url_dl"
-       FILE_RES="/root/backup_restore.tar.gz"
-       if [ ! -s "$FILE_RES" ]; then
-          echo "GAGAL: File tidak dapat didownload atau link tidak valid/direct."
-          exit 0
-       fi
-    elif [ "$pil_restore" == "1" ]; then
-       ls -1 /root/backup_tokotas_*.tar.gz 2>/dev/null || echo "Belum ada backup lokal."
-       read -p "Masukkan NAMA FILE backup (contoh: backup_tokotas_2026.tar.gz): " nama_file
-       FILE_RES="/root/$nama_file"
-       if [ ! -f "$FILE_RES" ]; then echo "GAGAL: File tidak ditemukan."; exit 0; fi
-    fi
+    if [ "$pil_restore" == "2" ]; then read -p "Link File (.tar.gz): " url_dl; wget -qO /root/backup_restore.tar.gz "$url_dl"; FILE_RES="/root/backup_restore.tar.gz";
+    elif [ "$pil_restore" == "1" ]; then ls -1 /root/backup_tokotas_*.tar.gz 2>/dev/null; read -p "Nama File: " nf; FILE_RES="/root/$nf"; fi
     
-    echo "Memproses Restore..."
     pm2 stop tokotas 2>/dev/null || true
     rm -rf /var/www/tokotas
     tar -xzf $FILE_RES -C /var/www 2>/dev/null || tar -xzf $FILE_RES -C /
-    
-    # Restore Nginx Domain config jika ada di dalam backup
-    if [ -f /var/www/tokotas/domain.txt ]; then
-       DOMAIN_RES=$(cat /var/www/tokotas/domain.txt)
-       cat <<NGINX_RES > /etc/nginx/sites-available/tokotas_domain
-server {
-    listen 80;
-    server_name $DOMAIN_RES;
-    location / { proxy_pass http://localhost:3000; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; }
-}
+    if [ -f /var/www/tokotas/domain.txt ]; then DOMAIN_RES=$(cat /var/www/tokotas/domain.txt); cat <<NGINX_RES > /etc/nginx/sites-available/tokotas_domain
+server { listen 80; server_name $DOMAIN_RES; location / { proxy_pass http://localhost:3000; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; } }
 NGINX_RES
-       ln -sf /etc/nginx/sites-available/tokotas_domain /etc/nginx/sites-enabled/
-       rm -f /etc/nginx/sites-enabled/tokotas_default
-    fi
-    
-    pm2 restart tokotas 2>/dev/null || pm2 start /var/www/tokotas/server.js --name "tokotas"
+    ln -sf /etc/nginx/sites-available/tokotas_domain /etc/nginx/sites-enabled/; rm -f /etc/nginx/sites-enabled/tokotas_default; fi
+    pm2 start /var/www/tokotas/server.js --name "tokotas" 2>/dev/null || pm2 restart tokotas
     systemctl restart nginx
-    echo "==================================================="
-    echo "Restore Berhasil! Website dan Database telah dipulihkan."
-    echo "==================================================="
+    echo "Restore Berhasil!"
     ;;
   4)
-    echo ""
-    echo "Menghapus sistem secara INSTAN..."
     pm2 delete tokotas 2>/dev/null || true
     rm -rf /var/www/tokotas
     rm -f /etc/nginx/sites-enabled/tokotas_domain /etc/nginx/sites-available/tokotas_domain
     systemctl restart nginx
-    echo "==================================================="
-    echo "Uninstall Selesai! VPS sekarang bersih."
-    echo "==================================================="
+    echo "Uninstall Selesai!"
     ;;
-  5)
-    echo "Keluar dari menu."
-    ;;
-  *)
-    echo "Pilihan tidak valid!"
-    ;;
+  5) echo "Keluar."; ;;
 esac
 EOF
-
-# Berikan akses eksekusi CLI
 sudo chmod +x /usr/local/bin/menu
 
 # 16. Restart Semua Service
@@ -763,13 +727,5 @@ sudo pm2 save
 sudo pm2 startup
 
 echo "================================================================"
-echo " UPDATE ENTERPRISE SELESAI DENGAN SEMPURNA! "
-echo "================================================================"
-echo "Fitur Baru Tersedia di Terminal VPS Kamu:"
-echo "Ketik perintah:  menu  (lalu tekan Enter)"
-echo " "
-echo "Di dalam 'menu', kamu bisa:"
-echo "1. Set Custom Domain (Otomatis Setup Nginx)"
-echo "2. Set Bot Telegram & Jadwal Auto-Backup (Menit/Jam)"
-echo "3. Restore via Direct Link (Google Drive / Server)"
+echo " UPDATE CLOUDFLARE 521 FIX SELESAI DENGAN SEMPURNA! "
 echo "================================================================"
