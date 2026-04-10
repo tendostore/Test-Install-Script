@@ -3,7 +3,7 @@
 # SCRIPT INSTALL TOKO ONLINE TAS & VPS PANEL MANAJEMEN
 # ====================================================
 
-echo "Memulai instalasi/update sistem Toko Tas..."
+echo "Memulai instalasi/update sistem Toko Tas Hitam Putih..."
 
 # 1. Update sistem dan install dependensi dasar
 sudo apt update -y
@@ -34,10 +34,8 @@ const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database('./tokotas.db');
 
 db.serialize(() => {
-  // Tabel Produk
   db.run("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, price REAL, description TEXT, image_url TEXT, category TEXT)");
   
-  // Cek apakah kolom kategori sudah ada (untuk update dari versi lama tanpa menghapus data)
   db.all("PRAGMA table_info(products)", (err, columns) => {
      const hasCategory = columns.some(col => col.name === 'category');
      if (!hasCategory) {
@@ -45,7 +43,6 @@ db.serialize(() => {
      }
   });
 
-  // Tabel Banner Baru
   db.run("CREATE TABLE IF NOT EXISTS banners (id INTEGER PRIMARY KEY AUTOINCREMENT, image_url TEXT)");
 });
 
@@ -73,7 +70,6 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 const db = new sqlite3.Database('./tokotas.db');
 
-// Konfigurasi sistem upload gambar
 const storage = multer.diskStorage({
   destination: './public/uploads/',
   filename: function(req, file, cb){
@@ -82,17 +78,15 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// Rute: Halaman Utama Toko (Frontend)
+// Rute Frontend
 app.get('/', (req, res) => {
   let query = "SELECT * FROM products WHERE 1=1";
   let params = [];
   
-  // Fitur Pencarian
   if (req.query.q) {
     query += " AND name LIKE ?";
     params.push('%' + req.query.q + '%');
   }
-  // Fitur Filter Kategori
   if (req.query.category) {
     query += " AND category = ?";
     params.push(req.query.category);
@@ -114,7 +108,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// Rute: Panel Admin VPS
+// Rute Panel Admin
 app.get('/vps-panel', (req, res) => {
   db.all("SELECT * FROM products ORDER BY id DESC", [], (err, products) => {
     if (err) throw err;
@@ -125,7 +119,7 @@ app.get('/vps-panel', (req, res) => {
   });
 });
 
-// Aksi: Tambah Produk
+// Aksi Tambah Produk
 app.post('/vps-panel/add', upload.single('image'), (req, res) => {
   const { name, price, description, category } = req.body;
   const imageUrl = req.file ? '/uploads/' + req.file.filename : '/uploads/default.jpg';
@@ -138,7 +132,7 @@ app.post('/vps-panel/add', upload.single('image'), (req, res) => {
   });
 });
 
-// Aksi: Hapus Produk
+// Aksi Hapus Produk
 app.post('/vps-panel/delete/:id', (req, res) => {
   db.run("DELETE FROM products WHERE id = ?", req.params.id, (err) => {
     if (err) throw err;
@@ -146,7 +140,7 @@ app.post('/vps-panel/delete/:id', (req, res) => {
   });
 });
 
-// Aksi: Tambah Banner
+// Aksi Tambah Banner
 app.post('/vps-panel/banner-add', upload.single('image'), (req, res) => {
   if (!req.file) return res.redirect('/vps-panel');
   const imageUrl = '/uploads/' + req.file.filename;
@@ -157,7 +151,7 @@ app.post('/vps-panel/banner-add', upload.single('image'), (req, res) => {
   });
 });
 
-// Aksi: Hapus Banner
+// Aksi Hapus Banner
 app.post('/vps-panel/banner-delete/:id', (req, res) => {
   db.run("DELETE FROM banners WHERE id = ?", req.params.id, (err) => {
     if (err) throw err;
@@ -165,13 +159,12 @@ app.post('/vps-panel/banner-delete/:id', (req, res) => {
   });
 });
 
-// Jalankan Server
 app.listen(port, () => {
   console.log(`Server toko berjalan pada port ${port}`);
 });
 EOF
 
-# 9. Buat Tampilan Halaman Toko (views/index.ejs)
+# 9. Buat Tampilan Halaman Toko (views/index.ejs) - DESAIN DIKEMBALIKAN & DIRAPIKAN
 cat << 'EOF' > views/index.ejs
 <!DOCTYPE html>
 <html lang="id">
@@ -183,33 +176,33 @@ cat << 'EOF' > views/index.ejs
     :root { --black: #000000; --dark-gray: #333333; --light-gray: #f9f9f9; --white: #ffffff; --border: #e0e0e0; }
     body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--light-gray); margin: 0; padding: 0; color: var(--black); }
     
-    /* Header Utama */
-    .header { background: var(--black); padding: 15px 20px; display: flex; align-items: center; gap: 15px; position: sticky; top: 0; z-index: 50; }
+    /* Header Utama - Dirapatkan ke kiri */
+    .header { background: var(--black); padding: 12px 15px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 50; }
     .icon-btn { background: none; border: none; color: var(--white); cursor: pointer; display: flex; align-items: center; padding: 0; }
     .icon-btn svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
     
     /* Pencarian */
     .search-box { flex-grow: 1; background: var(--white); border-radius: 4px; display: flex; align-items: center; padding: 8px 12px; }
     .search-box input { border: none; outline: none; width: 100%; font-size: 14px; color: var(--black); }
-    .search-box button { background: none; border: none; cursor: pointer; color: var(--dark-gray); }
+    .search-box button { background: none; border: none; cursor: pointer; color: var(--dark-gray); display: flex; align-items: center; padding: 0; }
     .search-box button svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
-    /* Banner Full Width (Rapat ke tepi) */
-    .banner-wrapper { width: 100%; overflow: hidden; position: relative; background: var(--black); }
-    .banner-container { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; scroll-behavior: smooth; }
+    /* Banner Melengkung (Dikembalikan seperti sebelumnya namun sejajar sempurna) */
+    .banner-wrapper { padding: 15px 15px 0 15px; width: 100%; box-sizing: border-box; } 
+    .banner-container { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; scroll-behavior: smooth; gap: 15px; border-radius: 8px; width: 100%; }
     .banner-container::-webkit-scrollbar { display: none; }
-    .banner-item { flex: 0 0 100%; scroll-snap-align: center; height: 220px; display: flex; justify-content: center; align-items: center; background: #222; color: #fff; text-transform: uppercase; letter-spacing: 2px; }
+    .banner-item { flex: 0 0 100%; scroll-snap-align: center; height: 180px; display: flex; justify-content: center; align-items: center; background: var(--black); color: var(--white); border-radius: 8px; overflow: hidden; font-weight: bold; letter-spacing: 2px; }
     .banner-item img { width: 100%; height: 100%; object-fit: cover; }
 
     /* Kategori Bar */
-    .category-container { display: flex; justify-content: center; gap: 10px; padding: 20px; flex-wrap: wrap; }
+    .category-container { display: flex; justify-content: center; gap: 10px; padding: 20px 15px; flex-wrap: wrap; }
     .cat-item { padding: 8px 18px; border: 1px solid var(--black); border-radius: 4px; color: var(--black); text-decoration: none; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; background: var(--white); }
     .cat-item.active { background: var(--black); color: var(--white); }
     .cat-item:hover { background: var(--black); color: var(--white); }
 
     /* Grid Produk */
-    .section-title { font-size: 18px; font-weight: bold; padding: 0 20px; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
-    .product-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 20px; }
+    .section-title { font-size: 18px; font-weight: bold; padding: 0 15px; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+    .product-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 15px; }
     @media (min-width: 768px) { .product-grid { grid-template-columns: repeat(4, 1fr); } }
     
     .product-card { background: var(--white); border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; transition: 0.3s; position: relative;}
@@ -527,7 +520,7 @@ sudo pm2 save
 sudo pm2 startup
 
 echo "================================================================"
-echo " UPDATE KATEGORI, BANNER & WA BERHASIL! "
+echo " UPDATE BANNER ROUNDED & RAPAT KIRI BERHASIL! "
 echo "================================================================"
 echo "Halaman Utama: http://[IP_VPS]/"
 echo "Halaman Admin: http://[IP_VPS]/vps-panel"
