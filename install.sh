@@ -3,9 +3,9 @@
 # SCRIPT INSTALL TOKO ONLINE TAS & VPS PANEL MANAJEMEN
 # ====================================================
 
-echo "Memulai instalasi sistem Toko Tas (Versi Enterprise)..."
+echo "Memulai instalasi/update sistem Toko Tas Hitam Putih..."
 
-# 1. Update sistem dan install dependensi dasar (Termasuk Nginx untuk Domain)
+# 1. Update sistem dan install dependensi dasar
 sudo apt update -y
 sudo apt install -y curl build-essential nginx cron wget jq ufw
 
@@ -36,7 +36,7 @@ npm install express sqlite3 ejs multer body-parser
 mkdir -p public/uploads
 mkdir -p views
 
-# 7. File inisialisasi Database SQLite (init_db.js) - ANTI HILANG DATA
+# 7. File inisialisasi Database SQLite (init_db.js)
 cat << 'EOF' > init_db.js
 const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database('./tokotas.db');
@@ -59,7 +59,7 @@ EOF
 # Jalankan inisialisasi database
 node init_db.js
 
-# 8. Buat script utama server (server.js) - JALAN DI PORT 3000
+# 8. Buat script utama server (server.js)
 cat << 'EOF' > server.js
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
@@ -68,7 +68,7 @@ const multer = require('multer');
 const path = require('path');
 
 const app = express();
-const port = 3000; // Berjalan di port 3000 agar Nginx bisa proxy dari port 80
+const port = 3000;
 
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
@@ -84,7 +84,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// Rute Frontend
+// Rute: Halaman Utama
 app.get('/', (req, res) => {
   let query = "SELECT * FROM products WHERE 1=1";
   let params = [];
@@ -101,6 +101,7 @@ app.get('/', (req, res) => {
   });
 });
 
+// Rute: Halaman Detail Produk
 app.get('/product/:id', (req, res) => {
   db.get("SELECT * FROM products WHERE id = ?", [req.params.id], (err, product) => {
     if (err) throw err;
@@ -109,9 +110,12 @@ app.get('/product/:id', (req, res) => {
   });
 });
 
-app.get('/cart', (req, res) => { res.render('cart'); });
+// Rute: Halaman Keranjang
+app.get('/cart', (req, res) => {
+  res.render('cart');
+});
 
-// Rute Admin
+// Rute: Panel Admin
 app.get('/vps-panel', (req, res) => {
   db.all("SELECT * FROM products ORDER BY id DESC", [], (err, products) => {
     if (err) throw err;
@@ -122,6 +126,7 @@ app.get('/vps-panel', (req, res) => {
   });
 });
 
+// Rute: Halaman Edit
 app.get('/vps-panel/edit/:id', (req, res) => {
   db.get("SELECT * FROM products WHERE id = ?", [req.params.id], (err, product) => {
     if (err) throw err;
@@ -130,6 +135,7 @@ app.get('/vps-panel/edit/:id', (req, res) => {
   });
 });
 
+// Aksi Admin
 app.post('/vps-panel/edit/:id', upload.single('image'), (req, res) => {
   const { name, price, description, category, stock } = req.body;
   if (req.file) {
@@ -145,8 +151,9 @@ app.post('/vps-panel/edit/:id', upload.single('image'), (req, res) => {
 app.post('/vps-panel/add', upload.single('image'), (req, res) => {
   const { name, price, description, category, stock } = req.body;
   const imageUrl = req.file ? '/uploads/' + req.file.filename : '/uploads/default.jpg';
-  db.run("INSERT INTO products (name, price, description, image_url, category, stock) VALUES (?, ?, ?, ?, ?, ?)", 
-    [name, price, description, imageUrl, category || 'Lainnya', stock || 0], (err) => { if (err) throw err; res.redirect('/vps-panel'); });
+  db.run("INSERT INTO products (name, price, description, image_url, category, stock) VALUES (?, ?, ?, ?, ?, ?)", [name, price, description, imageUrl, category || 'Lainnya', stock || 0], (err) => {
+      if (err) throw err; res.redirect('/vps-panel');
+  });
 });
 
 app.post('/vps-panel/delete/:id', (req, res) => {
@@ -182,6 +189,7 @@ cat << 'EOF' > views/index.ejs
     .header { background: var(--black); padding: 12px 15px 12px 2px; display: flex; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 50; }
     .icon-btn { background: none; border: none; color: var(--white); cursor: pointer; display: flex; align-items: center; padding: 5px; margin: 0; position: relative;}
     .icon-btn svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    
     .cart-badge { position: absolute; top: 0; right: 0; background: var(--red); color: white; font-size: 10px; font-weight: bold; border-radius: 50%; padding: 2px 6px; display: none; }
 
     .search-box { flex-grow: 1; background: var(--white); border-radius: 4px; display: flex; align-items: center; padding: 8px 12px; }
@@ -619,6 +627,7 @@ cat << 'EOF' > /etc/nginx/sites-available/tokotas_default
 server {
     listen 80 default_server;
     server_name _;
+    client_max_body_size 50M;
     location / { proxy_pass http://localhost:3000; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; }
 }
 EOF
@@ -661,7 +670,7 @@ case $pilihan in
     echo ""
     read -p "Masukkan Domain Anda (contoh: toko.com): " domain_name
     cat <<NGINX > /etc/nginx/sites-available/tokotas_domain
-server { listen 80; server_name $domain_name; location / { proxy_pass http://localhost:3000; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; } }
+server { listen 80; server_name $domain_name; client_max_body_size 50M; location / { proxy_pass http://localhost:3000; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; } }
 NGINX
     ln -sf /etc/nginx/sites-available/tokotas_domain /etc/nginx/sites-enabled/
     rm -f /etc/nginx/sites-enabled/tokotas_default
@@ -701,7 +710,7 @@ NGINX
     rm -rf /var/www/tokotas
     tar -xzf $FILE_RES -C /var/www 2>/dev/null || tar -xzf $FILE_RES -C /
     if [ -f /var/www/tokotas/domain.txt ]; then DOMAIN_RES=$(cat /var/www/tokotas/domain.txt); cat <<NGINX_RES > /etc/nginx/sites-available/tokotas_domain
-server { listen 80; server_name $DOMAIN_RES; location / { proxy_pass http://localhost:3000; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; } }
+server { listen 80; server_name $DOMAIN_RES; client_max_body_size 50M; location / { proxy_pass http://localhost:3000; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; } }
 NGINX_RES
     ln -sf /etc/nginx/sites-available/tokotas_domain /etc/nginx/sites-enabled/; rm -f /etc/nginx/sites-enabled/tokotas_default; fi
     pm2 start /var/www/tokotas/server.js --name "tokotas" 2>/dev/null || pm2 restart tokotas
@@ -727,5 +736,5 @@ sudo pm2 save
 sudo pm2 startup
 
 echo "================================================================"
-echo " UPDATE CLOUDFLARE 521 FIX SELESAI DENGAN SEMPURNA! "
+echo " UPDATE FIX UPLOAD GAMBAR BESAR SELESAI! "
 echo "================================================================"
