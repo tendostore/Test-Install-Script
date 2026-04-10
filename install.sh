@@ -3,11 +3,11 @@
 # SCRIPT INSTALL TOKO ONLINE TAS & VPS PANEL MANAJEMEN
 # ====================================================
 
-echo "Memulai instalasi/update sistem Toko Tas Hitam Putih..."
+echo "Memulai instalasi sistem Toko Tas (Versi Enterprise)..."
 
-# 1. Update sistem dan install dependensi dasar
+# 1. Update sistem dan install dependensi dasar (Termasuk Nginx untuk Domain)
 sudo apt update -y
-sudo apt install -y curl build-essential
+sudo apt install -y curl build-essential nginx cron wget jq
 
 # 2. Install Node.js (Versi 20.x)
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -28,16 +28,18 @@ npm install express sqlite3 ejs multer body-parser
 mkdir -p public/uploads
 mkdir -p views
 
-# 7. File inisialisasi Database SQLite (init_db.js)
+# 7. File inisialisasi Database SQLite (init_db.js) - ANTI HILANG DATA
 cat << 'EOF' > init_db.js
 const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database('./tokotas.db');
 
 db.serialize(() => {
-  db.run("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, price REAL, description TEXT, image_url TEXT, category TEXT)");
+  db.run("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, price REAL, description TEXT, image_url TEXT, category TEXT, stock INTEGER DEFAULT 0)");
   db.all("PRAGMA table_info(products)", (err, columns) => {
      const hasCategory = columns.some(col => col.name === 'category');
+     const hasStock = columns.some(col => col.name === 'stock');
      if (!hasCategory) db.run("ALTER TABLE products ADD COLUMN category TEXT DEFAULT 'Lainnya'");
+     if (!hasStock) db.run("ALTER TABLE products ADD COLUMN stock INTEGER DEFAULT 0");
   });
   db.run("CREATE TABLE IF NOT EXISTS banners (id INTEGER PRIMARY KEY AUTOINCREMENT, image_url TEXT)");
 });
@@ -49,7 +51,7 @@ EOF
 # Jalankan inisialisasi database
 node init_db.js
 
-# 8. Buat script utama server (server.js)
+# 8. Buat script utama server (server.js) - SEKARANG JALAN DI PORT 3000
 cat << 'EOF' > server.js
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
@@ -58,7 +60,7 @@ const multer = require('multer');
 const path = require('path');
 
 const app = express();
-const port = 80;
+const port = 3000; // Berubah ke 3000 agar port 80 bisa dipakai Nginx untuk Domain
 
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
@@ -74,7 +76,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// Rute: Halaman Utama
+// Rute Frontend
 app.get('/', (req, res) => {
   let query = "SELECT * FROM products WHERE 1=1";
   let params = [];
@@ -91,7 +93,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// Rute: Halaman Detail Produk
 app.get('/product/:id', (req, res) => {
   db.get("SELECT * FROM products WHERE id = ?", [req.params.id], (err, product) => {
     if (err) throw err;
@@ -100,12 +101,9 @@ app.get('/product/:id', (req, res) => {
   });
 });
 
-// Rute: Halaman Keranjang
-app.get('/cart', (req, res) => {
-  res.render('cart');
-});
+app.get('/cart', (req, res) => { res.render('cart'); });
 
-// Rute: Panel Admin
+// Rute Admin
 app.get('/vps-panel', (req, res) => {
   db.all("SELECT * FROM products ORDER BY id DESC", [], (err, products) => {
     if (err) throw err;
@@ -116,13 +114,31 @@ app.get('/vps-panel', (req, res) => {
   });
 });
 
-// Aksi Admin
-app.post('/vps-panel/add', upload.single('image'), (req, res) => {
-  const { name, price, description, category } = req.body;
-  const imageUrl = req.file ? '/uploads/' + req.file.filename : '/uploads/default.jpg';
-  db.run("INSERT INTO products (name, price, description, image_url, category) VALUES (?, ?, ?, ?, ?)", [name, price, description, imageUrl, category || 'Lainnya'], (err) => {
-      if (err) throw err; res.redirect('/vps-panel');
+app.get('/vps-panel/edit/:id', (req, res) => {
+  db.get("SELECT * FROM products WHERE id = ?", [req.params.id], (err, product) => {
+    if (err) throw err;
+    if (!product) return res.redirect('/vps-panel');
+    res.render('admin_edit', { product: product });
   });
+});
+
+app.post('/vps-panel/edit/:id', upload.single('image'), (req, res) => {
+  const { name, price, description, category, stock } = req.body;
+  if (req.file) {
+    const imageUrl = '/uploads/' + req.file.filename;
+    db.run("UPDATE products SET name = ?, price = ?, description = ?, category = ?, stock = ?, image_url = ? WHERE id = ?", 
+      [name, price, description, category, stock || 0, imageUrl, req.params.id], (err) => { if (err) throw err; res.redirect('/vps-panel'); });
+  } else {
+    db.run("UPDATE products SET name = ?, price = ?, description = ?, category = ?, stock = ? WHERE id = ?", 
+      [name, price, description, category, stock || 0, req.params.id], (err) => { if (err) throw err; res.redirect('/vps-panel'); });
+  }
+});
+
+app.post('/vps-panel/add', upload.single('image'), (req, res) => {
+  const { name, price, description, category, stock } = req.body;
+  const imageUrl = req.file ? '/uploads/' + req.file.filename : '/uploads/default.jpg';
+  db.run("INSERT INTO products (name, price, description, image_url, category, stock) VALUES (?, ?, ?, ?, ?, ?)", 
+    [name, price, description, imageUrl, category || 'Lainnya', stock || 0], (err) => { if (err) throw err; res.redirect('/vps-panel'); });
 });
 
 app.post('/vps-panel/delete/:id', (req, res) => {
@@ -158,7 +174,6 @@ cat << 'EOF' > views/index.ejs
     .header { background: var(--black); padding: 12px 15px 12px 2px; display: flex; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 50; }
     .icon-btn { background: none; border: none; color: var(--white); cursor: pointer; display: flex; align-items: center; padding: 5px; margin: 0; position: relative;}
     .icon-btn svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-    
     .cart-badge { position: absolute; top: 0; right: 0; background: var(--red); color: white; font-size: 10px; font-weight: bold; border-radius: 50%; padding: 2px 6px; display: none; }
 
     .search-box { flex-grow: 1; background: var(--white); border-radius: 4px; display: flex; align-items: center; padding: 8px 12px; }
@@ -196,7 +211,6 @@ cat << 'EOF' > views/index.ejs
     .closebtn { color: var(--white); font-size: 28px; text-decoration: none; font-weight: normal; }
     .sidebar-menu a { padding: 18px 20px; text-decoration: none; font-size: 14px; font-weight: bold; color: var(--black); display: block; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 1px; }
     .sidebar-menu a:hover { background: var(--light-gray); }
-    
     .sidebar-icon { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; margin-right: 10px; vertical-align: middle; }
   </style>
 </head>
@@ -205,23 +219,16 @@ cat << 'EOF' > views/index.ejs
   <div id="mySidebar" class="sidebar">
     <div class="sidebar-header"><span>Menu Toko</span><a href="javascript:void(0)" class="closebtn" onclick="toggleMenu()">&times;</a></div>
     <div class="sidebar-menu">
-      <a href="/">Semua Produk</a>
-      <a href="/?category=Tas">Kategori Tas</a>
-      <a href="/?category=Sepatu">Kategori Sepatu</a>
-      <a href="/?category=Baju">Kategori Baju</a>
+      <a href="/">Semua Produk</a><a href="/?category=Tas">Kategori Tas</a><a href="/?category=Sepatu">Kategori Sepatu</a><a href="/?category=Baju">Kategori Baju</a>
       <a href="/cart" style="display: flex; align-items: center;">
-        <svg class="sidebar-icon" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg> 
-        Keranjang Saya
+        <svg class="sidebar-icon" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg> Keranjang Saya
       </a>
     </div>
   </div>
 
   <div class="header">
     <button class="icon-btn" onclick="toggleMenu()"><svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
-    <form action="/" method="GET" class="search-box">
-      <input type="text" name="q" placeholder="Temukan produk disini" value="<%= searchQuery %>">
-      <button type="submit"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></button>
-    </form>
+    <form action="/" method="GET" class="search-box"><input type="text" name="q" placeholder="Temukan produk disini" value="<%= searchQuery %>"><button type="submit"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></button></form>
     <a href="/cart" class="icon-btn" style="padding-right: 0; text-decoration:none;">
       <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
       <span id="cart-badge" class="cart-badge">0</span>
@@ -260,7 +267,6 @@ cat << 'EOF' > views/index.ejs
     function toggleMenu() { document.getElementById("mySidebar").style.width = document.getElementById("mySidebar").style.width === "260px" ? "0" : "260px"; }
     const bc = document.getElementById('bannerContainer'); const bs = document.querySelectorAll('.banner-item'); let cb = 0;
     if (bs.length > 1) setInterval(() => { cb = (cb + 1) % bs.length; bc.scrollTo({ left: bs[cb].offsetLeft, behavior: 'smooth' }); }, 4000);
-    
     function updateCartBadge() {
       let cart = JSON.parse(localStorage.getItem('tokotas_cart')) || [];
       let badge = document.getElementById('cart-badge');
@@ -284,7 +290,6 @@ cat << 'EOF' > views/detail.ejs
     html, body { margin: 0; padding: 0; width: 100%; }
     :root { --black: #000000; --dark-gray: #333333; --light-gray: #f9f9f9; --white: #ffffff; --border: #e0e0e0; --red: #e74c3c; }
     body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--light-gray); color: var(--black); }
-    
     .header { background: var(--black); padding: 12px 15px 12px 2px; display: flex; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 50; }
     .icon-btn { background: none; border: none; color: var(--white); cursor: pointer; display: flex; align-items: center; padding: 5px; margin: 0; position:relative;}
     .icon-btn svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
@@ -301,9 +306,10 @@ cat << 'EOF' > views/detail.ejs
     .detail-img-box img { width: 100%; height: 100%; object-fit: cover; display: block; max-height: 400px; }
 
     .detail-info-box { flex: 1; padding: 25px; display: flex; flex-direction: column; }
-    .badge { display: inline-block; background: var(--black); color: var(--white); padding: 4px 10px; font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 1px; }
+    .badge { display: inline-block; background: var(--black); color: var(--white); padding: 4px 10px; font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px; }
     .title { margin: 0 0 10px 0; font-size: 22px; color: var(--black); line-height: 1.3; }
-    .price { font-size: 24px; font-weight: bold; color: var(--dark-gray); margin-bottom: 20px; }
+    .price { font-size: 24px; font-weight: bold; color: var(--dark-gray); margin-bottom: 10px; }
+    .stock { font-size: 13px; color: #e67e22; font-weight: bold; margin-bottom: 20px; }
     .desc-title { font-size: 13px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-bottom: 10px; color: var(--black); }
     .description { font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 30px; white-space: pre-wrap; flex-grow: 1;}
     
@@ -332,6 +338,7 @@ cat << 'EOF' > views/detail.ejs
       <div><span class="badge"><%= product.category %></span></div>
       <h1 class="title"><%= product.name %></h1>
       <div class="price">Rp <%= parseInt(product.price).toLocaleString('id-ID') %></div>
+      <div class="stock">Sisa Stok: <%= product.stock %></div>
       <div class="desc-title">Deskripsi Lengkap</div>
       <div class="description"><%= product.description || '-' %></div>
       
@@ -349,7 +356,6 @@ cat << 'EOF' > views/detail.ejs
       let badge = document.getElementById('cart-badge');
       if (cart.length > 0) { badge.innerText = cart.length; badge.style.display = 'block'; } else { badge.style.display = 'none'; }
     }
-    
     function addToCart(id, name, price, category, img) {
       let cart = JSON.parse(localStorage.getItem('tokotas_cart')) || [];
       cart.push({ id: id, name: name, price: price, category: category, img: img });
@@ -363,7 +369,7 @@ cat << 'EOF' > views/detail.ejs
 </html>
 EOF
 
-# 11. Buat File Baru HALAMAN KERANJANG DENGAN CHECKBOX (views/cart.ejs)
+# 11. Buat File Baru HALAMAN KERANJANG (views/cart.ejs)
 cat << 'EOF' > views/cart.ejs
 <!DOCTYPE html>
 <html lang="id">
@@ -382,8 +388,6 @@ cat << 'EOF' > views/cart.ejs
     .icon-btn svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
     
     .cart-container { max-width: 800px; margin: 20px auto; padding: 0 15px; }
-    
-    /* Area Checkbox Pilih Semua */
     .cart-header-actions { background: var(--white); padding: 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; font-weight: bold; font-size: 14px; }
     .cart-header-actions input[type="checkbox"] { transform: scale(1.4); margin-right: 15px; cursor: pointer; accent-color: var(--black); }
 
@@ -403,7 +407,6 @@ cat << 'EOF' > views/cart.ejs
     .btn-buy-all { background: var(--black); color: var(--white); text-align: center; text-decoration: none; padding: 15px; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; border: none; cursor: pointer; border-radius: 4px; display: block; width: 100%; box-sizing: border-box; transition: 0.2s; }
     .btn-buy-all:hover { background: var(--dark-gray); }
     .btn-buy-all:disabled { background: #ccc; cursor: not-allowed; }
-    
     .empty-cart { text-align: center; padding: 50px 20px; color: #777; font-size: 16px; }
   </style>
 </head>
@@ -414,86 +417,46 @@ cat << 'EOF' > views/cart.ejs
     <div style="width:24px;"></div>
   </div>
 
-  <div class="cart-container" id="cart-content">
-    </div>
+  <div class="cart-container" id="cart-content"></div>
 
   <script>
     function loadCart() {
       const cartContainer = document.getElementById('cart-content');
       let cart = JSON.parse(localStorage.getItem('tokotas_cart')) || [];
-      
       if (cart.length === 0) {
         cartContainer.innerHTML = '<div class="empty-cart">Keranjang Anda masih kosong.<br><br><a href="/" style="color: black; font-weight: bold; padding: 10px; border: 1px solid black; display:inline-block; margin-top:15px; border-radius:4px; text-decoration:none;">Mulai Belanja</a></div>';
         return;
       }
-
-      let html = `
-        <div class="cart-header-actions">
-          <label style="display:flex; align-items:center; cursor:pointer; width:100%;">
-            <input type="checkbox" id="check-all" checked onchange="toggleAll()"> Pilih Semua
-          </label>
-        </div>
-      `;
-
+      let html = `<div class="cart-header-actions"><label style="display:flex; align-items:center; cursor:pointer; width:100%;"><input type="checkbox" id="check-all" checked onchange="toggleAll()"> Pilih Semua</label></div>`;
       cart.forEach((item, index) => {
-        html += `
-          <div class="cart-item">
-            <input type="checkbox" class="item-check" checked onchange="updateCheckout()">
-            <img src="${item.img}" alt="${item.name}">
-            <div class="item-info">
-              <div class="item-title">${item.name}</div>
-              <div class="item-cat">${item.category}</div>
-              <div class="item-price">Rp ${item.price.toLocaleString('id-ID')}</div>
-            </div>
-            <button class="btn-remove" onclick="removeItem(${index})">Hapus</button>
-          </div>
-        `;
+        html += `<div class="cart-item"><input type="checkbox" class="item-check" checked onchange="updateCheckout()"><img src="${item.img}"><div class="item-info"><div class="item-title">${item.name}</div><div class="item-cat">${item.category}</div><div class="item-price">Rp ${item.price.toLocaleString('id-ID')}</div></div><button class="btn-remove" onclick="removeItem(${index})">Hapus</button></div>`;
       });
-
-      html += `
-        <div class="cart-summary">
-          <div class="total-text">Total Harga <span id="total-price-display" class="total-price">Rp 0</span></div>
-          <button id="btn-checkout" class="btn-buy-all">BELI SEKARANG</button>
-        </div>
-      `;
-
+      html += `<div class="cart-summary"><div class="total-text">Total Harga <span id="total-price-display" class="total-price">Rp 0</span></div><button id="btn-checkout" class="btn-buy-all">BELI SEKARANG</button></div>`;
       cartContainer.innerHTML = html;
-      updateCheckout(); // Kalkulasi awal
+      updateCheckout(); 
     }
-
     function toggleAll() {
       let checkAll = document.getElementById('check-all').checked;
-      let checkboxes = document.querySelectorAll('.item-check');
-      checkboxes.forEach(cb => cb.checked = checkAll);
+      document.querySelectorAll('.item-check').forEach(cb => cb.checked = checkAll);
       updateCheckout();
     }
-
     function updateCheckout() {
       let cart = JSON.parse(localStorage.getItem('tokotas_cart')) || [];
       let checkboxes = document.querySelectorAll('.item-check');
       let btnCheckout = document.getElementById('btn-checkout');
       let checkAllBox = document.getElementById('check-all');
       
-      let total = 0;
-      let selectedCount = 0;
-      let allChecked = true;
+      let total = 0; let selectedCount = 0; let allChecked = true;
       let waText = "Halo Admin, saya mau pesan barang dari keranjang:\n\n";
 
       checkboxes.forEach((cb, index) => {
         if (cb.checked) {
           let item = cart[index];
-          total += item.price;
-          selectedCount++;
+          total += item.price; selectedCount++;
           waText += `${selectedCount}. ${item.name}\n   Kategori: ${item.category}\n   Harga: Rp ${item.price.toLocaleString('id-ID')}\n\n`;
-        } else {
-          allChecked = false;
-        }
+        } else { allChecked = false; }
       });
-
-      // Update state Pilih Semua
       if(checkAllBox) checkAllBox.checked = allChecked;
-
-      // Update Tampilan Harga & Tombol
       document.getElementById('total-price-display').innerText = `Rp ${total.toLocaleString('id-ID')}`;
 
       if (selectedCount === 0) {
@@ -503,40 +466,88 @@ cat << 'EOF' > views/cart.ejs
       } else {
         btnCheckout.innerText = `BELI YANG DIPILIH (${selectedCount})`;
         btnCheckout.style.opacity = '1';
-        
         waText += `*TOTAL KESELURUHAN: Rp ${total.toLocaleString('id-ID')}*\n\nMohon info ketersediaannya.`;
         const waLink = `https://wa.me/6282224460678?text=${encodeURIComponent(waText)}`;
-        
-        btnCheckout.onclick = function() {
-          window.open(waLink, '_blank');
-          // Opsional: hapus barang yang sudah dibeli dari keranjang
-          // removeCheckedItems();
-        };
+        btnCheckout.onclick = function() { window.open(waLink, '_blank'); };
       }
     }
-
     function removeItem(index) {
       let cart = JSON.parse(localStorage.getItem('tokotas_cart')) || [];
       cart.splice(index, 1);
       localStorage.setItem('tokotas_cart', JSON.stringify(cart));
       loadCart();
     }
-
-    // Jalankan saat halaman dibuka
     loadCart();
   </script>
 </body>
 </html>
 EOF
 
-# 12. Buat Tampilan Panel Admin VPS (views/admin.ejs)
+# 12. Buat Tampilan Panel Admin & Edit (views/admin.ejs & views/admin_edit.ejs)
 cat << 'EOF' > views/admin.ejs
 <!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Panel - Toko Hitam Putih</title>
+  <title>Admin Panel</title>
+  <style>
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f9f9f9; padding: 20px; color: #000; }
+    .panel { max-width: 900px; margin: 0 auto 30px; background: #fff; padding: 30px; border: 1px solid #e0e0e0; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    h2 { border-bottom: 2px solid #000; padding-bottom: 10px; margin-top: 0; text-transform: uppercase; letter-spacing: 1px; }
+    .form-group { margin-bottom: 15px; }
+    label { font-weight: bold; font-size: 13px; text-transform: uppercase; display: block; margin-bottom: 5px; }
+    input, textarea, select { width: 100%; padding: 12px; border: 1px solid #ccc; box-sizing: border-box; font-family: inherit; }
+    .btn-add { background: #000; color: #fff; border: none; padding: 12px 20px; cursor: pointer; font-weight: bold; width: 100%; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+    th { background: #f0f0f0; text-transform: uppercase; font-size: 13px; letter-spacing: 1px; }
+    .btn-delete { background: #fff; color: #000; border: 1px solid #000; padding: 6px 12px; cursor: pointer; font-size: 12px; font-weight: bold; }
+    .btn-edit { background: #fff; color: #000; border: 1px solid #000; padding: 6px 12px; cursor: pointer; font-size: 12px; font-weight: bold; text-decoration: none; display: inline-block; margin-right: 5px;}
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h2>Manajemen Banner Depan (Maks 4)</h2>
+    <form action="/vps-panel/banner-add" method="POST" enctype="multipart/form-data"><div class="form-group"><input type="file" name="image" required></div><button type="submit" class="btn-add">TAMBAH BANNER</button></form>
+    <table>
+      <tr><th>Foto Banner</th><th>Aksi</th></tr>
+      <% banners.forEach(function(banner) { %><tr><td><img src="<%= banner.image_url %>" style="width:120px; height:60px; object-fit:cover;"></td><td><form action="/vps-panel/banner-delete/<%= banner.id %>" method="POST" style="margin:0;"><button type="submit" class="btn-delete">HAPUS</button></form></td></tr><% }); %>
+    </table>
+  </div>
+  <div class="panel">
+    <h2>Tambah Produk Baru</h2>
+    <form action="/vps-panel/add" method="POST" enctype="multipart/form-data">
+      <div class="form-group"><label>Kategori</label><select name="category" required><option value="Tas">Tas</option><option value="Sepatu">Sepatu</option><option value="Baju">Baju</option></select></div>
+      <div class="form-group"><label>Nama Barang</label><input type="text" name="name" required></div>
+      <div class="form-group"><label>Harga (Rp)</label><input type="number" name="price" required></div>
+      <div class="form-group"><label>Stok</label><input type="number" name="stock" required></div>
+      <div class="form-group"><label>Deskripsi</label><textarea name="description" style="height: 100px;"></textarea></div>
+      <div class="form-group"><label>Upload Foto</label><input type="file" name="image" required></div>
+      <button type="submit" class="btn-add">SIMPAN PRODUK BARU</button>
+    </form>
+    <h2 style="margin-top: 40px;">Daftar Produk</h2>
+    <table>
+      <tr><th>Foto</th><th>Kategori</th><th>Nama Barang</th><th>Harga</th><th>Stok</th><th>Aksi</th></tr>
+      <% products.forEach(function(product) { %>
+        <tr>
+          <td><img src="<%= product.image_url %>" style="width:50px; height:50px; object-fit:cover;"></td>
+          <td><b><%= product.category %></b></td><td><%= product.name %></td><td>Rp <%= parseInt(product.price).toLocaleString('id-ID') %></td><td><%= product.stock %></td>
+          <td style="display: flex;"><a href="/vps-panel/edit/<%= product.id %>" class="btn-edit">EDIT</a><form action="/vps-panel/delete/<%= product.id %>" method="POST" style="margin:0;"><button type="submit" class="btn-delete">HAPUS</button></form></td>
+        </tr>
+      <% }); %>
+    </table>
+    <br><br><a href="/" style="color: #000; font-weight: bold;">KEMBALI KE TOKO</a>
+  </div>
+</body>
+</html>
+EOF
+
+cat << 'EOF' > views/admin_edit.ejs
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Edit Produk</title>
   <style>
     body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f9f9f9; padding: 20px; color: #000; }
     .panel { max-width: 800px; margin: 0 auto 30px; background: #fff; padding: 30px; border: 1px solid #e0e0e0; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
@@ -544,122 +555,196 @@ cat << 'EOF' > views/admin.ejs
     .form-group { margin-bottom: 15px; }
     label { font-weight: bold; font-size: 13px; text-transform: uppercase; display: block; margin-bottom: 5px; }
     input, textarea, select { width: 100%; padding: 12px; border: 1px solid #ccc; box-sizing: border-box; font-family: inherit; }
-    input:focus, textarea:focus, select:focus { border-color: #000; outline: none; }
     .btn-add { background: #000; color: #fff; border: none; padding: 12px 20px; cursor: pointer; font-weight: bold; width: 100%; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; }
-    .btn-add:hover { background: #333; }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
-    th { background: #f0f0f0; text-transform: uppercase; font-size: 13px; letter-spacing: 1px; }
-    .btn-delete { background: #fff; color: #000; border: 1px solid #000; padding: 6px 12px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.2s; }
-    .btn-delete:hover { background: #000; color: #fff; }
   </style>
 </head>
 <body>
   <div class="panel">
-    <h2>Manajemen Banner Depan (Maks 4)</h2>
-    <form action="/vps-panel/banner-add" method="POST" enctype="multipart/form-data">
-      <div class="form-group"><label>Upload Foto Banner Baru:</label><input type="file" name="image" required></div>
-      <button type="submit" class="btn-add">TAMBAH BANNER</button>
+    <h2>Edit Produk: <%= product.name %></h2>
+    <form action="/vps-panel/edit/<%= product.id %>" method="POST" enctype="multipart/form-data">
+      <div style="text-align: center; margin-bottom: 20px;"><img src="<%= product.image_url %>" style="width: 150px; height: 150px; object-fit: cover; border: 1px solid #ccc; border-radius: 8px;"></div>
+      <div class="form-group"><label>Kategori</label><select name="category" required><option value="Tas" <%= product.category === 'Tas' ? 'selected' : '' %>>Tas</option><option value="Sepatu" <%= product.category === 'Sepatu' ? 'selected' : '' %>>Sepatu</option><option value="Baju" <%= product.category === 'Baju' ? 'selected' : '' %>>Baju</option></select></div>
+      <div class="form-group"><label>Nama Barang</label><input type="text" name="name" value="<%= product.name %>" required></div>
+      <div class="form-group"><label>Harga (Rp)</label><input type="number" name="price" value="<%= product.price %>" required></div>
+      <div class="form-group"><label>Stok Barang</label><input type="number" name="stock" value="<%= product.stock %>" required></div>
+      <div class="form-group"><label>Deskripsi Lengkap</label><textarea name="description" style="height: 150px;"><%= product.description %></textarea></div>
+      <div class="form-group"><label>Ganti Foto (Biarkan kosong jika tidak diganti)</label><input type="file" name="image"></div>
+      <button type="submit" class="btn-add">UPDATE PRODUK</button>
     </form>
-    <table>
-      <tr><th>Foto Banner</th><th>Aksi</th></tr>
-      <% banners.forEach(function(banner) { %>
-        <tr>
-          <td><img src="<%= banner.image_url %>" style="width:120px; height:60px; object-fit:cover; border: 1px solid #eee;"></td>
-          <td><form action="/vps-panel/banner-delete/<%= banner.id %>" method="POST" style="margin:0;"><button type="submit" class="btn-delete">HAPUS</button></form></td>
-        </tr>
-      <% }); %>
-    </table>
-  </div>
-  <div class="panel">
-    <h2>Manajemen Produk Barang</h2>
-    <form action="/vps-panel/add" method="POST" enctype="multipart/form-data">
-      <div class="form-group">
-        <label>Kategori Produk</label>
-        <select name="category" required><option value="Tas">Tas</option><option value="Sepatu">Sepatu</option><option value="Baju">Baju</option></select>
-      </div>
-      <div class="form-group"><input type="text" name="name" placeholder="Nama Barang" required></div>
-      <div class="form-group"><input type="number" name="price" placeholder="Harga (Contoh: 200000)" required></div>
-      <div class="form-group"><textarea name="description" placeholder="Deskripsi Barang Lengkap" style="height: 100px;"></textarea></div>
-      <div class="form-group"><label>Upload Foto Barang:</label><input type="file" name="image" required></div>
-      <button type="submit" class="btn-add">SIMPAN PRODUK BARU</button>
-    </form>
-    <table>
-      <tr><th>Foto</th><th>Kategori</th><th>Nama Barang</th><th>Harga</th><th>Aksi</th></tr>
-      <% products.forEach(function(product) { %>
-        <tr>
-          <td><img src="<%= product.image_url %>" style="width:50px; height:50px; object-fit:cover; border: 1px solid #eee;"></td>
-          <td><b><%= product.category %></b></td>
-          <td><%= product.name %></td>
-          <td>Rp <%= parseInt(product.price).toLocaleString('id-ID') %></td>
-          <td><form action="/vps-panel/delete/<%= product.id %>" method="POST" style="margin:0;"><button type="submit" class="btn-delete">HAPUS</button></form></td>
-        </tr>
-      <% }); %>
-    </table>
-    <br><br><a href="/" style="color: #000; text-decoration: none; font-weight: bold; border-bottom: 1px solid #000;">KEMBALI KE TOKO</a>
+    <br><a href="/vps-panel" style="color: #000; font-weight: bold;">BATAL & KEMBALI</a>
   </div>
 </body>
 </html>
 EOF
 
-# 13. MEMBUAT MENU COMMAND LINE DI TERMINAL VPS (menu)
+# 13. SET NGINX DEFAULT (PROXY PORT 3000)
+cat << 'EOF' > /etc/nginx/sites-available/tokotas_default
+server {
+    listen 80 default_server;
+    server_name _;
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+EOF
+ln -sf /etc/nginx/sites-available/tokotas_default /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default
+systemctl restart nginx
+
+# 14. SCRIPT AUTO BACKUP TELEGRAM (/usr/local/bin/autobackup)
+cat << 'EOF' > /usr/local/bin/autobackup
+#!/bin/bash
+TOKEN=$(cat /root/.tg_token 2>/dev/null)
+CHAT_ID=$(cat /root/.tg_chat 2>/dev/null)
+if [ -z "$TOKEN" ] || [ -z "$CHAT_ID" ]; then exit 0; fi
+TANGGAL=$(date +%Y%m%d_%H%M%S)
+NAMA_BACKUP="/root/backup_tokotas_${TANGGAL}.tar.gz"
+tar -czf $NAMA_BACKUP -C /var/www tokotas 2>/dev/null
+if [ -f /etc/nginx/sites-available/tokotas_domain ]; then
+  tar -rf $NAMA_BACKUP -C /etc/nginx sites-available/tokotas_domain 2>/dev/null
+fi
+curl -s -F document=@"$NAMA_BACKUP" https://api.telegram.org/bot$TOKEN/sendDocument?chat_id=$CHAT_ID > /dev/null
+rm -f $NAMA_BACKUP # Hapus file lokal setelah dikirim agar VPS tidak penuh
+EOF
+chmod +x /usr/local/bin/autobackup
+
+# 15. SCRIPT CLI MENU ENTERPRISE (/usr/local/bin/menu)
 cat << 'EOF' > /usr/local/bin/menu
 #!/bin/bash
 clear
 echo "==================================================="
-echo "         MENU MANAJEMEN TOKO TAS (VPS CLI)         "
+echo "         MENU ENTERPRISE TOKO TAS (VPS CLI)        "
 echo "==================================================="
-echo "1. Backup Website & Database"
-echo "2. Restore Website & Database"
-echo "3. Uninstall & Reset Sistem"
-echo "4. Keluar"
+echo "1. Setup / Ganti Domain Website"
+echo "2. Manajemen Backup (Telegram & Auto)"
+echo "3. Restore Website (Dari Backup)"
+echo "4. Uninstall & Reset Sistem"
+echo "5. Keluar"
 echo "==================================================="
-read -p "Pilih menu (1-4): " pilihan
+read -p "Pilih menu (1-5): " pilihan
 
 case $pilihan in
   1)
     echo ""
-    echo "Memproses Backup..."
-    TANGGAL=$(date +%Y%m%d_%H%M%S)
-    NAMA_BACKUP="/root/backup_tokotas_${TANGGAL}.tar.gz"
-    tar -czvf $NAMA_BACKUP -C /var/www tokotas
+    read -p "Masukkan Domain Anda (contoh: toko.com): " domain_name
+    cat <<NGINX > /etc/nginx/sites-available/tokotas_domain
+server {
+    listen 80;
+    server_name $domain_name;
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+    }
+}
+NGINX
+    ln -sf /etc/nginx/sites-available/tokotas_domain /etc/nginx/sites-enabled/
+    rm -f /etc/nginx/sites-enabled/tokotas_default
+    systemctl restart nginx
+    echo "$domain_name" > /var/www/tokotas/domain.txt
     echo "==================================================="
-    echo "Backup Berhasil!"
-    echo "File tersimpan di: $NAMA_BACKUP"
+    echo "Domain $domain_name berhasil dipasang ke toko Anda!"
+    echo "Pastikan DNS A Record domain sudah diarahkan ke IP VPS ini."
     echo "==================================================="
     ;;
   2)
     echo ""
-    echo "Daftar Backup Tersedia di /root/ :"
-    ls -1 /root/backup_tokotas_*.tar.gz 2>/dev/null || echo "Belum ada file backup ditemukan."
-    echo ""
-    read -p "Masukkan NAMA FILE backup (contoh: backup_tokotas_2026...tar.gz) atau ketik 'batal': " file_restore
-    if [ "$file_restore" == "batal" ]; then
-      echo "Restore dibatalkan."
-    elif [ -f "/root/$file_restore" ]; then
-      echo "Memproses Restore..."
-      pm2 stop tokotas
-      rm -rf /var/www/tokotas
-      tar -xzvf /root/$file_restore -C /var/www
-      pm2 restart tokotas
-      echo "==================================================="
-      echo "Restore Berhasil! Website telah dipulihkan."
-      echo "==================================================="
-    else
-      echo "File tidak ditemukan! Pastikan nama file benar."
+    echo "--- MANAJEMEN BACKUP TELEGRAM ---"
+    echo "1. Backup Manual Sekarang (Kirim ke Telegram)"
+    echo "2. Set / Ubah Token & ID Bot Telegram"
+    echo "3. Set Waktu Auto-Backup (Menit / Jam)"
+    echo "4. Matikan Auto-Backup"
+    read -p "Pilih (1-4): " pil_backup
+    if [ "$pil_backup" == "1" ]; then
+       echo "Memproses Backup & Mengirim ke Telegram..."
+       /usr/local/bin/autobackup
+       echo "Selesai! Cek Telegram Anda."
+    elif [ "$pil_backup" == "2" ]; then
+       read -p "Masukkan Token Bot Telegram: " tg_token
+       read -p "Masukkan Chat ID Anda: " tg_chat
+       echo "$tg_token" > /root/.tg_token
+       echo "$tg_chat" > /root/.tg_chat
+       echo "Data Bot Telegram berhasil disimpan!"
+    elif [ "$pil_backup" == "3" ]; then
+       echo "Pilih interval:"
+       echo "A. Setiap X Menit"
+       echo "B. Setiap X Jam"
+       read -p "Pilihan (A/B): " pil_waktu
+       if [ "$pil_waktu" == "A" ] || [ "$pil_waktu" == "a" ]; then
+          read -p "Berapa menit sekali? (contoh: 30): " waktu_menit
+          (crontab -l 2>/dev/null | grep -v "/usr/local/bin/autobackup"; echo "*/$waktu_menit * * * * /usr/local/bin/autobackup") | crontab -
+          echo "Auto Backup diset setiap $waktu_menit menit!"
+       elif [ "$pil_waktu" == "B" ] || [ "$pil_waktu" == "b" ]; then
+          read -p "Berapa jam sekali? (contoh: 12): " waktu_jam
+          (crontab -l 2>/dev/null | grep -v "/usr/local/bin/autobackup"; echo "0 */$waktu_jam * * * /usr/local/bin/autobackup") | crontab -
+          echo "Auto Backup diset setiap $waktu_jam jam!"
+       fi
+    elif [ "$pil_backup" == "4" ]; then
+       (crontab -l 2>/dev/null | grep -v "/usr/local/bin/autobackup") | crontab -
+       echo "Auto-Backup telah dimatikan."
     fi
     ;;
   3)
     echo ""
-    echo "Menghapus sistem..."
-    pm2 delete tokotas 2>/dev/null || true
+    echo "--- RESTORE WEBSITE ---"
+    echo "1. Dari File Backup Lokal di VPS"
+    echo "2. Dari Direct Link (URL Google Drive / Server lain)"
+    read -p "Pilih (1/2): " pil_restore
+    if [ "$pil_restore" == "2" ]; then
+       read -p "Masukkan URL / Direct Link File Backup (.tar.gz): " url_dl
+       echo "Mendownload file dari link..."
+       wget -qO /root/backup_restore.tar.gz "$url_dl"
+       FILE_RES="/root/backup_restore.tar.gz"
+       if [ ! -s "$FILE_RES" ]; then
+          echo "GAGAL: File tidak dapat didownload atau link tidak valid/direct."
+          exit 0
+       fi
+    elif [ "$pil_restore" == "1" ]; then
+       ls -1 /root/backup_tokotas_*.tar.gz 2>/dev/null || echo "Belum ada backup lokal."
+       read -p "Masukkan NAMA FILE backup (contoh: backup_tokotas_2026.tar.gz): " nama_file
+       FILE_RES="/root/$nama_file"
+       if [ ! -f "$FILE_RES" ]; then echo "GAGAL: File tidak ditemukan."; exit 0; fi
+    fi
+    
+    echo "Memproses Restore..."
+    pm2 stop tokotas 2>/dev/null || true
     rm -rf /var/www/tokotas
+    tar -xzf $FILE_RES -C /var/www 2>/dev/null || tar -xzf $FILE_RES -C /
+    
+    # Restore Nginx Domain config jika ada di dalam backup
+    if [ -f /var/www/tokotas/domain.txt ]; then
+       DOMAIN_RES=$(cat /var/www/tokotas/domain.txt)
+       cat <<NGINX_RES > /etc/nginx/sites-available/tokotas_domain
+server {
+    listen 80;
+    server_name $DOMAIN_RES;
+    location / { proxy_pass http://localhost:3000; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; }
+}
+NGINX_RES
+       ln -sf /etc/nginx/sites-available/tokotas_domain /etc/nginx/sites-enabled/
+       rm -f /etc/nginx/sites-enabled/tokotas_default
+    fi
+    
+    pm2 restart tokotas 2>/dev/null || pm2 start /var/www/tokotas/server.js --name "tokotas"
+    systemctl restart nginx
     echo "==================================================="
-    echo "Uninstall Selesai! VPS sekarang bersih."
-    echo "Silakan jalankan script instalasi GitHub lagi jika ingin memasang ulang."
+    echo "Restore Berhasil! Website dan Database telah dipulihkan."
     echo "==================================================="
     ;;
   4)
+    echo ""
+    echo "Menghapus sistem secara INSTAN..."
+    pm2 delete tokotas 2>/dev/null || true
+    rm -rf /var/www/tokotas
+    rm -f /etc/nginx/sites-enabled/tokotas_domain /etc/nginx/sites-available/tokotas_domain
+    systemctl restart nginx
+    echo "==================================================="
+    echo "Uninstall Selesai! VPS sekarang bersih."
+    echo "==================================================="
+    ;;
+  5)
     echo "Keluar dari menu."
     ;;
   *)
@@ -668,17 +753,23 @@ case $pilihan in
 esac
 EOF
 
-# Berikan akses eksekusi agar command 'menu' bisa dijalankan
+# Berikan akses eksekusi CLI
 sudo chmod +x /usr/local/bin/menu
 
-# 14. Menjalankan server melalui PM2
+# 16. Restart Semua Service
 sudo pm2 delete tokotas 2>/dev/null || true
 sudo pm2 start server.js --name "tokotas"
 sudo pm2 save
 sudo pm2 startup
 
 echo "================================================================"
-echo " UPDATE CHECKBOX KERANJANG BERHASIL! "
+echo " UPDATE ENTERPRISE SELESAI DENGAN SEMPURNA! "
 echo "================================================================"
-echo "Halaman Utama: http://[IP_VPS]/"
+echo "Fitur Baru Tersedia di Terminal VPS Kamu:"
+echo "Ketik perintah:  menu  (lalu tekan Enter)"
+echo " "
+echo "Di dalam 'menu', kamu bisa:"
+echo "1. Set Custom Domain (Otomatis Setup Nginx)"
+echo "2. Set Bot Telegram & Jadwal Auto-Backup (Menit/Jam)"
+echo "3. Restore via Direct Link (Google Drive / Server)"
 echo "================================================================"
