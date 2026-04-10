@@ -100,7 +100,7 @@ app.get('/product/:id', (req, res) => {
   });
 });
 
-// Rute BARU: Halaman Keranjang
+// Rute: Halaman Keranjang
 app.get('/cart', (req, res) => {
   res.render('cart');
 });
@@ -196,6 +196,8 @@ cat << 'EOF' > views/index.ejs
     .closebtn { color: var(--white); font-size: 28px; text-decoration: none; font-weight: normal; }
     .sidebar-menu a { padding: 18px 20px; text-decoration: none; font-size: 14px; font-weight: bold; color: var(--black); display: block; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 1px; }
     .sidebar-menu a:hover { background: var(--light-gray); }
+    
+    .sidebar-icon { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; margin-right: 10px; vertical-align: middle; }
   </style>
 </head>
 <body>
@@ -203,7 +205,14 @@ cat << 'EOF' > views/index.ejs
   <div id="mySidebar" class="sidebar">
     <div class="sidebar-header"><span>Menu Toko</span><a href="javascript:void(0)" class="closebtn" onclick="toggleMenu()">&times;</a></div>
     <div class="sidebar-menu">
-      <a href="/">Semua Produk</a><a href="/?category=Tas">Kategori Tas</a><a href="/?category=Sepatu">Kategori Sepatu</a><a href="/?category=Baju">Kategori Baju</a><a href="/cart">🛒 Keranjang Saya</a>
+      <a href="/">Semua Produk</a>
+      <a href="/?category=Tas">Kategori Tas</a>
+      <a href="/?category=Sepatu">Kategori Sepatu</a>
+      <a href="/?category=Baju">Kategori Baju</a>
+      <a href="/cart" style="display: flex; align-items: center;">
+        <svg class="sidebar-icon" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg> 
+        Keranjang Saya
+      </a>
     </div>
   </div>
 
@@ -252,7 +261,6 @@ cat << 'EOF' > views/index.ejs
     const bc = document.getElementById('bannerContainer'); const bs = document.querySelectorAll('.banner-item'); let cb = 0;
     if (bs.length > 1) setInterval(() => { cb = (cb + 1) % bs.length; bc.scrollTo({ left: bs[cb].offsetLeft, behavior: 'smooth' }); }, 4000);
     
-    // JS untuk memperbarui angka di keranjang
     function updateCartBadge() {
       let cart = JSON.parse(localStorage.getItem('tokotas_cart')) || [];
       let badge = document.getElementById('cart-badge');
@@ -329,7 +337,7 @@ cat << 'EOF' > views/detail.ejs
       
       <div class="action-group">
         <button onclick="addToCart('<%= product.id %>', '<%= product.name.replace(/'/g, "\\'") %>', <%= product.price %>, '<%= product.category %>', '<%= product.image_url %>')" class="btn-cart">Masuk Keranjang</button>
-        <a href="https://wa.me/628222446067?text=Halo%20Admin,%20saya%20mau%20pesan:%0A%0ABarang:%20<%= encodeURIComponent(product.name) %>%0AHarga:%20Rp%20<%= parseInt(product.price).toLocaleString('id-ID') %>%0A%0AMohon%20info%20ketersediaannya." class="btn-buy" target="_blank">Beli</a>
+        <a href="https://wa.me/6282224460678?text=Halo%20Admin,%20saya%20mau%20pesan:%0A%0ABarang:%20<%= encodeURIComponent(product.name) %>%0AHarga:%20Rp%20<%= parseInt(product.price).toLocaleString('id-ID') %>%0A%0AMohon%20info%20ketersediaannya." class="btn-buy" target="_blank">Beli</a>
       </div>
       <a href="/" class="btn-back">Lihat Produk Lainnya</a>
     </div>
@@ -355,7 +363,7 @@ cat << 'EOF' > views/detail.ejs
 </html>
 EOF
 
-# 11. Buat File Baru HALAMAN KERANJANG (views/cart.ejs) - UPDATE BARU
+# 11. Buat File Baru HALAMAN KERANJANG DENGAN CHECKBOX (views/cart.ejs)
 cat << 'EOF' > views/cart.ejs
 <!DOCTYPE html>
 <html lang="id">
@@ -374,19 +382,28 @@ cat << 'EOF' > views/cart.ejs
     .icon-btn svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
     
     .cart-container { max-width: 800px; margin: 20px auto; padding: 0 15px; }
+    
+    /* Area Checkbox Pilih Semua */
+    .cart-header-actions { background: var(--white); padding: 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; font-weight: bold; font-size: 14px; }
+    .cart-header-actions input[type="checkbox"] { transform: scale(1.4); margin-right: 15px; cursor: pointer; accent-color: var(--black); }
+
     .cart-item { display: flex; background: var(--white); padding: 15px; border: 1px solid var(--border); margin-bottom: 15px; border-radius: 8px; align-items: center; gap: 15px; }
+    .cart-item input[type="checkbox"] { transform: scale(1.4); cursor: pointer; accent-color: var(--black); }
     .cart-item img { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
     .item-info { flex-grow: 1; }
     .item-title { font-size: 15px; font-weight: bold; margin: 0 0 5px; color: var(--black); }
     .item-cat { font-size: 12px; color: #777; margin: 0 0 5px; text-transform: uppercase; }
     .item-price { font-size: 15px; font-weight: bold; color: var(--dark-gray); }
-    .btn-remove { background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; }
+    .btn-remove { background: transparent; color: #e74c3c; border: 1px solid #e74c3c; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; text-transform: uppercase; }
 
-    .cart-summary { background: var(--white); padding: 20px; border: 1px solid var(--border); border-radius: 8px; margin-top: 20px; text-align: right; }
-    .total-text { font-size: 18px; margin-bottom: 15px; }
-    .total-price { font-size: 24px; font-weight: bold; color: var(--black); }
-    .btn-buy-all { background: var(--black); color: var(--white); text-align: center; text-decoration: none; padding: 15px; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; border: none; cursor: pointer; border-radius: 4px; display: block; width: 100%; box-sizing: border-box; }
+    .cart-summary { background: var(--white); padding: 20px; border: 1px solid var(--border); border-radius: 8px; margin-top: 20px; text-align: right; position: sticky; bottom: 10px;}
+    .total-text { font-size: 16px; margin-bottom: 15px; color: #555; }
+    .total-price { font-size: 24px; font-weight: bold; color: var(--black); display: block; margin-top: 5px;}
+    
+    .btn-buy-all { background: var(--black); color: var(--white); text-align: center; text-decoration: none; padding: 15px; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; border: none; cursor: pointer; border-radius: 4px; display: block; width: 100%; box-sizing: border-box; transition: 0.2s; }
     .btn-buy-all:hover { background: var(--dark-gray); }
+    .btn-buy-all:disabled { background: #ccc; cursor: not-allowed; }
+    
     .empty-cart { text-align: center; padding: 50px 20px; color: #777; font-size: 16px; }
   </style>
 </head>
@@ -394,7 +411,8 @@ cat << 'EOF' > views/cart.ejs
   <div class="header">
     <a href="/" class="icon-btn"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg></a>
     <h1 class="header-title">Keranjang Saya</h1>
-    <div style="width:24px;"></div> </div>
+    <div style="width:24px;"></div>
+  </div>
 
   <div class="cart-container" id="cart-content">
     </div>
@@ -405,20 +423,22 @@ cat << 'EOF' > views/cart.ejs
       let cart = JSON.parse(localStorage.getItem('tokotas_cart')) || [];
       
       if (cart.length === 0) {
-        cartContainer.innerHTML = '<div class="empty-cart">Keranjang Anda masih kosong.<br><br><a href="/" style="color: black; font-weight: bold;">Mulai Belanja</a></div>';
+        cartContainer.innerHTML = '<div class="empty-cart">Keranjang Anda masih kosong.<br><br><a href="/" style="color: black; font-weight: bold; padding: 10px; border: 1px solid black; display:inline-block; margin-top:15px; border-radius:4px; text-decoration:none;">Mulai Belanja</a></div>';
         return;
       }
 
-      let html = '';
-      let total = 0;
-      let waText = "Halo Admin, saya mau pesan barang dari keranjang:\n\n";
+      let html = `
+        <div class="cart-header-actions">
+          <label style="display:flex; align-items:center; cursor:pointer; width:100%;">
+            <input type="checkbox" id="check-all" checked onchange="toggleAll()"> Pilih Semua
+          </label>
+        </div>
+      `;
 
       cart.forEach((item, index) => {
-        total += item.price;
-        waText += `${index + 1}. ${item.name}\n   Kategori: ${item.category}\n   Harga: Rp ${item.price.toLocaleString('id-ID')}\n\n`;
-        
         html += `
           <div class="cart-item">
+            <input type="checkbox" class="item-check" checked onchange="updateCheckout()">
             <img src="${item.img}" alt="${item.name}">
             <div class="item-info">
               <div class="item-title">${item.name}</div>
@@ -430,17 +450,69 @@ cat << 'EOF' > views/cart.ejs
         `;
       });
 
-      waText += `*TOTAL KESELURUHAN: Rp ${total.toLocaleString('id-ID')}*\n\nMohon info ketersediaannya.`;
-      const waLink = `https://wa.me/628222446067?text=${encodeURIComponent(waText)}`;
-
       html += `
         <div class="cart-summary">
-          <div class="total-text">Total Harga: <br><span class="total-price">Rp ${total.toLocaleString('id-ID')}</span></div>
-          <a href="${waLink}" class="btn-buy-all" target="_blank" onclick="clearCartAfterBuy()">BELI SEMUA VIA WHATSAPP</a>
+          <div class="total-text">Total Harga <span id="total-price-display" class="total-price">Rp 0</span></div>
+          <button id="btn-checkout" class="btn-buy-all">BELI SEKARANG</button>
         </div>
       `;
 
       cartContainer.innerHTML = html;
+      updateCheckout(); // Kalkulasi awal
+    }
+
+    function toggleAll() {
+      let checkAll = document.getElementById('check-all').checked;
+      let checkboxes = document.querySelectorAll('.item-check');
+      checkboxes.forEach(cb => cb.checked = checkAll);
+      updateCheckout();
+    }
+
+    function updateCheckout() {
+      let cart = JSON.parse(localStorage.getItem('tokotas_cart')) || [];
+      let checkboxes = document.querySelectorAll('.item-check');
+      let btnCheckout = document.getElementById('btn-checkout');
+      let checkAllBox = document.getElementById('check-all');
+      
+      let total = 0;
+      let selectedCount = 0;
+      let allChecked = true;
+      let waText = "Halo Admin, saya mau pesan barang dari keranjang:\n\n";
+
+      checkboxes.forEach((cb, index) => {
+        if (cb.checked) {
+          let item = cart[index];
+          total += item.price;
+          selectedCount++;
+          waText += `${selectedCount}. ${item.name}\n   Kategori: ${item.category}\n   Harga: Rp ${item.price.toLocaleString('id-ID')}\n\n`;
+        } else {
+          allChecked = false;
+        }
+      });
+
+      // Update state Pilih Semua
+      if(checkAllBox) checkAllBox.checked = allChecked;
+
+      // Update Tampilan Harga & Tombol
+      document.getElementById('total-price-display').innerText = `Rp ${total.toLocaleString('id-ID')}`;
+
+      if (selectedCount === 0) {
+        btnCheckout.innerText = 'PILIH BARANG DULU';
+        btnCheckout.style.opacity = '0.5';
+        btnCheckout.onclick = function() { alert('Silakan centang barang yang ingin dibeli terlebih dahulu!'); };
+      } else {
+        btnCheckout.innerText = `BELI YANG DIPILIH (${selectedCount})`;
+        btnCheckout.style.opacity = '1';
+        
+        waText += `*TOTAL KESELURUHAN: Rp ${total.toLocaleString('id-ID')}*\n\nMohon info ketersediaannya.`;
+        const waLink = `https://wa.me/6282224460678?text=${encodeURIComponent(waText)}`;
+        
+        btnCheckout.onclick = function() {
+          window.open(waLink, '_blank');
+          // Opsional: hapus barang yang sudah dibeli dari keranjang
+          // removeCheckedItems();
+        };
+      }
     }
 
     function removeItem(index) {
@@ -448,12 +520,6 @@ cat << 'EOF' > views/cart.ejs
       cart.splice(index, 1);
       localStorage.setItem('tokotas_cart', JSON.stringify(cart));
       loadCart();
-    }
-
-    function clearCartAfterBuy() {
-      // Opsional: Jika ingin keranjang otomatis kosong setelah klik beli WA
-      // localStorage.removeItem('tokotas_cart');
-      // setTimeout(loadCart, 2000); 
     }
 
     // Jalankan saat halaman dibuka
@@ -612,8 +678,7 @@ sudo pm2 save
 sudo pm2 startup
 
 echo "================================================================"
-echo " UPDATE KERANJANG BELANJA & WA MULTIPLE ITEM BERHASIL! "
+echo " UPDATE CHECKBOX KERANJANG BERHASIL! "
 echo "================================================================"
-echo "Website sudah mendukung sistem Cart dengan notifikasi angka."
 echo "Halaman Utama: http://[IP_VPS]/"
 echo "================================================================"
