@@ -34,8 +34,10 @@ const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database('./tokotas.db');
 
 db.serialize(() => {
+  // Tabel Produk
   db.run("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, price REAL, description TEXT, image_url TEXT, category TEXT)");
   
+  // Cek apakah kolom kategori sudah ada (untuk update dari versi lama tanpa menghapus data)
   db.all("PRAGMA table_info(products)", (err, columns) => {
      const hasCategory = columns.some(col => col.name === 'category');
      if (!hasCategory) {
@@ -43,6 +45,7 @@ db.serialize(() => {
      }
   });
 
+  // Tabel Banner Baru
   db.run("CREATE TABLE IF NOT EXISTS banners (id INTEGER PRIMARY KEY AUTOINCREMENT, image_url TEXT)");
 });
 
@@ -70,6 +73,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 const db = new sqlite3.Database('./tokotas.db');
 
+// Konfigurasi sistem upload gambar
 const storage = multer.diskStorage({
   destination: './public/uploads/',
   filename: function(req, file, cb){
@@ -78,15 +82,17 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// Rute Frontend
+// Rute: Halaman Utama Toko (Frontend)
 app.get('/', (req, res) => {
   let query = "SELECT * FROM products WHERE 1=1";
   let params = [];
   
+  // Fitur Pencarian
   if (req.query.q) {
     query += " AND name LIKE ?";
     params.push('%' + req.query.q + '%');
   }
+  // Fitur Filter Kategori
   if (req.query.category) {
     query += " AND category = ?";
     params.push(req.query.category);
@@ -108,7 +114,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// Rute Panel Admin
+// Rute: Panel Admin VPS (Manajemen Produk & Banner - RAHASIA)
 app.get('/vps-panel', (req, res) => {
   db.all("SELECT * FROM products ORDER BY id DESC", [], (err, products) => {
     if (err) throw err;
@@ -119,7 +125,7 @@ app.get('/vps-panel', (req, res) => {
   });
 });
 
-// Aksi Tambah Produk
+// Aksi: Tambah Produk
 app.post('/vps-panel/add', upload.single('image'), (req, res) => {
   const { name, price, description, category } = req.body;
   const imageUrl = req.file ? '/uploads/' + req.file.filename : '/uploads/default.jpg';
@@ -132,7 +138,7 @@ app.post('/vps-panel/add', upload.single('image'), (req, res) => {
   });
 });
 
-// Aksi Hapus Produk
+// Aksi: Hapus Produk
 app.post('/vps-panel/delete/:id', (req, res) => {
   db.run("DELETE FROM products WHERE id = ?", req.params.id, (err) => {
     if (err) throw err;
@@ -140,7 +146,7 @@ app.post('/vps-panel/delete/:id', (req, res) => {
   });
 });
 
-// Aksi Tambah Banner
+// Aksi: Tambah Banner
 app.post('/vps-panel/banner-add', upload.single('image'), (req, res) => {
   if (!req.file) return res.redirect('/vps-panel');
   const imageUrl = '/uploads/' + req.file.filename;
@@ -151,7 +157,7 @@ app.post('/vps-panel/banner-add', upload.single('image'), (req, res) => {
   });
 });
 
-// Aksi Hapus Banner
+// Aksi: Hapus Banner
 app.post('/vps-panel/banner-delete/:id', (req, res) => {
   db.run("DELETE FROM banners WHERE id = ?", req.params.id, (err) => {
     if (err) throw err;
@@ -159,12 +165,13 @@ app.post('/vps-panel/banner-delete/:id', (req, res) => {
   });
 });
 
+// Jalankan Server
 app.listen(port, () => {
   console.log(`Server toko berjalan pada port ${port}`);
 });
 EOF
 
-# 9. Buat Tampilan Halaman Toko (views/index.ejs) - DESAIN DIKEMBALIKAN & DIRAPIKAN
+# 9. Buat Tampilan Halaman Toko (views/index.ejs) - DESAIN ALA MARKETPLACE & RAPAT KIRI
 cat << 'EOF' > views/index.ejs
 <!DOCTYPE html>
 <html lang="id">
@@ -173,36 +180,54 @@ cat << 'EOF' > views/index.ejs
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Toko Online Premium</title>
   <style>
-    :root { --black: #000000; --dark-gray: #333333; --light-gray: #f9f9f9; --white: #ffffff; --border: #e0e0e0; }
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--light-gray); margin: 0; padding: 0; color: var(--black); }
+    /* Reset CSS dasar */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+    }
     
-    /* Header Utama - Dirapatkan ke kiri */
+    :root {
+      --black: #000000;
+      --dark-gray: #333333;
+      --light-gray: #f9f9f9;
+      --white: #ffffff;
+      --border: #e0e0e0;
+    }
+    
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--light-gray); color: var(--black); }
+    
+    /* Header Utama Hitam - Dirapatkan ke kiri, biarkan padding */
     .header { background: var(--black); padding: 12px 15px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 50; }
-    .icon-btn { background: none; border: none; color: var(--white); cursor: pointer; display: flex; align-items: center; padding: 0; }
+    
+    /* Ikon SVG Clean - Tambahkan margin negatif untuk merapat ke kiri penuh */
+    .icon-btn { background: none; border: none; color: var(--white); cursor: pointer; display: flex; align-items: center; padding: 0; margin-left: -15px; padding-left: 10px; }
     .icon-btn svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
     
-    /* Pencarian */
+    /* Search Box Putih Minimalis */
     .search-box { flex-grow: 1; background: var(--white); border-radius: 4px; display: flex; align-items: center; padding: 8px 12px; }
     .search-box input { border: none; outline: none; width: 100%; font-size: 14px; color: var(--black); }
     .search-box button { background: none; border: none; cursor: pointer; color: var(--dark-gray); display: flex; align-items: center; padding: 0; }
     .search-box button svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
-    /* Banner Melengkung (Dikembalikan seperti sebelumnya namun sejajar sempurna) */
-    .banner-wrapper { padding: 15px 15px 0 15px; width: 100%; box-sizing: border-box; } 
-    .banner-container { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; scroll-behavior: smooth; gap: 15px; border-radius: 8px; width: 100%; }
+    /* Banner Placeholder Minimalis */
+    .banner-wrapper { width: 100%; overflow: hidden; position: relative; background: var(--black); }
+    .banner-container { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 0; padding: 0; scrollbar-width: none; scroll-behavior: smooth;}
     .banner-container::-webkit-scrollbar { display: none; }
-    .banner-item { flex: 0 0 100%; scroll-snap-align: center; height: 180px; display: flex; justify-content: center; align-items: center; background: var(--black); color: var(--white); border-radius: 8px; overflow: hidden; font-weight: bold; letter-spacing: 2px; }
+    .banner-item { flex: 0 0 100%; scroll-snap-align: center; height: 180px; display: flex; justify-content: center; align-items: center; background: #222; color: #fff; text-transform: uppercase; letter-spacing: 2px; }
     .banner-item img { width: 100%; height: 100%; object-fit: cover; }
-
-    /* Kategori Bar */
-    .category-container { display: flex; justify-content: center; gap: 10px; padding: 20px 15px; flex-wrap: wrap; }
+    
+    /* Kategori Minimalis (Tanpa Emoji) */
+    .category-container { display: flex; justify-content: center; gap: 10px; padding: 20px 20px 20px; flex-wrap: wrap; }
     .cat-item { padding: 8px 18px; border: 1px solid var(--black); border-radius: 4px; color: var(--black); text-decoration: none; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; background: var(--white); }
     .cat-item.active { background: var(--black); color: var(--white); }
     .cat-item:hover { background: var(--black); color: var(--white); }
 
+    /* Produk Rekomendasi */
+    .section-title { font-size: 18px; font-weight: bold; padding: 0 20px; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+    
     /* Grid Produk */
-    .section-title { font-size: 18px; font-weight: bold; padding: 0 15px; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
-    .product-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 15px; }
+    .product-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 20px; }
     @media (min-width: 768px) { .product-grid { grid-template-columns: repeat(4, 1fr); } }
     
     .product-card { background: var(--white); border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; transition: 0.3s; position: relative;}
@@ -214,15 +239,16 @@ cat << 'EOF' > views/index.ejs
     .product-title { font-size: 14px; margin: 0 0 8px; color: var(--dark-gray); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .product-price { font-size: 16px; font-weight: bold; color: var(--black); margin-bottom: 15px; }
     
-    /* Tombol Beli */
+    /* Tombol Beli Hitam */
     .btn-buy { background: var(--black); color: var(--white); text-align: center; text-decoration: none; padding: 10px; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-top: auto; border: none; cursor: pointer; transition: 0.2s; }
     .btn-buy:hover { background: var(--dark-gray); }
 
-    /* Sidebar Kiri */
+    /* Sidebar Menu Kiri */
     .sidebar { height: 100%; width: 0; position: fixed; z-index: 1000; top: 0; left: 0; background-color: var(--white); overflow-x: hidden; transition: 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.1); border-right: 1px solid var(--border); }
-    .sidebar-header { background: var(--black); color: var(--white); padding: 20px; font-size: 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+    .sidebar-header { background: var(--black); color: var(--white); padding: 20px; font-size: 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; letter-spacing: 1px; text-transform: uppercase; }
     .closebtn { color: var(--white); font-size: 28px; text-decoration: none; font-weight: normal; }
-    .sidebar-menu a { padding: 18px 20px; text-decoration: none; font-size: 14px; font-weight: bold; color: var(--black); display: block; border-bottom: 1px solid var(--border); text-transform: uppercase; }
+    .sidebar-menu a { padding: 18px 20px; text-decoration: none; font-size: 14px; font-weight: bold; color: var(--black); display: block; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 1px; }
+    .sidebar-menu a:hover { background: var(--light-gray); }
   </style>
 </head>
 <body>
@@ -237,6 +263,7 @@ cat << 'EOF' > views/index.ejs
       <a href="/?category=Tas">Kategori Tas</a>
       <a href="/?category=Sepatu">Kategori Sepatu</a>
       <a href="/?category=Baju">Kategori Baju</a>
+      <a href="#">Cara Pemesanan</a>
     </div>
   </div>
 
@@ -244,12 +271,14 @@ cat << 'EOF' > views/index.ejs
     <button class="icon-btn" onclick="toggleMenu()">
       <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
     </button>
+    
     <form action="/" method="GET" class="search-box">
       <input type="text" name="q" placeholder="Temukan produk disini" value="<%= searchQuery %>">
       <button type="submit">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
       </button>
     </form>
+    
     <div class="icon-btn">
       <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
     </div>
@@ -293,7 +322,6 @@ cat << 'EOF' > views/index.ejs
         <div class="product-info">
           <h3 class="product-title"><%= product.name %></h3>
           <div class="product-price">Rp <%= parseInt(product.price).toLocaleString('id-ID') %></div>
-          
           <a href="https://wa.me/628222446067?text=Halo%20Admin,%20saya%20mau%20pesan:%0A%0ABarang:%20<%= encodeURIComponent(product.name) %>%0AHarga:%20Rp%20<%= parseInt(product.price).toLocaleString('id-ID') %>%0AKategori:%20<%= product.category %>%0A%0AMohon%20info%20ketersediaannya." class="btn-buy" target="_blank">Beli Sekarang</a>
         </div>
       </div>
@@ -304,7 +332,11 @@ cat << 'EOF' > views/index.ejs
     // JS Buka/Tutup Menu
     function toggleMenu() {
       var sidebar = document.getElementById("mySidebar");
-      sidebar.style.width = sidebar.style.width === "260px" ? "0" : "260px";
+      if (sidebar.style.width === "260px") {
+        sidebar.style.width = "0";
+      } else {
+        sidebar.style.width = "260px";
+      }
     }
 
     // JS Auto Slider Banner (Geser tiap 4 detik)
@@ -510,18 +542,20 @@ case $pilihan in
 esac
 EOF
 
-# Berikan akses eksekusi
+# Berikan akses eksekusi agar command 'toko' bisa dijalankan
 sudo chmod +x /usr/local/bin/toko
 
-# 12. Restart Server
+# 12. Menjalankan server melalui PM2 agar port 80 tidak tabrakan
 sudo pm2 delete tokotas 2>/dev/null || true
 sudo pm2 start server.js --name "tokotas"
 sudo pm2 save
 sudo pm2 startup
 
 echo "================================================================"
-echo " UPDATE BANNER ROUNDED & RAPAT KIRI BERHASIL! "
+echo " UPDATE BERHASIL! Rapat Kiri Sempurna & Kategori Admin "
 echo "================================================================"
-echo "Halaman Utama: http://[IP_VPS]/"
-echo "Halaman Admin: http://[IP_VPS]/vps-panel"
+echo "Halaman Utama (Dilihat Pembeli): http://[IP_VPS]/"
+echo " "
+echo "Halaman Admin Tambah Produk/Banner (Rahasia):"
+echo "-> http://[IP_VPS]/vps-panel"
 echo "================================================================"
