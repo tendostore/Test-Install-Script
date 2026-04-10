@@ -173,7 +173,7 @@ app.post('/vps-panel/banner-delete/:id', (req, res) => {
 app.listen(port, () => { console.log(`Server berjalan di port ${port}`); });
 EOF
 
-# 9. Buat Tampilan Halaman Utama Toko (views/index.ejs)
+# 9. Buat Tampilan Halaman Utama Toko (views/index.ejs) - UPDATE SIDEBAR HITAM
 cat << 'EOF' > views/index.ejs
 <!DOCTYPE html>
 <html lang="id">
@@ -222,11 +222,12 @@ cat << 'EOF' > views/index.ejs
     .btn-detail { background: var(--white); color: var(--black); border: 1px solid var(--black); text-align: center; text-decoration: none; padding: 10px; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-top: auto; cursor: pointer; transition: 0.2s; }
     .btn-detail:hover { background: var(--black); color: var(--white); }
 
-    .sidebar { height: 100%; width: 0; position: fixed; z-index: 1000; top: 0; left: 0; background-color: var(--white); overflow-x: hidden; transition: 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.1); border-right: 1px solid var(--border); }
-    .sidebar-header { background: var(--black); color: var(--white); padding: 20px; font-size: 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; letter-spacing: 1px; text-transform: uppercase; }
+    /* UPDATE: Sidebar Hitam Elegan */
+    .sidebar { height: 100%; width: 0; position: fixed; z-index: 1000; top: 0; left: 0; background-color: var(--black); overflow-x: hidden; transition: 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.5); border-right: 1px solid var(--dark-gray); }
+    .sidebar-header { background: var(--black); color: var(--white); padding: 20px; font-size: 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--dark-gray); }
     .closebtn { color: var(--white); font-size: 28px; text-decoration: none; font-weight: normal; }
-    .sidebar-menu a { padding: 18px 20px; text-decoration: none; font-size: 14px; font-weight: bold; color: var(--black); display: block; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 1px; }
-    .sidebar-menu a:hover { background: var(--light-gray); }
+    .sidebar-menu a { padding: 18px 20px; text-decoration: none; font-size: 14px; font-weight: bold; color: var(--white); display: block; border-bottom: 1px solid var(--dark-gray); text-transform: uppercase; letter-spacing: 1px; transition: 0.2s;}
+    .sidebar-menu a:hover { background: var(--dark-gray); }
     .sidebar-icon { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; margin-right: 10px; vertical-align: middle; }
   </style>
 </head>
@@ -301,7 +302,7 @@ cat << 'EOF' > views/index.ejs
 </html>
 EOF
 
-# 10. Buat Tampilan Halaman Detail Produk (views/detail.ejs)
+# 10. Buat Tampilan Halaman Detail Produk (views/detail.ejs) - UPDATE SIDEBAR HITAM
 cat << 'EOF' > views/detail.ejs
 <!DOCTYPE html>
 <html lang="id">
@@ -344,9 +345,31 @@ cat << 'EOF' > views/detail.ejs
     .btn-buy:hover { background: var(--dark-gray); border-color: var(--dark-gray); }
     .btn-back { display: block; background: var(--white); color: var(--black); border: 1px solid var(--border); text-align: center; text-decoration: none; padding: 12px; font-size: 12px; font-weight: bold; text-transform: uppercase; transition: 0.2s; border-radius: 4px; }
     .btn-back:hover { background: var(--light-gray); }
+
+    /* UPDATE: Sidebar Hitam Elegan */
+    .sidebar { height: 100%; width: 0; position: fixed; z-index: 1000; top: 0; left: 0; background-color: var(--black); overflow-x: hidden; transition: 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.5); border-right: 1px solid var(--dark-gray); }
+    .sidebar-header { background: var(--black); color: var(--white); padding: 20px; font-size: 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--dark-gray); }
+    .closebtn { color: var(--white); font-size: 28px; text-decoration: none; font-weight: normal; }
+    .sidebar-menu a { padding: 18px 20px; text-decoration: none; font-size: 14px; font-weight: bold; color: var(--white); display: block; border-bottom: 1px solid var(--dark-gray); text-transform: uppercase; letter-spacing: 1px; transition: 0.2s;}
+    .sidebar-menu a:hover { background: var(--dark-gray); }
+    .sidebar-icon { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; margin-right: 10px; vertical-align: middle; }
   </style>
 </head>
 <body>
+
+  <div id="mySidebar" class="sidebar">
+    <div class="sidebar-header"><span>Menu Toko</span><a href="javascript:void(0)" class="closebtn" onclick="toggleMenu()">&times;</a></div>
+    <div class="sidebar-menu">
+      <a href="/">Semua Produk</a>
+      <a href="/?category=Tas">Kategori Tas</a>
+      <a href="/?category=Sepatu">Kategori Sepatu</a>
+      <a href="/?category=Baju">Kategori Baju</a>
+      <a href="/cart" style="display: flex; align-items: center;">
+        <svg class="sidebar-icon" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg> Keranjang Saya
+      </a>
+    </div>
+  </div>
+
   <div class="header">
     <a href="/" class="icon-btn"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg></a>
     <form action="/" method="GET" class="search-box"><input type="text" name="q" placeholder="Cari barang lain..."><button type="submit"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></button></form>
@@ -375,6 +398,7 @@ cat << 'EOF' > views/detail.ejs
   </div>
 
   <script>
+    function toggleMenu() { document.getElementById("mySidebar").style.width = document.getElementById("mySidebar").style.width === "260px" ? "0" : "260px"; }
     function updateCartBadge() {
       let cart = JSON.parse(localStorage.getItem('tokotas_cart')) || [];
       let badge = document.getElementById('cart-badge');
@@ -393,7 +417,7 @@ cat << 'EOF' > views/detail.ejs
 </html>
 EOF
 
-# 11. Buat File Baru HALAMAN KERANJANG (views/cart.ejs)
+# 11. Buat File Baru HALAMAN KERANJANG (views/cart.ejs) - UPDATE SIDEBAR HITAM
 cat << 'EOF' > views/cart.ejs
 <!DOCTYPE html>
 <html lang="id">
@@ -433,11 +457,33 @@ cat << 'EOF' > views/cart.ejs
     .btn-buy-all:hover { background: var(--dark-gray); }
     .btn-buy-all:disabled { background: #ccc; cursor: not-allowed; }
     .empty-cart { text-align: center; padding: 50px 20px; color: #777; font-size: 16px; }
+
+    /* UPDATE: Sidebar Hitam Elegan */
+    .sidebar { height: 100%; width: 0; position: fixed; z-index: 1000; top: 0; left: 0; background-color: var(--black); overflow-x: hidden; transition: 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.5); border-right: 1px solid var(--dark-gray); }
+    .sidebar-header { background: var(--black); color: var(--white); padding: 20px; font-size: 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--dark-gray); }
+    .closebtn { color: var(--white); font-size: 28px; text-decoration: none; font-weight: normal; }
+    .sidebar-menu a { padding: 18px 20px; text-decoration: none; font-size: 14px; font-weight: bold; color: var(--white); display: block; border-bottom: 1px solid var(--dark-gray); text-transform: uppercase; letter-spacing: 1px; transition: 0.2s;}
+    .sidebar-menu a:hover { background: var(--dark-gray); }
+    .sidebar-icon { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; margin-right: 10px; vertical-align: middle; }
   </style>
 </head>
 <body>
+
+  <div id="mySidebar" class="sidebar">
+    <div class="sidebar-header"><span>Menu Toko</span><a href="javascript:void(0)" class="closebtn" onclick="toggleMenu()">&times;</a></div>
+    <div class="sidebar-menu">
+      <a href="/">Semua Produk</a>
+      <a href="/?category=Tas">Kategori Tas</a>
+      <a href="/?category=Sepatu">Kategori Sepatu</a>
+      <a href="/?category=Baju">Kategori Baju</a>
+      <a href="/cart" style="display: flex; align-items: center;">
+        <svg class="sidebar-icon" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg> Keranjang Saya
+      </a>
+    </div>
+  </div>
+
   <div class="header">
-    <a href="/" class="icon-btn"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg></a>
+    <button class="icon-btn" onclick="toggleMenu()"><svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
     <h1 class="header-title">Keranjang Saya</h1>
     <div style="width:24px;"></div>
   </div>
@@ -445,6 +491,8 @@ cat << 'EOF' > views/cart.ejs
   <div class="cart-container" id="cart-content"></div>
 
   <script>
+    function toggleMenu() { document.getElementById("mySidebar").style.width = document.getElementById("mySidebar").style.width === "260px" ? "0" : "260px"; }
+
     function loadCart() {
       const cartContainer = document.getElementById('cart-content');
       let cart = JSON.parse(localStorage.getItem('tokotas_cart')) || [];
@@ -542,46 +590,69 @@ cat << 'EOF' > views/admin.ejs
     .form-group { margin-bottom: 15px; }
     label { font-weight: bold; font-size: 13px; text-transform: uppercase; display: block; margin-bottom: 5px; }
     input, textarea, select { width: 100%; padding: 12px; border: 1px solid #ccc; box-sizing: border-box; font-family: inherit; }
+    input:focus, textarea:focus, select:focus { border-color: #000; outline: none; }
     .btn-add { background: #000; color: #fff; border: none; padding: 12px 20px; cursor: pointer; font-weight: bold; width: 100%; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; }
+    .btn-add:hover { background: #333; }
     table { width: 100%; border-collapse: collapse; margin-top: 15px; }
     th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
     th { background: #f0f0f0; text-transform: uppercase; font-size: 13px; letter-spacing: 1px; }
-    .btn-delete { background: #fff; color: #000; border: 1px solid #000; padding: 6px 12px; cursor: pointer; font-size: 12px; font-weight: bold; }
+    .btn-delete { background: #fff; color: #000; border: 1px solid #000; padding: 6px 12px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.2s; }
+    .btn-delete:hover { background: #000; color: #fff; }
     .btn-edit { background: #fff; color: #000; border: 1px solid #000; padding: 6px 12px; cursor: pointer; font-size: 12px; font-weight: bold; text-decoration: none; display: inline-block; margin-right: 5px;}
+    .btn-edit:hover { background: #eee; }
   </style>
 </head>
 <body>
   <div class="panel">
     <h2>Manajemen Banner Depan (Maks 4)</h2>
-    <form action="/vps-panel/banner-add" method="POST" enctype="multipart/form-data"><div class="form-group"><input type="file" name="image" required></div><button type="submit" class="btn-add">TAMBAH BANNER</button></form>
+    <form action="/vps-panel/banner-add" method="POST" enctype="multipart/form-data">
+      <div class="form-group"><label>Upload Foto Banner Baru:</label><input type="file" name="image" required></div>
+      <button type="submit" class="btn-add">TAMBAH BANNER</button>
+    </form>
     <table>
       <tr><th>Foto Banner</th><th>Aksi</th></tr>
-      <% banners.forEach(function(banner) { %><tr><td><img src="<%= banner.image_url %>" style="width:120px; height:60px; object-fit:cover;"></td><td><form action="/vps-panel/banner-delete/<%= banner.id %>" method="POST" style="margin:0;"><button type="submit" class="btn-delete">HAPUS</button></form></td></tr><% }); %>
+      <% banners.forEach(function(banner) { %>
+        <tr>
+          <td><img src="<%= banner.image_url %>" style="width:120px; height:60px; object-fit:cover; border: 1px solid #eee;"></td>
+          <td><form action="/vps-panel/banner-delete/<%= banner.id %>" method="POST" style="margin:0;"><button type="submit" class="btn-delete">HAPUS</button></form></td>
+        </tr>
+      <% }); %>
     </table>
   </div>
+  
   <div class="panel">
     <h2>Tambah Produk Baru</h2>
     <form action="/vps-panel/add" method="POST" enctype="multipart/form-data">
-      <div class="form-group"><label>Kategori</label><select name="category" required><option value="Tas">Tas</option><option value="Sepatu">Sepatu</option><option value="Baju">Baju</option></select></div>
+      <div class="form-group">
+        <label>Kategori Produk</label>
+        <select name="category" required><option value="Tas">Tas</option><option value="Sepatu">Sepatu</option><option value="Baju">Baju</option></select>
+      </div>
       <div class="form-group"><label>Nama Barang</label><input type="text" name="name" required></div>
       <div class="form-group"><label>Harga (Rp)</label><input type="number" name="price" required></div>
-      <div class="form-group"><label>Stok</label><input type="number" name="stock" required></div>
+      <div class="form-group"><label>Stok Barang</label><input type="number" name="stock" required></div>
       <div class="form-group"><label>Deskripsi</label><textarea name="description" style="height: 100px;"></textarea></div>
       <div class="form-group"><label>Upload Foto</label><input type="file" name="image" required></div>
       <button type="submit" class="btn-add">SIMPAN PRODUK BARU</button>
     </form>
+
     <h2 style="margin-top: 40px;">Daftar Produk</h2>
     <table>
       <tr><th>Foto</th><th>Kategori</th><th>Nama Barang</th><th>Harga</th><th>Stok</th><th>Aksi</th></tr>
       <% products.forEach(function(product) { %>
         <tr>
-          <td><img src="<%= product.image_url %>" style="width:50px; height:50px; object-fit:cover;"></td>
-          <td><b><%= product.category %></b></td><td><%= product.name %></td><td>Rp <%= parseInt(product.price).toLocaleString('id-ID') %></td><td><%= product.stock %></td>
-          <td style="display: flex;"><a href="/vps-panel/edit/<%= product.id %>" class="btn-edit">EDIT</a><form action="/vps-panel/delete/<%= product.id %>" method="POST" style="margin:0;"><button type="submit" class="btn-delete">HAPUS</button></form></td>
+          <td><img src="<%= product.image_url %>" style="width:50px; height:50px; object-fit:cover; border: 1px solid #eee;"></td>
+          <td><b><%= product.category %></b></td>
+          <td><%= product.name %></td>
+          <td>Rp <%= parseInt(product.price).toLocaleString('id-ID') %></td>
+          <td><%= product.stock %></td>
+          <td style="display: flex;">
+            <a href="/vps-panel/edit/<%= product.id %>" class="btn-edit">EDIT</a>
+            <form action="/vps-panel/delete/<%= product.id %>" method="POST" style="margin:0;"><button type="submit" class="btn-delete">HAPUS</button></form>
+          </td>
         </tr>
       <% }); %>
     </table>
-    <br><br><a href="/" style="color: #000; font-weight: bold;">KEMBALI KE TOKO</a>
+    <br><br><a href="/" style="color: #000; text-decoration: none; font-weight: bold; border-bottom: 1px solid #000;">KEMBALI KE TOKO</a>
   </div>
 </body>
 </html>
@@ -592,7 +663,7 @@ cat << 'EOF' > views/admin_edit.ejs
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Edit Produk</title>
+  <title>Edit Produk - Admin Panel</title>
   <style>
     body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f9f9f9; padding: 20px; color: #000; }
     .panel { max-width: 800px; margin: 0 auto 30px; background: #fff; padding: 30px; border: 1px solid #e0e0e0; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
@@ -600,23 +671,44 @@ cat << 'EOF' > views/admin_edit.ejs
     .form-group { margin-bottom: 15px; }
     label { font-weight: bold; font-size: 13px; text-transform: uppercase; display: block; margin-bottom: 5px; }
     input, textarea, select { width: 100%; padding: 12px; border: 1px solid #ccc; box-sizing: border-box; font-family: inherit; }
+    input:focus, textarea:focus, select:focus { border-color: #000; outline: none; }
     .btn-add { background: #000; color: #fff; border: none; padding: 12px 20px; cursor: pointer; font-weight: bold; width: 100%; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; }
+    .btn-add:hover { background: #333; }
+    .btn-back { display: block; text-align: center; margin-top: 15px; color: #000; font-weight: bold; text-decoration: underline; }
   </style>
 </head>
 <body>
   <div class="panel">
     <h2>Edit Produk: <%= product.name %></h2>
     <form action="/vps-panel/edit/<%= product.id %>" method="POST" enctype="multipart/form-data">
-      <div style="text-align: center; margin-bottom: 20px;"><img src="<%= product.image_url %>" style="width: 150px; height: 150px; object-fit: cover; border: 1px solid #ccc; border-radius: 8px;"></div>
-      <div class="form-group"><label>Kategori</label><select name="category" required><option value="Tas" <%= product.category === 'Tas' ? 'selected' : '' %>>Tas</option><option value="Sepatu" <%= product.category === 'Sepatu' ? 'selected' : '' %>>Sepatu</option><option value="Baju" <%= product.category === 'Baju' ? 'selected' : '' %>>Baju</option></select></div>
+      
+      <div style="text-align: center; margin-bottom: 20px;">
+        <img src="<%= product.image_url %>" style="width: 150px; height: 150px; object-fit: cover; border: 1px solid #ccc; border-radius: 8px;">
+        <p style="font-size: 12px; color: #777;">(Foto saat ini)</p>
+      </div>
+
+      <div class="form-group">
+        <label>Kategori Produk</label>
+        <select name="category" required>
+          <option value="Tas" <%= product.category === 'Tas' ? 'selected' : '' %>>Tas</option>
+          <option value="Sepatu" <%= product.category === 'Sepatu' ? 'selected' : '' %>>Sepatu</option>
+          <option value="Baju" <%= product.category === 'Baju' ? 'selected' : '' %>>Baju</option>
+        </select>
+      </div>
       <div class="form-group"><label>Nama Barang</label><input type="text" name="name" value="<%= product.name %>" required></div>
       <div class="form-group"><label>Harga (Rp)</label><input type="number" name="price" value="<%= product.price %>" required></div>
       <div class="form-group"><label>Stok Barang</label><input type="number" name="stock" value="<%= product.stock %>" required></div>
       <div class="form-group"><label>Deskripsi Lengkap</label><textarea name="description" style="height: 150px;"><%= product.description %></textarea></div>
-      <div class="form-group"><label>Ganti Foto (Biarkan kosong jika tidak diganti)</label><input type="file" name="image"></div>
-      <button type="submit" class="btn-add">UPDATE PRODUK</button>
+      
+      <div class="form-group">
+        <label>Ganti Foto Barang (Opsional)</label>
+        <input type="file" name="image">
+        <small style="color:#777;">*Biarkan kosong jika tidak ingin mengganti foto.</small>
+      </div>
+      
+      <button type="submit" class="btn-add">UPDATE PRODUK SEKARANG</button>
     </form>
-    <br><a href="/vps-panel" style="color: #000; font-weight: bold;">BATAL & KEMBALI</a>
+    <a href="/vps-panel" class="btn-back">Batalkan & Kembali</a>
   </div>
 </body>
 </html>
@@ -727,6 +819,7 @@ NGINX_RES
   5) echo "Keluar."; ;;
 esac
 EOF
+
 sudo chmod +x /usr/local/bin/menu
 
 # 16. Restart Semua Service
@@ -736,5 +829,5 @@ sudo pm2 save
 sudo pm2 startup
 
 echo "================================================================"
-echo " UPDATE FIX UPLOAD GAMBAR BESAR SELESAI! "
+echo " UPDATE SIDEBAR HITAM SELESAI DENGAN SEMPURNA! "
 echo "================================================================"
