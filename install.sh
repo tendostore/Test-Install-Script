@@ -667,6 +667,8 @@ EOF
             
             <div id="live-clock" style="text-align:center; font-size:11.5px; font-weight:800; color:var(--text-main); margin: 25px 20px 0; letter-spacing: 0.5px;">Memuat waktu...</div>
 
+            <div id="custom-layout-container"></div>
+
             <div class="grid-title">Layanan Produk PPOB</div>
             <div class="grid-container">
                 <div class="grid-box" onclick="loadCategory('Pulsa')">
@@ -1322,6 +1324,50 @@ EOF
                 }
             } catch(e) {}
         }
+        
+        async function fetchCustomLayout() {
+            try {
+                let res = await apiCall('/api/custom-layout');
+                if(res && res.success && res.data && res.data.sections) {
+                    let container = document.getElementById('custom-layout-container');
+                    let html = '';
+                    res.data.sections.forEach(sec => {
+                        if(sec.skus && sec.skus.length > 0) {
+                            html += `<div class="grid-title">${sec.title}</div>`;
+                            html += `<div style="display:flex; overflow-x:auto; gap:15px; padding: 0 20px 10px; scrollbar-width:none;">`;
+                            sec.skus.forEach(sku => {
+                                let p = allProducts[sku];
+                                if(p) {
+                                    let safeName = p.nama.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                                    let safeDesc = p.deskripsi ? p.deskripsi.replace(/'/g, "\\'").replace(/"/g, '&quot;') : 'Proses Otomatis';
+                                    let initial = (p.brand || 'O').substring(0,2).toUpperCase();
+                                    let statusBadge = p.status_produk === false 
+                                        ? '<span style="background:#fee2e2; color:#b91c1c; font-size:9px; padding:2px 6px; border-radius:4px; font-weight:800; border:1px solid #fca5a5;">GANGGUAN</span>' 
+                                        : '';
+                                    let onClickAction = p.status_produk === false
+                                        ? `showToast('Maaf, produk ini sedang gangguan.', 'error')`
+                                        : `openOrderModal('${sku}', '${safeName}', ${p.harga}, '${safeDesc}')`;
+                                    
+                                    html += `
+                                    <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:14px; padding:15px; min-width:200px; max-width:220px; flex-shrink:0; cursor:pointer; box-shadow:var(--shadow-outer);" onclick="${onClickAction}">
+                                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                                            <div class="prod-logo" style="width:35px; height:35px; font-size:12px;">${initial}</div>
+                                            <div style="font-weight:800; font-size:12px; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;" title="${p.nama}">${p.nama}</div>
+                                        </div>
+                                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                            <div style="color:#0ea5e9; font-weight:900; font-size:14px;">Rp ${p.harga.toLocaleString('id-ID')}</div>
+                                            ${statusBadge}
+                                        </div>
+                                    </div>`;
+                                }
+                            });
+                            html += `</div>`;
+                        }
+                    });
+                    container.innerHTML = html;
+                }
+            } catch(e){}
+        }
 
         function renderVpnGrid() {
             let container = document.getElementById('vpn-grid-container');
@@ -1541,7 +1587,13 @@ EOF
             }
         });
 
-        function showDashboardInternal() { showScreen('dashboard-screen', 'nav-home'); syncUserData(); fetchAllProducts(); fetchVPNConfig(); }
+        async function showDashboardInternal() { 
+            showScreen('dashboard-screen', 'nav-home'); 
+            syncUserData(); 
+            await fetchAllProducts(); 
+            fetchCustomLayout();
+            fetchVPNConfig(); 
+        }
         function showDashboard() { pushState({screen: 'dashboard-screen'}); showDashboardInternal(); }
         
         function showHistoryInternal(filter) { 
@@ -2494,8 +2546,9 @@ const globalStatsFile = './global_stats.json';
 const topupFile = './topup.json';
 const globalTrxFile = './global_trx.json'; 
 const vpnConfigFile = './vpn_config.json'; 
+const customLayoutFile = './custom_layout.json'; // Database Etalase Custom
 
-const loadJSON = (file) => crypt.load(file, (file === notifFile || file === globalTrxFile) ? [] : {});
+const loadJSON = (file) => crypt.load(file, (file === notifFile || file === globalTrxFile) ? [] : (file === customLayoutFile ? {sections:[]} : {}));
 const saveJSON = (file, data) => crypt.save(file, data);
 
 const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
@@ -2633,6 +2686,10 @@ if(!vpnAwal.servers) vpnAwal.servers = {};
 if(!vpnAwal.products) vpnAwal.products = {};
 saveJSON(vpnConfigFile, vpnAwal);
 
+let customLayoutAwal = loadJSON(customLayoutFile);
+if(!customLayoutAwal.sections) customLayoutAwal.sections = [];
+saveJSON(customLayoutFile, customLayoutAwal);
+
 loadJSON(dbFile); loadJSON(produkFile); loadJSON(trxFile); loadJSON(globalStatsFile); loadJSON(topupFile); loadJSON(notifFile); loadJSON(globalTrxFile);
 
 let globalSock = null;
@@ -2743,6 +2800,7 @@ app.get('/api/stats', (req, res) => {
 app.get('/api/produk', (req, res) => { res.json(loadJSON(produkFile)); });
 app.get('/api/notif', (req, res) => { res.json(loadJSON(notifFile) || []); });
 app.get('/api/global-trx', (req, res) => { res.json(loadJSON(globalTrxFile) || []); });
+app.get('/api/custom-layout', (req, res) => { res.json({success: true, data: loadJSON(customLayoutFile)}); }); // Endpoint Etalase Custom
 
 app.get('/api/vpn-config', (req, res) => {
     try {
@@ -3427,7 +3485,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
 function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
-    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json vpn_config.json ssl_backup.tar.gz 2>/dev/null`, (err) => {
+    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json ssl_backup.tar.gz 2>/dev/null`, (err) => {
         if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
     });
 }
@@ -4527,7 +4585,7 @@ menu_backup() {
                 if [ -d "/etc/letsencrypt" ]; then
                     sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null
                 fi
-                zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json vpn_config.json ssl_backup.tar.gz 2>/dev/null
+                zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json ssl_backup.tar.gz 2>/dev/null
                 echo -e "${C_GREEN}✅ File backup.zip (termasuk config API/ID) berhasil dikompresi!${C_RST}"
                 node -e "
                     const crypt = require('./tendo_crypt.js');
@@ -5076,6 +5134,162 @@ menu_manajemen_vpn() {
     done
 }
 
+menu_etalase_custom() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}          🌟 MANAJEMEN ETALASE CUSTOM 🌟            ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Buat Etalase Baru (Cth: Best Seller)"
+        echo -e "  ${C_GREEN}[2]${C_RST} Tambah Produk (SKU) ke Etalase"
+        echo -e "  ${C_GREEN}[3]${C_RST} Hapus Produk dari Etalase"
+        echo -e "  ${C_GREEN}[4]${C_RST} Hapus Etalase"
+        echo -e "  ${C_GREEN}[5]${C_RST} Lihat Daftar Etalase & Produk"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-5]: ${C_RST}"
+        read etalase_choice
+
+        case $etalase_choice in
+            1)
+                echo -e "\n${C_MAG}--- BUAT ETALASE BARU ---${C_RST}"
+                read -p "Masukkan Judul Etalase (Cth: Best Seller): " judul_etalase
+                if [ ! -z "$judul_etalase" ]; then
+                    node -e "
+                        const crypt = require('./tendo_crypt.js');
+                        let db = crypt.load('custom_layout.json', {sections:[]});
+                        if(!db.sections) db.sections = [];
+                        db.sections.push({title: '$judul_etalase', skus: []});
+                        crypt.save('custom_layout.json', db);
+                        console.log('\x1b[32m✅ Etalase \'$judul_etalase\' berhasil dibuat!\x1b[0m');
+                    "
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo -e "\n${C_MAG}--- TAMBAH PRODUK KE ETALASE ---${C_RST}"
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let db = crypt.load('custom_layout.json', {sections:[]});
+                    if(!db.sections || db.sections.length === 0) { console.log('\x1b[31mBelum ada etalase. Buat dulu!\x1b[0m'); process.exit(0); }
+                    db.sections.forEach((sec, idx) => console.log('[' + (idx+1) + '] ' + sec.title));
+                "
+                echo -e ""
+                read -p "Pilih nomor Etalase: " nomor_etalase
+                if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
+                    read -p "Masukkan KODE SKU Produk: " sku_tambah
+                    if [ ! -z "$sku_tambah" ]; then
+                        node -e "
+                            const crypt = require('./tendo_crypt.js');
+                            let db = crypt.load('custom_layout.json', {sections:[]});
+                            let idx = parseInt('$nomor_etalase') - 1;
+                            if(db.sections[idx]) {
+                                if(!db.sections[idx].skus.includes('$sku_tambah')) {
+                                    db.sections[idx].skus.push('$sku_tambah');
+                                    crypt.save('custom_layout.json', db);
+                                    console.log('\x1b[32m✅ SKU \'$sku_tambah\' berhasil ditambahkan ke ' + db.sections[idx].title + '!\x1b[0m');
+                                } else {
+                                    console.log('\x1b[33mSKU sudah ada di etalase ini.\x1b[0m');
+                                }
+                            } else {
+                                console.log('\x1b[31m❌ Nomor etalase tidak valid.\x1b[0m');
+                            }
+                        "
+                    fi
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            3)
+                echo -e "\n${C_MAG}--- HAPUS PRODUK DARI ETALASE ---${C_RST}"
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let db = crypt.load('custom_layout.json', {sections:[]});
+                    if(!db.sections || db.sections.length === 0) { console.log('\x1b[31mBelum ada etalase.\x1b[0m'); process.exit(0); }
+                    db.sections.forEach((sec, idx) => console.log('[' + (idx+1) + '] ' + sec.title));
+                "
+                echo -e ""
+                read -p "Pilih nomor Etalase: " nomor_etalase
+                if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
+                    read -p "Masukkan KODE SKU Produk yg ingin dihapus: " sku_hapus
+                    if [ ! -z "$sku_hapus" ]; then
+                        node -e "
+                            const crypt = require('./tendo_crypt.js');
+                            let db = crypt.load('custom_layout.json', {sections:[]});
+                            let idx = parseInt('$nomor_etalase') - 1;
+                            if(db.sections[idx]) {
+                                let oldLen = db.sections[idx].skus.length;
+                                db.sections[idx].skus = db.sections[idx].skus.filter(s => s !== '$sku_hapus');
+                                if(db.sections[idx].skus.length < oldLen) {
+                                    crypt.save('custom_layout.json', db);
+                                    console.log('\x1b[32m✅ SKU \'$sku_hapus\' berhasil dihapus dari ' + db.sections[idx].title + '!\x1b[0m');
+                                } else {
+                                    console.log('\x1b[31mSKU tidak ditemukan di etalase ini.\x1b[0m');
+                                }
+                            } else {
+                                console.log('\x1b[31m❌ Nomor etalase tidak valid.\x1b[0m');
+                            }
+                        "
+                    fi
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            4)
+                echo -e "\n${C_MAG}--- HAPUS ETALASE ---${C_RST}"
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let db = crypt.load('custom_layout.json', {sections:[]});
+                    if(!db.sections || db.sections.length === 0) { console.log('\x1b[31mBelum ada etalase.\x1b[0m'); process.exit(0); }
+                    db.sections.forEach((sec, idx) => console.log('[' + (idx+1) + '] ' + sec.title));
+                "
+                echo -e ""
+                read -p "Pilih nomor Etalase yg ingin dihapus: " nomor_etalase
+                if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
+                    node -e "
+                        const crypt = require('./tendo_crypt.js');
+                        let db = crypt.load('custom_layout.json', {sections:[]});
+                        let idx = parseInt('$nomor_etalase') - 1;
+                        if(db.sections[idx]) {
+                            let title = db.sections[idx].title;
+                            db.sections.splice(idx, 1);
+                            crypt.save('custom_layout.json', db);
+                            console.log('\x1b[32m✅ Etalase \'' + title + '\' berhasil dihapus!\x1b[0m');
+                        } else {
+                            console.log('\x1b[31m❌ Nomor etalase tidak valid.\x1b[0m');
+                        }
+                    "
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            5)
+                echo -e "\n${C_CYAN}--- DAFTAR ETALASE & PRODUK ---${C_RST}"
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let db = crypt.load('custom_layout.json', {sections:[]});
+                    let prodDb = crypt.load('produk.json');
+                    if(!db.sections || db.sections.length === 0) {
+                        console.log('\x1b[33mBelum ada etalase yang dibuat.\x1b[0m');
+                    } else {
+                        db.sections.forEach((sec, idx) => {
+                            console.log('\n\x1b[36m[' + (idx+1) + '] ' + sec.title + '\x1b[0m');
+                            if(sec.skus.length === 0) console.log('   (Kosong)');
+                            else {
+                                sec.skus.forEach(sku => {
+                                    let pName = prodDb[sku] ? prodDb[sku].nama : 'Produk Tidak Ditemukan/Dihapus';
+                                    console.log('   - ' + sku + ' : ' + pName);
+                                });
+                            }
+                        });
+                    }
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
 while true; do
     clear
     
@@ -5109,10 +5323,11 @@ while true; do
     echo -e "  ${C_GREEN}[15]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
     echo -e "  ${C_GREEN}[16]${C_RST} 📦 Manajemen Produk Manual Instan"
     echo -e "  ${C_GREEN}[17]${C_RST} 🛡️ Manajemen VPN Premium"
+    echo -e "  ${C_GREEN}[18]${C_RST} 🌟 Manajemen Etalase Custom (Best Seller)"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
     echo -e "${C_CYAN}======================================================${C_RST}"
-    echo -ne "${C_YELLOW}Pilih menu [0-17]: ${C_RST}"
+    echo -ne "${C_YELLOW}Pilih menu [0-18]: ${C_RST}"
     read choice
 
     case $choice in
@@ -5252,6 +5467,7 @@ EOF
             ;;
         16) menu_manajemen_produk_manual ;;
         17) menu_manajemen_vpn ;;
+        18) menu_etalase_custom ;;
         0) echo -e "${C_GREEN}Sampai jumpa!${C_RST}"; exit 0 ;;
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
