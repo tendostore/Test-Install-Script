@@ -3189,7 +3189,12 @@ app.post('/api/order', async (req, res) => {
         let teleMsg = `🔔 <b>PESANAN BARU MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
 
-    } catch (error) { if (!res.headersSent) return res.json({success: false, message: 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)'}); }
+    } catch (error) { 
+        if (!res.headersSent) {
+            let errInfo = error.response && error.response.data && error.response.data.data ? error.response.data.data.message : 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)';
+            return res.json({success: false, message: errInfo});
+        }
+    }
 });
 
 // ==============================================================
@@ -3896,7 +3901,10 @@ async function tarikDataLayananOtomatis() {
             saveJSON(produkFile, daftarLokal);
             console.log('\x1b[32m✅ Data Produk Digiflazz Berhasil Tersinkronisasi!\x1b[0m');
         }
-    } catch(err) { console.log('\x1b[31m❌ Gagal Sinkronisasi Digiflazz.\x1b[0m', err.message); }
+    } catch(err) {
+        let errorMsg = err.response && err.response.data && err.response.data.data ? err.response.data.data.message : err.message;
+        console.log('\x1b[31m❌ Gagal Sinkronisasi Digiflazz.\x1b[0m Alasan:', errorMsg); 
+    }
 }
 
 app.get('/api/sync-digiflazz', async (req, res) => {
@@ -4858,7 +4866,9 @@ menu_manajemen_produk_manual() {
                             crypt.save('produk.json', dbProd);
                             console.log('\x1b[32m✅ BERHASIL: Produk \"' + finalNama + '\" (' + sku + ') telah dimasukkan ke Paket/Tipe ' + finalTipe + '!\x1b[0m');
                         } catch(e) {
-                            console.log('\x1b[31m❌ Gagal menghubungi server Digiflazz. Periksa koneksi internet.\x1b[0m');
+                            let msg = e.response && e.response.data && e.response.data.data ? e.response.data.data.message : (e.response && e.response.data ? e.response.data.message : e.message);
+                            console.log('\x1b[31m❌ Gagal memproses Digiflazz. Alasan:\x1b[0m ' + msg);
+                            console.log('\x1b[33mPastikan IP VPS sudah di-whitelist dan API Key benar!\x1b[0m');
                         }
                     }
                     addManual();
