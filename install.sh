@@ -1465,6 +1465,10 @@ EOF
         // --- TAMBAHAN FITUR ALUR VPN SEPERTI PPOB ---
         function loadVpnCategoryInternal(proto) {
             document.getElementById('brand-cat-title').innerText = proto;
+            localStorage.setItem('tendo_current_vpn_proto', proto);
+            localStorage.setItem('tendo_current_vpn_server', '');
+            localStorage.setItem('tendo_is_vpn', 'true');
+            
             let serversMap = {};
             if(vpnConfigData && vpnConfigData.products && vpnConfigData.servers) {
                 for(let pId in vpnConfigData.products) {
@@ -1507,6 +1511,9 @@ EOF
             let srvName = srv ? (srv.server_name || serverId) : serverId;
             document.getElementById('cat-title-text').innerText = "Server " + srvName;
             document.getElementById('search-product').value = '';
+            localStorage.setItem('tendo_current_vpn_proto', proto);
+            localStorage.setItem('tendo_current_vpn_server', serverId);
+            localStorage.setItem('tendo_is_vpn', 'true');
 
             let html = '';
             if(vpnConfigData && vpnConfigData.products) {
@@ -1852,6 +1859,8 @@ EOF
             localStorage.removeItem('tendo_last_tab'); localStorage.removeItem('tendo_last_nav');
             localStorage.removeItem('tendo_history_filter');
             localStorage.removeItem('tendo_current_cat'); localStorage.removeItem('tendo_current_brand');
+            localStorage.removeItem('tendo_current_vpn_proto'); localStorage.removeItem('tendo_current_vpn_server');
+            localStorage.removeItem('tendo_is_vpn');
             toggleSidebar(); showScreen('login-screen', null);
             document.getElementById('log-pass').value = '';
         }
@@ -2040,6 +2049,7 @@ EOF
                     
                     let lastTab = localStorage.getItem('tendo_last_tab') || 'dashboard-screen';
                     currentState = { screen: lastTab };
+                    let isVpn = localStorage.getItem('tendo_is_vpn') === 'true';
                     
                     if (lastTab === 'history-screen') {
                         let savedFilter = localStorage.getItem('tendo_history_filter') || 'Order';
@@ -2051,18 +2061,31 @@ EOF
                     else if (lastTab === 'global-trx-screen') showGlobalTrxInternal();
                     else if (lastTab === 'tutorial-screen') showTutorialsInternal();
                     else if (lastTab === 'brand-screen') {
-                        let cCat = localStorage.getItem('tendo_current_cat');
-                        if(cCat) { loadCategoryInternal(cCat); currentState.cat = cCat; currentState.subcat_mode = false; }
-                        else showDashboardInternal();
+                        if(isVpn) {
+                            let cProto = localStorage.getItem('tendo_current_vpn_proto');
+                            if(cProto) { loadVpnCategoryInternal(cProto); currentState = {screen: 'brand-vpn', proto: cProto}; }
+                            else showDashboardInternal();
+                        } else {
+                            let cCat = localStorage.getItem('tendo_current_cat');
+                            if(cCat) { loadCategoryInternal(cCat); currentState.cat = cCat; currentState.subcat_mode = false; }
+                            else showDashboardInternal();
+                        }
                     }
                     else if (lastTab === 'produk-screen') {
-                        let cCat = localStorage.getItem('tendo_current_cat');
-                        let cBrand = localStorage.getItem('tendo_current_brand');
-                        let cSub = localStorage.getItem('tendo_current_subcat');
-                        if(cCat && cBrand) { 
-                            loadProductsInternal(cCat, cBrand, (cSub === 'null' ? null : cSub)); 
-                            currentState.cat = cCat; currentState.brand = cBrand; currentState.subcat = (cSub === 'null' ? null : cSub);
-                        } else showDashboardInternal();
+                        if(isVpn) {
+                            let cProto = localStorage.getItem('tendo_current_vpn_proto');
+                            let cServer = localStorage.getItem('tendo_current_vpn_server');
+                            if(cProto && cServer) { loadVpnProductsListInternal(cProto, cServer); currentState = {screen: 'produk-vpn', proto: cProto, serverId: cServer}; }
+                            else showDashboardInternal();
+                        } else {
+                            let cCat = localStorage.getItem('tendo_current_cat');
+                            let cBrand = localStorage.getItem('tendo_current_brand');
+                            let cSub = localStorage.getItem('tendo_current_subcat');
+                            if(cCat && cBrand) { 
+                                loadProductsInternal(cCat, cBrand, (cSub === 'null' ? null : cSub)); 
+                                currentState.cat = cCat; currentState.brand = cBrand; currentState.subcat = (cSub === 'null' ? null : cSub);
+                            } else showDashboardInternal();
+                        }
                     }
                     else showDashboardInternal();
                     
@@ -2250,6 +2273,7 @@ EOF
             localStorage.setItem('tendo_current_cat', cat);
             localStorage.setItem('tendo_current_brand', '');
             localStorage.setItem('tendo_current_subcat', '');
+            localStorage.setItem('tendo_is_vpn', 'false');
             
             document.getElementById('brand-cat-title').innerText = cat;
             
@@ -2288,6 +2312,7 @@ EOF
             localStorage.setItem('tendo_current_cat', cat);
             localStorage.setItem('tendo_current_brand', brand);
             localStorage.setItem('tendo_current_subcat', '');
+            localStorage.setItem('tendo_is_vpn', 'false');
 
             document.getElementById('brand-cat-title').innerText = brand + " (Paket)";
             
@@ -2325,6 +2350,7 @@ EOF
             localStorage.setItem('tendo_current_cat', cat);
             localStorage.setItem('tendo_current_brand', brand);
             localStorage.setItem('tendo_current_subcat', subCat || 'null');
+            localStorage.setItem('tendo_is_vpn', 'false');
 
             document.getElementById('cat-title-text').innerText = subCat ? subCat : brand;
             document.getElementById('search-product').value = ''; 
@@ -2592,7 +2618,7 @@ EOF
 </html>
 EOF
 }
-# selesai
+selesai
 # ==========================================
 # 4. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND)
 # ==========================================
@@ -2643,9 +2669,9 @@ const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('he
 function maskStringTarget(str) {
     if (!str) return '-';
     let s = str.toString().trim();
-    // Sensor semua karakter kecuali 2 karakter terakhir
-    if (s.length <= 2) return s;
-    return '*'.repeat(s.length - 2) + s.substring(s.length - 2);
+    // Sensor semua karakter kecuali 3 karakter terakhir
+    if (s.length <= 3) return s;
+    return '*'.repeat(s.length - 3) + s.substring(s.length - 3);
 }
 
 function cekPemeliharaan() {
@@ -3313,7 +3339,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
     try {
         let resApi = await axios.post(endpoint, payload, {
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer ' + srv.api_key },
-            timeout: 10000,
+            timeout: 30000,
             httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
         });
 
@@ -3630,7 +3656,16 @@ async function startBot() {
             try {
                 let formattedNumber = config.botNumber.replace(/[^0-9]/g, '');
                 const code = await sock.requestPairingCode(formattedNumber);
-                console.log(`\x1b[33m🔑 KODE TAUTAN : ${code}\x1b[0m\n`);
+                console.log(`\n\x1b[36m==================================================\x1b[0m`);
+                console.log(`\x1b[32m📱 NOMOR BOT WA  : \x1b[33m+${formattedNumber}\x1b[0m`);
+                console.log(`\x1b[32m🔑 KODE PAIRING  : \x1b[1m\x1b[37m${code}\x1b[0m`);
+                console.log(`\x1b[36m==================================================\x1b[0m`);
+                console.log(`\x1b[33m📌 TATA CARA TAUTAN:\x1b[0m`);
+                console.log(`\x1b[37m1. Buka aplikasi WhatsApp di HP bot Anda.\x1b[0m`);
+                console.log(`\x1b[37m2. Ketik 'Perangkat Taut' / 'Linked Devices'.\x1b[0m`);
+                console.log(`\x1b[37m3. Pilih 'Tautkan dengan nomor telepon saja'.\x1b[0m`);
+                console.log(`\x1b[37m4. Masukkan kode 8 digit di atas.\x1b[0m`);
+                console.log(`\x1b[36m==================================================\x1b[0m\n`);
             } catch (error) {}
         }, 8000); 
     }
@@ -3752,8 +3787,8 @@ async function startBot() {
                             
                             if (!req.is_order) {
                                 let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
-                                if(hist && hist.status === 'Pending') {
-                                    hist.status = 'Sukses Bayar';
+                                if(hist) {
+                                    hist.status = 'Sukses';
                                     hist.saldo_sebelumnya = saldoSebelumnya;
                                     hist.saldo_sesudah = db[req.phone].saldo;
                                 }
@@ -5085,10 +5120,7 @@ menu_manajemen_produk_manual() {
                     }
                     addManual();
                 "
-                echo -e "\n${C_MAG}⏳ Melakukan sinkronisasi otomatis dalam hitungan detik...${C_RST}"
-                curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
-                echo -e "${C_GREEN}✅ Sinkronisasi otomatis ke Website selesai!${C_RST}"
-                
+                echo -e "\n${C_GREEN}✅ Produk manual berhasil ditambahkan! (Tanpa auto-sync supaya instan)${C_RST}"
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
@@ -5123,8 +5155,7 @@ menu_manajemen_produk_manual() {
                             console.log('\x1b[31m❌ Nomor urut tidak ditemukan.\x1b[0m');
                         }
                     "
-                    echo -e "\n${C_MAG}⏳ Memperbarui katalog website...${C_RST}"
-                    curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
+                    echo -e "\n${C_MAG}✅ Berhasil menghapus produk manual!${C_RST}"
                 else
                     echo -e "${C_YELLOW}Dibatalkan.${C_RST}"
                 fi
@@ -5855,5 +5886,3 @@ EOF
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
 done
-
-selesai
