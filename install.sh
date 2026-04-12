@@ -2618,7 +2618,7 @@ EOF
 </html>
 EOF
 }
-selesai
+# selesai
 # ==========================================
 # 4. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND)
 # ==========================================
@@ -3335,7 +3335,10 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
     if (mode === 'trial') {
         vpnUsername = "trial_" + Math.floor(Math.random()*9999);
         vpnPassword = "1";
-        payload = { timelimit: "30m", kuota: 2, limitip: 2 };
+        payload = { username: vpnUsername, timelimit: "30m", kuota: 2, limitip: 2 };
+        if(protoLower === 'ssh' || protoLower === 'zivpn') {
+            payload.password = vpnPassword;
+        }
         if(protoLower === 'ssh') endpoint = `http://${srv.host}/vps/trialsshvpn`;
         else endpoint = `http://${srv.host}/vps/trial${protoLower}all`;
     } else {
@@ -3358,8 +3361,18 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
         // MUAT ULANG DATABASE SESUDAH AWAIT UNTUK MENCEGAH RACE CONDITION!
         db = loadJSON(dbFile);
 
-        // PERBAIKAN: Antisipasi format response VPS VPN yang berbeda untuk trial
-        if(resApi.data && (resApi.data.data || resApi.data.username || resApi.data.id || resApi.data.uuid || mode === 'trial')) {
+        // PERBAIKAN BUG: Validasi sukses dari API VPN VPS yang ketat agar error tak terbaca sukses
+        let isSuccessResponse = resApi.data && (
+            resApi.data.data || 
+            resApi.data.username || 
+            resApi.data.id || 
+            resApi.data.uuid ||
+            (resApi.data.status === true) || 
+            (resApi.data.message && resApi.data.message.toLowerCase().includes('success'))
+        );
+        let isErrorResponse = resApi.data && (resApi.data.status === false || resApi.data.error);
+
+        if(isSuccessResponse && !isErrorResponse) {
             let apiData = resApi.data.data || resApi.data;
             let domain = srv.host;
             let expDate = apiData.expired || apiData.exp || apiData.to || (mode === 'trial' ? '30 Menit' : `${expiredDays} Hari`);
@@ -5051,7 +5064,6 @@ menu_manajemen_produk_manual() {
                     echo -e "${C_RED}❌ Kode SKU tidak boleh kosong.${C_RST}"; sleep 1; continue
                 fi
                 
-                read -p "Masukkan Harga Modal (Angka, Cth: 5000): " harga_modal
                 read -p "Masukkan Nama Produk (Kosongkan utk pakai nama Asli): " custom_nama
                 read -p "Masukkan Brand / Operator (Misal: Telkomsel / Free Fire / XL): " custom_brand
                 read -p "Masukkan Tipe/Nama Paket Custom (Misal: Xtra Combo VIP / Promo): " custom_tipe
@@ -5062,25 +5074,12 @@ menu_manajemen_produk_manual() {
                     const crypt = require('./tendo_crypt.js');
                     
                     let sku = '$sku_digi'.trim();
-                    let hargaModal = parseInt('$harga_modal') || 0;
+                    let hargaModal = 0; // Otomatis diset 0. Saat cron berjalan akan disesuaikan dengan digiflazz.
                     
                     let config = crypt.load('config.json');
                     let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
                     
-                    let keuntungan = 0;
-                    if(hargaModal <= 100) keuntungan = m.t1;
-                    else if(hargaModal <= 500) keuntungan = m.t2;
-                    else if(hargaModal <= 1000) keuntungan = m.t3;
-                    else if(hargaModal <= 2000) keuntungan = m.t4;
-                    else if(hargaModal <= 3000) keuntungan = m.t5;
-                    else if(hargaModal <= 4000) keuntungan = m.t6;
-                    else if(hargaModal <= 5000) keuntungan = m.t7;
-                    else if(hargaModal <= 10000) keuntungan = m.t8;
-                    else if(hargaModal <= 25000) keuntungan = m.t9;
-                    else if(hargaModal <= 50000) keuntungan = m.t10;
-                    else if(hargaModal <= 75000) keuntungan = m.t11;
-                    else if(hargaModal <= 100000) keuntungan = m.t12;
-                    else keuntungan = m.t13;
+                    let keuntungan = 0; // Keuntungan juga akan menyesuaikan hargaModal asli ketika tersinkron
 
                     let customNama = '$custom_nama'.trim();
                     let customBrand = '$custom_brand'.trim();
