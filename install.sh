@@ -101,7 +101,7 @@ EOF
 # 3. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI
 # ==========================================
 generate_web_app() {
-    mkdir -p public/baner1 public/baner2 public/baner3 public/baner4 public/baner5 public/info_images public/maint_images
+    mkdir -p public/baner1 public/baner2 public/baner3 public/baner4 public/baner5 public/info_images public/maint_images public/tutorials
 
     cat << 'EOF' > public/manifest.json
 {
@@ -498,10 +498,10 @@ EOF
             .grid-container { grid-template-columns: repeat(4, 1fr); padding: 0 30px; gap: 20px; }
             .stats-container { margin: 30px; }
             .banner-slider-container { margin: 20px 30px 0px; }
-            #product-list, #brand-list, #history-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 10px 30px 30px !important; }
+            #product-list, #brand-list, #history-list, #tutorial-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 10px 30px 30px !important; }
             .product-item, .brand-row, .hist-item { margin: 0 !important; }
             #notif-list, #global-trx-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 30px !important; }
-            #notif-list .card, #global-trx-list .card { margin-bottom: 0 !important; }
+            #notif-list .card, #global-trx-list .card, #tutorial-list .card { margin-bottom: 0 !important; }
             #login-screen .card, #register-screen .card, #otp-screen .card, #forgot-screen .card, #login-otp-screen .card { max-width: 450px; margin: 0 auto; padding: 40px; }
             .sidebar { width: 340px; }
         }
@@ -510,7 +510,7 @@ EOF
             #app { max-width: 1024px; }
             .bottom-nav { max-width: 964px; }
             .grid-container { grid-template-columns: repeat(5, 1fr); }
-            #product-list, #brand-list, #history-list, #notif-list, #global-trx-list { grid-template-columns: repeat(3, 1fr); }
+            #product-list, #brand-list, #history-list, #notif-list, #global-trx-list, #tutorial-list { grid-template-columns: repeat(3, 1fr); }
         }
     </style>
 </head>
@@ -791,6 +791,18 @@ EOF
                         <div class="stat-lbl">Semua</div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div id="tutorial-screen" class="hidden">
+            <div class="screen-header">
+                <svg class="back-icon" onclick="goBackGlobal()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+                <span>Tutorial VPN Premium</span>
+            </div>
+            <div class="container" id="tutorial-list" style="margin-bottom: 120px;">
+                <div style="text-align:center; color:var(--text-muted); padding:30px; font-size:13px; font-weight:bold;">Memuat tutorial...</div>
             </div>
         </div>
 
@@ -1189,6 +1201,7 @@ EOF
             else if(s.screen === 'profile-screen') showProfileInternal();
             else if(s.screen === 'notif-screen') showNotifInternal();
             else if(s.screen === 'global-trx-screen') showGlobalTrxInternal();
+            else if(s.screen === 'tutorial-screen') showTutorialsInternal();
         }
 
         function showToast(msg, type='info') {
@@ -1435,7 +1448,17 @@ EOF
                     ${statusBadge}
                 </div>`;
             });
-            if(html === '') html = '<div style="text-align:center; grid-column: 1 / -1; font-size:12px; color:var(--text-muted);">Belum ada produk VPN tersedia.</div>';
+            
+            html += `
+            <div class="grid-box" onclick="showTutorials()">
+                <div class="grid-icon-wrap" style="background: rgba(236, 72, 153, 0.15); color: #ec4899;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+                        <polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                    </svg>
+                </div>
+                <div class="grid-text">TUTORIAL</div>
+            </div>`;
+
             container.innerHTML = html;
         }
 
@@ -1581,12 +1604,12 @@ EOF
             let loader = document.getElementById('initial-loader');
             if(loader) { loader.style.opacity = '0'; setTimeout(() => { if(loader) loader.style.display = 'none'; }, 300); }
 
-            ['login-screen', 'login-otp-screen', 'register-screen', 'otp-screen', 'forgot-screen', 'dashboard-screen', 'brand-screen', 'produk-screen', 'history-screen', 'profile-screen', 'notif-screen', 'global-trx-screen'].forEach(s => {
+            ['login-screen', 'login-otp-screen', 'register-screen', 'otp-screen', 'forgot-screen', 'dashboard-screen', 'brand-screen', 'produk-screen', 'history-screen', 'profile-screen', 'notif-screen', 'global-trx-screen', 'tutorial-screen'].forEach(s => {
                 document.getElementById(s).classList.add('hidden');
             });
             document.getElementById(id).classList.remove('hidden');
             
-            if (['dashboard-screen', 'history-screen', 'notif-screen', 'profile-screen', 'brand-screen', 'produk-screen', 'global-trx-screen'].includes(id)) {
+            if (['dashboard-screen', 'history-screen', 'notif-screen', 'profile-screen', 'brand-screen', 'produk-screen', 'global-trx-screen', 'tutorial-screen'].includes(id)) {
                 localStorage.setItem('tendo_last_tab', id);
             }
             if (navId) {
@@ -1628,6 +1651,30 @@ EOF
         }
         function showDashboard() { pushState({screen: 'dashboard-screen'}); showDashboardInternal(); }
         
+        async function showTutorialsInternal() {
+            showScreen('tutorial-screen', 'nav-home');
+            try {
+                let data = await apiCall('/api/tutorials');
+                let html = '';
+                if(data && Array.isArray(data) && data.length > 0) {
+                    data.forEach(t => {
+                        html += `
+                        <div class="card" style="margin-bottom:15px; padding:15px;">
+                            <h3 style="margin-top:0; font-size:15px; color:var(--text-main);">${t.title}</h3>
+                            <video width="100%" controls style="border-radius:10px; margin-bottom:10px; background:#000;">
+                                <source src="/tutorials/${t.video}" type="video/mp4">
+                            </video>
+                            <p style="font-size:12px; color:var(--text-muted); line-height:1.5;">${t.desc}</p>
+                        </div>`;
+                    });
+                } else {
+                    html = '<div style="text-align:center; padding:30px; font-weight:bold; color:var(--text-muted);">Belum ada tutorial saat ini.</div>';
+                }
+                document.getElementById('tutorial-list').innerHTML = html;
+            } catch(e){}
+        }
+        function showTutorials() { pushState({screen: 'tutorial-screen'}); showTutorialsInternal(); }
+
         function showHistoryInternal(filter) { 
             currentHistoryFilter = filter;
             localStorage.setItem('tendo_history_filter', filter);
@@ -2002,6 +2049,7 @@ EOF
                     else if (lastTab === 'profile-screen') showProfileInternal();
                     else if (lastTab === 'notif-screen') showNotifInternal();
                     else if (lastTab === 'global-trx-screen') showGlobalTrxInternal();
+                    else if (lastTab === 'tutorial-screen') showTutorialsInternal();
                     else if (lastTab === 'brand-screen') {
                         let cCat = localStorage.getItem('tendo_current_cat');
                         if(cCat) { loadCategoryInternal(cCat); currentState.cat = cCat; currentState.subcat_mode = false; }
@@ -2544,6 +2592,7 @@ EOF
 </html>
 EOF
 }
+# selesai
 # ==========================================
 # 4. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND)
 # ==========================================
@@ -2584,8 +2633,9 @@ const topupFile = './topup.json';
 const globalTrxFile = './global_trx.json'; 
 const vpnConfigFile = './vpn_config.json'; 
 const customLayoutFile = './custom_layout.json'; // Database Etalase Custom
+const tutorialFile = './tutorial.json'; // Database Tutorial
 
-const loadJSON = (file) => crypt.load(file, (file === notifFile || file === globalTrxFile) ? [] : (file === customLayoutFile ? {sections:[]} : {}));
+const loadJSON = (file) => crypt.load(file, (file === notifFile || file === globalTrxFile || file === tutorialFile) ? [] : (file === customLayoutFile ? {sections:[]} : {}));
 const saveJSON = (file, data) => crypt.save(file, data);
 
 const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
@@ -2730,7 +2780,7 @@ saveJSON(customLayoutFile, customLayoutAwal);
 // Pastikan folder untuk gambar maintenance/selesai pemeliharaan ada
 if(!fs.existsSync('./public/maint_images')) fs.mkdirSync('./public/maint_images', { recursive: true });
 
-loadJSON(dbFile); loadJSON(produkFile); loadJSON(trxFile); loadJSON(globalStatsFile); loadJSON(topupFile); loadJSON(notifFile); loadJSON(globalTrxFile);
+loadJSON(dbFile); loadJSON(produkFile); loadJSON(trxFile); loadJSON(globalStatsFile); loadJSON(topupFile); loadJSON(notifFile); loadJSON(globalTrxFile); loadJSON(tutorialFile);
 
 let globalSock = null;
 let tempOtpDB = {}; 
@@ -2841,6 +2891,7 @@ app.get('/api/produk', (req, res) => { res.json(loadJSON(produkFile)); });
 app.get('/api/notif', (req, res) => { res.json(loadJSON(notifFile) || []); });
 app.get('/api/global-trx', (req, res) => { res.json(loadJSON(globalTrxFile) || []); });
 app.get('/api/custom-layout', (req, res) => { res.json({success: true, data: loadJSON(customLayoutFile)}); }); 
+app.get('/api/tutorials', (req, res) => { res.json(loadJSON(tutorialFile) || []); });
 
 app.get('/api/vpn-config', (req, res) => {
     try {
@@ -3557,7 +3608,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
 function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
-    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json ssl_backup.tar.gz 2>/dev/null`, (err) => {
+    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json ssl_backup.tar.gz 2>/dev/null`, (err) => {
         if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
     });
 }
@@ -4358,6 +4409,154 @@ install_dependencies() {
     read -p "Tekan Enter untuk kembali..."
 }
 
+menu_tutorial() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             🎬 MANAJEMEN TUTORIAL 🎬               ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Tutorial Baru"
+        echo -e "  ${C_GREEN}[2]${C_RST} Edit Tutorial"
+        echo -e "  ${C_GREEN}[3]${C_RST} Hapus Tutorial"
+        echo -e "  ${C_GREEN}[4]${C_RST} Lihat Daftar Tutorial"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-4]: ${C_RST}"
+        read tut_choice
+
+        case $tut_choice in
+            1)
+                echo -e "\n${C_MAG}--- TAMBAH TUTORIAL BARU ---${C_RST}"
+                read -p "Masukkan Judul Tutorial: " t_judul
+                if [ -z "$t_judul" ]; then echo "Batal."; sleep 1; continue; fi
+                
+                echo -e "Anda bisa memasukkan URL video (mp4) untuk didownload otomatis,"
+                echo -e "ATAU masukkan path file lokal di VPS (contoh: /root/video.mp4)"
+                read -p "URL / Path Video: " t_video_src
+                read -p "Nama file saat disimpan (contoh: tutor1.mp4): " t_video_name
+                read -p "Masukkan Deskripsi: " t_desc
+                
+                mkdir -p public/tutorials
+                
+                if [[ "$t_video_src" == http* ]]; then
+                    echo -e "${C_CYAN}⏳ Mendownload video...${C_RST}"
+                    wget -qO "public/tutorials/$t_video_name" "$t_video_src"
+                    if [ $? -eq 0 ]; then
+                        echo -e "${C_GREEN}✅ Video berhasil didownload!${C_RST}"
+                    else
+                        echo -e "${C_RED}❌ Gagal mendownload video.${C_RST}"
+                    fi
+                else
+                    if [ -f "$t_video_src" ]; then
+                        cp "$t_video_src" "public/tutorials/$t_video_name"
+                        echo -e "${C_GREEN}✅ Video berhasil dicopy!${C_RST}"
+                    else
+                        echo -e "${C_RED}❌ File lokal tidak ditemukan. Melanjutkan simpan data saja...${C_RST}"
+                    fi
+                fi
+                
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let db = crypt.load('tutorial.json', []);
+                    db.push({
+                        id: 'TUT-' + Date.now(),
+                        title: '$t_judul',
+                        video: '$t_video_name',
+                        desc: '$t_desc'
+                    });
+                    crypt.save('tutorial.json', db);
+                    console.log('\x1b[32m✅ Data tutorial berhasil disimpan!\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo -e "\n${C_MAG}--- EDIT TUTORIAL ---${C_RST}"
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let db = crypt.load('tutorial.json', []);
+                    if(db.length === 0) { console.log('\x1b[31mBelum ada tutorial.\x1b[0m'); process.exit(0); }
+                    db.forEach((t, i) => console.log('[' + (i+1) + '] ' + t.title + ' (' + t.video + ')'));
+                "
+                echo ""
+                read -p "Pilih nomor tutorial yang ingin diedit: " t_num
+                if [[ "$t_num" =~ ^[0-9]+$ ]]; then
+                    read -p "Judul Baru (Kosongkan jika tidak diubah): " t_judul
+                    read -p "Nama File Video Baru (Kosongkan jika tidak diubah): " t_video
+                    read -p "Deskripsi Baru (Kosongkan jika tidak diubah): " t_desc
+                    
+                    node -e "
+                        const crypt = require('./tendo_crypt.js');
+                        let db = crypt.load('tutorial.json', []);
+                        let idx = parseInt('$t_num') - 1;
+                        if(db[idx]) {
+                            if('$t_judul' !== '') db[idx].title = '$t_judul';
+                            if('$t_video' !== '') db[idx].video = '$t_video';
+                            if('$t_desc' !== '') db[idx].desc = '$t_desc';
+                            crypt.save('tutorial.json', db);
+                            console.log('\x1b[32m✅ Tutorial berhasil diupdate!\x1b[0m');
+                        } else {
+                            console.log('\x1b[31m❌ Nomor tidak valid.\x1b[0m');
+                        }
+                    "
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            3)
+                echo -e "\n${C_MAG}--- HAPUS TUTORIAL ---${C_RST}"
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let db = crypt.load('tutorial.json', []);
+                    if(db.length === 0) { console.log('\x1b[31mBelum ada tutorial.\x1b[0m'); process.exit(0); }
+                    db.forEach((t, i) => console.log('[' + (i+1) + '] ' + t.title));
+                "
+                echo ""
+                read -p "Pilih nomor tutorial yang ingin dihapus: " t_num
+                if [[ "$t_num" =~ ^[0-9]+$ ]]; then
+                    node -e "
+                        const crypt = require('./tendo_crypt.js');
+                        const fs = require('fs');
+                        let db = crypt.load('tutorial.json', []);
+                        let idx = parseInt('$t_num') - 1;
+                        if(db[idx]) {
+                            let videoName = db[idx].video;
+                            let filepath = 'public/tutorials/' + videoName;
+                            if(fs.existsSync(filepath)) {
+                                fs.unlinkSync(filepath);
+                                console.log('\x1b[33mFile video ' + videoName + ' dihapus.\x1b[0m');
+                            }
+                            db.splice(idx, 1);
+                            crypt.save('tutorial.json', db);
+                            console.log('\x1b[32m✅ Tutorial berhasil dihapus!\x1b[0m');
+                        } else {
+                            console.log('\x1b[31m❌ Nomor tidak valid.\x1b[0m');
+                        }
+                    "
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            4)
+                echo -e "\n${C_CYAN}--- DAFTAR TUTORIAL ---${C_RST}"
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let db = crypt.load('tutorial.json', []);
+                    if(db.length === 0) { console.log('\x1b[33mBelum ada tutorial.\x1b[0m'); }
+                    else {
+                        db.forEach((t, i) => {
+                            console.log('\n\x1b[36m[' + (i+1) + '] ' + t.title + '\x1b[0m');
+                            console.log('   Video: ' + t.video);
+                            console.log('   Deskripsi: ' + t.desc);
+                        });
+                    }
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
 menu_member() {
     while true; do
         clear
@@ -4689,7 +4888,7 @@ menu_backup() {
                 if [ -d "/etc/letsencrypt" ]; then
                     sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null
                 fi
-                zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json ssl_backup.tar.gz 2>/dev/null
+                zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json ssl_backup.tar.gz 2>/dev/null
                 echo -e "${C_GREEN}✅ File backup.zip (termasuk config API/ID) berhasil dikompresi!${C_RST}"
                 node -e "
                     const crypt = require('./tendo_crypt.js');
@@ -5479,24 +5678,25 @@ while true; do
     echo -e "  ${C_GREEN}[8]${C_RST}  📦 Manajemen Produk Manual Instan (Paket Custom)"
     echo -e "  ${C_GREEN}[9]${C_RST}  🛡️ Manajemen VPN Premium"
     echo -e "  ${C_GREEN}[10]${C_RST} 🌟 Manajemen Etalase Custom (Best Seller)"
+    echo -e "  ${C_GREEN}[11]${C_RST} 🎬 Manajemen Tutorial"
     echo ""
     echo -e "${C_MAG}▶ 👥 MANAJEMEN PENGGUNA${C_RST}"
-    echo -e "  ${C_GREEN}[11]${C_RST} 👥 Manajemen Saldo & Member"
+    echo -e "  ${C_GREEN}[12]${C_RST} 👥 Manajemen Saldo & Member"
     echo ""
     echo -e "${C_MAG}▶ ⚙️ PENGATURAN & INTEGRASI${C_RST}"
-    echo -e "  ${C_GREEN}[12]${C_RST} 🔌 Ganti API Digiflazz"
-    echo -e "  ${C_GREEN}[13]${C_RST} 💳 Setup GoPay Merchant API"
-    echo -e "  ${C_GREEN}[14]${C_RST} 📢 Setup Integrasi Notifikasi (Tele/Web)"
-    echo -e "  ${C_GREEN}[15]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
-    echo -e "  ${C_GREEN}[16]${C_RST} 🔄 Ganti Akun WA Web OTP (Reset Sesi)"
+    echo -e "  ${C_GREEN}[13]${C_RST} 🔌 Ganti API Digiflazz"
+    echo -e "  ${C_GREEN}[14]${C_RST} 💳 Setup GoPay Merchant API"
+    echo -e "  ${C_GREEN}[15]${C_RST} 📢 Setup Integrasi Notifikasi (Tele/Web)"
+    echo -e "  ${C_GREEN}[16]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
+    echo -e "  ${C_GREEN}[17]${C_RST} 🔄 Ganti Akun WA Web OTP (Reset Sesi)"
     echo ""
     echo -e "${C_MAG}▶ 💾 BACKUP & RESTORE${C_RST}"
-    echo -e "  ${C_GREEN}[17]${C_RST} 💾 Backup & Restore Database"
-    echo -e "  ${C_GREEN}[18]${C_RST} ⚙️ Pengaturan Auto-Backup Telegram"
+    echo -e "  ${C_GREEN}[18]${C_RST} 💾 Backup & Restore Database"
+    echo -e "  ${C_GREEN}[19]${C_RST} ⚙️ Pengaturan Auto-Backup Telegram"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
     echo -e "${C_CYAN}======================================================${C_RST}"
-    echo -ne "${C_YELLOW}Pilih menu [0-18]: ${C_RST}"
+    echo -ne "${C_YELLOW}Pilih menu [0-19]: ${C_RST}"
     read choice
 
     case $choice in
@@ -5540,8 +5740,9 @@ while true; do
         8) menu_manajemen_produk_manual ;;
         9) menu_manajemen_vpn ;;
         10) menu_etalase_custom ;;
-        11) menu_member ;;
-        12)
+        11) menu_tutorial ;;
+        12) menu_member ;;
+        13)
             echo -e "\n${C_MAG}--- GANTI API DIGIFLAZZ ---${C_RST}"
             read -p "Username Digiflazz Baru: " user_api
             read -p "API Key Digiflazz Baru: " key_api
@@ -5555,7 +5756,7 @@ while true; do
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
-        13)
+        14)
             echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT (BHM BIZ API) ---${C_RST}"
             echo -e "${C_YELLOW}Fitur ini akan menghubungkan merchant GoPay Anda dan mengatur QRIS Dinamis!${C_RST}"
             read -p "Masukkan API Token BHM Biz Anda: " gopay_token
@@ -5596,8 +5797,8 @@ while true; do
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
-        14) menu_notifikasi ;;
-        15)
+        15) menu_notifikasi ;;
+        16)
             echo -e "\n${C_MAG}--- SETUP DOMAIN & HTTPS ---${C_RST}"
             read -p "Masukkan Nama Domain Anda (contoh: digitaltendostore.com): " domain_name
             read -p "Masukkan Email Aktif (untuk SSL Let's Encrypt): " ssl_email
@@ -5625,7 +5826,7 @@ EOF
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
-        16)
+        17)
             echo -e "\n${C_RED}⚠️ Reset Sesi akan mengeluarkan sistem dari WhatsApp saat ini.${C_RST}"
             read -p "Yakin ingin mereset sesi? (y/n): " reset_sesi
             if [ "$reset_sesi" == "y" ]; then
@@ -5635,9 +5836,11 @@ EOF
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
-        17) menu_backup ;;
-        18) menu_telegram ;;
+        18) menu_backup ;;
+        19) menu_telegram ;;
         0) echo -e "${C_GREEN}Sampai jumpa!${C_RST}"; exit 0 ;;
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
 done
+
+selesai
