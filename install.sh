@@ -4736,7 +4736,7 @@ menu_manajemen_produk_manual() {
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "${C_YELLOW}${C_BOLD}          📦 MANAJEMEN PRODUK MANUAL 📦             ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Instan (Duplikat SKU Tidak Bentrok)"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Instan / Pindah Kategori Paket Custom"
         echo -e "  ${C_GREEN}[2]${C_RST} Lihat Daftar & Hapus Produk Manual"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
@@ -4783,8 +4783,8 @@ menu_manajemen_produk_manual() {
                 fi
                 
                 read -p "Masukkan Nama Produk (Kosongkan utk pakai nama Asli): " custom_nama
-                read -p "Masukkan Brand / Operator (Misal: Telkomsel / Free Fire): " custom_brand
-                read -p "Masukkan Tipe (Misal: Umum / V1 / V2): " custom_tipe
+                read -p "Masukkan Brand / Operator (Misal: Telkomsel / Free Fire / XL): " custom_brand
+                read -p "Masukkan Tipe/Nama Paket Custom (Misal: Xtra Combo VIP / Promo): " custom_tipe
                 read -p "Masukkan Deskripsi Produk (Kosongkan utk pakai 'Proses Otomatis'): " custom_desc
                 
                 echo -e "\n${C_MAG}⏳ Menghubungkan ke API Digiflazz untuk menarik data harga dan status...${C_RST}"
@@ -4856,7 +4856,7 @@ menu_manajemen_produk_manual() {
                             };
                             
                             crypt.save('produk.json', dbProd);
-                            console.log('\x1b[32m✅ BERHASIL: Produk \"' + finalNama + '\" (' + sku + ') telah diduplikat/ditambahkan secara manual!\x1b[0m');
+                            console.log('\x1b[32m✅ BERHASIL: Produk \"' + finalNama + '\" (' + sku + ') telah dimasukkan ke Paket/Tipe ' + finalTipe + '!\x1b[0m');
                         } catch(e) {
                             console.log('\x1b[31m❌ Gagal menghubungi server Digiflazz. Periksa koneksi internet.\x1b[0m');
                         }
@@ -5083,23 +5083,78 @@ submenu_produk_vpn() {
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "${C_YELLOW}${C_BOLD}             📦 MANAJEMEN PRODUK VPN 📦             ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Tambah / Edit Produk VPN"
-        echo -e "  ${C_GREEN}[2]${C_RST} List Daftar Produk"
-        echo -e "  ${C_GREEN}[3]${C_RST} Atur Ulang Stok Produk"
-        echo -e "  ${C_GREEN}[4]${C_RST} Hapus Produk"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk VPN Baru (ID Otomatis Unik)"
+        echo -e "  ${C_GREEN}[2]${C_RST} Edit Produk VPN Yang Sudah Ada"
+        echo -e "  ${C_GREEN}[3]${C_RST} List Daftar Produk"
+        echo -e "  ${C_GREEN}[4]${C_RST} Atur Ulang Stok Produk"
+        echo -e "  ${C_GREEN}[5]${C_RST} Hapus Produk"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali"
         echo -e "${C_CYAN}======================================================${C_RST}"
-        echo -ne "${C_YELLOW}Pilih menu [0-4]: ${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-5]: ${C_RST}"
         read prod_choice
 
         case $prod_choice in
             1)
-                echo -e "\n${C_MAG}--- TAMBAH / EDIT PRODUK VPN ---${C_RST}"
-                read -p "Buat/Masukkan ID Produk (Unik, misal: p1 atau SSH-VIP): " prod_id
-                if [ -z "$prod_id" ]; then echo "Batal."; sleep 1; continue; fi
+                echo -e "\n${C_MAG}--- TAMBAH PRODUK VPN BARU ---${C_RST}"
+                prod_id="VPN-$(date +%s)"
+                echo -e "${C_GREEN}Membuat ID Produk Unik: $prod_id${C_RST}"
 
-                echo -e "\nPilih Protokol (KOSONGKAN jika edit & tidak ingin diubah):"
+                echo -e "\nPilih Protokol:"
+                echo -e "  [1] SSH\n  [2] Vmess\n  [3] Vless\n  [4] Trojan\n  [5] ZIVPN"
+                read -p "Pilihan [1-5]: " proto_opt
+                target_proto=""
+                case $proto_opt in
+                    1) target_proto="SSH" ;;
+                    2) target_proto="Vmess" ;;
+                    3) target_proto="Vless" ;;
+                    4) target_proto="Trojan" ;;
+                    5) target_proto="ZIVPN" ;;
+                    *) target_proto="SSH" ;;
+                esac
+
+                echo -e "\nServer Tersedia:"
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let vpnDb = crypt.load('vpn_config.json');
+                    let servers = vpnDb.servers || {};
+                    for(let id in servers) console.log('  - ' + id + ' (' + servers[id].server_name + ')');
+                "
+                read -p "Ketik ID Server target: " srv_id_target
+                read -p "Nama Layanan (Misal: SSH Premium SG VIP): " p_nama
+                read -p "Harga Patokan 30 Hari (Rp): " p_harga
+                read -p "Limit IP (contoh: 2): " p_limitip
+                read -p "Limit Bandwidth Kuota GB (contoh: 200, Kosongkan utk SSH): " p_kuota
+                read -p "Jumlah Stok Awal: " p_stok
+                read -p "Deskripsi / Fitur Singkat: " p_desc
+                
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let vpnDb = crypt.load('vpn_config.json');
+                    if(!vpnDb.products) vpnDb.products = {};
+                    
+                    vpnDb.products['$prod_id'] = {
+                        protocol: '$target_proto',
+                        server_id: '$srv_id_target',
+                        name: '$p_nama' !== '' ? '$p_nama' : 'VPN Premium',
+                        price: '$p_harga' !== '' ? parseInt('$p_harga') : 0,
+                        desc: '$p_desc' !== '' ? '$p_desc' : 'Proses Otomatis',
+                        limit_ip: '$p_limitip' !== '' ? parseInt('$p_limitip') : 2,
+                        kuota: '$p_kuota' !== '' ? parseInt('$p_kuota') : 200,
+                        stok: '$p_stok' !== '' ? parseInt('$p_stok') : 0
+                    };
+                    
+                    crypt.save('vpn_config.json', vpnDb);
+                    console.log('\x1b[32m\n✅ Produk VPN Baru ($prod_id) berhasil ditambahkan ke Server!\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo -e "\n${C_MAG}--- EDIT PRODUK VPN ---${C_RST}"
+                read -p "Masukkan ID Produk yang ingin diedit: " edit_prod_id
+                if [ -z "$edit_prod_id" ]; then echo "Batal."; sleep 1; continue; fi
+
+                echo -e "\nPilih Protokol (KOSONGKAN jika tidak ingin diubah):"
                 echo -e "  [1] SSH\n  [2] Vmess\n  [3] Vless\n  [4] Trojan\n  [5] ZIVPN"
                 read -p "Pilihan [1-5]: " proto_opt
                 target_proto=""
@@ -5119,40 +5174,42 @@ submenu_produk_vpn() {
                     let servers = vpnDb.servers || {};
                     for(let id in servers) console.log('  - ' + id + ' (' + servers[id].server_name + ')');
                 "
-                read -p "Ketik ID Server target (Kosongkan jika edit & tidak ingin diubah): " srv_id_target
+                read -p "Ketik ID Server target (Kosongkan jika tidak ingin diubah): " srv_id_target
                 
-                echo -e "\n${C_MAG}*Catatan: Jika sedang mengedit produk, KOSONGKAN isian jika tidak ingin mengubah data lama.${C_RST}"
-                read -p "Nama Layanan (Misal: SSH Premium SG VIP): " p_nama
+                echo -e "\n${C_MAG}*Catatan: KOSONGKAN isian jika tidak ingin mengubah data lama.${C_RST}"
+                read -p "Nama Layanan: " p_nama
                 read -p "Harga Patokan 30 Hari (Rp): " p_harga
-                read -p "Limit IP (contoh: 2): " p_limitip
-                read -p "Limit Bandwidth Kuota GB (contoh: 200, Kosongkan utk SSH): " p_kuota
-                read -p "Jumlah Stok Awal: " p_stok
+                read -p "Limit IP: " p_limitip
+                read -p "Limit Bandwidth Kuota GB: " p_kuota
                 read -p "Deskripsi / Fitur Singkat: " p_desc
                 
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let vpnDb = crypt.load('vpn_config.json');
-                    if(!vpnDb.products) vpnDb.products = {};
+                    if(!vpnDb.products || !vpnDb.products['$edit_prod_id']) {
+                        console.log('\x1b[31m❌ ID Produk tidak ditemukan!\x1b[0m');
+                        process.exit(0);
+                    }
                     
-                    let existing = vpnDb.products['$prod_id'] || {};
+                    let existing = vpnDb.products['$edit_prod_id'];
                     
-                    vpnDb.products['$prod_id'] = {
-                        protocol: '$target_proto' !== '' ? '$target_proto' : (existing.protocol || 'SSH'),
-                        server_id: '$srv_id_target' !== '' ? '$srv_id_target' : (existing.server_id || ''),
-                        name: '$p_nama' !== '' ? '$p_nama' : (existing.name || 'VPN Premium'),
-                        price: '$p_harga' !== '' ? parseInt('$p_harga') : (existing.price || 0),
-                        desc: '$p_desc' !== '' ? '$p_desc' : (existing.desc || 'Proses Otomatis'),
-                        limit_ip: '$p_limitip' !== '' ? parseInt('$p_limitip') : (existing.limit_ip || 2),
-                        kuota: '$p_kuota' !== '' ? parseInt('$p_kuota') : (existing.kuota || 200),
-                        stok: '$p_stok' !== '' ? parseInt('$p_stok') : (existing.stok || 0)
+                    vpnDb.products['$edit_prod_id'] = {
+                        protocol: '$target_proto' !== '' ? '$target_proto' : existing.protocol,
+                        server_id: '$srv_id_target' !== '' ? '$srv_id_target' : existing.server_id,
+                        name: '$p_nama' !== '' ? '$p_nama' : existing.name,
+                        price: '$p_harga' !== '' ? parseInt('$p_harga') : existing.price,
+                        desc: '$p_desc' !== '' ? '$p_desc' : existing.desc,
+                        limit_ip: '$p_limitip' !== '' ? parseInt('$p_limitip') : existing.limit_ip,
+                        kuota: '$p_kuota' !== '' ? parseInt('$p_kuota') : existing.kuota,
+                        stok: existing.stok
                     };
                     
                     crypt.save('vpn_config.json', vpnDb);
-                    console.log('\x1b[32m\n✅ Produk VPN ($prod_id) berhasil disimpan/diupdate dan terhubung ke Server!\x1b[0m');
+                    console.log('\x1b[32m\n✅ Produk VPN ($edit_prod_id) berhasil diupdate!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
-            2)
+            3)
                 echo -e "\n${C_CYAN}--- DAFTAR PRODUK VPN ---${C_RST}"
                 node -e "
                     const crypt = require('./tendo_crypt.js');
@@ -5168,7 +5225,7 @@ submenu_produk_vpn() {
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
-            3)
+            4)
                 echo -e "\n${C_MAG}--- ATUR ULANG STOK PRODUK ---${C_RST}"
                 read -p "Masukkan ID Produk: " stok_id
                 read -p "Masukkan Jumlah Stok Baru: " stok_baru
@@ -5185,7 +5242,7 @@ submenu_produk_vpn() {
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
-            4)
+            5)
                 echo -e "\n${C_MAG}--- HAPUS PRODUK ---${C_RST}"
                 read -p "Masukkan ID Produk yang ingin dihapus: " del_id
                 node -e "
@@ -5407,25 +5464,25 @@ while true; do
     echo -e "  ${C_GREEN}[5]${C_RST}  Lihat Log / Error"
     echo ""
     echo -e "${C_MAG}▶ 📦 MANAJEMEN PRODUK & KATEGORI${C_RST}"
-    echo -e "  ${C_GREEN}[8]${C_RST}  🔄 Sinkronisasi Produk Digiflazz (Perbarui Katalog)"
+    echo -e "  ${C_GREEN}[6]${C_RST}  🔄 Sinkronisasi Produk Digiflazz"
     echo -e "  ${C_GREEN}[7]${C_RST}  💰 Manajemen Keuntungan Harga (13 Tingkat)"
-    echo -e "  ${C_GREEN}[16]${C_RST} 📦 Manajemen Produk Manual Instan"
-    echo -e "  ${C_GREEN}[17]${C_RST} 🛡️ Manajemen VPN Premium"
-    echo -e "  ${C_GREEN}[18]${C_RST} 🌟 Manajemen Etalase Custom (Best Seller)"
+    echo -e "  ${C_GREEN}[8]${C_RST}  📦 Manajemen Produk Manual Instan (Paket Custom)"
+    echo -e "  ${C_GREEN}[9]${C_RST}  🛡️ Manajemen VPN Premium"
+    echo -e "  ${C_GREEN}[10]${C_RST} 🌟 Manajemen Etalase Custom (Best Seller)"
     echo ""
     echo -e "${C_MAG}▶ 👥 MANAJEMEN PENGGUNA${C_RST}"
-    echo -e "  ${C_GREEN}[6]${C_RST}  👥 Manajemen Saldo & Member"
+    echo -e "  ${C_GREEN}[11]${C_RST} 👥 Manajemen Saldo & Member"
     echo ""
     echo -e "${C_MAG}▶ ⚙️ PENGATURAN & INTEGRASI${C_RST}"
-    echo -e "  ${C_GREEN}[11]${C_RST} 🔌 Ganti API Digiflazz"
-    echo -e "  ${C_GREEN}[14]${C_RST} 💳 Setup GoPay Merchant API (BHM Biz)"
-    echo -e "  ${C_GREEN}[13]${C_RST} 📢 Setup Integrasi Notifikasi (Tele/Web)"
+    echo -e "  ${C_GREEN}[12]${C_RST} 🔌 Ganti API Digiflazz"
+    echo -e "  ${C_GREEN}[13]${C_RST} 💳 Setup GoPay Merchant API"
+    echo -e "  ${C_GREEN}[14]${C_RST} 📢 Setup Integrasi Notifikasi (Tele/Web)"
     echo -e "  ${C_GREEN}[15]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
-    echo -e "  ${C_GREEN}[12]${C_RST} 🔄 Ganti Akun WA Web OTP (Reset Sesi)"
+    echo -e "  ${C_GREEN}[16]${C_RST} 🔄 Ganti Akun WA Web OTP (Reset Sesi)"
     echo ""
     echo -e "${C_MAG}▶ 💾 BACKUP & RESTORE${C_RST}"
-    echo -e "  ${C_GREEN}[10]${C_RST} 💾 Backup & Restore Database"
-    echo -e "  ${C_GREEN}[9]${C_RST}  ⚙️ Pengaturan Auto-Backup Telegram"
+    echo -e "  ${C_GREEN}[17]${C_RST} 💾 Backup & Restore Database"
+    echo -e "  ${C_GREEN}[18]${C_RST} ⚙️ Pengaturan Auto-Backup Telegram"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
     echo -e "${C_CYAN}======================================================${C_RST}"
@@ -5468,12 +5525,13 @@ while true; do
             echo -e "\n${C_GREEN}✅ Sistem dihentikan dan dibersihkan dari latar belakang.${C_RST}"
             sleep 2 ;;
         5) pm2 logs tendo-bot ;;
-        6) menu_member ;;
+        6) menu_sinkron ;;
         7) menu_keuntungan ;;
-        8) menu_sinkron ;;
-        9) menu_telegram ;;
-        10) menu_backup ;;
-        11)
+        8) menu_manajemen_produk_manual ;;
+        9) menu_manajemen_vpn ;;
+        10) menu_etalase_custom ;;
+        11) menu_member ;;
+        12)
             echo -e "\n${C_MAG}--- GANTI API DIGIFLAZZ ---${C_RST}"
             read -p "Username Digiflazz Baru: " user_api
             read -p "API Key Digiflazz Baru: " key_api
@@ -5487,18 +5545,7 @@ while true; do
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
-        12)
-            echo -e "\n${C_RED}⚠️ Reset Sesi akan mengeluarkan sistem dari WhatsApp saat ini.${C_RST}"
-            read -p "Yakin ingin mereset sesi? (y/n): " reset_sesi
-            if [ "$reset_sesi" == "y" ]; then
-                pm2 stop tendo-bot >/dev/null 2>&1
-                rm -rf sesi_bot
-                echo -e "${C_GREEN}✅ Sesi berhasil dihapus. Silakan jalankan sistem kembali untuk menautkan nomor baru.${C_RST}"
-            fi
-            read -p "Tekan Enter untuk kembali..."
-            ;;
-        13) menu_notifikasi ;;
-        14)
+        13)
             echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT (BHM BIZ API) ---${C_RST}"
             echo -e "${C_YELLOW}Fitur ini akan menghubungkan merchant GoPay Anda dan mengatur QRIS Dinamis!${C_RST}"
             read -p "Masukkan API Token BHM Biz Anda: " gopay_token
@@ -5539,6 +5586,7 @@ while true; do
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
+        14) menu_notifikasi ;;
         15)
             echo -e "\n${C_MAG}--- SETUP DOMAIN & HTTPS ---${C_RST}"
             read -p "Masukkan Nama Domain Anda (contoh: digitaltendostore.com): " domain_name
@@ -5567,12 +5615,19 @@ EOF
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
-        16) menu_manajemen_produk_manual ;;
-        17) menu_manajemen_vpn ;;
-        18) menu_etalase_custom ;;
+        16)
+            echo -e "\n${C_RED}⚠️ Reset Sesi akan mengeluarkan sistem dari WhatsApp saat ini.${C_RST}"
+            read -p "Yakin ingin mereset sesi? (y/n): " reset_sesi
+            if [ "$reset_sesi" == "y" ]; then
+                pm2 stop tendo-bot >/dev/null 2>&1
+                rm -rf sesi_bot
+                echo -e "${C_GREEN}✅ Sesi berhasil dihapus. Silakan jalankan sistem kembali untuk menautkan nomor baru.${C_RST}"
+            fi
+            read -p "Tekan Enter untuk kembali..."
+            ;;
+        17) menu_backup ;;
+        18) menu_telegram ;;
         0) echo -e "${C_GREEN}Sampai jumpa!${C_RST}"; exit 0 ;;
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
 done
-
-}
