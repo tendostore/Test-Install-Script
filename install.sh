@@ -2643,9 +2643,9 @@ const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('he
 function maskStringTarget(str) {
     if (!str) return '-';
     let s = str.toString().trim();
-    // Sensor semua karakter kecuali 3 karakter terakhir
-    if (s.length <= 3) return s;
-    return '*'.repeat(s.length - 3) + s.substring(s.length - 3);
+    // Sensor semua karakter kecuali 2 karakter terakhir
+    if (s.length <= 2) return s;
+    return '*'.repeat(s.length - 2) + s.substring(s.length - 2);
 }
 
 function cekPemeliharaan() {
@@ -3701,12 +3701,18 @@ async function startBot() {
         }
     }, 60000); 
 
+    let isCheckingQris = false;
     // LOOP PENGECEKAN QRIS AGAR TIDAK PENDING (RELOAD DATABASE SETIAP KALI CEK)
     setInterval(async () => {
+        if(isCheckingQris) return;
+        isCheckingQris = true;
         try {
             let cfg = loadJSON(configFile); let topups = loadJSON(topupFile);
             let pendingKeys = Object.keys(topups).filter(k => topups[k].status === 'pending');
-            if(pendingKeys.length === 0 || !cfg.gopayToken || !cfg.gopayMerchantId) return;
+            if(pendingKeys.length === 0 || !cfg.gopayToken || !cfg.gopayMerchantId) {
+                isCheckingQris = false;
+                return;
+            }
 
             const gopayRes = await axios.get('http://gopay.bhm.biz.id/api/transactions', 
                 { headers: { 'Authorization': 'Bearer ' + cfg.gopayToken } }
@@ -3775,73 +3781,80 @@ async function startBot() {
             }
             if(changedTp) saveJSON(topupFile, topups);
         } catch(e) {}
+        isCheckingQris = false;
     }, 30000); 
 
+    let isCheckingDigi = false;
     setInterval(async () => {
-        let trxs = loadJSON(trxFile); let keys = Object.keys(trxs); if (keys.length === 0) return;
-        let cfg = loadJSON(configFile); let userAPI = (cfg.digiflazzUsername || '').trim(); let keyAPI = (cfg.digiflazzApiKey || '').trim();
-        if (!userAPI || !keyAPI) return;
+        if(isCheckingDigi) return;
+        isCheckingDigi = true;
+        try {
+            let trxs = loadJSON(trxFile); let keys = Object.keys(trxs); if (keys.length === 0) { isCheckingDigi = false; return; }
+            let cfg = loadJSON(configFile); let userAPI = (cfg.digiflazzUsername || '').trim(); let keyAPI = (cfg.digiflazzApiKey || '').trim();
+            if (!userAPI || !keyAPI) { isCheckingDigi = false; return; }
 
-        for (let ref of keys) {
-            let trx = trxs[ref]; let signCheck = crypto.createHash('md5').update(userAPI + keyAPI + ref).digest('hex');
-            try {
-                const cekRes = await axios.post('https://api.digiflazz.com/v1/transaction', { username: userAPI, buyer_sku_code: trx.sku, customer_no: trx.tujuan, ref_id: ref, sign: signCheck });
-                const resData = cekRes.data.data;
-                if (resData.status === 'Sukses' || resData.status === 'Gagal') {
-                    let db = loadJSON(dbFile); let phoneKey = trx.phone || trx.jid.split('@')[0];
-                    let namaUser = db[phoneKey]?.username || phoneKey;
-                    let emailUser = db[phoneKey]?.email || '-';
+            for (let ref of keys) {
+                let trx = trxs[ref]; let signCheck = crypto.createHash('md5').update(userAPI + keyAPI + ref).digest('hex');
+                try {
+                    const cekRes = await axios.post('https://api.digiflazz.com/v1/transaction', { username: userAPI, buyer_sku_code: trx.sku, customer_no: trx.tujuan, ref_id: ref, sign: signCheck });
+                    const resData = cekRes.data.data;
+                    if (resData.status === 'Sukses' || resData.status === 'Gagal') {
+                        let db = loadJSON(dbFile); let phoneKey = trx.phone || trx.jid.split('@')[0];
+                        let namaUser = db[phoneKey]?.username || phoneKey;
+                        let emailUser = db[phoneKey]?.email || '-';
 
-                    if(resData.status === 'Sukses') {
-                        if (db[phoneKey] && db[phoneKey].history) {
-                            let hist = db[phoneKey].history.find(h => h.ref_id === ref);
-                            if (hist) { hist.status = 'Sukses'; hist.sn = resData.sn || '-'; saveJSON(dbFile, db); }
-                        }
-                        
-                        let gStats = loadJSON(globalStatsFile);
-                        let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-                        gStats[dateKey] = (gStats[dateKey] || 0) + 1; saveJSON(globalStatsFile, gStats);
-                        
-                        let globalTrx = loadJSON(globalTrxFile);
-                        let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-                        globalTrx.unshift({ time: timeStr, product: trx.nama, user: namaUser, target: maskStringTarget(trx.tujuan), price: parseInt(trx.harga), method: 'Sistem Otomatis' });
-                        if(globalTrx.length > 100) globalTrx.pop();
-                        saveJSON(globalTrxFile, globalTrx);
-
-                        sendBroadcastSuccess(trx.nama, namaUser, trx.tujuan, parseInt(trx.harga), 'Sistem Otomatis');
-
-                        let teleSuccess = `✅ <b>PESANAN SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n🔑 SN: ${resData.sn || '-'}`;
-                        sendTelegramAdmin(teleSuccess);
-                        
-                    } else {
-                        if (db[phoneKey]) { 
-                            let saldoSebelum = parseInt(db[phoneKey].saldo);
-                            db[phoneKey].saldo = saldoSebelum + parseInt(trx.harga); 
-                            if(db[phoneKey].history) {
+                        if(resData.status === 'Sukses') {
+                            if (db[phoneKey] && db[phoneKey].history) {
                                 let hist = db[phoneKey].history.find(h => h.ref_id === ref);
-                                if (hist) {
-                                    hist.status = 'Refund';
-                                    hist.nama = 'Refund: ' + hist.nama;
-                                } else {
-                                    db[phoneKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + trx.nama, tujuan: trx.tujuan, status: 'Refund', sn: '-', amount: parseInt(trx.harga), ref_id: ref, saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[phoneKey].saldo });
-                                }
-                                if(db[phoneKey].history.length > 50) db[phoneKey].history.pop();
+                                if (hist) { hist.status = 'Sukses'; hist.sn = resData.sn || '-'; saveJSON(dbFile, db); }
                             }
-                            saveJSON(dbFile, db); 
                             
-                            if (globalSock) {
-                                globalSock.sendMessage(trx.jid, { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf pesanan ${trx.nama} tujuan ${trx.tujuan} gagal diproses pusat.\n\n💰 Saldo Rp ${parseInt(trx.harga).toLocaleString('id-ID')} telah dikembalikan utuh ke akun Anda.` }).catch(e=>{});
+                            let gStats = loadJSON(globalStatsFile);
+                            let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+                            gStats[dateKey] = (gStats[dateKey] || 0) + 1; saveJSON(globalStatsFile, gStats);
+                            
+                            let globalTrx = loadJSON(globalTrxFile);
+                            let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+                            globalTrx.unshift({ time: timeStr, product: trx.nama, user: namaUser, target: maskStringTarget(trx.tujuan), price: parseInt(trx.harga), method: 'Sistem Otomatis' });
+                            if(globalTrx.length > 100) globalTrx.pop();
+                            saveJSON(globalTrxFile, globalTrx);
+
+                            sendBroadcastSuccess(trx.nama, namaUser, trx.tujuan, parseInt(trx.harga), 'Sistem Otomatis');
+
+                            let teleSuccess = `✅ <b>PESANAN SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n🔑 SN: ${resData.sn || '-'}`;
+                            sendTelegramAdmin(teleSuccess);
+                            
+                        } else {
+                            if (db[phoneKey]) { 
+                                let saldoSebelum = parseInt(db[phoneKey].saldo);
+                                db[phoneKey].saldo = saldoSebelum + parseInt(trx.harga); 
+                                if(db[phoneKey].history) {
+                                    let hist = db[phoneKey].history.find(h => h.ref_id === ref);
+                                    if (hist) {
+                                        hist.status = 'Refund';
+                                        hist.nama = 'Refund: ' + hist.nama;
+                                    } else {
+                                        db[phoneKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + trx.nama, tujuan: trx.tujuan, status: 'Refund', sn: '-', amount: parseInt(trx.harga), ref_id: ref, saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[phoneKey].saldo });
+                                    }
+                                    if(db[phoneKey].history.length > 50) db[phoneKey].history.pop();
+                                }
+                                saveJSON(dbFile, db); 
+                                
+                                if (globalSock) {
+                                    globalSock.sendMessage(trx.jid, { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf pesanan ${trx.nama} tujuan ${trx.tujuan} gagal diproses pusat.\n\n💰 Saldo Rp ${parseInt(trx.harga).toLocaleString('id-ID')} telah dikembalikan utuh ke akun Anda.` }).catch(e=>{});
+                                }
                             }
+                            
+                            let teleFail = `❌ <b>PESANAN GAGAL & REFUND</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n📝 Alasan: ${resData.message}\n\n💰 Saldo telah otomatis dikembalikan ke pengguna.`;
+                            sendTelegramAdmin(teleFail);
                         }
-                        
-                        let teleFail = `❌ <b>PESANAN GAGAL & REFUND</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n📝 Alasan: ${resData.message}\n\n💰 Saldo telah otomatis dikembalikan ke pengguna.`;
-                        sendTelegramAdmin(teleFail);
-                    }
-                    delete trxs[ref]; saveJSON(trxFile, trxs);
-                } else if (Date.now() - trx.tanggal > 24 * 60 * 60 * 1000) { delete trxs[ref]; saveJSON(trxFile, trxs); }
-            } catch (err) {}
-            await new Promise(r => setTimeout(r, 2000)); 
-        }
+                        delete trxs[ref]; saveJSON(trxFile, trxs);
+                    } else if (Date.now() - trx.tanggal > 24 * 60 * 60 * 1000) { delete trxs[ref]; saveJSON(trxFile, trxs); }
+                } catch (err) {}
+                await new Promise(r => setTimeout(r, 2000)); 
+            }
+        } catch (err) {}
+        isCheckingDigi = false;
     }, 15000); 
 
     sock.ev.on('messages.upsert', async m => {
