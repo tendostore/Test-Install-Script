@@ -3819,7 +3819,7 @@ async function tarikDataLayananOtomatis() {
         let kunciAkses = (config.digiflazzApiKey || '').trim();
         if (!namaPengguna || !kunciAkses) return;
 
-        let tandaPengenal = crypto.createHash('md5').update(namaPengguna + kunciAkses + 'depo').digest('hex');
+        let tandaPengenal = crypto.createHash('md5').update(namaPengguna + kunciAkses + 'pricelist').digest('hex');
         
         const balasan = await axios.post('https://api.digiflazz.com/v1/price-list', {
             cmd: 'prepaid',
@@ -4808,7 +4808,7 @@ menu_manajemen_produk_manual() {
                             let key = (config.digiflazzApiKey || '').trim();
                             if(!username || !key) return console.log('\x1b[31m❌ API Digiflazz belum diatur.\x1b[0m');
                             
-                            let sign = crypto.createHash('md5').update(username + key + 'depo').digest('hex');
+                            let sign = crypto.createHash('md5').update(username + key + 'pricelist').digest('hex');
                             let res = await axios.post('https://api.digiflazz.com/v1/price-list', { cmd: 'prepaid', username, sign });
                             
                             let items = res.data.data || [];
