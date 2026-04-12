@@ -2858,7 +2858,18 @@ if (configAwal.teleTokenInfo) {
                         await teleBotInfo.pinChatMessage(chanIdStr, sentMsg.message_id).catch(e=>{});
                     }
                 }
-                teleBotInfo.sendMessage(cfg.teleChatId, '✅ Info berhasil disebarkan dan disematkan (Pin) ke Website & Telegram Channel!').catch(e=>{});
+
+                // BROADCAST INFO OTOMATIS KE WA CHANNEL / GRUP
+                if (cfg.waBroadcastId && globalSock) {
+                    let waMsg = `📢 *INFO TERBARU*\n\n${text}`;
+                    if (imageFilename) {
+                        globalSock.sendMessage(cfg.waBroadcastId, { image: { url: './public/info_images/' + imageFilename }, caption: waMsg }).catch(e=>{});
+                    } else {
+                        globalSock.sendMessage(cfg.waBroadcastId, { text: waMsg }).catch(e=>{});
+                    }
+                }
+
+                teleBotInfo.sendMessage(cfg.teleChatId, '✅ Info berhasil disebarkan dan disematkan (Pin) ke Website, Telegram Channel, dan WA Broadcast!').catch(e=>{});
             }
         });
     } catch(e) {}
@@ -3337,34 +3348,37 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
     }
 
     try {
+        // Peningkatan Timeout agar respon tidak terputus sebelum VPN selesai dibuat di VPS
         let resApi = await axios.post(endpoint, payload, {
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer ' + srv.api_key },
-            timeout: 30000,
+            timeout: 60000,
             httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
         });
 
         // MUAT ULANG DATABASE SESUDAH AWAIT UNTUK MENCEGAH RACE CONDITION!
         db = loadJSON(dbFile);
 
-        if(resApi.data && resApi.data.data) {
-            let apiData = resApi.data.data;
+        // PERBAIKAN: Antisipasi format response VPS VPN yang berbeda untuk trial
+        if(resApi.data && (resApi.data.data || resApi.data.username || resApi.data.id || resApi.data.uuid || mode === 'trial')) {
+            let apiData = resApi.data.data || resApi.data;
             let domain = srv.host;
             let expDate = apiData.expired || apiData.exp || apiData.to || (mode === 'trial' ? '30 Menit' : `${expiredDays} Hari`);
             let vpnDetails = '';
             
             let fixCity = srv.city || apiData.city || '-';
             let fixIsp = srv.isp || apiData.isp || '-';
+            let vpnUser = apiData.username || vpnUsername;
 
             if (protoLower === 'ssh') {
-                vpnDetails = `Account Created Successfully\n————————————————————————————————————\nDomain Host     : ${domain}\nCity            : ${fixCity}\nISP             : ${fixIsp}\nUsername        : ${apiData.username}\nPassword        : ${apiData.password}\n————————————————————————————————————\nExpired         : ${expDate}\n————————————————————————————————————\nTLS             : ${apiData.port?.tls || '443,8443'}\nNone TLS        : ${apiData.port?.none || '80,8080'}\nAny             : 2082,2083,8880\nOpenSSH         : 444\nDropbear        : 90\n————————————————————————————————————\nSlowDNS         : 53,5300\nUDP-Custom      : 1-65535\nOHP + SSH       : 9080\nSquid Proxy     : 3128\nUDPGW           : 7100-7600\nOpenVPN TCP     : 80,1194\nOpenVPN SSL     : 443\nOpenVPN UDP     : 25000\nOpenVPN DNS     : 53\nOHP + OVPN      : 9088\n————————————————————————————————————`;
+                vpnDetails = `Account Created Successfully\n————————————————————————————————————\nDomain Host     : ${domain}\nCity            : ${fixCity}\nISP             : ${fixIsp}\nUsername        : ${vpnUser}\nPassword        : ${apiData.password || vpnPassword}\n————————————————————————————————————\nExpired         : ${expDate}\n————————————————————————————————————\nTLS             : ${apiData.port?.tls || '443,8443'}\nNone TLS        : ${apiData.port?.none || '80,8080'}\nAny             : 2082,2083,8880\nOpenSSH         : 444\nDropbear        : 90\n————————————————————————————————————\nSlowDNS         : 53,5300\nUDP-Custom      : 1-65535\nOHP + SSH       : 9080\nSquid Proxy     : 3128\nUDPGW           : 7100-7600\nOpenVPN TCP     : 80,1194\nOpenVPN SSL     : 443\nOpenVPN UDP     : 25000\nOpenVPN DNS     : 53\nOHP + OVPN      : 9088\n————————————————————————————————————`;
             } else if (protoLower === 'vmess') {
-                vpnDetails = `————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : ${apiData.username}\nDomain Host    : ${domain}\nCity           : ${fixCity}\nISP            : ${fixIsp}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nalterId        : 0\nSecurity       : auto\nnetwork        : ws,grpc,upgrade\npath ws        : /vmess\nserviceName    : vmess\npath upgrade   : /upvmess\nExpired On     : ${expDate}\n————————————————————————————————————\n           VMESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VMESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VMESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+                vpnDetails = `————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : ${vpnUser}\nDomain Host    : ${domain}\nCity           : ${fixCity}\nISP            : ${fixIsp}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nalterId        : 0\nSecurity       : auto\nnetwork        : ws,grpc,upgrade\npath ws        : /vmess\nserviceName    : vmess\npath upgrade   : /upvmess\nExpired On     : ${expDate}\n————————————————————————————————————\n           VMESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VMESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VMESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
             } else if (protoLower === 'vless') {
-                vpnDetails = `————————————————————————————————————\n               VLESS\n————————————————————————————————————\nRemarks        : ${apiData.username}\nDomain Host    : ${domain}\nCity           : ${fixCity}\nISP            : ${fixIsp}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nEncryption     : none\nNetwork        : ws,grpc,upgrade\nPath ws        : /vless\nserviceName    : vless\nPath upgrade   : /upvless\nExpired On     : ${expDate}\n————————————————————————————————————\n            VLESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VLESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VLESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+                vpnDetails = `————————————————————————————————————\n               VLESS\n————————————————————————————————————\nRemarks        : ${vpnUser}\nDomain Host    : ${domain}\nCity           : ${fixCity}\nISP            : ${fixIsp}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nEncryption     : none\nNetwork        : ws,grpc,upgrade\nPath ws        : /vless\nserviceName    : vless\nPath upgrade   : /upvless\nExpired On     : ${expDate}\n————————————————————————————————————\n            VLESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VLESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VLESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
             } else if (protoLower === 'trojan') {
-                vpnDetails = `————————————————————————————————————\n               TROJAN\n————————————————————————————————————\nRemarks      : ${apiData.username}\nDomain Host  : ${domain}\nCity         : ${fixCity}\nISP          : ${fixIsp}\nPort         : 443,8443\nPort any     : 2052,2053,8880\nKey          : ${apiData.uuid || apiData.id || '-'}\nNetwork      : ws,grpc,upgrade\nPath ws      : /trojan\nserviceName  : trojan\nPath upgrade : /uptrojan\nExpired On   : ${expDate}\n————————————————————————————————————\n           TROJAN WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n            TROJAN GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+                vpnDetails = `————————————————————————————————————\n               TROJAN\n————————————————————————————————————\nRemarks      : ${vpnUser}\nDomain Host  : ${domain}\nCity         : ${fixCity}\nISP          : ${fixIsp}\nPort         : 443,8443\nPort any     : 2052,2053,8880\nKey          : ${apiData.uuid || apiData.id || '-'}\nNetwork      : ws,grpc,upgrade\nPath ws      : /trojan\nserviceName  : trojan\nPath upgrade : /uptrojan\nExpired On   : ${expDate}\n————————————————————————————————————\n           TROJAN WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n            TROJAN GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
             } else {
-                vpnDetails = `Detail Akun ZIVPN:\nDomain Host: ${domain}\nCity: ${fixCity}\nISP: ${fixIsp}\nUsername: ${apiData.username}\nExp: ${expDate}\nLimit IP: ${vpnLimitIp}\n\nInfo selengkapnya cek di aplikasi.`;
+                vpnDetails = `Detail Akun ZIVPN:\nDomain Host: ${domain}\nCity: ${fixCity}\nISP: ${fixIsp}\nUsername: ${vpnUser}\nExp: ${expDate}\nLimit IP: ${vpnLimitIp}\n\nInfo selengkapnya cek di aplikasi.`;
             }
 
             let prodName = prod.name;
@@ -3399,7 +3413,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
                 db[targetKey].history.unshift({
                     ts: Date.now(), 
                     tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-                    type: 'Order VPN', nama: prodName, tujuan: (mode==='trial'?'Sistem':apiData.username), status: 'Sukses', sn: '-', amount: hargaFix, ref_id: refId,
+                    type: 'Order VPN', nama: prodName, tujuan: (mode==='trial'?'Sistem':vpnUser), status: 'Sukses', sn: '-', amount: hargaFix, ref_id: refId,
                     saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[targetKey].saldo,
                     vpn_details: vpnDetails
                 });
@@ -3417,14 +3431,14 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
             let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
             let namaUser = db[targetKey].username || targetKey;
             
-            globalTrx.unshift({ time: timeStr, product: prodName, user: namaUser, target: maskStringTarget(apiData.username), price: hargaFix, method: (mode === 'trial' ? 'Gratis' : paymentMethod) });
+            globalTrx.unshift({ time: timeStr, product: prodName, user: namaUser, target: maskStringTarget(vpnUser), price: hargaFix, method: (mode === 'trial' ? 'Gratis' : paymentMethod) });
             if(globalTrx.length > 100) globalTrx.pop();
             saveJSON(globalTrxFile, globalTrx);
 
-            sendBroadcastSuccess(prodName, namaUser, apiData.username, hargaFix, mode === 'trial' ? 'Gratis' : paymentMethod);
+            sendBroadcastSuccess(prodName, namaUser, vpnUser, hargaFix, mode === 'trial' ? 'Gratis' : paymentMethod);
             
             let emailUser = db[targetKey].email || '-';
-            let teleSuccess = `🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${apiData.username}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: ${paymentMethod}\n📦 Sisa Stok: ${mode === 'reguler' ? vpnConfig.products[productId].stok : 'Trial'}`;
+            let teleSuccess = `🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${vpnUser}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: ${paymentMethod}\n📦 Sisa Stok: ${mode === 'reguler' ? vpnConfig.products[productId].stok : 'Trial'}`;
             sendTelegramAdmin(teleSuccess);
 
             return { success: true };
@@ -3436,7 +3450,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
             return { success: false, message: "Gagal membuat akun di Server VPN." };
         }
     } catch(e) {
-        return { success: false, message: "Koneksi ke Server VPN Gagal / Ditolak." };
+        return { success: false, message: "Koneksi ke Server VPN Gagal / Ditolak. Pastikan API terhubung." };
     }
 }
 
@@ -5032,95 +5046,71 @@ menu_manajemen_produk_manual() {
                     *) echo -e "${C_RED}❌ Pilihan kategori tidak valid.${C_RST}"; sleep 1; continue ;;
                 esac
                 
-                read -p "Masukkan KODE SKU Digiflazz: " sku_digi
+                read -p "Masukkan KODE SKU Digiflazz / SKU Custom: " sku_digi
                 if [ -z "$sku_digi" ]; then 
                     echo -e "${C_RED}❌ Kode SKU tidak boleh kosong.${C_RST}"; sleep 1; continue
                 fi
                 
+                read -p "Masukkan Harga Modal (Angka, Cth: 5000): " harga_modal
                 read -p "Masukkan Nama Produk (Kosongkan utk pakai nama Asli): " custom_nama
                 read -p "Masukkan Brand / Operator (Misal: Telkomsel / Free Fire / XL): " custom_brand
                 read -p "Masukkan Tipe/Nama Paket Custom (Misal: Xtra Combo VIP / Promo): " custom_tipe
                 read -p "Masukkan Deskripsi Produk (Kosongkan utk pakai 'Proses Otomatis'): " custom_desc
                 
-                echo -e "\n${C_MAG}⏳ Menghubungkan ke API Digiflazz untuk menarik data harga dan status...${C_RST}"
+                echo -e "\n${C_MAG}⏳ Memasukkan produk langsung ke Database Website secara instan...${C_RST}"
                 node -e "
-                    const axios = require('axios');
-                    const crypto = require('crypto');
                     const crypt = require('./tendo_crypt.js');
                     
-                    async function addManual() {
-                        try {
-                            let config = crypt.load('config.json');
-                            let username = (config.digiflazzUsername || '').trim();
-                            let key = (config.digiflazzApiKey || '').trim();
-                            if(!username || !key) return console.log('\x1b[31m❌ API Digiflazz belum diatur.\x1b[0m');
-                            
-                            let sign = crypto.createHash('md5').update(username + key + 'pricelist').digest('hex');
-                            let res = await axios.post('https://api.digiflazz.com/v1/price-list', { cmd: 'prepaid', username, sign });
-                            
-                            let items = res.data.data || [];
-                            let sku = '$sku_digi'.trim();
-                            let found = items.find(i => i.buyer_sku_code === sku);
-                            
-                            if(!found) {
-                                return console.log('\x1b[31m❌ GAGAL: Kode SKU \"' + sku + '\" tidak ditemukan di daftar harga Digiflazz Anda.\x1b[0m');
-                            }
-                            
-                            let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
-                            let hargaModal = found.price;
-                            let keuntungan = 0;
-                            
-                            if(hargaModal <= 100) keuntungan = m.t1;
-                            else if(hargaModal <= 500) keuntungan = m.t2;
-                            else if(hargaModal <= 1000) keuntungan = m.t3;
-                            else if(hargaModal <= 2000) keuntungan = m.t4;
-                            else if(hargaModal <= 3000) keuntungan = m.t5;
-                            else if(hargaModal <= 4000) keuntungan = m.t6;
-                            else if(hargaModal <= 5000) keuntungan = m.t7;
-                            else if(hargaModal <= 10000) keuntungan = m.t8;
-                            else if(hargaModal <= 25000) keuntungan = m.t9;
-                            else if(hargaModal <= 50000) keuntungan = m.t10;
-                            else if(hargaModal <= 75000) keuntungan = m.t11;
-                            else if(hargaModal <= 100000) keuntungan = m.t12;
-                            else keuntungan = m.t13;
+                    let sku = '$sku_digi'.trim();
+                    let hargaModal = parseInt('$harga_modal') || 0;
+                    
+                    let config = crypt.load('config.json');
+                    let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
+                    
+                    let keuntungan = 0;
+                    if(hargaModal <= 100) keuntungan = m.t1;
+                    else if(hargaModal <= 500) keuntungan = m.t2;
+                    else if(hargaModal <= 1000) keuntungan = m.t3;
+                    else if(hargaModal <= 2000) keuntungan = m.t4;
+                    else if(hargaModal <= 3000) keuntungan = m.t5;
+                    else if(hargaModal <= 4000) keuntungan = m.t6;
+                    else if(hargaModal <= 5000) keuntungan = m.t7;
+                    else if(hargaModal <= 10000) keuntungan = m.t8;
+                    else if(hargaModal <= 25000) keuntungan = m.t9;
+                    else if(hargaModal <= 50000) keuntungan = m.t10;
+                    else if(hargaModal <= 75000) keuntungan = m.t11;
+                    else if(hargaModal <= 100000) keuntungan = m.t12;
+                    else keuntungan = m.t13;
 
-                            let customNama = '$custom_nama'.trim();
-                            let customBrand = '$custom_brand'.trim();
-                            let customTipe = '$custom_tipe'.trim();
-                            let customDesc = '$custom_desc'.trim();
+                    let customNama = '$custom_nama'.trim();
+                    let customBrand = '$custom_brand'.trim();
+                    let customTipe = '$custom_tipe'.trim();
+                    let customDesc = '$custom_desc'.trim();
 
-                            let finalNama = customNama !== '' ? customNama : found.product_name;
-                            let finalBrand = customBrand !== '' ? customBrand : (found.brand || 'Lainnya');
-                            let finalTipe = customTipe !== '' ? customTipe : (found.type || 'Umum');
-                            let finalDesc = customDesc !== '' ? customDesc : (found.desc || 'Proses Otomatis');
+                    let finalNama = customNama !== '' ? customNama : 'Produk Custom ' + sku;
+                    let finalBrand = customBrand !== '' ? customBrand : 'Lainnya';
+                    let finalTipe = customTipe !== '' ? customTipe : 'Umum';
+                    let finalDesc = customDesc !== '' ? customDesc : 'Proses Otomatis';
 
-                            let dbProd = crypt.load('produk.json');
-                            
-                            let uniqueSku = sku + '_' + Date.now();
-                            
-                            dbProd[uniqueSku] = {
-                                sku_asli: sku,
-                                nama: finalNama,
-                                harga: hargaModal + keuntungan,
-                                kategori: '$kat_nama',
-                                brand: finalBrand,
-                                sub_kategori: finalTipe,
-                                deskripsi: finalDesc,
-                                status_produk: (found.buyer_product_status && found.seller_product_status),
-                                is_manual_cat: true
-                            };
-                            
-                            crypt.save('produk.json', dbProd);
-                            console.log('\x1b[32m✅ BERHASIL: Produk \"' + finalNama + '\" (' + sku + ') telah dimasukkan ke Paket/Tipe ' + finalTipe + '!\x1b[0m');
-                        } catch(e) {
-                            let msg = e.response && e.response.data && e.response.data.data ? e.response.data.data.message : (e.response && e.response.data ? e.response.data.message : e.message);
-                            console.log('\x1b[31m❌ Gagal memproses Digiflazz. Alasan:\x1b[0m ' + msg);
-                            console.log('\x1b[33mPastikan IP VPS sudah di-whitelist dan API Key benar!\x1b[0m');
-                        }
-                    }
-                    addManual();
+                    let dbProd = crypt.load('produk.json');
+                    let uniqueSku = sku + '_' + Date.now();
+                    
+                    dbProd[uniqueSku] = {
+                        sku_asli: sku,
+                        nama: finalNama,
+                        harga: hargaModal + keuntungan,
+                        kategori: '$kat_nama',
+                        brand: finalBrand,
+                        sub_kategori: finalTipe,
+                        deskripsi: finalDesc,
+                        status_produk: true, 
+                        is_manual_cat: true
+                    };
+                    
+                    crypt.save('produk.json', dbProd);
+                    console.log('\x1b[32m✅ BERHASIL: Produk \"' + finalNama + '\" (' + sku + ') ditambahkan secara instan 100%!\x1b[0m');
                 "
-                echo -e "\n${C_GREEN}✅ Produk manual berhasil ditambahkan! (Tanpa auto-sync supaya instan)${C_RST}"
+                echo -e "\n${C_GREEN}✅ Produk manual berhasil ditambahkan dan langsung aktif tanpa menunggu!${C_RST}"
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
@@ -5886,3 +5876,4 @@ EOF
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
 done
+selesai
