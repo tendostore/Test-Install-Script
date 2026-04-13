@@ -580,7 +580,7 @@ EOF
                 <a href="#" class="sidebar-item" onclick="toggleTheme()">
                     <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg> <span id="theme-text">Mode Gelap</span>
                 </a>
-                <a href="#" class="sidebar-item" onclick="logout()" style="color: #ef4444;">
+                <a href="#" class="sidebar-item" onclick="logout()" style="color: #ef4444;" id="sidebar-logout-btn">
                     <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Keluar Akun
                 </a>
             </div>
@@ -1272,14 +1272,31 @@ EOF
         let bannerInterval; let qrisInterval;
 
         let savedTheme = localStorage.getItem('tendo_theme');
-        if(savedTheme === 'dark') {
+        let currentHour = new Date().getHours();
+        let isDarkTime = (currentHour >= 18 || currentHour < 6);
+
+        if(savedTheme === 'dark' || (!savedTheme && isDarkTime)) {
             document.body.classList.add('dark-mode');
-            document.getElementById('theme-text').innerText = "Mode Terang";
+            if(document.getElementById('theme-text')) document.getElementById('theme-text').innerText = "Mode Terang";
         } else {
             document.body.classList.remove('dark-mode');
-            document.getElementById('theme-text').innerText = "Mode Gelap";
-            localStorage.setItem('tendo_theme', 'light');
+            if(document.getElementById('theme-text')) document.getElementById('theme-text').innerText = "Mode Gelap";
         }
+
+        setInterval(() => {
+            let saved = localStorage.getItem('tendo_theme');
+            if(!saved) { 
+                let hr = new Date().getHours();
+                let isDark = (hr >= 18 || hr < 6);
+                if(isDark) {
+                    document.body.classList.add('dark-mode');
+                    if(document.getElementById('theme-text')) document.getElementById('theme-text').innerText = "Mode Terang";
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    if(document.getElementById('theme-text')) document.getElementById('theme-text').innerText = "Mode Gelap";
+                }
+            }
+        }, 60000);
 
         function toggleTheme() {
             document.body.classList.toggle('dark-mode');
@@ -1680,13 +1697,24 @@ EOF
                 // Auto trigger login (silent)
                 login(true);
             } else {
-                showScreen('login-screen', null);
+                showDashboardInternal(); // Arahkan ke dashboard untuk guest
             }
         });
 
         async function showDashboardInternal() { 
             showScreen('dashboard-screen', 'nav-home'); 
-            syncUserData(); 
+            if(currentUser) {
+                syncUserData(); 
+            } else {
+                let sbAvatar = document.getElementById('sb-avatar');
+                if(sbAvatar) sbAvatar.innerHTML = '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#0f172a" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>';
+                document.getElementById('sb-name').innerText = "Guest (Belum Login)";
+                document.getElementById('sb-phone').innerText = "Silakan login untuk transaksi";
+                document.getElementById('user-saldo').innerText = "Rp 0";
+                document.getElementById('top-trx-badge').innerText = "0 Trx";
+                let btnSidebarLogout = document.getElementById('sidebar-logout-btn');
+                if(btnSidebarLogout) btnSidebarLogout.innerHTML = '<svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg> <span>Masuk / Daftar</span>';
+            }
             await fetchAllProducts(); 
             fetchCustomLayout();
             fetchVPNConfig(); 
@@ -1718,6 +1746,11 @@ EOF
         function showTutorials() { pushState({screen: 'tutorial-screen'}); showTutorialsInternal(); }
 
         function showHistoryInternal(filter) { 
+            if(!currentUser) {
+                showToast("Silakan masuk/daftar terlebih dahulu untuk melihat riwayat.", "error");
+                showScreen("login-screen", null);
+                return;
+            }
             currentHistoryFilter = filter;
             localStorage.setItem('tendo_history_filter', filter);
 
@@ -1744,7 +1777,14 @@ EOF
             syncUserData();
         }
 
-        function showProfileInternal() { showScreen('profile-screen', 'nav-profile'); syncUserData(); }
+        function showProfileInternal() { 
+            if(!currentUser) {
+                showToast("Silakan masuk/daftar terlebih dahulu.", "error");
+                showScreen("login-screen", null);
+                return;
+            }
+            showScreen('profile-screen', 'nav-profile'); syncUserData(); 
+        }
         function showProfile() { pushState({screen: 'profile-screen'}); showProfileInternal(); }
 
         async function showGlobalTrxInternal() {
@@ -1805,7 +1845,14 @@ EOF
         }
         function showNotif() { pushState({screen: 'notif-screen'}); showNotifInternal(); }
 
-        function openTopupModal() { document.getElementById('topup-nominal').value = ''; document.getElementById('topup-modal').classList.remove('hidden'); }
+        function openTopupModal() { 
+            if(!currentUser) {
+                showToast("Silakan masuk/daftar terlebih dahulu untuk isi saldo.", "error");
+                showScreen("login-screen", null);
+                return;
+            }
+            document.getElementById('topup-nominal').value = ''; document.getElementById('topup-modal').classList.remove('hidden'); 
+        }
         function closeTopupModal() { document.getElementById('topup-modal').classList.add('hidden'); }
         
         async function generateQris() {
@@ -1896,6 +1943,8 @@ EOF
             localStorage.removeItem('tendo_current_cat'); localStorage.removeItem('tendo_current_brand');
             localStorage.removeItem('tendo_current_vpn_proto'); localStorage.removeItem('tendo_current_vpn_server');
             localStorage.removeItem('tendo_is_vpn');
+            let btnSidebarLogout = document.getElementById('sidebar-logout-btn');
+            if(btnSidebarLogout) btnSidebarLogout.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> <span>Keluar Akun</span>';
             toggleSidebar(); showScreen('login-screen', null);
             document.getElementById('log-pass').value = '';
         }
@@ -1917,6 +1966,9 @@ EOF
                     document.getElementById('sb-avatar').innerHTML = '<img src="' + shanksGif + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
                     document.getElementById('sb-name').innerText = u.username || "Member";
                     document.getElementById('sb-phone').innerText = currentUser;
+
+                    let btnSidebarLogout = document.getElementById('sidebar-logout-btn');
+                    if(btnSidebarLogout) btnSidebarLogout.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> <span>Keluar Akun</span>';
 
                     document.getElementById('p-avatar').innerHTML = '<img src="' + shanksGif + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
                     document.getElementById('p-username').innerText = u.username || "Member";
@@ -2434,6 +2486,11 @@ EOF
         function loadProducts(cat, brand, subCat = null) { pushState({screen: 'produk-screen', cat: cat, brand: brand, subcat: subCat}); loadProductsInternal(cat, brand, subCat); }
 
         function openOrderModal(sku, nama, harga, desc) {
+            if(!currentUser) {
+                showToast("Silakan masuk/daftar terlebih dahulu untuk membeli produk.", "error");
+                showScreen("login-screen", null);
+                return;
+            }
             selectedSKU = sku;
             document.getElementById('m-name').innerText = nama;
             document.getElementById('m-price').innerText = 'Rp ' + harga.toLocaleString('id-ID');
@@ -2554,6 +2611,11 @@ EOF
         }
 
         function openVPNTrialModal(productId, protocol, customName) {
+            if(!currentUser) {
+                showToast("Silakan masuk/daftar terlebih dahulu untuk klaim trial.", "error");
+                showScreen("login-screen", null);
+                return;
+            }
             closeVPNServerModal();
             selectedVPNServer = productId; 
             selectedVPNProto = protocol;
@@ -2599,6 +2661,11 @@ EOF
         }
 
         function openVPNOrderModal(productId, protocol, price, desc, customName) {
+            if(!currentUser) {
+                showToast("Silakan masuk/daftar terlebih dahulu untuk membeli VPN.", "error");
+                showScreen("login-screen", null);
+                return;
+            }
             closeVPNServerModal();
             selectedVPNServer = productId; 
             selectedVPNProto = protocol;
