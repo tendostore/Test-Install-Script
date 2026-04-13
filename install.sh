@@ -3413,7 +3413,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
     try {
         let resApi = await axios.post(endpoint, payload, {
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer ' + srv.api_key },
-            timeout: 60000,
+            timeout: 120000, // Timeout ditingkatkan jadi 120 detik (2 menit)
             validateStatus: () => true, // Menangkap semua HTTP status agar tidak masuk ke blok catch dan langsung dianggap error koneksi
             httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
         });
@@ -4043,9 +4043,9 @@ async function tarikDataLayananOtomatis() {
 
                 let finalPrice = hargaModal + keuntungan;
 
-                // Update harga produk instan secara otomatis dari pusat
+                // Update harga produk instan secara otomatis dari pusat (CASE INSENSITIVE)
                 for (let k in daftarLokal) {
-                    if (daftarLokal[k].is_manual_cat && daftarLokal[k].sku_asli === kodeBarang) {
+                    if (daftarLokal[k].is_manual_cat && String(daftarLokal[k].sku_asli).toUpperCase() === String(kodeBarang).toUpperCase()) {
                         daftarLokal[k].harga = finalPrice;
                     }
                 }
@@ -5101,10 +5101,19 @@ menu_manajemen_produk_instan() {
                     const crypt = require('./tendo_crypt.js');
                     let dbProd = crypt.load('produk.json');
                     let uniqueSku = '$sku_digi' + '_custom_' + Date.now();
+                    
+                    let existingPrice = 0;
+                    for(let key in dbProd) {
+                        if(String(dbProd[key].sku_asli).toUpperCase() === String('$sku_digi').toUpperCase() && !dbProd[key].is_manual_cat) {
+                            existingPrice = dbProd[key].harga;
+                            break;
+                        }
+                    }
+
                     dbProd[uniqueSku] = {
                         sku_asli: '$sku_digi',
                         nama: '$custom_nama',
-                        harga: 0,
+                        harga: existingPrice,
                         kategori: '$kat_nama',
                         brand: '$custom_brand',
                         sub_kategori: '\u200B' + '$custom_tipe',
@@ -5113,7 +5122,12 @@ menu_manajemen_produk_instan() {
                         is_manual_cat: true
                     };
                     crypt.save('produk.json', dbProd);
-                    console.log('\x1b[32m✅ Produk Instan berhasil ditambahkan! Harga akan ditarik otomatis oleh sistem sinkronisasi dari pusat.\x1b[0m');
+                    console.log('\x1b[32m✅ Produk Instan berhasil ditambahkan!\x1b[0m');
+                    if(existingPrice === 0) {
+                        console.log('\x1b[33mInfo: Harga saat ini 0, sistem akan menarik harga baru dari pusat otomatis.\x1b[0m');
+                    } else {
+                        console.log('\x1b[32mInfo: Harga otomatis ditarik dari data produk: Rp ' + existingPrice + '\x1b[0m');
+                    }
                 "
                 curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
                 read -p "Tekan Enter untuk kembali..."
