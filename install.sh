@@ -2361,21 +2361,14 @@ EOF
             }
             
             if(subs.length > 0) {
-                let sortedSubs = subs.sort((a, b) => {
-                    let aIsCustom = a.startsWith('\u200B');
-                    let bIsCustom = b.startsWith('\u200B');
-                    if (aIsCustom && !bIsCustom) return -1;
-                    if (!aIsCustom && bIsCustom) return 1;
-                    return a.localeCompare(b);
-                });
+                let sortedSubs = subs.sort();
                 let gridHTML = '';
                 sortedSubs.forEach(s => {
-                    let displayS = s.replace('\u200B', '');
-                    let initial = displayS.substring(0,2).toUpperCase();
+                    let initial = s.substring(0,2).toUpperCase();
                     gridHTML += `
                     <div class="brand-row" onclick="loadProducts('${cat}', '${brand}', '${s}')">
                         <div class="b-logo">${initial}</div>
-                        <div class="b-name">${displayS}</div>
+                        <div class="b-name">${s}</div>
                         <div style="margin-left:auto">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                         </div>
@@ -2394,7 +2387,7 @@ EOF
             localStorage.setItem('tendo_current_subcat', subCat || 'null');
             localStorage.setItem('tendo_is_vpn', 'false');
 
-            document.getElementById('cat-title-text').innerText = subCat ? subCat.replace('\u200B', '') : brand;
+            document.getElementById('cat-title-text').innerText = subCat ? subCat : brand;
             document.getElementById('search-product').value = ''; 
             
             let listHTML = '';
@@ -3392,22 +3385,29 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
     let vpnKuota = parseInt(prod.kuota) || 200;
     
     let payload = {};
+    let cleanHost = srv.host.replace(/^https?:\/\//i, '');
+
+    // LOGIKA PAYLOAD: PERBAIKAN TRIAL AGAR TIDAK DITOLAK SERVER (Hanya mengirim parameter wajib sama seperti PHP)
     if (mode === 'trial') {
-        vpnUsername = "trial_" + Math.floor(Math.random()*9999);
-        vpnPassword = "1";
-        payload = { username: vpnUsername, timelimit: "30m", kuota: 2, limitip: 2 };
-        if(protoLower === 'ssh' || protoLower === 'zivpn') {
-            payload.password = vpnPassword;
-        }
-        if(protoLower === 'ssh') endpoint = `http://${srv.host}/vps/trialsshvpn`;
-        else endpoint = `http://${srv.host}/vps/trial${protoLower}all`;
+        payload = { 
+            timelimit: "30m", 
+            kuota: 2, 
+            limitip: 2 
+        };
+        if(protoLower === 'ssh') endpoint = `http://${cleanHost}/vps/trialsshvpn`;
+        else endpoint = `http://${cleanHost}/vps/trial${protoLower}all`;
     } else {
-        payload = { username: vpnUsername, expired: parseInt(expiredDays), limitip: vpnLimitIp, kuota: vpnKuota };
+        payload = { 
+            username: vpnUsername, 
+            expired: parseInt(expiredDays), 
+            limitip: vpnLimitIp, 
+            kuota: vpnKuota 
+        };
         if(protoLower === 'ssh' || protoLower === 'zivpn') payload.password = vpnPassword;
         else payload.uuidv2 = '';
         
-        if(protoLower === 'ssh') endpoint = `http://${srv.host}/vps/sshvpn`;
-        else endpoint = `http://${srv.host}/vps/${protoLower}all`; 
+        if(protoLower === 'ssh') endpoint = `http://${cleanHost}/vps/sshvpn`;
+        else endpoint = `http://${cleanHost}/vps/${protoLower}all`; 
     }
 
     try {
@@ -3431,10 +3431,11 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
             
             let fixCity = srv.city || apiData.city || '-';
             let fixIsp = srv.isp || apiData.isp || '-';
-            let vpnUser = apiData.username || vpnUsername;
+            // Untuk Trial, server akan memberikan username acak di resApi.data.username
+            let vpnUser = apiData.username || vpnUsername || "TrialUser";
 
             if (protoLower === 'ssh') {
-                vpnDetails = `Account Created Successfully\n————————————————————————————————————\nDomain Host     : ${domain}\nCity            : ${fixCity}\nISP             : ${fixIsp}\nUsername        : ${vpnUser}\nPassword        : ${apiData.password || vpnPassword}\n————————————————————————————————————\nExpired         : ${expDate}\n————————————————————————————————————\nTLS             : ${apiData.port?.tls || '443,8443'}\nNone TLS        : ${apiData.port?.none || '80,8080'}\nAny             : 2082,2083,8880\nOpenSSH         : 444\nDropbear        : 90\n————————————————————————————————————\nSlowDNS         : 53,5300\nUDP-Custom      : 1-65535\nOHP + SSH       : 9080\nSquid Proxy     : 3128\nUDPGW           : 7100-7600\nOpenVPN TCP     : 80,1194\nOpenVPN SSL     : 443\nOpenVPN UDP     : 25000\nOpenVPN DNS     : 53\nOHP + OVPN      : 9088\n————————————————————————————————————`;
+                vpnDetails = `Account Created Successfully\n————————————————————————————————————\nDomain Host     : ${domain}\nCity            : ${fixCity}\nISP             : ${fixIsp}\nUsername        : ${vpnUser}\nPassword        : ${apiData.password || vpnPassword || '1'}\n————————————————————————————————————\nExpired         : ${expDate}\n————————————————————————————————————\nTLS             : ${apiData.port?.tls || '443,8443'}\nNone TLS        : ${apiData.port?.none || '80,8080'}\nAny             : 2082,2083,8880\nOpenSSH         : 444\nDropbear        : 90\n————————————————————————————————————\nSlowDNS         : 53,5300\nUDP-Custom      : 1-65535\nOHP + SSH       : 9080\nSquid Proxy     : 3128\nUDPGW           : 7100-7600\nOpenVPN TCP     : 80,1194\nOpenVPN SSL     : 443\nOpenVPN UDP     : 25000\nOpenVPN DNS     : 53\nOHP + OVPN      : 9088\n————————————————————————————————————`;
             } else if (protoLower === 'vmess') {
                 vpnDetails = `————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : ${vpnUser}\nDomain Host    : ${domain}\nCity           : ${fixCity}\nISP            : ${fixIsp}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nalterId        : 0\nSecurity       : auto\nnetwork        : ws,grpc,upgrade\npath ws        : /vmess\nserviceName    : vmess\npath upgrade   : /upvmess\nExpired On     : ${expDate}\n————————————————————————————————————\n           VMESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VMESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VMESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
             } else if (protoLower === 'vless') {
@@ -3476,7 +3477,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
                 db[targetKey].history.unshift({
                     ts: Date.now(), 
                     tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-                    type: 'Order VPN', nama: prodName, tujuan: (mode==='trial'?'Sistem':vpnUser), status: 'Sukses', sn: '-', amount: hargaFix, ref_id: refId,
+                    type: 'Order VPN', nama: prodName, tujuan: vpnUser, status: 'Sukses', sn: '-', amount: hargaFix, ref_id: refId,
                     saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[targetKey].saldo,
                     vpn_details: vpnDetails
                 });
@@ -3505,14 +3506,22 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
 
             return { success: true };
         } else {
-            let errMsg = (resApi.data && resApi.data.message) ? resApi.data.message.toLowerCase() : "unknown error";
-            if(errMsg.includes('exist') || errMsg.includes('already') || errMsg.includes('sudah ada')) {
+            let errMsg = "unknown error";
+            if (resApi.data && resApi.data.message) {
+                errMsg = resApi.data.message;
+            } else if (resApi.data && resApi.data.error) {
+                errMsg = resApi.data.error;
+            } else if (resApi.statusText) {
+                errMsg = resApi.statusText;
+            }
+            
+            if(errMsg.toLowerCase().includes('exist') || errMsg.toLowerCase().includes('already') || errMsg.toLowerCase().includes('sudah ada')) {
                 return { success: false, message: "Username sudah ada/terpakai, silakan ganti username lain." };
             }
-            return { success: false, message: "Gagal membuat akun di Server VPN. Pesan: " + (resApi.data ? (resApi.data.message || resApi.data.error || "Gagal") : "Ditolak") };
+            return { success: false, message: "Gagal membuat akun di Server VPN. Pesan: " + errMsg };
         }
     } catch(e) {
-        return { success: false, message: "Koneksi ke Server VPN Gagal / Timeout. Pastikan VPS VPN aktif." };
+        return { success: false, message: "Koneksi ke Server VPN Gagal / Timeout. Pesan: " + e.message };
     }
 }
 
