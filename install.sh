@@ -951,10 +951,11 @@ EOF
                 
                 <div style="margin-bottom:15px; text-align:left;">
                     <label style="font-size:12px; font-weight:800; color:var(--text-muted);">Metode Pembayaran:</label>
-                    <select id="m-payment-method" style="width:100%; padding:12px; border-radius:12px; background:var(--bg-main); color:var(--text-main); border:1px solid var(--border-color); font-weight:bold; margin-top:5px; outline:none;">
-                        <option value="saldo">💳 Menggunakan Saldo Akun</option>
-                        <option value="qris">📲 Langsung Bayar QRIS Otomatis</option>
-                    </select>
+                    <div style="display:flex; gap:10px; margin-top:5px;">
+                        <button class="btn-outline pay-btn active" id="btn-pay-saldo" onclick="selectPayment('saldo')" style="margin:0; flex:1; border-color:#0ea5e9; color:#0ea5e9; background:rgba(14, 165, 233, 0.1);">💳 Saldo Akun</button>
+                        <button class="btn-outline pay-btn" id="btn-pay-qris" onclick="selectPayment('qris')" style="margin:0; flex:1;">📲 QRIS Auto</button>
+                    </div>
+                    <input type="hidden" id="m-payment-method" value="saldo">
                 </div>
 
                 <div class="modal-btns">
@@ -995,10 +996,11 @@ EOF
 
                 <div id="m-vpn-payment-wrap" style="margin-bottom:15px; text-align:left;">
                     <label style="font-size:12px; font-weight:800; color:var(--text-muted);">Metode Pembayaran:</label>
-                    <select id="m-vpn-payment" style="width:100%; padding:12px; border-radius:12px; background:var(--bg-main); color:var(--text-main); border:1px solid var(--border-color); font-weight:bold; margin-top:5px; outline:none;">
-                        <option value="saldo">💳 Menggunakan Saldo Akun</option>
-                        <option value="qris">📲 Langsung Bayar QRIS Otomatis</option>
-                    </select>
+                    <div style="display:flex; gap:10px; margin-top:5px;">
+                        <button class="btn-outline pay-btn-vpn active" id="btn-pay-vpn-saldo" onclick="selectPaymentVpn('saldo')" style="margin:0; flex:1; border-color:#0ea5e9; color:#0ea5e9; background:rgba(14, 165, 233, 0.1);">💳 Saldo Akun</button>
+                        <button class="btn-outline pay-btn-vpn" id="btn-pay-vpn-qris" onclick="selectPaymentVpn('qris')" style="margin:0; flex:1;">📲 QRIS Auto</button>
+                    </div>
+                    <input type="hidden" id="m-vpn-payment" value="saldo">
                 </div>
 
                 <div class="modal-btns">
@@ -1134,7 +1136,7 @@ EOF
                     <input type="number" id="edit-otp-input" placeholder="----" style="letter-spacing:12px; text-align:center; font-size:24px; background:var(--bg-main);" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
                     <div class="modal-btns">
                         <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
-                        <button class="btn" id="btn-verify-edit" onclick="verifyEditOTP()">Simpan</button>
+                        <button class="btn" id="btn-verify-edit" onclick="Simpan">Simpan</button>
                     </div>
                 </div>
             </div>
@@ -1285,6 +1287,28 @@ EOF
             localStorage.setItem('tendo_theme', isDark ? 'dark' : 'light');
             document.getElementById('theme-text').innerText = isDark ? "Mode Terang" : "Mode Gelap";
             toggleSidebar();
+        }
+
+        function selectPayment(method) {
+            document.getElementById('m-payment-method').value = method;
+            if(method === 'saldo') {
+                document.getElementById('btn-pay-saldo').style = 'margin:0; flex:1; border-color:#0ea5e9; color:#0ea5e9; background:rgba(14, 165, 233, 0.1);';
+                document.getElementById('btn-pay-qris').style = 'margin:0; flex:1; border-color:var(--border-color); color:var(--text-main); background:transparent;';
+            } else {
+                document.getElementById('btn-pay-qris').style = 'margin:0; flex:1; border-color:#0ea5e9; color:#0ea5e9; background:rgba(14, 165, 233, 0.1);';
+                document.getElementById('btn-pay-saldo').style = 'margin:0; flex:1; border-color:var(--border-color); color:var(--text-main); background:transparent;';
+            }
+        }
+
+        function selectPaymentVpn(method) {
+            document.getElementById('m-vpn-payment').value = method;
+            if(method === 'saldo') {
+                document.getElementById('btn-pay-vpn-saldo').style = 'margin:0; flex:1; border-color:#0ea5e9; color:#0ea5e9; background:rgba(14, 165, 233, 0.1);';
+                document.getElementById('btn-pay-vpn-qris').style = 'margin:0; flex:1; border-color:var(--border-color); color:var(--text-main); background:transparent;';
+            } else {
+                document.getElementById('btn-pay-vpn-qris').style = 'margin:0; flex:1; border-color:#0ea5e9; color:#0ea5e9; background:rgba(14, 165, 233, 0.1);';
+                document.getElementById('btn-pay-vpn-saldo').style = 'margin:0; flex:1; border-color:var(--border-color); color:var(--text-main); background:transparent;';
+            }
         }
 
         let lastDetected = "";
@@ -2409,6 +2433,7 @@ EOF
             document.getElementById('m-desc').innerText = desc || 'Proses Otomatis';
             document.getElementById('m-target').value = '';
             document.getElementById('m-payment-method').value = 'saldo';
+            selectPayment('saldo'); // set default
             document.getElementById('order-modal').classList.remove('hidden');
         }
         function closeOrderModal() { document.getElementById('order-modal').classList.add('hidden'); }
@@ -2552,11 +2577,12 @@ EOF
                 if(data && data.success) {
                     closeVPNTrialModal();
                     await syncUserData();
-                    document.getElementById('os-name').innerText = document.getElementById('m-vpn-trial-name').innerText + ' (TRIAL)';
-                    document.getElementById('os-target').innerText = 'Sistem';
-                    document.getElementById('os-metode').innerText = 'Gratis';
-                    document.getElementById('os-price').innerText = 'Gratis';
-                    document.getElementById('order-success-modal').classList.remove('hidden');
+                    
+                    // LANGSUNG ARAHKAN KE DETAIL HISTORY UNTUK MELIHAT AKUN VPN TRIAL
+                    if(userData.history && userData.history.length > 0) {
+                        let latest = userData.history[0];
+                        openHistoryDetail(latest);
+                    }
                 } else {
                     showToast(data && data.message ? 'Gagal: ' + data.message : "Kesalahan server.", 'error');
                 }
@@ -2576,8 +2602,10 @@ EOF
             document.getElementById('m-vpn-username').value = '';
             document.getElementById('m-vpn-password').value = '';
             document.getElementById('m-vpn-expired').value = '30';
-            document.getElementById('m-vpn-payment').value = 'saldo';
             
+            document.getElementById('m-vpn-payment').value = 'saldo';
+            selectPaymentVpn('saldo'); // set default btn
+
             if(protocol.toUpperCase() === 'SSH' || protocol.toUpperCase() === 'ZIVPN') {
                 document.getElementById('m-vpn-password').classList.remove('hidden');
             } else {
@@ -2689,8 +2717,8 @@ const globalStatsFile = './global_stats.json';
 const topupFile = './topup.json';
 const globalTrxFile = './global_trx.json'; 
 const vpnConfigFile = './vpn_config.json'; 
-const customLayoutFile = './custom_layout.json'; // Database Etalase Custom
-const tutorialFile = './tutorial.json'; // Database Tutorial
+const customLayoutFile = './custom_layout.json'; 
+const tutorialFile = './tutorial.json'; 
 
 const loadJSON = (file) => crypt.load(file, (file === notifFile || file === globalTrxFile || file === tutorialFile) ? [] : (file === customLayoutFile ? {sections:[]} : {}));
 const saveJSON = (file, data) => crypt.save(file, data);
@@ -2700,7 +2728,6 @@ const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('he
 function maskStringTarget(str) {
     if (!str) return '-';
     let s = str.toString().trim();
-    // Sensor semua karakter kecuali 3 karakter terakhir
     if (s.length <= 3) return s;
     return '*'.repeat(s.length - 3) + s.substring(s.length - 3);
 }
@@ -2733,7 +2760,7 @@ function cleanupOldHistory() {
         if (changed) saveJSON(dbFile, db);
     } catch (e) {}
 }
-setInterval(cleanupOldHistory, 6 * 60 * 60 * 1000); // Jalan otomatis setiap 6 Jam
+setInterval(cleanupOldHistory, 6 * 60 * 60 * 1000); 
 
 function sendTelegramAdmin(message) {
     try {
@@ -2752,7 +2779,7 @@ function sendTelegramAdmin(message) {
 function sendBroadcastSuccess(productName, rawUser, rawTarget, price, method) {
     try {
         let cfg = loadJSON(configFile);
-        let maskTarget = maskStringTarget(rawTarget); // Target disensor untuk broadcast
+        let maskTarget = maskStringTarget(rawTarget); 
         let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
         let priceStr = price ? `\n💰 Harga: Rp ${price.toLocaleString('id-ID')}` : '';
         let methodStr = method ? `\n💳 Metode: ${method}` : '';
@@ -2834,7 +2861,6 @@ let customLayoutAwal = loadJSON(customLayoutFile);
 if(!customLayoutAwal.sections) customLayoutAwal.sections = [];
 saveJSON(customLayoutFile, customLayoutAwal);
 
-// Pastikan folder untuk gambar maintenance/selesai pemeliharaan ada
 if(!fs.existsSync('./public/maint_images')) fs.mkdirSync('./public/maint_images', { recursive: true });
 
 loadJSON(dbFile); loadJSON(produkFile); loadJSON(trxFile); loadJSON(globalStatsFile); loadJSON(topupFile); loadJSON(notifFile); loadJSON(globalTrxFile); loadJSON(tutorialFile);
@@ -2890,7 +2916,6 @@ if (configAwal.teleTokenInfo) {
                     }
                 }
 
-                // BROADCAST INFO OTOMATIS KE WA CHANNEL / GRUP
                 if (cfg.waBroadcastId && globalSock) {
                     let waMsg = `📢 *INFO TERBARU*\n\n${text}`;
                     if (imageFilename) {
@@ -3240,7 +3265,6 @@ app.post('/api/order', async (req, res) => {
         let saldoSebelum = parseInt(db[targetKey].saldo);
         if (saldoSebelum < hargaFix) return res.json({success: false, message: 'Saldo tidak cukup.'});
 
-        // Potong Saldo Sebelum Eksekusi agar terhindar dari Race Condition
         db[targetKey].saldo = saldoSebelum - hargaFix;
         saveJSON(dbFile, db);
 
@@ -3255,7 +3279,6 @@ app.post('/api/order', async (req, res) => {
         
         const statusOrder = response.data.data.status; 
         
-        // MUAT ULANG DATABASE SESUDAH AWAIT UNTUK MENCEGAH RACE CONDITION!
         db = loadJSON(dbFile);
         let saldoTerkini = parseInt(db[targetKey].saldo);
         let emailUser = db[targetKey].email || '-';
@@ -3335,7 +3358,6 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
         return { success: false, message: "Server VPN ini sedang gangguan / konfigurasi tidak valid." };
     }
 
-    // LOGIKA TRIAL (1x per 2 JAM PER SERVER)
     if (mode === 'trial') {
         if (!db[targetKey].trial_claims) db[targetKey].trial_claims = {};
         let lastClaim = db[targetKey].trial_claims[serverKey] || 0;
@@ -3382,29 +3404,19 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
     }
 
     try {
-        // Peningkatan Timeout agar respon tidak terputus sebelum VPN selesai dibuat di VPS
         let resApi = await axios.post(endpoint, payload, {
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer ' + srv.api_key },
             timeout: 60000,
             httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
         });
 
-        // MUAT ULANG DATABASE SESUDAH AWAIT UNTUK MENCEGAH RACE CONDITION!
         db = loadJSON(dbFile);
 
-        // PERBAIKAN BUG: Validasi sukses dari API VPN VPS yang ketat agar error tak terbaca sukses
-        let isSuccessResponse = resApi.data && (
-            resApi.data.data || 
-            resApi.data.username || 
-            resApi.data.id || 
-            resApi.data.uuid ||
-            (resApi.data.status === true) || 
-            (resApi.data.message && resApi.data.message.toLowerCase().includes('success'))
-        );
+        let isSuccessResponse = resApi.status === 200 && resApi.data && !resApi.data.error;
         let isErrorResponse = resApi.data && (resApi.data.status === false || resApi.data.error);
 
-        if(isSuccessResponse && !isErrorResponse) {
-            let apiData = resApi.data.data || resApi.data;
+        if((resApi.status === 200 || isSuccessResponse) && !isErrorResponse) {
+            let apiData = resApi.data.data || resApi.data || {};
             let domain = srv.host;
             let expDate = apiData.expired || apiData.exp || apiData.to || (mode === 'trial' ? '30 Menit' : `${expiredDays} Hari`);
             let vpnDetails = '';
@@ -3433,8 +3445,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
                 db[targetKey].saldo = saldoSebelum - hargaFix;
                 db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
                 
-                // KURANGI STOK PRODUK
-                vpnConfig = loadJSON(vpnConfigFile); // Muat config lagi utk keamanan
+                vpnConfig = loadJSON(vpnConfigFile);
                 vpnConfig.products[productId].stok -= 1;
                 saveJSON(vpnConfigFile, vpnConfig);
             } else if (mode === 'trial') {
@@ -3465,7 +3476,6 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
             }
             saveJSON(dbFile, db);
 
-            // Statistik & Notif (Tujuan sudah aman tersensor berkat maskStringTarget)
             let gStats = loadJSON(globalStatsFile);
             let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
             gStats[dateKey] = (gStats[dateKey] || 0) + 1;
@@ -3603,7 +3613,6 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         
         if (saldoSebelum < hargaFix) return; 
         
-        // POTONG SALDO SEBELUM AWAIT AGAR AMAN (FIX RACE CONDITION)
         db[phone].saldo = saldoSebelum - hargaFix; 
         saveJSON(dbFile, db);
 
@@ -3618,7 +3627,6 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         
         const statusOrder = response.data.data.status; 
         
-        // MUAT ULANG DATABASE SESUDAH AWAIT UNTUK MENCEGAH RACE CONDITION!
         db = loadJSON(dbFile);
         let saldoTerkini = parseInt(db[phone].saldo);
 
@@ -3747,7 +3755,6 @@ async function startBot() {
                 globalSock.sendMessage(cfg.waBroadcastId, { text: msg }).catch(e=>{});
             }
             
-            // Pencarian nama file custom gambar maintenance
             let maintImg = "";
             try {
                 let files = fs.readdirSync('./public/maint_images');
@@ -3777,7 +3784,6 @@ async function startBot() {
                 globalSock.sendMessage(cfg.waBroadcastId, { text: msg }).catch(e=>{});
             }
 
-            // Pencarian nama file custom gambar pemeliharaan selesai
             let doneImg = "";
             try {
                 let files = fs.readdirSync('./public/maint_images');
@@ -3795,7 +3801,6 @@ async function startBot() {
     }, 60000); 
 
     let isCheckingQris = false;
-    // LOOP PENGECEKAN QRIS AGAR TIDAK PENDING (RELOAD DATABASE SETIAP KALI CEK)
     setInterval(async () => {
         if(isCheckingQris) return;
         isCheckingQris = true;
@@ -3816,8 +3821,6 @@ async function startBot() {
 
             for(let key of pendingKeys) {
                 let req = topups[key];
-                
-                // MENGGUNAKAN RELOAD DB SECARA SPESIFIK AGAR TIDAK BENTROK
                 let db = loadJSON(dbFile); 
                 let changedDb = false;
 
@@ -3990,8 +3993,9 @@ async function tarikDataLayananOtomatis() {
             let daftarLokal = {};
             let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
             
-            let manualItems = Object.keys(produkLama).filter(k => produkLama[k].is_manual_cat);
-            manualItems.forEach(k => { daftarLokal[k] = produkLama[k]; });
+            Object.keys(produkLama).forEach(k => {
+                if(produkLama[k].is_manual_cat) daftarLokal[k] = produkLama[k];
+            });
             
             daftarPusat.forEach(item => {
                 let kodeBarang = item.buyer_sku_code;
@@ -4013,18 +4017,7 @@ async function tarikDataLayananOtomatis() {
                 else if (catLower === 'masa aktif') kategoriBarang = 'Masa Aktif';
                 else if (catLower === 'aktivasi perdana' || catLower === 'perdana') kategoriBarang = 'Aktivasi Perdana';
                 else kategoriBarang = catDigi; 
-
-                if (produkLama[kodeBarang] && produkLama[kodeBarang].is_manual_cat) {
-                    kategoriBarang = produkLama[kodeBarang].kategori;
-                    namaBarang = produkLama[kodeBarang].nama || namaBarang;
-                    item.brand = produkLama[kodeBarang].brand || item.brand;
-                    item.type = produkLama[kodeBarang].sub_kategori || item.type;
-                    item.desc = produkLama[kodeBarang].deskripsi || item.desc;
-                }
                 
-                let merekBarang = item.brand || 'Lainnya';
-                let subKategori = item.type || 'Umum';
-
                 let keuntungan = 0;
                 if(hargaModal <= 100) keuntungan = m.t1;
                 else if(hargaModal <= 500) keuntungan = m.t2;
@@ -4040,14 +4033,23 @@ async function tarikDataLayananOtomatis() {
                 else if(hargaModal <= 100000) keuntungan = m.t12;
                 else keuntungan = m.t13;
 
+                let finalPrice = hargaModal + keuntungan;
+
+                // Update harga produk instan secara otomatis dari pusat
+                for (let k in daftarLokal) {
+                    if (daftarLokal[k].is_manual_cat && daftarLokal[k].sku_asli === kodeBarang) {
+                        daftarLokal[k].harga = finalPrice;
+                    }
+                }
+
                 if (!produkLama[kodeBarang] || !produkLama[kodeBarang].is_manual_cat) {
                     daftarLokal[kodeBarang] = {
                         sku_asli: kodeBarang,
                         nama: namaBarang,
-                        harga: hargaModal + keuntungan,
+                        harga: finalPrice,
                         kategori: kategoriBarang,
-                        brand: merekBarang,
-                        sub_kategori: subKategori,
+                        brand: item.brand || 'Lainnya',
+                        sub_kategori: item.type || 'Umum',
                         deskripsi: item.desc || 'Proses Otomatis',
                         status_produk: statusProduk,
                         is_manual_cat: false
@@ -5043,39 +5045,29 @@ menu_backup() {
     done
 }
 
-menu_manajemen_produk_manual() {
+menu_manajemen_produk_instan() {
     while true; do
         clear
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "${C_YELLOW}${C_BOLD}          📦 MANAJEMEN PRODUK MANUAL 📦             ${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}          📦 MANAJEMEN PRODUK INSTAN 📦             ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Instan / Pindah Kategori Paket Custom"
-        echo -e "  ${C_GREEN}[2]${C_RST} Lihat Daftar & Hapus Produk Manual"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Instan Otomatis (Digiflazz)"
+        echo -e "  ${C_GREEN}[2]${C_RST} Daftar Produk Instan"
+        echo -e "  ${C_GREEN}[3]${C_RST} Edit Produk Instan"
+        echo -e "  ${C_GREEN}[4]${C_RST} Hapus Produk Instan"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
         echo -e "${C_CYAN}======================================================${C_RST}"
-        echo -ne "${C_YELLOW}Pilih menu [0-2]: ${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-4]: ${C_RST}"
         read mp_choice
 
         case $mp_choice in
             1)
                 clear
-                echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-                echo -e "${C_YELLOW}${C_BOLD}         ➕ TAMBAH PRODUK INSTAN DIGIFLAZZ ➕         ${C_RST}"
-                echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-                echo -e "Pilih Kategori untuk produk yang akan ditambahkan:"
-                echo -e "  ${C_GREEN}[1]${C_RST} Pulsa"
-                echo -e "  ${C_GREEN}[2]${C_RST} Data"
-                echo -e "  ${C_GREEN}[3]${C_RST} Game"
-                echo -e "  ${C_GREEN}[4]${C_RST} Voucher"
-                echo -e "  ${C_GREEN}[5]${C_RST} E-Money"
-                echo -e "  ${C_GREEN}[6]${C_RST} PLN"
-                echo -e "  ${C_GREEN}[7]${C_RST} Paket SMS & Telpon"
-                echo -e "  ${C_GREEN}[8]${C_RST} Masa Aktif"
-                echo -e "  ${C_GREEN}[9]${C_RST} Aktivasi Perdana"
-                echo -ne "\n${C_YELLOW}Pilih kategori [1-9]: ${C_RST}"
-                read kat_idx
-                
+                echo -e "${C_MAG}--- TAMBAH PRODUK INSTAN ---${C_RST}"
+                echo -e "Kategori Tersedia:"
+                echo -e "1. Pulsa\n2. Data\n3. Game\n4. Voucher\n5. E-Money\n6. PLN\n7. Paket SMS & Telpon\n8. Masa Aktif\n9. Aktivasi Perdana"
+                read -p "Pilih kategori [1-9]: " kat_idx
                 kat_nama=""
                 case $kat_idx in
                     1) kat_nama="Pulsa" ;;
@@ -5087,97 +5079,117 @@ menu_manajemen_produk_manual() {
                     7) kat_nama="Paket SMS & Telpon" ;;
                     8) kat_nama="Masa Aktif" ;;
                     9) kat_nama="Aktivasi Perdana" ;;
-                    *) echo -e "${C_RED}❌ Pilihan kategori tidak valid.${C_RST}"; sleep 1; continue ;;
+                    *) echo -e "${C_RED}❌ Kategori tidak valid.${C_RST}"; sleep 1; continue ;;
                 esac
                 
-                read -p "Masukkan KODE SKU Digiflazz / SKU Custom: " sku_digi
-                if [ -z "$sku_digi" ]; then 
-                    echo -e "${C_RED}❌ Kode SKU tidak boleh kosong.${C_RST}"; sleep 1; continue
-                fi
+                read -p "Masukkan Kode SKU Digiflazz: " sku_digi
+                if [ -z "$sku_digi" ]; then echo -e "${C_RED}❌ SKU wajib diisi!${C_RST}"; sleep 1; continue; fi
+                read -p "Nama Produk: " custom_nama
+                read -p "Nama Brand / Provider: " custom_brand
+                read -p "Nama Paket (Otomatis tampil paling atas di web): " custom_tipe
+                read -p "Deskripsi Singkat: " custom_desc
                 
-                read -p "Masukkan Nama Produk (Kosongkan utk pakai nama Asli): " custom_nama
-                read -p "Masukkan Brand / Operator (Misal: Telkomsel / Free Fire / XL): " custom_brand
-                read -p "Masukkan Tipe/Nama Paket Custom (Misal: Xtra Combo VIP / Promo): " custom_tipe
-                read -p "Masukkan Deskripsi Produk (Kosongkan utk pakai 'Proses Otomatis'): " custom_desc
-                
-                echo -e "\n${C_MAG}⏳ Memasukkan produk langsung ke Database Website secara instan...${C_RST}"
                 node -e "
                     const crypt = require('./tendo_crypt.js');
-                    
-                    let sku = '$sku_digi'.trim();
-                    let hargaModal = 0; // Otomatis diset 0. Saat cron berjalan akan disesuaikan dengan digiflazz.
-                    
-                    let config = crypt.load('config.json');
-                    let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
-                    
-                    let keuntungan = 0; // Keuntungan juga akan menyesuaikan hargaModal asli ketika tersinkron
-
-                    let customNama = '$custom_nama'.trim();
-                    let customBrand = '$custom_brand'.trim();
-                    let customTipe = '$custom_tipe'.trim();
-                    let customDesc = '$custom_desc'.trim();
-
-                    let finalNama = customNama !== '' ? customNama : 'Produk Custom ' + sku;
-                    let finalBrand = customBrand !== '' ? customBrand : 'Lainnya';
-                    let finalTipe = customTipe !== '' ? customTipe : 'Umum';
-                    let finalDesc = customDesc !== '' ? customDesc : 'Proses Otomatis';
-
                     let dbProd = crypt.load('produk.json');
-                    let uniqueSku = sku + '_' + Date.now();
-                    
+                    let uniqueSku = '$sku_digi' + '_custom_' + Date.now();
                     dbProd[uniqueSku] = {
-                        sku_asli: sku,
-                        nama: finalNama,
-                        harga: hargaModal + keuntungan,
+                        sku_asli: '$sku_digi',
+                        nama: '$custom_nama',
+                        harga: 0,
                         kategori: '$kat_nama',
-                        brand: finalBrand,
-                        sub_kategori: finalTipe,
-                        deskripsi: finalDesc,
-                        status_produk: true, 
+                        brand: '$custom_brand',
+                        sub_kategori: '\u200B' + '$custom_tipe',
+                        deskripsi: '$custom_desc',
+                        status_produk: true,
                         is_manual_cat: true
                     };
-                    
                     crypt.save('produk.json', dbProd);
-                    console.log('\x1b[32m✅ BERHASIL: Produk \"' + finalNama + '\" (' + sku + ') ditambahkan secara instan 100%!\x1b[0m');
+                    console.log('\x1b[32m✅ Produk Instan berhasil ditambahkan! Harga akan ditarik otomatis oleh sistem sinkronisasi dari pusat.\x1b[0m');
                 "
-                echo -e "\n${C_GREEN}✅ Produk manual berhasil ditambahkan dan langsung aktif tanpa menunggu!${C_RST}"
+                curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
-                echo -e "\n${C_CYAN}--- DAFTAR PRODUK MANUAL ---${C_RST}"
+                echo -e "\n${C_CYAN}--- DAFTAR PRODUK INSTAN ---${C_RST}"
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let dbProd = crypt.load('produk.json');
-                    let manualItems = Object.keys(dbProd).filter(k => dbProd[k].is_manual_cat);
-                    if(manualItems.length === 0) {
-                        console.log('\x1b[33mBelum ada produk yang ditambahkan secara manual.\x1b[0m');
-                        process.exit(0);
+                    let count = 0;
+                    for(let key in dbProd) {
+                        if(dbProd[key].is_manual_cat) {
+                            count++;
+                            console.log('[' + count + '] SKU Digiflazz: ' + dbProd[key].sku_asli + ' | Nama: ' + dbProd[key].nama + ' | Harga Jual: Rp ' + dbProd[key].harga + ' | Nama Paket: ' + dbProd[key].sub_kategori.replace('\u200B', ''));
+                        }
                     }
-                    manualItems.forEach((key, i) => {
-                        console.log('[' + (i + 1) + '] Key: ' + key + ' | SKU Asli: ' + (dbProd[key].sku_asli || key) + ' | Nama: ' + dbProd[key].nama + ' | Kat: ' + dbProd[key].kategori + ' | Tipe: ' + dbProd[key].sub_kategori);
+                    if(count === 0) console.log('\x1b[33mBelum ada produk instan yang ditambahkan.\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            3)
+                echo -e "\n${C_MAG}--- EDIT PRODUK INSTAN ---${C_RST}"
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let dbProd = crypt.load('produk.json');
+                    let manualKeys = Object.keys(dbProd).filter(k => dbProd[k].is_manual_cat);
+                    if(manualKeys.length === 0) { console.log('\x1b[33mBelum ada produk instan.\x1b[0m'); process.exit(0); }
+                    manualKeys.forEach((k, i) => {
+                        console.log('[' + (i+1) + '] ' + dbProd[k].nama + ' (SKU: ' + dbProd[k].sku_asli + ')');
                     });
                 "
-                echo -e ""
-                read -p "Masukkan Nomor Urut produk yang ingin dihapus (Kosongkan/Ketik 0 untuk batal): " urut_hapus
-                if [[ "$urut_hapus" =~ ^[0-9]+$ ]] && [ "$urut_hapus" -gt 0 ]; then
+                echo ""
+                read -p "Pilih nomor urut produk yang ingin diedit: " edit_idx
+                if [[ "$edit_idx" =~ ^[0-9]+$ ]]; then
+                    read -p "Nama Produk Baru (Kosongkan jika tidak diubah): " e_nama
+                    read -p "Deskripsi Baru (Kosongkan jika tidak diubah): " e_desc
+                    read -p "Nama Paket Baru (Kosongkan jika tidak diubah): " e_paket
+                    
                     node -e "
                         const crypt = require('./tendo_crypt.js');
                         let dbProd = crypt.load('produk.json');
-                        let manualItems = Object.keys(dbProd).filter(k => dbProd[k].is_manual_cat);
-                        let idx = parseInt('$urut_hapus') - 1;
-                        if(idx >= 0 && idx < manualItems.length) {
-                            let keyToDel = manualItems[idx];
-                            let namaToDel = dbProd[keyToDel].nama;
-                            delete dbProd[keyToDel];
+                        let manualKeys = Object.keys(dbProd).filter(k => dbProd[k].is_manual_cat);
+                        let idx = parseInt('$edit_idx') - 1;
+                        if(manualKeys[idx]) {
+                            let key = manualKeys[idx];
+                            if('$e_nama' !== '') dbProd[key].nama = '$e_nama';
+                            if('$e_desc' !== '') dbProd[key].deskripsi = '$e_desc';
+                            if('$e_paket' !== '') dbProd[key].sub_kategori = '\u200B' + '$e_paket';
                             crypt.save('produk.json', dbProd);
-                            console.log('\x1b[32m✅ Berhasil menghapus produk manual: ' + namaToDel + '\x1b[0m');
+                            console.log('\x1b[32m✅ Produk instan berhasil diupdate!\x1b[0m');
                         } else {
-                            console.log('\x1b[31m❌ Nomor urut tidak ditemukan.\x1b[0m');
+                            console.log('\x1b[31m❌ Nomor urut tidak valid.\x1b[0m');
                         }
                     "
-                    echo -e "\n${C_MAG}✅ Berhasil menghapus produk manual!${C_RST}"
-                else
-                    echo -e "${C_YELLOW}Dibatalkan.${C_RST}"
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            4)
+                echo -e "\n${C_MAG}--- HAPUS PRODUK INSTAN ---${C_RST}"
+                node -e "
+                    const crypt = require('./tendo_crypt.js');
+                    let dbProd = crypt.load('produk.json');
+                    let manualKeys = Object.keys(dbProd).filter(k => dbProd[k].is_manual_cat);
+                    if(manualKeys.length === 0) { console.log('\x1b[33mBelum ada produk instan.\x1b[0m'); process.exit(0); }
+                    manualKeys.forEach((k, i) => {
+                        console.log('[' + (i+1) + '] ' + dbProd[k].nama + ' (SKU: ' + dbProd[k].sku_asli + ')');
+                    });
+                "
+                echo ""
+                read -p "Pilih nomor urut produk yang ingin dihapus: " del_idx
+                if [[ "$del_idx" =~ ^[0-9]+$ ]]; then
+                    node -e "
+                        const crypt = require('./tendo_crypt.js');
+                        let dbProd = crypt.load('produk.json');
+                        let manualKeys = Object.keys(dbProd).filter(k => dbProd[k].is_manual_cat);
+                        let idx = parseInt('$del_idx') - 1;
+                        if(manualKeys[idx]) {
+                            delete dbProd[manualKeys[idx]];
+                            crypt.save('produk.json', dbProd);
+                            console.log('\x1b[32m✅ Produk instan berhasil dihapus dari website!\x1b[0m');
+                        } else {
+                            console.log('\x1b[31m❌ Nomor urut tidak valid.\x1b[0m');
+                        }
+                    "
                 fi
                 read -p "Tekan Enter untuk kembali..."
                 ;;
@@ -5739,7 +5751,7 @@ while true; do
     echo -e "${C_MAG}▶ 📦 MANAJEMEN PRODUK & KATEGORI${C_RST}"
     echo -e "  ${C_GREEN}[6]${C_RST}  🔄 Sinkronisasi Produk Digiflazz"
     echo -e "  ${C_GREEN}[7]${C_RST}  💰 Manajemen Keuntungan Harga (13 Tingkat)"
-    echo -e "  ${C_GREEN}[8]${C_RST}  📦 Manajemen Produk Manual Instan (Paket Custom)"
+    echo -e "  ${C_GREEN}[8]${C_RST}  📦 Manajemen Produk Instan (Paket Custom)"
     echo -e "  ${C_GREEN}[9]${C_RST}  🛡️ Manajemen VPN Premium"
     echo -e "  ${C_GREEN}[10]${C_RST} 🌟 Manajemen Etalase Custom (Best Seller)"
     echo -e "  ${C_GREEN}[11]${C_RST} 🎬 Manajemen Tutorial"
@@ -5801,7 +5813,7 @@ while true; do
         5) pm2 logs tendo-bot ;;
         6) menu_sinkron ;;
         7) menu_keuntungan ;;
-        8) menu_manajemen_produk_manual ;;
+        8) menu_manajemen_produk_instan ;;
         9) menu_manajemen_vpn ;;
         10) menu_etalase_custom ;;
         11) menu_tutorial ;;
