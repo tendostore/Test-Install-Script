@@ -2361,14 +2361,21 @@ EOF
             }
             
             if(subs.length > 0) {
-                let sortedSubs = subs.sort();
+                let sortedSubs = subs.sort((a, b) => {
+                    let aIsCustom = a.startsWith('\u200B');
+                    let bIsCustom = b.startsWith('\u200B');
+                    if (aIsCustom && !bIsCustom) return -1;
+                    if (!aIsCustom && bIsCustom) return 1;
+                    return a.localeCompare(b);
+                });
                 let gridHTML = '';
                 sortedSubs.forEach(s => {
-                    let initial = s.substring(0,2).toUpperCase();
+                    let displayS = s.replace('\u200B', '');
+                    let initial = displayS.substring(0,2).toUpperCase();
                     gridHTML += `
                     <div class="brand-row" onclick="loadProducts('${cat}', '${brand}', '${s}')">
                         <div class="b-logo">${initial}</div>
-                        <div class="b-name">${s}</div>
+                        <div class="b-name">${displayS}</div>
                         <div style="margin-left:auto">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                         </div>
@@ -2387,7 +2394,7 @@ EOF
             localStorage.setItem('tendo_current_subcat', subCat || 'null');
             localStorage.setItem('tendo_is_vpn', 'false');
 
-            document.getElementById('cat-title-text').innerText = subCat ? subCat : brand;
+            document.getElementById('cat-title-text').innerText = subCat ? subCat.replace('\u200B', '') : brand;
             document.getElementById('search-product').value = ''; 
             
             let listHTML = '';
@@ -3484,7 +3491,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
                 db[targetKey].history.unshift({
                     ts: Date.now(), 
                     tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-                    type: 'Order VPN', nama: prodName, tujuan: vpnUser, status: 'Sukses', sn: '-', amount: hargaFix, ref_id: refId,
+                    type: 'Order VPN', nama: prodName, tujuan: (mode==='trial'?'Sistem':vpnUser), status: 'Sukses', sn: '-', amount: hargaFix, ref_id: refId,
                     saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[targetKey].saldo,
                     vpn_details: vpnDetails
                 });
@@ -3497,18 +3504,22 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
             gStats[dateKey] = (gStats[dateKey] || 0) + 1;
             saveJSON(globalStatsFile, gStats);
 
-            let globalTrx = loadJSON(globalTrxFile);
-            let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
             let namaUser = db[targetKey].username || targetKey;
-            
-            globalTrx.unshift({ time: timeStr, product: prodName, user: namaUser, target: maskStringTarget(vpnUser), price: hargaFix, method: (mode === 'trial' ? 'Gratis' : paymentMethod) });
-            if(globalTrx.length > 100) globalTrx.pop();
-            saveJSON(globalTrxFile, globalTrx);
 
-            sendBroadcastSuccess(prodName, namaUser, vpnUser, hargaFix, mode === 'trial' ? 'Gratis' : paymentMethod);
-            
+            // HANYA REGULER YANG MASUK TRANSAKSI GLOBAL DAN BROADCAST
+            if (mode !== 'trial') {
+                let globalTrx = loadJSON(globalTrxFile);
+                let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+                globalTrx.unshift({ time: timeStr, product: prodName, user: namaUser, target: maskStringTarget(vpnUser), price: hargaFix, method: paymentMethod });
+                if(globalTrx.length > 100) globalTrx.pop();
+                saveJSON(globalTrxFile, globalTrx);
+
+                sendBroadcastSuccess(prodName, namaUser, vpnUser, hargaFix, paymentMethod);
+            }
+
+            // ADMIN NOTIF TETAP JALAN UNTUK KEDUANYA (Trial/Reguler)
             let emailUser = db[targetKey].email || '-';
-            let teleSuccess = `🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${vpnUser}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: ${paymentMethod}\n📦 Sisa Stok: ${mode === 'reguler' ? vpnConfig.products[productId].stok : 'Trial'}`;
+            let teleSuccess = `🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${vpnUser}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: ${mode === 'trial' ? 'Gratis (Trial)' : paymentMethod}\n📦 Sisa Stok: ${mode === 'reguler' ? vpnConfig.products[productId].stok : 'Trial'}`;
             sendTelegramAdmin(teleSuccess);
 
             return { success: true };
