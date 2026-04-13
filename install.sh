@@ -3418,7 +3418,13 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
             httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
         });
 
+        // MUAT ULANG DATABASE AGAR SINKRON DENGAN TRANSAKSI LAIN SAAT MENUNGGU RESPONSE VPS
         db = loadJSON(dbFile);
+        
+        // PERBAIKAN FATAL ERROR: Pastikan properti trial_claims ADA setelah reload db!
+        if (!db[targetKey].trial_claims) {
+            db[targetKey].trial_claims = {};
+        }
 
         let isSuccessResponse = (resApi.status >= 200 && resApi.status < 300) && resApi.data && !resApi.data.error && resApi.data.status !== false;
         let isErrorResponse = resApi.data && (resApi.data.status === false || resApi.data.error || resApi.status >= 400);
@@ -3458,6 +3464,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
                 vpnConfig.products[productId].stok -= 1;
                 saveJSON(vpnConfigFile, vpnConfig);
             } else if (mode === 'trial') {
+                // Simpan tanggal klaim trial terbaru (Aman karena objek trial_claims sudah dipastikan ADA)
                 db[targetKey].trial_claims[serverKey] = Date.now();
             }
             
