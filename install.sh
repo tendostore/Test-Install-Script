@@ -2774,6 +2774,7 @@ const axios = require('axios');
 const crypto = require('crypto'); 
 const crypt = require('./tendo_crypt.js');
 const TelegramBot = require('node-telegram-bot-api');
+const { pipeline } = require('stream/promises');
 
 const app = express();
 app.disable('x-powered-by');
@@ -2957,10 +2958,10 @@ if (configAwal.teleTokenInfo) {
         teleBotInfo = new TelegramBot(configAwal.teleTokenInfo, {polling: true});
         
         teleBotInfo.on('polling_error', (error) => {
-            console.log('Telegram Polling Error:', error.message || error);
+            console.log('Telegram Info Polling Error:', error.message || error);
         });
         teleBotInfo.on('error', (error) => {
-            console.log('Telegram Error:', error.message || error);
+            console.log('Telegram Info Error:', error.message || error);
         });
 
         teleBotInfo.on('message', async (msg) => {
@@ -2969,7 +2970,7 @@ if (configAwal.teleTokenInfo) {
             
             let text = msg.text || msg.caption || '';
             
-            // FITUR UPLOAD BANNER VIA TELEGRAM BOT
+            // FITUR UPLOAD BANNER VIA TELEGRAM BOT INFO
             let bannerMatch = text.match(/^\/(banner[1-5])/i);
             if (bannerMatch) {
                 if (!msg.photo) return teleBotInfo.sendMessage(msg.chat.id, '❌ Silakan kirim gambar beserta caption /' + bannerMatch[1]);
@@ -2990,11 +2991,7 @@ if (configAwal.teleTokenInfo) {
                     try {
                         let res = await axios.get(url, { responseType: 'stream', timeout: 60000 });
                         const writer = fs.createWriteStream(bannerFolder + '/' + filename);
-                        res.data.pipe(writer);
-                        await new Promise((resolve, reject) => {
-                            writer.on('finish', resolve);
-                            writer.on('error', reject);
-                        });
+                        await pipeline(res.data, writer);
                         return teleBotInfo.sendMessage(msg.chat.id, '✅ ' + bannerMatch[1].toUpperCase() + ' berhasil diperbarui di website!');
                     } catch (downloadErr) {
                         return teleBotInfo.sendMessage(msg.chat.id, '❌ Gagal mengunduh gambar banner dari Telegram.');
@@ -3004,7 +3001,7 @@ if (configAwal.teleTokenInfo) {
                 }
             }
 
-            // FITUR UPLOAD TUTORIAL VIA TELEGRAM BOT
+            // FITUR UPLOAD TUTORIAL VIA TELEGRAM BOT INFO
             if (text.startsWith('/tutorial')) {
                 let desc = text.replace('/tutorial', '').trim();
                 if (!desc) return teleBotInfo.sendMessage(msg.chat.id, '❌ Deskripsi/Judul tidak boleh kosong. Gunakan format: /tutorial [Judul] | [Deskripsi Berparagraf]');
@@ -3036,13 +3033,9 @@ if (configAwal.teleTokenInfo) {
                         vidFilename = 'tutor_' + Date.now() + '.' + ext;
                         
                         try {
-                            let res = await axios.get(url, { responseType: 'stream', timeout: 90000 });
+                            let res = await axios.get(url, { responseType: 'stream', timeout: 120000 });
                             const writer = fs.createWriteStream('./public/tutorials/' + vidFilename);
-                            res.data.pipe(writer);
-                            await new Promise((resolve, reject) => {
-                                writer.on('finish', resolve);
-                                writer.on('error', reject);
-                            });
+                            await pipeline(res.data, writer);
                         } catch (downloadErr) {
                             return teleBotInfo.sendMessage(msg.chat.id, '❌ Gagal mendownload video dari server Telegram. File mungkin terlalu besar atau koneksi terputus.');
                         }
@@ -3051,7 +3044,7 @@ if (configAwal.teleTokenInfo) {
                     }
                     
                     let dbTut = loadJSON(tutorialFile);
-                    if (!Array.isArray(dbTut)) dbTut = []; // VALIDASI ARRAY
+                    if (!Array.isArray(dbTut)) dbTut = []; 
                     dbTut.push({
                         id: 'TUT-' + Date.now(),
                         title: title,
@@ -3080,11 +3073,7 @@ if (configAwal.teleTokenInfo) {
                         
                         let res = await axios.get(url, { responseType: 'stream', timeout: 60000 });
                         const writer = fs.createWriteStream('./public/info_images/' + imageFilename);
-                        res.data.pipe(writer);
-                        await new Promise((resolve, reject) => {
-                            writer.on('finish', resolve);
-                            writer.on('error', reject);
-                        });
+                        await pipeline(res.data, writer);
                     } catch(e) {
                         console.log("Download info image error:", e.message);
                     }
@@ -3964,9 +3953,8 @@ async function startBot() {
                 if (callAttempts[callerId] >= 3) {
                     await sock.sendMessage(callerId, { text: "Anda telah mencoba memanggil sebanyak 3 kali. Sesuai kebijakan sistem, nomor Anda diblokir sementara selama 15 detik untuk menjaga kenyamanan layanan. Terima kasih." });
                     await sock.updateBlockStatus(callerId, 'block');
-                    callAttempts[callerId] = 0; // Reset Peringatan
+                    callAttempts[callerId] = 0; 
                     
-                    // Unblock setelah 15 detik
                     setTimeout(async () => {
                         await sock.updateBlockStatus(callerId, 'unblock');
                         await sock.sendMessage(callerId, { text: "Blokir telah dibuka otomatis. Kami siap melayani Anda melalui pesan teks." });
