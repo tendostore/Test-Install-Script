@@ -799,7 +799,7 @@ EOF
                 <svg class="back-icon" onclick="goBackGlobal()" viewBox="0 0 24 24" width="28" height="28" style="margin-right:10px;">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
-                <span>Tutorial VPN Premium</span>
+                <span>Tutorial / Panduan</span>
             </div>
             <div class="container" id="tutorial-list" style="margin-bottom: 120px;">
                 <div style="text-align:center; color:var(--text-muted); padding:30px; font-size:13px; font-weight:bold;">Memuat tutorial...</div>
@@ -1730,13 +1730,18 @@ EOF
                 let html = '';
                 if(data && Array.isArray(data) && data.length > 0) {
                     data.forEach(t => {
+                        let videoHtml = '';
+                        if(t.video && t.video !== '' && t.video !== '-') {
+                            videoHtml = `<video width="100%" controls style="border-radius:10px; margin-bottom:10px; background:#000;">
+                                <source src="/tutorials/${t.video}" type="video/mp4">
+                            </video>`;
+                        }
+                        
                         html += `
                         <div class="card" style="margin-bottom:15px; padding:15px;">
                             <h3 style="margin-top:0; font-size:15px; color:var(--text-main);">${t.title}</h3>
-                            <video width="100%" controls style="border-radius:10px; margin-bottom:10px; background:#000;">
-                                <source src="/tutorials/${t.video}" type="video/mp4">
-                            </video>
-                            <p style="font-size:12px; color:var(--text-muted); line-height:1.5;">${t.desc}</p>
+                            ${videoHtml}
+                            <div style="font-size:12px; color:var(--text-muted); line-height:1.6; white-space: pre-line;">${t.desc}</div>
                         </div>`;
                     });
                 } else {
@@ -2984,37 +2989,49 @@ if (configAwal.teleTokenInfo) {
                 }
             }
 
-            // FITUR UPLOAD VIDEO TUTORIAL VIA TELEGRAM BOT
+            // FITUR UPLOAD TUTORIAL VIA TELEGRAM BOT (Mendukung Teks Saja Tanpa Video)
             if (text.startsWith('/tutorial')) {
                 let desc = text.replace('/tutorial', '').trim();
-                if (!msg.video) return teleBotInfo.sendMessage(msg.chat.id, '❌ Silakan kirim Video (.mp4) beserta caption: /tutorial [Deskripsi]');
-                if (!desc) return teleBotInfo.sendMessage(msg.chat.id, '❌ Deskripsi/Judul tidak boleh kosong. Gunakan format: /tutorial [Deskripsi]');
+                if (!desc) return teleBotInfo.sendMessage(msg.chat.id, '❌ Deskripsi/Judul tidak boleh kosong. Gunakan format: /tutorial [Judul] | [Deskripsi Berparagraf]');
                 
+                let title = desc;
+                let detail = desc;
+                if(desc.includes('|')) {
+                    let parts = desc.split('|');
+                    title = parts[0].trim();
+                    detail = parts.slice(1).join('|').trim();
+                }
+
                 try {
-                    teleBotInfo.sendMessage(msg.chat.id, '⏳ Mendownload dan menambahkan video tutorial ke website...');
-                    let fileId = msg.video.file_id;
-                    let file = await teleBotInfo.getFile(fileId);
-                    let url = `https://api.telegram.org/file/bot${cfg.teleTokenInfo}/${file.file_path}`;
-                    let ext = file.file_path.split('.').pop() || 'mp4';
-                    let vidFilename = 'tutor_' + Date.now() + '.' + ext;
-                    
-                    let res = await axios.get(url, { responseType: 'stream' });
-                    const writer = fs.createWriteStream('./public/tutorials/' + vidFilename);
-                    res.data.pipe(writer);
-                    await new Promise((resolve) => writer.on('finish', resolve));
+                    let vidFilename = '-';
+                    if (msg.video) {
+                        teleBotInfo.sendMessage(msg.chat.id, '⏳ Mendownload dan menambahkan tutorial video ke website...');
+                        let fileId = msg.video.file_id;
+                        let file = await teleBotInfo.getFile(fileId);
+                        let url = `https://api.telegram.org/file/bot${cfg.teleTokenInfo}/${file.file_path}`;
+                        let ext = file.file_path.split('.').pop() || 'mp4';
+                        vidFilename = 'tutor_' + Date.now() + '.' + ext;
+                        
+                        let res = await axios.get(url, { responseType: 'stream' });
+                        const writer = fs.createWriteStream('./public/tutorials/' + vidFilename);
+                        res.data.pipe(writer);
+                        await new Promise((resolve) => writer.on('finish', resolve));
+                    } else {
+                        teleBotInfo.sendMessage(msg.chat.id, '⏳ Menambahkan tutorial teks ke website...');
+                    }
                     
                     let dbTut = loadJSON(tutorialFile);
                     dbTut.push({
                         id: 'TUT-' + Date.now(),
-                        title: desc,
+                        title: title,
                         video: vidFilename,
-                        desc: desc
+                        desc: detail
                     });
                     saveJSON(tutorialFile, dbTut);
                     
-                    return teleBotInfo.sendMessage(msg.chat.id, '✅ Video Tutorial berhasil ditambahkan ke website!');
+                    return teleBotInfo.sendMessage(msg.chat.id, '✅ Tutorial berhasil ditambahkan ke website!');
                 } catch(e) {
-                    return teleBotInfo.sendMessage(msg.chat.id, '❌ Gagal mengupload video tutorial. Pastikan format didukung dan ukuran tidak melebihi batas Telegram.');
+                    return teleBotInfo.sendMessage(msg.chat.id, '❌ Gagal mengupload tutorial. Pastikan format didukung dan ukuran tidak melebihi batas Telegram.');
                 }
             }
 
@@ -3526,7 +3543,6 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
     let payload = {};
     let cleanHost = srv.host.replace(/^https?:\/\//i, '');
 
-    // LOGIKA PAYLOAD: PERBAIKAN TRIAL AGAR TIDAK DITOLAK SERVER (Hanya mengirim parameter wajib sama seperti PHP)
     if (mode === 'trial') {
         payload = { 
             timelimit: "30m", 
@@ -3552,15 +3568,13 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
     try {
         let resApi = await axios.post(endpoint, payload, {
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer ' + srv.api_key },
-            timeout: 120000, // Timeout ditingkatkan jadi 120 detik (2 menit)
-            validateStatus: () => true, // Menangkap semua HTTP status agar tidak masuk ke blok catch dan langsung dianggap error koneksi
+            timeout: 120000,
+            validateStatus: () => true, 
             httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
         });
 
-        // MUAT ULANG DATABASE AGAR SINKRON DENGAN TRANSAKSI LAIN SAAT MENUNGGU RESPONSE VPS
         db = loadJSON(dbFile);
         
-        // PERBAIKAN FATAL ERROR: Pastikan properti trial_claims ADA setelah reload db!
         if (!db[targetKey].trial_claims) {
             db[targetKey].trial_claims = {};
         }
@@ -3576,7 +3590,6 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
             
             let fixCity = srv.city || apiData.city || '-';
             let fixIsp = srv.isp || apiData.isp || '-';
-            // Untuk Trial, server akan memberikan username acak di resApi.data.username
             let vpnUser = apiData.username || vpnUsername || "TrialUser";
 
             if (protoLower === 'ssh') {
@@ -3603,7 +3616,6 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
                 vpnConfig.products[productId].stok -= 1;
                 saveJSON(vpnConfigFile, vpnConfig);
             } else if (mode === 'trial') {
-                // Simpan tanggal klaim trial terbaru (Aman karena objek trial_claims sudah dipastikan ADA)
                 db[targetKey].trial_claims[serverKey] = Date.now();
             }
             
@@ -3638,7 +3650,6 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
 
             let namaUser = db[targetKey].username || targetKey;
 
-            // HANYA REGULER YANG MASUK TRANSAKSI GLOBAL DAN BROADCAST
             if (mode !== 'trial') {
                 let globalTrx = loadJSON(globalTrxFile);
                 let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
@@ -3649,7 +3660,6 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
                 sendBroadcastSuccess(prodName, namaUser, vpnUser, hargaFix, paymentMethod);
             }
 
-            // ADMIN NOTIF TETAP JALAN UNTUK KEDUANYA (Trial/Reguler)
             let emailUser = db[targetKey].email || '-';
             let teleSuccess = `🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${vpnUser}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: ${mode === 'trial' ? 'Gratis (Trial)' : paymentMethod}\n📦 Sisa Stok: ${mode === 'reguler' ? vpnConfig.products[productId].stok : 'Trial'}`;
             sendTelegramAdmin(teleSuccess);
@@ -4708,28 +4718,36 @@ menu_tutorial() {
                 
                 echo -e "Anda bisa memasukkan URL video (mp4) untuk didownload otomatis,"
                 echo -e "ATAU masukkan path file lokal di VPS (contoh: /root/video.mp4)"
-                read -p "URL / Path Video: " t_video_src
-                read -p "Nama file saat disimpan (contoh: tutor1.mp4): " t_video_name
-                read -p "Masukkan Deskripsi: " t_desc
+                echo -e "ATAU KOSONGKAN saja jika tutorial ini HANYA BERUPA TEKS."
+                read -p "URL / Path Video (Boleh Kosong): " t_video_src
                 
-                mkdir -p public/tutorials
-                
-                if [[ "$t_video_src" == http* ]]; then
-                    echo -e "${C_CYAN}⏳ Mendownload video...${C_RST}"
-                    wget -qO "public/tutorials/$t_video_name" "$t_video_src"
-                    if [ $? -eq 0 ]; then
-                        echo -e "${C_GREEN}✅ Video berhasil didownload!${C_RST}"
-                    else
-                        echo -e "${C_RED}❌ Gagal mendownload video.${C_RST}"
-                    fi
+                if [ -z "$t_video_src" ]; then
+                    t_video_name="-"
+                    echo -e "${C_YELLOW}Tutorial ini dibuat tanpa video (hanya teks).${C_RST}"
                 else
-                    if [ -f "$t_video_src" ]; then
-                        cp "$t_video_src" "public/tutorials/$t_video_name"
-                        echo -e "${C_GREEN}✅ Video berhasil dicopy!${C_RST}"
+                    read -p "Nama file saat disimpan (contoh: tutor1.mp4): " t_video_name
+                    mkdir -p public/tutorials
+                    
+                    if [[ "$t_video_src" == http* ]]; then
+                        echo -e "${C_CYAN}⏳ Mendownload video...${C_RST}"
+                        wget -qO "public/tutorials/$t_video_name" "$t_video_src"
+                        if [ $? -eq 0 ]; then
+                            echo -e "${C_GREEN}✅ Video berhasil didownload!${C_RST}"
+                        else
+                            echo -e "${C_RED}❌ Gagal mendownload video.${C_RST}"
+                        fi
                     else
-                        echo -e "${C_RED}❌ File lokal tidak ditemukan. Melanjutkan simpan data saja...${C_RST}"
+                        if [ -f "$t_video_src" ]; then
+                            cp "$t_video_src" "public/tutorials/$t_video_name"
+                            echo -e "${C_GREEN}✅ Video berhasil dicopy!${C_RST}"
+                        else
+                            echo -e "${C_RED}❌ File lokal tidak ditemukan. Melanjutkan simpan data saja...${C_RST}"
+                        fi
                     fi
                 fi
+                
+                echo -e "Untuk baris baru gunakan tag <br>, atau tulis teks panjang."
+                read -p "Masukkan Deskripsi (Bisa paragraf/list): " t_desc
                 
                 node -e "
                     const crypt = require('./tendo_crypt.js');
@@ -4757,7 +4775,7 @@ menu_tutorial() {
                 read -p "Pilih nomor tutorial yang ingin diedit: " t_num
                 if [[ "$t_num" =~ ^[0-9]+$ ]]; then
                     read -p "Judul Baru (Kosongkan jika tidak diubah): " t_judul
-                    read -p "Nama File Video Baru (Kosongkan jika tidak diubah): " t_video
+                    read -p "Nama File Video Baru (Kosongkan jika tidak diubah, isi '-' untuk hapus video): " t_video
                     read -p "Deskripsi Baru (Kosongkan jika tidak diubah): " t_desc
                     
                     node -e "
@@ -4796,7 +4814,7 @@ menu_tutorial() {
                         if(db[idx]) {
                             let videoName = db[idx].video;
                             let filepath = 'public/tutorials/' + videoName;
-                            if(fs.existsSync(filepath)) {
+                            if(videoName !== '-' && fs.existsSync(filepath)) {
                                 fs.unlinkSync(filepath);
                                 console.log('\x1b[33mFile video ' + videoName + ' dihapus.\x1b[0m');
                             }
