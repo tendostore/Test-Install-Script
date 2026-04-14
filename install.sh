@@ -1271,30 +1271,32 @@ EOF
         let currentVpnBasePrice = 0; let currentVpnBaseDesc = "";
         let bannerInterval; let qrisInterval;
 
-        let savedTheme = localStorage.getItem('tendo_theme');
         let currentHour = new Date().getHours();
         let isDarkTime = (currentHour >= 18 || currentHour < 6);
 
-        if(savedTheme === 'dark' || (!savedTheme && isDarkTime)) {
+        if(isDarkTime) {
             document.body.classList.add('dark-mode');
             if(document.getElementById('theme-text')) document.getElementById('theme-text').innerText = "Mode Terang";
+            localStorage.setItem('tendo_theme', 'dark');
         } else {
             document.body.classList.remove('dark-mode');
             if(document.getElementById('theme-text')) document.getElementById('theme-text').innerText = "Mode Gelap";
+            localStorage.setItem('tendo_theme', 'light');
         }
 
         setInterval(() => {
-            let saved = localStorage.getItem('tendo_theme');
-            if(!saved) { 
-                let hr = new Date().getHours();
-                let isDark = (hr >= 18 || hr < 6);
-                if(isDark) {
-                    document.body.classList.add('dark-mode');
-                    if(document.getElementById('theme-text')) document.getElementById('theme-text').innerText = "Mode Terang";
-                } else {
-                    document.body.classList.remove('dark-mode');
-                    if(document.getElementById('theme-text')) document.getElementById('theme-text').innerText = "Mode Gelap";
-                }
+            let hr = new Date().getHours();
+            let isDark = (hr >= 18 || hr < 6);
+            let bodyIsDark = document.body.classList.contains('dark-mode');
+            
+            if(isDark && !bodyIsDark) {
+                document.body.classList.add('dark-mode');
+                if(document.getElementById('theme-text')) document.getElementById('theme-text').innerText = "Mode Terang";
+                localStorage.setItem('tendo_theme', 'dark');
+            } else if(!isDark && bodyIsDark) {
+                document.body.classList.remove('dark-mode');
+                if(document.getElementById('theme-text')) document.getElementById('theme-text').innerText = "Mode Gelap";
+                localStorage.setItem('tendo_theme', 'light');
             }
         }, 60000);
 
@@ -2953,6 +2955,69 @@ if (configAwal.teleTokenInfo) {
             if (!cfg.teleChatId || msg.chat.id.toString() !== cfg.teleChatId.toString()) return;
             
             let text = msg.text || msg.caption || '';
+            
+            // FITUR UPLOAD BANNER VIA TELEGRAM BOT
+            let bannerMatch = text.match(/^\/(banner[1-5])/i);
+            if (bannerMatch) {
+                if (!msg.photo) return teleBotInfo.sendMessage(msg.chat.id, '❌ Silakan kirim gambar beserta caption /' + bannerMatch[1]);
+                try {
+                    teleBotInfo.sendMessage(msg.chat.id, '⏳ Mengupload ' + bannerMatch[1] + ' ke website...');
+                    let fileId = msg.photo[msg.photo.length - 1].file_id;
+                    let file = await teleBotInfo.getFile(fileId);
+                    let url = `https://api.telegram.org/file/bot${cfg.teleTokenInfo}/${file.file_path}`;
+                    let ext = file.file_path.split('.').pop() || 'jpg';
+                    let bannerFolder = './public/baner' + bannerMatch[1].replace(/banner/i, '');
+                    if (!fs.existsSync(bannerFolder)) fs.mkdirSync(bannerFolder, { recursive: true });
+                    
+                    let files = fs.readdirSync(bannerFolder);
+                    for (const f of files) fs.unlinkSync(bannerFolder + '/' + f);
+                    
+                    let filename = 'banner_' + Date.now() + '.' + ext;
+                    let res = await axios.get(url, { responseType: 'stream' });
+                    const writer = fs.createWriteStream(bannerFolder + '/' + filename);
+                    res.data.pipe(writer);
+                    await new Promise((resolve) => writer.on('finish', resolve));
+                    
+                    return teleBotInfo.sendMessage(msg.chat.id, '✅ ' + bannerMatch[1].toUpperCase() + ' berhasil diperbarui di website!');
+                } catch(e) {
+                    return teleBotInfo.sendMessage(msg.chat.id, '❌ Gagal mengupload banner.');
+                }
+            }
+
+            // FITUR UPLOAD VIDEO TUTORIAL VIA TELEGRAM BOT
+            if (text.startsWith('/tutorial')) {
+                let desc = text.replace('/tutorial', '').trim();
+                if (!msg.video) return teleBotInfo.sendMessage(msg.chat.id, '❌ Silakan kirim Video (.mp4) beserta caption: /tutorial [Deskripsi]');
+                if (!desc) return teleBotInfo.sendMessage(msg.chat.id, '❌ Deskripsi/Judul tidak boleh kosong. Gunakan format: /tutorial [Deskripsi]');
+                
+                try {
+                    teleBotInfo.sendMessage(msg.chat.id, '⏳ Mendownload dan menambahkan video tutorial ke website...');
+                    let fileId = msg.video.file_id;
+                    let file = await teleBotInfo.getFile(fileId);
+                    let url = `https://api.telegram.org/file/bot${cfg.teleTokenInfo}/${file.file_path}`;
+                    let ext = file.file_path.split('.').pop() || 'mp4';
+                    let vidFilename = 'tutor_' + Date.now() + '.' + ext;
+                    
+                    let res = await axios.get(url, { responseType: 'stream' });
+                    const writer = fs.createWriteStream('./public/tutorials/' + vidFilename);
+                    res.data.pipe(writer);
+                    await new Promise((resolve) => writer.on('finish', resolve));
+                    
+                    let dbTut = loadJSON(tutorialFile);
+                    dbTut.push({
+                        id: 'TUT-' + Date.now(),
+                        title: desc,
+                        video: vidFilename,
+                        desc: desc
+                    });
+                    saveJSON(tutorialFile, dbTut);
+                    
+                    return teleBotInfo.sendMessage(msg.chat.id, '✅ Video Tutorial berhasil ditambahkan ke website!');
+                } catch(e) {
+                    return teleBotInfo.sendMessage(msg.chat.id, '❌ Gagal mengupload video tutorial. Pastikan format didukung dan ukuran tidak melebihi batas Telegram.');
+                }
+            }
+
             if (text.startsWith('/info ')) {
                 text = text.replace('/info ', '');
                 let imageFilename = null;
