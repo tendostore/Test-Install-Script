@@ -2955,6 +2955,15 @@ let teleBotInfo = null;
 if (configAwal.teleTokenInfo) {
     try {
         teleBotInfo = new TelegramBot(configAwal.teleTokenInfo, {polling: true});
+        
+        // Mencegah crash akibat polling error
+        teleBotInfo.on('polling_error', (error) => {
+            console.log('Telegram Polling Error:', error.message || error);
+        });
+        teleBotInfo.on('error', (error) => {
+            console.log('Telegram Error:', error.message || error);
+        });
+
         teleBotInfo.on('message', async (msg) => {
             let cfg = loadJSON(configFile);
             if (!cfg.teleChatId || msg.chat.id.toString() !== cfg.teleChatId.toString()) return;
@@ -3000,6 +3009,14 @@ if (configAwal.teleTokenInfo) {
                     let parts = desc.split('|');
                     title = parts[0].trim();
                     detail = parts.slice(1).join('|').trim();
+                } else {
+                    let lines = desc.split('\n');
+                    title = lines[0].trim();
+                    if(lines.length > 1) {
+                        detail = lines.slice(1).join('\n').trim();
+                    } else {
+                        detail = title;
+                    }
                 }
 
                 try {
