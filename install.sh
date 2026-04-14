@@ -2956,7 +2956,6 @@ if (configAwal.teleTokenInfo) {
     try {
         teleBotInfo = new TelegramBot(configAwal.teleTokenInfo, {polling: true});
         
-        // Mencegah crash akibat polling error
         teleBotInfo.on('polling_error', (error) => {
             console.log('Telegram Polling Error:', error.message || error);
         });
@@ -2987,18 +2986,25 @@ if (configAwal.teleTokenInfo) {
                     for (const f of files) fs.unlinkSync(bannerFolder + '/' + f);
                     
                     let filename = 'banner_' + Date.now() + '.' + ext;
-                    let res = await axios.get(url, { responseType: 'stream' });
-                    const writer = fs.createWriteStream(bannerFolder + '/' + filename);
-                    res.data.pipe(writer);
-                    await new Promise((resolve) => writer.on('finish', resolve));
                     
-                    return teleBotInfo.sendMessage(msg.chat.id, '✅ ' + bannerMatch[1].toUpperCase() + ' berhasil diperbarui di website!');
+                    try {
+                        let res = await axios.get(url, { responseType: 'stream', timeout: 60000 });
+                        const writer = fs.createWriteStream(bannerFolder + '/' + filename);
+                        res.data.pipe(writer);
+                        await new Promise((resolve, reject) => {
+                            writer.on('finish', resolve);
+                            writer.on('error', reject);
+                        });
+                        return teleBotInfo.sendMessage(msg.chat.id, '✅ ' + bannerMatch[1].toUpperCase() + ' berhasil diperbarui di website!');
+                    } catch (downloadErr) {
+                        return teleBotInfo.sendMessage(msg.chat.id, '❌ Gagal mengunduh gambar banner dari Telegram.');
+                    }
                 } catch(e) {
-                    return teleBotInfo.sendMessage(msg.chat.id, '❌ Gagal mengupload banner.');
+                    return teleBotInfo.sendMessage(msg.chat.id, '❌ Gagal memproses banner.');
                 }
             }
 
-            // FITUR UPLOAD TUTORIAL VIA TELEGRAM BOT (Mendukung Teks Saja Tanpa Video)
+            // FITUR UPLOAD TUTORIAL VIA TELEGRAM BOT
             if (text.startsWith('/tutorial')) {
                 let desc = text.replace('/tutorial', '').trim();
                 if (!desc) return teleBotInfo.sendMessage(msg.chat.id, '❌ Deskripsi/Judul tidak boleh kosong. Gunakan format: /tutorial [Judul] | [Deskripsi Berparagraf]');
@@ -3029,15 +3035,23 @@ if (configAwal.teleTokenInfo) {
                         let ext = file.file_path.split('.').pop() || 'mp4';
                         vidFilename = 'tutor_' + Date.now() + '.' + ext;
                         
-                        let res = await axios.get(url, { responseType: 'stream' });
-                        const writer = fs.createWriteStream('./public/tutorials/' + vidFilename);
-                        res.data.pipe(writer);
-                        await new Promise((resolve) => writer.on('finish', resolve));
+                        try {
+                            let res = await axios.get(url, { responseType: 'stream', timeout: 90000 });
+                            const writer = fs.createWriteStream('./public/tutorials/' + vidFilename);
+                            res.data.pipe(writer);
+                            await new Promise((resolve, reject) => {
+                                writer.on('finish', resolve);
+                                writer.on('error', reject);
+                            });
+                        } catch (downloadErr) {
+                            return teleBotInfo.sendMessage(msg.chat.id, '❌ Gagal mendownload video dari server Telegram. File mungkin terlalu besar atau koneksi terputus.');
+                        }
                     } else {
                         teleBotInfo.sendMessage(msg.chat.id, '⏳ Menambahkan tutorial teks ke website...');
                     }
                     
                     let dbTut = loadJSON(tutorialFile);
+                    if (!Array.isArray(dbTut)) dbTut = []; // VALIDASI ARRAY
                     dbTut.push({
                         id: 'TUT-' + Date.now(),
                         title: title,
@@ -3048,7 +3062,7 @@ if (configAwal.teleTokenInfo) {
                     
                     return teleBotInfo.sendMessage(msg.chat.id, '✅ Tutorial berhasil ditambahkan ke website!');
                 } catch(e) {
-                    return teleBotInfo.sendMessage(msg.chat.id, '❌ Gagal mengupload tutorial. Pastikan format didukung dan ukuran tidak melebihi batas Telegram.');
+                    return teleBotInfo.sendMessage(msg.chat.id, '❌ Gagal mengupload tutorial. Pastikan format didukung dan ukuran tidak melebihi batas.');
                 }
             }
 
@@ -3063,14 +3077,21 @@ if (configAwal.teleTokenInfo) {
                         let url = `https://api.telegram.org/file/bot${cfg.teleTokenInfo}/${file.file_path}`;
                         let ext = file.file_path.split('.').pop() || 'jpg';
                         imageFilename = 'info_' + Date.now() + '.' + ext;
-                        let res = await axios.get(url, { responseType: 'stream' });
+                        
+                        let res = await axios.get(url, { responseType: 'stream', timeout: 60000 });
                         const writer = fs.createWriteStream('./public/info_images/' + imageFilename);
                         res.data.pipe(writer);
-                        await new Promise((resolve) => writer.on('finish', resolve));
-                    } catch(e) {}
+                        await new Promise((resolve, reject) => {
+                            writer.on('finish', resolve);
+                            writer.on('error', reject);
+                        });
+                    } catch(e) {
+                        console.log("Download info image error:", e.message);
+                    }
                 }
                 
                 let notifs = loadJSON(notifFile);
+                if (!Array.isArray(notifs)) notifs = [];
                 let today = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'long', year:'numeric' });
                 notifs.unshift({ date: today, text: text, image: imageFilename || '' });
                 if(notifs.length > 20) notifs.pop();
@@ -3932,6 +3953,31 @@ async function startBot() {
     sock.ev.on('creds.update', saveCreds);
     sock.ev.on('connection.update', (u) => { if(u.connection === 'close') setTimeout(startBot, 4000); });
 
+    // FITUR AUTO BLOKIR PANGGILAN SEMENTARA (15 DETIK)
+    let callAttempts = {};
+    sock.ev.on('call', async (calls) => {
+        for (let call of calls) {
+            if (call.status === 'offer') {
+                let callerId = call.from;
+                callAttempts[callerId] = (callAttempts[callerId] || 0) + 1;
+                
+                if (callAttempts[callerId] >= 3) {
+                    await sock.sendMessage(callerId, { text: "Anda telah mencoba memanggil sebanyak 3 kali. Sesuai kebijakan sistem, nomor Anda diblokir sementara selama 15 detik untuk menjaga kenyamanan layanan. Terima kasih." });
+                    await sock.updateBlockStatus(callerId, 'block');
+                    callAttempts[callerId] = 0; // Reset Peringatan
+                    
+                    // Unblock setelah 15 detik
+                    setTimeout(async () => {
+                        await sock.updateBlockStatus(callerId, 'unblock');
+                        await sock.sendMessage(callerId, { text: "Blokir telah dibuka otomatis. Kami siap melayani Anda melalui pesan teks." });
+                    }, 15000);
+                } else {
+                    await sock.sendMessage(callerId, { text: "Mohon maaf, sistem kami tidak dapat menerima panggilan suara/video. Silakan tinggalkan pesan teks. (Peringatan " + callAttempts[callerId] + "/3)" });
+                }
+            }
+        }
+    });
+
     setInterval(() => {
         let currentlyMaintenance = cekPemeliharaan();
         if (currentlyMaintenance && !isMaintenanceNow) {
@@ -4769,6 +4815,7 @@ menu_tutorial() {
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let db = crypt.load('tutorial.json', []);
+                    if (!Array.isArray(db)) db = [];
                     db.push({
                         id: 'TUT-' + Date.now(),
                         title: '$t_judul',
@@ -4785,6 +4832,7 @@ menu_tutorial() {
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let db = crypt.load('tutorial.json', []);
+                    if(!Array.isArray(db)) db = [];
                     if(db.length === 0) { console.log('\x1b[31mBelum ada tutorial.\x1b[0m'); process.exit(0); }
                     db.forEach((t, i) => console.log('[' + (i+1) + '] ' + t.title + ' (' + t.video + ')'));
                 "
@@ -4798,6 +4846,7 @@ menu_tutorial() {
                     node -e "
                         const crypt = require('./tendo_crypt.js');
                         let db = crypt.load('tutorial.json', []);
+                        if(!Array.isArray(db)) db = [];
                         let idx = parseInt('$t_num') - 1;
                         if(db[idx]) {
                             if('$t_judul' !== '') db[idx].title = '$t_judul';
@@ -4817,6 +4866,7 @@ menu_tutorial() {
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let db = crypt.load('tutorial.json', []);
+                    if(!Array.isArray(db)) db = [];
                     if(db.length === 0) { console.log('\x1b[31mBelum ada tutorial.\x1b[0m'); process.exit(0); }
                     db.forEach((t, i) => console.log('[' + (i+1) + '] ' + t.title));
                 "
@@ -4827,6 +4877,7 @@ menu_tutorial() {
                         const crypt = require('./tendo_crypt.js');
                         const fs = require('fs');
                         let db = crypt.load('tutorial.json', []);
+                        if(!Array.isArray(db)) db = [];
                         let idx = parseInt('$t_num') - 1;
                         if(db[idx]) {
                             let videoName = db[idx].video;
@@ -4850,6 +4901,7 @@ menu_tutorial() {
                 node -e "
                     const crypt = require('./tendo_crypt.js');
                     let db = crypt.load('tutorial.json', []);
+                    if(!Array.isArray(db)) db = [];
                     if(db.length === 0) { console.log('\x1b[33mBelum ada tutorial.\x1b[0m'); }
                     else {
                         db.forEach((t, i) => {
