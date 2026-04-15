@@ -1720,6 +1720,7 @@ EOF
             await fetchAllProducts(); 
             fetchCustomLayout();
             fetchVPNConfig(); 
+            loadBanners(); 
         }
         function showDashboard() { pushState({screen: 'dashboard-screen'}); showDashboardInternal(); }
         
@@ -2953,6 +2954,8 @@ let otpCooldown = {};
 let isMaintenanceNow = cekPemeliharaan();
 
 let teleBotInfo = null;
+let teleState = {}; // State untuk bot interaktif
+
 if (configAwal.teleTokenInfo) {
     try {
         teleBotInfo = new TelegramBot(configAwal.teleTokenInfo, {polling: true});
@@ -2964,151 +2967,199 @@ if (configAwal.teleTokenInfo) {
             console.log('Telegram Info Error:', error.message || error);
         });
 
+        // HANDLER TOMBOL INTERAKTIF (CALLBACK QUERY)
+        teleBotInfo.on('callback_query', (callbackQuery) => {
+            const msg = callbackQuery.message;
+            const data = callbackQuery.data;
+            const chatId = msg.chat.id;
+
+            if (data === 'menu_info') {
+                teleState[chatId] = { action: 'wait_info' };
+                teleBotInfo.sendMessage(chatId, "📢 *KIRIM INFO*\n\nSilakan ketik Teks Info, atau kirim Gambar beserta Caption.\nInfo ini akan otomatis dikirim ke Website dan Saluran WhatsApp Anda.", {parse_mode: "Markdown"});
+            } else if (data === 'menu_banner') {
+                const opts = {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: "🖼️ Banner 1", callback_data: "wait_banner_1" }, { text: "🖼️ Banner 2", callback_data: "wait_banner_2" }],
+                            [{ text: "🖼️ Banner 3", callback_data: "wait_banner_3" }, { text: "🖼️ Banner 4", callback_data: "wait_banner_4" }],
+                            [{ text: "🖼️ Banner 5", callback_data: "wait_banner_5" }]
+                        ]
+                    }
+                };
+                teleBotInfo.sendMessage(chatId, "🖼️ *PILIH SLOT BANNER*\n\nPilih nomor banner yang ingin diganti/diisi:", {parse_mode: "Markdown", ...opts});
+            } else if (data.startsWith('wait_banner_')) {
+                let slot = data.split('_')[2];
+                teleState[chatId] = { action: 'wait_banner', slot: slot };
+                teleBotInfo.sendMessage(chatId, `🖼️ *UPLOAD BANNER ${slot}*\n\nSilakan kirimkan file GAMBAR (JPG/PNG) untuk dipasang di posisi Banner ${slot}.`, {parse_mode: "Markdown"});
+            } else if (data === 'menu_tutorial') {
+                teleState[chatId] = { action: 'wait_tutorial_title' };
+                teleBotInfo.sendMessage(chatId, "📚 *TAMBAH TUTORIAL*\n\nMari kita buat tahap demi tahap.\nPertama, silakan kirimkan *JUDUL* tutorial Anda:", {parse_mode: "Markdown"});
+            }
+        });
+
+        // HANDLER PESAN TEKS & GAMBAR
         teleBotInfo.on('message', async (msg) => {
             let cfg = loadJSON(configFile);
             if (!cfg.teleChatId || msg.chat.id.toString() !== cfg.teleChatId.toString()) return;
             
             let text = msg.text || msg.caption || '';
-            
-            // FITUR UPLOAD BANNER VIA TELEGRAM BOT INFO
-            let bannerMatch = text.match(/^\/(banner[1-5])/i);
-            if (bannerMatch) {
-                if (!msg.photo) return teleBotInfo.sendMessage(msg.chat.id, '❌ Silakan kirim gambar beserta caption /' + bannerMatch[1]);
-                try {
-                    teleBotInfo.sendMessage(msg.chat.id, '⏳ Mengupload ' + bannerMatch[1] + ' ke website...');
-                    let fileId = msg.photo[msg.photo.length - 1].file_id;
-                    let file = await teleBotInfo.getFile(fileId);
-                    let url = `https://api.telegram.org/file/bot${cfg.teleTokenInfo}/${file.file_path}`;
-                    let ext = file.file_path.split('.').pop() || 'jpg';
-                    let bannerFolder = './public/baner' + bannerMatch[1].replace(/banner/i, '');
-                    if (!fs.existsSync(bannerFolder)) fs.mkdirSync(bannerFolder, { recursive: true });
-                    
-                    let files = fs.readdirSync(bannerFolder);
-                    for (const f of files) fs.unlinkSync(bannerFolder + '/' + f);
-                    
-                    let filename = 'banner_' + Date.now() + '.' + ext;
-                    
-                    try {
-                        let res = await axios.get(url, { responseType: 'stream', timeout: 60000 });
-                        const writer = fs.createWriteStream(bannerFolder + '/' + filename);
-                        await pipeline(res.data, writer);
-                        return teleBotInfo.sendMessage(msg.chat.id, '✅ ' + bannerMatch[1].toUpperCase() + ' berhasil diperbarui di website!');
-                    } catch (downloadErr) {
-                        return teleBotInfo.sendMessage(msg.chat.id, '❌ Gagal mengunduh gambar banner dari Telegram.');
+            let chatId = msg.chat.id;
+
+            // MENAMPILKAN MENU INTERAKTIF
+            if (text === '/menu' || text === '/start' || text === '/info' || text === '/banner' || text === '/tutorial') {
+                const opts = {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: "📢 Kirim Info & Broadcast", callback_data: "menu_info" }],
+                            [{ text: "🖼️ Upload Banner Website", callback_data: "menu_banner" }],
+                            [{ text: "📚 Tambah Tutorial", callback_data: "menu_tutorial" }]
+                        ]
                     }
-                } catch(e) {
-                    return teleBotInfo.sendMessage(msg.chat.id, '❌ Gagal memproses banner.');
-                }
+                };
+                return teleBotInfo.sendMessage(chatId, "🛠️ *MENU KONTEN DIGITAL TENDO*\n\nSilakan pilih menu di bawah ini dengan sekali klik:", {parse_mode: "Markdown", ...opts});
             }
 
-            // FITUR UPLOAD TUTORIAL VIA TELEGRAM BOT INFO
-            if (text.startsWith('/tutorial')) {
-                let desc = text.replace('/tutorial', '').trim();
-                if (!desc) return teleBotInfo.sendMessage(msg.chat.id, '❌ Deskripsi/Judul tidak boleh kosong. Gunakan format: /tutorial [Judul] | [Deskripsi Berparagraf]');
+            // PROSES STATE (TUNGGU INPUT USER)
+            if (teleState[chatId]) {
+                let state = teleState[chatId];
                 
-                let title = desc;
-                let detail = desc;
-                if(desc.includes('|')) {
-                    let parts = desc.split('|');
-                    title = parts[0].trim();
-                    detail = parts.slice(1).join('|').trim();
-                } else {
-                    let lines = desc.split('\n');
-                    title = lines[0].trim();
-                    if(lines.length > 1) {
-                        detail = lines.slice(1).join('\n').trim();
-                    } else {
-                        detail = title;
-                    }
-                }
-
-                try {
-                    let vidFilename = '-';
-                    if (msg.video) {
-                        teleBotInfo.sendMessage(msg.chat.id, '⏳ Mendownload dan menambahkan tutorial video ke website...');
-                        let fileId = msg.video.file_id;
-                        let file = await teleBotInfo.getFile(fileId);
-                        let url = `https://api.telegram.org/file/bot${cfg.teleTokenInfo}/${file.file_path}`;
-                        let ext = file.file_path.split('.').pop() || 'mp4';
-                        vidFilename = 'tutor_' + Date.now() + '.' + ext;
-                        
+                // 1. PROSES INFO
+                if (state.action === 'wait_info') {
+                    if(!text && !msg.photo) return teleBotInfo.sendMessage(chatId, '❌ Mohon kirimkan Teks atau Gambar dengan caption.');
+                    
+                    let imageFilename = null;
+                    if (msg.photo) {
                         try {
-                            let res = await axios.get(url, { responseType: 'stream', timeout: 120000 });
-                            const writer = fs.createWriteStream('./public/tutorials/' + vidFilename);
+                            teleBotInfo.sendMessage(chatId, '⏳ Menyimpan gambar Info...');
+                            let fileId = msg.photo[msg.photo.length - 1].file_id;
+                            let file = await teleBotInfo.getFile(fileId);
+                            let url = `https://api.telegram.org/file/bot${cfg.teleTokenInfo}/${file.file_path}`;
+                            let ext = file.file_path.split('.').pop() || 'jpg';
+                            imageFilename = 'info_' + Date.now() + '.' + ext;
+                            let res = await axios.get(url, { responseType: 'stream', timeout: 60000 });
+                            const writer = fs.createWriteStream('./public/info_images/' + imageFilename);
                             await pipeline(res.data, writer);
-                        } catch (downloadErr) {
-                            return teleBotInfo.sendMessage(msg.chat.id, '❌ Gagal mendownload video dari server Telegram. File mungkin terlalu besar atau koneksi terputus.');
-                        }
-                    } else {
-                        teleBotInfo.sendMessage(msg.chat.id, '⏳ Menambahkan tutorial teks ke website...');
+                        } catch(e) { console.log("Download info image error:", e.message); }
                     }
                     
-                    let dbTut = loadJSON(tutorialFile);
-                    if (!Array.isArray(dbTut)) dbTut = []; 
-                    dbTut.push({
-                        id: 'TUT-' + Date.now(),
-                        title: title,
-                        video: vidFilename,
-                        desc: detail
-                    });
-                    saveJSON(tutorialFile, dbTut);
-                    
-                    return teleBotInfo.sendMessage(msg.chat.id, '✅ Tutorial berhasil ditambahkan ke website!');
-                } catch(e) {
-                    return teleBotInfo.sendMessage(msg.chat.id, '❌ Gagal mengupload tutorial. Pastikan format didukung dan ukuran tidak melebihi batas.');
-                }
-            }
+                    let notifs = loadJSON(notifFile);
+                    if (!Array.isArray(notifs)) notifs = [];
+                    let today = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'long', year:'numeric' });
+                    notifs.unshift({ date: today, text: text, image: imageFilename || '' });
+                    if(notifs.length > 20) notifs.pop();
+                    saveJSON(notifFile, notifs);
 
-            if (text.startsWith('/info ')) {
-                text = text.replace('/info ', '');
-                let imageFilename = null;
-                
-                if (msg.photo) {
+                    // Kirim ke Channel Telegram Jika Ada
+                    if (cfg.teleChannelId) {
+                        let chanIdStr = cfg.teleChannelId.toString();
+                        if (!chanIdStr.startsWith('-100') && !chanIdStr.startsWith('@')) chanIdStr = '-100' + chanIdStr;
+                        let sentMsg;
+                        if (imageFilename) sentMsg = await teleBotInfo.sendPhoto(chanIdStr, './public/info_images/' + imageFilename, {caption: text}).catch(e=>{});
+                        else sentMsg = await teleBotInfo.sendMessage(chanIdStr, text).catch(e=>{});
+                        if (sentMsg && sentMsg.message_id) await teleBotInfo.pinChatMessage(chanIdStr, sentMsg.message_id).catch(e=>{});
+                    }
+
+                    // Kirim ke Broadcast WA Channel
+                    if (cfg.waBroadcastId && globalSock) {
+                        let waMsg = `📢 *INFO TERBARU*\n\n${text}`;
+                        let targetWa = cfg.waBroadcastId;
+                        // Otomatis deteksi ID Channel jika format angka
+                        if (!targetWa.includes('@')) targetWa = targetWa + '@newsletter';
+                        
+                        if (imageFilename) {
+                            globalSock.sendMessage(targetWa, { image: { url: './public/info_images/' + imageFilename }, caption: waMsg }).catch(e=>console.log("WA Channel Error"));
+                        } else {
+                            globalSock.sendMessage(targetWa, { text: waMsg }).catch(e=>console.log("WA Channel Error"));
+                        }
+                    }
+
+                    teleBotInfo.sendMessage(chatId, '✅ *Berhasil!* Info telah ditambahkan ke Website, Telegram Channel, dan Saluran WhatsApp.', {parse_mode: "Markdown"});
+                    delete teleState[chatId];
+                    return;
+                }
+
+                // 2. PROSES BANNER
+                if (state.action === 'wait_banner') {
+                    if (!msg.photo) return teleBotInfo.sendMessage(chatId, '❌ Anda harus mengirim file Gambar (JPG/PNG).');
                     try {
+                        teleBotInfo.sendMessage(chatId, `⏳ Mengupload gambar ke Banner ${state.slot}...`);
                         let fileId = msg.photo[msg.photo.length - 1].file_id;
                         let file = await teleBotInfo.getFile(fileId);
                         let url = `https://api.telegram.org/file/bot${cfg.teleTokenInfo}/${file.file_path}`;
                         let ext = file.file_path.split('.').pop() || 'jpg';
-                        imageFilename = 'info_' + Date.now() + '.' + ext;
+                        let bannerFolder = './public/baner' + state.slot;
+                        if (!fs.existsSync(bannerFolder)) fs.mkdirSync(bannerFolder, { recursive: true });
                         
+                        let files = fs.readdirSync(bannerFolder);
+                        for (const f of files) fs.unlinkSync(bannerFolder + '/' + f);
+                        
+                        let filename = 'banner_' + Date.now() + '.' + ext;
                         let res = await axios.get(url, { responseType: 'stream', timeout: 60000 });
-                        const writer = fs.createWriteStream('./public/info_images/' + imageFilename);
+                        const writer = fs.createWriteStream(bannerFolder + '/' + filename);
                         await pipeline(res.data, writer);
+                        
+                        teleBotInfo.sendMessage(chatId, `✅ *Sukses!* Gambar berhasil dipasang di posisi Banner ${state.slot}. Refresh web untuk melihatnya.`, {parse_mode: "Markdown"});
                     } catch(e) {
-                        console.log("Download info image error:", e.message);
+                        teleBotInfo.sendMessage(chatId, '❌ Gagal memproses gambar banner.');
                     }
-                }
-                
-                let notifs = loadJSON(notifFile);
-                if (!Array.isArray(notifs)) notifs = [];
-                let today = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'long', year:'numeric' });
-                notifs.unshift({ date: today, text: text, image: imageFilename || '' });
-                if(notifs.length > 20) notifs.pop();
-                saveJSON(notifFile, notifs);
-
-                if (cfg.teleChannelId) {
-                    let chanIdStr = cfg.teleChannelId.toString();
-                    if (!chanIdStr.startsWith('-100') && !chanIdStr.startsWith('@')) chanIdStr = '-100' + chanIdStr;
-                    
-                    let sentMsg;
-                    if (imageFilename) sentMsg = await teleBotInfo.sendPhoto(chanIdStr, './public/info_images/' + imageFilename, {caption: text}).catch(e=>{});
-                    else sentMsg = await teleBotInfo.sendMessage(chanIdStr, text).catch(e=>{});
-                    
-                    if (sentMsg && sentMsg.message_id) {
-                        await teleBotInfo.pinChatMessage(chanIdStr, sentMsg.message_id).catch(e=>{});
-                    }
+                    delete teleState[chatId];
+                    return;
                 }
 
-                if (cfg.waBroadcastId && globalSock) {
-                    let waMsg = `📢 *INFO TERBARU*\n\n${text}`;
-                    if (imageFilename) {
-                        globalSock.sendMessage(cfg.waBroadcastId, { image: { url: './public/info_images/' + imageFilename }, caption: waMsg }).catch(e=>{});
+                // 3. PROSES TUTORIAL BERTAHAP
+                if (state.action === 'wait_tutorial_title') {
+                    if(!text) return teleBotInfo.sendMessage(chatId, '❌ Tolong kirim Teks untuk Judul.');
+                    teleState[chatId].title = text;
+                    teleState[chatId].action = 'wait_tutorial_desc';
+                    return teleBotInfo.sendMessage(chatId, "✅ Judul disimpan.\n\nSekarang kirimkan *DESKRIPSI / ISI* tutorialnya:", {parse_mode: "Markdown"});
+                }
+
+                if (state.action === 'wait_tutorial_desc') {
+                    if(!text) return teleBotInfo.sendMessage(chatId, '❌ Tolong kirim Teks untuk Deskripsi.');
+                    teleState[chatId].desc = text;
+                    teleState[chatId].action = 'wait_tutorial_video';
+                    return teleBotInfo.sendMessage(chatId, "✅ Deskripsi disimpan.\n\nTerakhir, kirimkan *VIDEO (MP4)* tutorial.\n\n_Jika Anda HANYA MENGGUNAKAN TEKS, silakan ketik_ `/lewati`", {parse_mode: "Markdown"});
+                }
+
+                if (state.action === 'wait_tutorial_video') {
+                    let vidFilename = '-';
+                    if (text === '/lewati' || text === '/skip') {
+                        teleBotInfo.sendMessage(chatId, "⏳ Menyimpan Tutorial Teks ke website...");
+                    } else if (msg.video) {
+                        try {
+                            teleBotInfo.sendMessage(chatId, '⏳ Mendownload Video dan memproses tutorial...');
+                            let fileId = msg.video.file_id;
+                            let file = await teleBotInfo.getFile(fileId);
+                            let url = `https://api.telegram.org/file/bot${cfg.teleTokenInfo}/${file.file_path}`;
+                            let ext = file.file_path.split('.').pop() || 'mp4';
+                            vidFilename = 'tutor_' + Date.now() + '.' + ext;
+                            
+                            let res = await axios.get(url, { responseType: 'stream', timeout: 120000 });
+                            const writer = fs.createWriteStream('./public/tutorials/' + vidFilename);
+                            await pipeline(res.data, writer);
+                        } catch(e) {
+                            delete teleState[chatId];
+                            return teleBotInfo.sendMessage(chatId, '❌ Gagal mendownload video. Mungkin file terlalu besar.');
+                        }
                     } else {
-                        globalSock.sendMessage(cfg.waBroadcastId, { text: waMsg }).catch(e=>{});
+                        return teleBotInfo.sendMessage(chatId, '❌ Kirim file Video, atau ketik `/lewati` jika hanya teks.', {parse_mode: "Markdown"});
                     }
-                }
 
-                teleBotInfo.sendMessage(cfg.teleChatId, '✅ Info berhasil disebarkan dan disematkan (Pin) ke Website, Telegram Channel, dan WA Broadcast!').catch(e=>{});
+                    // Simpan ke DB Tutorial
+                    let dbTut = loadJSON(tutorialFile);
+                    if (!Array.isArray(dbTut)) dbTut = []; 
+                    dbTut.push({
+                        id: 'TUT-' + Date.now(),
+                        title: teleState[chatId].title,
+                        video: vidFilename,
+                        desc: teleState[chatId].desc
+                    });
+                    saveJSON(tutorialFile, dbTut);
+                    
+                    teleBotInfo.sendMessage(chatId, '✅ *Berhasil!* Tutorial telah ditambahkan ke Website.', {parse_mode: "Markdown"});
+                    delete teleState[chatId];
+                    return;
+                }
             }
         });
     } catch(e) {}
