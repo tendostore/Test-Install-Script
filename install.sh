@@ -1720,7 +1720,6 @@ EOF
             await fetchAllProducts(); 
             fetchCustomLayout();
             fetchVPNConfig(); 
-            loadBanners(); 
         }
         function showDashboard() { pushState({screen: 'dashboard-screen'}); showDashboardInternal(); }
         
@@ -2969,6 +2968,9 @@ if (configAwal.teleTokenInfo) {
 
         // HANDLER TOMBOL INTERAKTIF (CALLBACK QUERY)
         teleBotInfo.on('callback_query', (callbackQuery) => {
+            // FIX RESPONSIVITAS TOMBOL: Hentikan animasi loading seketika
+            teleBotInfo.answerCallbackQuery(callbackQuery.id).catch(e => {});
+            
             const msg = callbackQuery.message;
             const data = callbackQuery.data;
             const chatId = msg.chat.id;
@@ -4268,6 +4270,8 @@ async function tarikDataLayananOtomatis() {
 
         if (balasan.data && balasan.data.data) {
             let daftarPusat = balasan.data.data;
+            if (!Array.isArray(daftarPusat)) { console.log("\x1b[31m❌ Sinkronisasi Gagal. Cek IP Whitelist atau API Key Digiflazz Anda.\x1b[0m"); return; }
+            
             let produkLama = loadJSON(produkFile);
             let daftarLokal = {};
             let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
@@ -6098,6 +6102,9 @@ while true; do
                     "
                 fi
             fi
+            echo -e "\n${C_MAG}⏳ Membersihkan proses lama agar tidak bentrok...${C_RST}"
+            pm2 kill >/dev/null 2>&1
+            killall node >/dev/null 2>&1
             echo -e "\n${C_MAG}⏳ Menjalankan bot... (Tekan CTRL+C untuk mematikan dan kembali ke menu)${C_RST}"
             export IP_ADDRESS=$(curl -s ifconfig.me)
             node index.js
@@ -6105,6 +6112,9 @@ while true; do
             read -p "Tekan Enter untuk kembali ke panel utama..."
             ;;
         3) 
+            echo -e "\n${C_MAG}⏳ Membersihkan proses lama agar tidak bentrok...${C_RST}"
+            pm2 kill >/dev/null 2>&1
+            killall node >/dev/null 2>&1
             pm2 delete tendo-bot >/dev/null 2>&1
             export IP_ADDRESS=$(curl -s ifconfig.me)
             pm2 start index.js --name "tendo-bot" >/dev/null 2>&1
