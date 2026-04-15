@@ -3061,21 +3061,32 @@ if (configAwal.teleTokenInfo) {
                         if (sentMsg && sentMsg.message_id) await teleBotInfo.pinChatMessage(chanIdStr, sentMsg.message_id).catch(e=>{});
                     }
 
-                    // Kirim ke Broadcast WA Channel
+                    // Kirim ke Broadcast WA Channel dengan await dan penanganan error
+                    let waSuccess = false;
                     if (cfg.waBroadcastId && globalSock) {
                         let waMsg = `📢 *INFO TERBARU*\n\n${text}`;
                         let targetWa = cfg.waBroadcastId;
-                        // Otomatis deteksi ID Channel jika format angka
                         if (!targetWa.includes('@')) targetWa = targetWa + '@newsletter';
                         
-                        if (imageFilename) {
-                            globalSock.sendMessage(targetWa, { image: { url: './public/info_images/' + imageFilename }, caption: waMsg }).catch(e=>console.log("WA Channel Error"));
-                        } else {
-                            globalSock.sendMessage(targetWa, { text: waMsg }).catch(e=>console.log("WA Channel Error"));
+                        try {
+                            if (imageFilename) {
+                                await globalSock.sendMessage(targetWa, { image: { url: './public/info_images/' + imageFilename }, caption: waMsg });
+                            } else {
+                                await globalSock.sendMessage(targetWa, { text: waMsg });
+                            }
+                            waSuccess = true;
+                        } catch(err) {
+                            console.log("WA Channel Error:", err.message);
+                            teleBotInfo.sendMessage(chatId, `⚠️ *Peringatan:* Info berhasil masuk Web, TAPI gagal dikirim ke Saluran WhatsApp.\nPastikan ID WA Saluran benar dan bot sudah dijadikan *Admin*.\n\nError: ${err.message}`, {parse_mode: "Markdown"});
                         }
                     }
 
-                    teleBotInfo.sendMessage(chatId, '✅ *Berhasil!* Info telah ditambahkan ke Website, Telegram Channel, dan Saluran WhatsApp.', {parse_mode: "Markdown"});
+                    if(waSuccess) {
+                        teleBotInfo.sendMessage(chatId, '✅ *Berhasil!* Info telah ditambahkan ke Website, Telegram Channel, dan Saluran WhatsApp.', {parse_mode: "Markdown"});
+                    } else if (!cfg.waBroadcastId || !globalSock) {
+                        teleBotInfo.sendMessage(chatId, '✅ *Berhasil!* Info telah ditambahkan ke Website & Telegram Channel.\n_(Saluran WA belum disetting atau bot belum terkoneksi)_', {parse_mode: "Markdown"});
+                    }
+                    
                     delete teleState[chatId];
                     return;
                 }
