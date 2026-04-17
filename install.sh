@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # ==========================================
-# Script Name: GoPay VPS System Manager
-# Version: 7.2 (Bot Menu Updated)
-# Description: Terminal Menu interaktif untuk setup VPS
+# Script Name: GoPay VPS System Manager (Fixed Version)
+# Version: 8.0
+# Description: Terminal Menu + Fixed Telegram Bot Logic
 # ==========================================
 
 # Definisi Warna
@@ -60,13 +60,12 @@ EOF
     sudo certbot --nginx -d $DOMAIN_NAME --non-interactive --agree-tos -m admin@$DOMAIN_NAME || echo -e "${RED}Gagal mendapatkan SSL. Pastikan DNS sudah diarahkan ke IP VPS ini.${NC}"
 
     echo -e "\n${GREEN}Setup Domain dan SSL Selesai!${NC}"
-    echo -e "Website / API Anda sekarang dapat diakses di: https://$DOMAIN_NAME"
+    echo -e "API Anda sekarang aktif di: https://$DOMAIN_NAME"
     read -p "Tekan Enter untuk kembali ke Menu Utama..."
 }
 
-SELESAI
 # ==========================================
-# FUNGSI: SETUP BOT TELEGRAM
+# FUNGSI: SETUP BOT TELEGRAM (FIXED LOGIC)
 # ==========================================
 setup_telegram_bot() {
     clear
@@ -78,7 +77,7 @@ setup_telegram_bot() {
     read -p "Masukkan Admin Chat ID Anda: " CHAT_ID
     
     if [[ -z "$BOT_TOKEN" || -z "$CHAT_ID" ]]; then
-        echo -e "${RED}Error: Token dan Chat ID tidak boleh kosong!${NC}"
+        echo -e "${RED}Error: Data tidak lengkap!${NC}"
         sleep 2
         return
     fi
@@ -88,69 +87,104 @@ setup_telegram_bot() {
     sudo chown -R $USER:$USER $APP_DIR
     cd $APP_DIR
 
-    echo -e "\n${YELLOW}[+] Menginstal Node.js dan PM2...${NC}"
+    echo -e "\n${YELLOW}[+] Menginstal Dependensi Node.js...${NC}"
     curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
     sudo apt install -y nodejs
     sudo npm install -g pm2
-
-    echo -e "\n${YELLOW}[+] Inisialisasi Project Node.js...${NC}"
     npm init -y > /dev/null 2>&1
     npm install node-telegram-bot-api axios > /dev/null 2>&1
 
-    echo -e "\n${YELLOW}[+] Menulis konfigurasi bot...${NC}"
+    echo -e "\n${YELLOW}[+] Menulis file bot.js dengan logika Fixed OTP...${NC}"
     
-    cat << EOF > bot.js
+    cat << 'EOF' > bot.js
 const TelegramBot = require('node-telegram-bot-api');
-const bot = new TelegramBot('${BOT_TOKEN}', {polling: true});
-const ADMIN_CHAT_ID = '${CHAT_ID}';
+const axios = require('axios');
 
-// Variabel untuk menyimpan sesi API secara internal
-let SESSION_TOKEN = "Belum Login";
-let DEVICE_ID = "Belum Diatur";
+// GANTI MANUAL BAGIAN INI JIKA PERLU
+const TELEGRAM_TOKEN = 'TOKEN_BOT_PLACEHOLDER';
+const ADMIN_CHAT_ID = 'CHAT_ID_PLACEHOLDER';
+const GOJEK_API_URL = "https://api.gojekapi.com";
+
+let GOJEK_HEADERS = {
+    'Content-Type': 'application/json',
+    'X-AppVersion': '4.80.1', 
+    'X-UniqueId': 'android_c1a2b3c4d5e6f7g8', 
+    'User-Agent': 'Gojek/4.80.1 (com.gojek.app; build:12345; Android 11)'
+};
+
+const bot = new TelegramBot(TELEGRAM_TOKEN, {polling: true});
+
+let SESSION_TOKEN = ""; 
+let TEMP_OTP_TOKEN = ""; 
+let userState = ""; 
 
 const mainKeyboard = {
     reply_markup: {
-        keyboard: [
-            ['🔑 Minta OTP', '📊 Cek Saldo'],
-            ['🌐 GoPay API', '⚙️ Settings']
-        ],
+        keyboard: [['🔑 Minta OTP', '📊 Cek Saldo'], ['🌐 GoPay API', '⚙️ Settings']],
         resize_keyboard: true
     }
 };
 
 bot.onText(/\/start/, (msg) => {
     if (msg.chat.id.toString() !== ADMIN_CHAT_ID) return;
-    bot.sendMessage(msg.chat.id, "👋 *Halo Admin! Panel Bot Terintegrasi Aktif.*", { 
-        parse_mode: "Markdown", 
-        ...mainKeyboard 
-    });
+    userState = ""; 
+    bot.sendMessage(msg.chat.id, "👋 *Halo Admin! Panel Bot Terintegrasi Aktif.*", { parse_mode: "Markdown", ...mainKeyboard });
 });
 
-bot.on('message', (msg) => {
-    if (msg.chat.id.toString() !== ADMIN_CHAT_ID) return;
-    
+bot.on('message', async (msg) => {
+    const chatId = msg.chat.id;
     const text = msg.text;
+    if (chatId.toString() !== ADMIN_CHAT_ID) return;
 
     if (text === '🔑 Minta OTP') {
-        bot.sendMessage(msg.chat.id, "📲 *Request OTP*\nSilakan kirim nomor HP Anda (format: 085xxx).", {parse_mode: "Markdown"});
-    }
-    
-    else if (text === '📊 Cek Saldo') {
-        bot.sendMessage(msg.chat.id, "🔍 Sedang mengambil data saldo terbaru...");
-        // Tambahkan logika axios.get saldo di sini
+        userState = "WAITING_PHONE";
+        return bot.sendMessage(chatId, "📲 *Request OTP*\nSilakan kirim nomor HP Anda (format: 085xxx).", {parse_mode: "Markdown"});
     }
 
-    else if (text === '🌐 GoPay API') {
-        const apiInfo = "🌐 *Status GoPay API*\n\n" +
-                        "▪️ *Session:* " + SESSION_TOKEN.substring(0, 10) + "...\n" +
-                        "▪️ *Device:* " + DEVICE_ID + "\n" +
-                        "▪️ *Status:* Standby\n\n" +
-                        "Klik tombol 'Minta OTP' jika sesi kedaluwarsa.";
-        bot.sendMessage(msg.chat.id, apiInfo, {parse_mode: "Markdown"});
+    if (userState === "WAITING_PHONE") {
+        userState = "SENDING_OTP";
+        bot.sendMessage(chatId, `⏳ Sedang meminta OTP untuk ${text}...`);
+        try {
+            const res = await axios.post(`${GOJEK_API_URL}/v3/customers/login_with_phone`, { phone: text }, { headers: GOJEK_HEADERS });
+            TEMP_OTP_TOKEN = res.data.data.otp_token; 
+            userState = "WAITING_OTP";
+            bot.sendMessage(chatId, `✅ *OTP Terkirim!*\n\nMasukkan 4 digit kode OTP dari SMS.`, {parse_mode: "Markdown"});
+        } catch (e) {
+            userState = "";
+            bot.sendMessage(chatId, "❌ Gagal request OTP. Cek header/nomor.");
+        }
+        return;
+    }
+
+    if (userState === "WAITING_OTP") {
+        bot.sendMessage(chatId, "⏳ Memverifikasi...");
+        try {
+            const res = await axios.post(`${GOJEK_API_URL}/v3/customers/login_with_otp`, { otp: text, otp_token: TEMP_OTP_TOKEN }, { headers: GOJEK_HEADERS });
+            SESSION_TOKEN = res.data.data.access_token;
+            userState = "";
+            bot.sendMessage(chatId, "🎊 *Login Berhasil!*", {parse_mode: "Markdown", ...mainKeyboard});
+        } catch (e) {
+            bot.sendMessage(chatId, "❌ OTP Salah.");
+        }
+        return;
+    }
+    
+    if (text === '📊 Cek Saldo') {
+        bot.sendMessage(chatId, "🔍 Fitur saldo sedang diproses...");
+    }
+    
+    if (text === '🌐 GoPay API') {
+        bot.sendMessage(chatId, `🌐 *Status API*\nToken: \`${SESSION_TOKEN || 'Belum Ada'}\``, {parse_mode: "Markdown"});
     }
 });
 EOF
 
+    # Mengganti placeholder dengan input user
+    sed -i "s/TOKEN_BOT_PLACEHOLDER/${BOT_TOKEN}/g" bot.js
+    sed -i "s/CHAT_ID_PLACEHOLDER/${CHAT_ID}/g" bot.js
+
+    # Lanjutan Part 2...
+    # Melanjutkan fungsi setup_telegram_bot...
     echo -e "\n${YELLOW}[+] Menjalankan Bot di background dengan PM2...${NC}"
     pm2 stop gopay-telegram-bot > /dev/null 2>&1 || true
     pm2 start bot.js --name "gopay-telegram-bot"
@@ -162,7 +196,7 @@ EOF
 }
 
 # ==========================================
-# MAIN MENU LOOP
+# MAIN MENU LOOP (INTERAKTIF)
 # ==========================================
 while true; do
     clear
@@ -170,14 +204,18 @@ while true; do
     echo -e "${GREEN}       GOPAY VPS TERMINAL MANAGER         ${NC}"
     echo -e "${CYAN}==========================================${NC}"
     echo -e "1. Setup Domain & HTTPS (SSL)"
-    echo -e "2. Setup Bot Telegram"
+    echo -e "2. Setup Bot Telegram (Full Fixed OTP)"
     echo -e "3. Keluar"
     echo -e "${CYAN}==========================================${NC}"
     read -p "Pilih menu (1-3): " OPTION
     
     case $OPTION in
-        1) setup_domain_ssl ;;
-        2) setup_telegram_bot ;;
+        1) 
+            setup_domain_ssl 
+            ;;
+        2) 
+            setup_telegram_bot 
+            ;;
         3) 
             echo -e "${GREEN}Keluar dari Terminal Manager. Terima kasih!${NC}"
             exit 0 
