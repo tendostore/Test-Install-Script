@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # ==========================================
-# Script Name: GoPay VPS System Manager (Fixed Version)
-# Version: 8.0
-# Description: Terminal Menu + Fixed Telegram Bot Logic
+# Script Name: GoPay VPS System Manager (Debug Version)
+# Version: 9.0
+# Description: Terminal Menu + Enhanced Telegram Bot Debugging
 # ==========================================
 
 # Definisi Warna
@@ -51,21 +51,19 @@ server {
 }
 EOF
 
-    # Mengaktifkan konfigurasi Nginx
     sudo ln -sf /etc/nginx/sites-available/gopay-proxy /etc/nginx/sites-enabled/
     sudo nginx -t
     sudo systemctl restart nginx
 
     echo -e "\n${YELLOW}[+] Menjalankan Certbot untuk instalasi SSL...${NC}"
-    sudo certbot --nginx -d $DOMAIN_NAME --non-interactive --agree-tos -m admin@$DOMAIN_NAME || echo -e "${RED}Gagal mendapatkan SSL. Pastikan DNS sudah diarahkan ke IP VPS ini.${NC}"
+    sudo certbot --nginx -d $DOMAIN_NAME --non-interactive --agree-tos -m admin@$DOMAIN_NAME || echo -e "${RED}Gagal mendapatkan SSL.${NC}"
 
     echo -e "\n${GREEN}Setup Domain dan SSL Selesai!${NC}"
-    echo -e "API Anda sekarang aktif di: https://$DOMAIN_NAME"
     read -p "Tekan Enter untuk kembali ke Menu Utama..."
 }
 
 # ==========================================
-# FUNGSI: SETUP BOT TELEGRAM (FIXED LOGIC)
+# FUNGSI: SETUP BOT TELEGRAM (WITH DEBUG)
 # ==========================================
 setup_telegram_bot() {
     clear
@@ -94,17 +92,17 @@ setup_telegram_bot() {
     npm init -y > /dev/null 2>&1
     npm install node-telegram-bot-api axios > /dev/null 2>&1
 
-    echo -e "\n${YELLOW}[+] Menulis file bot.js dengan logika Fixed OTP...${NC}"
+    echo -e "\n${YELLOW}[+] Menulis file bot.js (Enhanced Debug)...${NC}"
     
     cat << 'EOF' > bot.js
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 
-// GANTI MANUAL BAGIAN INI JIKA PERLU
 const TELEGRAM_TOKEN = 'TOKEN_BOT_PLACEHOLDER';
 const ADMIN_CHAT_ID = 'CHAT_ID_PLACEHOLDER';
 const GOJEK_API_URL = "https://api.gojekapi.com";
 
+// Wajib sniffing jika request ditolak!
 let GOJEK_HEADERS = {
     'Content-Type': 'application/json',
     'X-AppVersion': '4.80.1', 
@@ -113,7 +111,6 @@ let GOJEK_HEADERS = {
 };
 
 const bot = new TelegramBot(TELEGRAM_TOKEN, {polling: true});
-
 let SESSION_TOKEN = ""; 
 let TEMP_OTP_TOKEN = ""; 
 let userState = ""; 
@@ -138,65 +135,86 @@ bot.on('message', async (msg) => {
 
     if (text === '🔑 Minta OTP') {
         userState = "WAITING_PHONE";
-        return bot.sendMessage(chatId, "📲 *Request OTP*\nSilakan kirim nomor HP Anda (format: 085xxx).", {parse_mode: "Markdown"});
+        return bot.sendMessage(chatId, "📲 *Request OTP*\nSilakan kirim nomor HP Anda.");
     }
 
     if (userState === "WAITING_PHONE") {
         userState = "SENDING_OTP";
-        bot.sendMessage(chatId, `⏳ Sedang meminta OTP untuk ${text}...`);
+        bot.sendMessage(chatId, `⏳ Menghubungi Server Gojek untuk ${text}...`);
         try {
             const res = await axios.post(`${GOJEK_API_URL}/v3/customers/login_with_phone`, { phone: text }, { headers: GOJEK_HEADERS });
             TEMP_OTP_TOKEN = res.data.data.otp_token; 
             userState = "WAITING_OTP";
-            bot.sendMessage(chatId, `✅ *OTP Terkirim!*\n\nMasukkan 4 digit kode OTP dari SMS.`, {parse_mode: "Markdown"});
+            bot.sendMessage(chatId, `✅ *OTP Terkirim!*\nMasukkan kode 4 digit.`);
         } catch (e) {
             userState = "";
-            bot.sendMessage(chatId, "❌ Gagal request OTP. Cek header/nomor.");
+            const errDetail = e.response ? JSON.stringify(e.response.data) : e.message;
+            bot.sendMessage(chatId, `❌ *Gojek Menolak Request!*\nDetail: \`${errDetail}\``, {parse_mode: "Markdown"});
         }
         return;
     }
+});
+EOF
+
+SELESAI
+    # Melanjutkan penulisan file bot.js (Logika Verifikasi & Fitur Lainnya)
+    cat << 'EOF' >> bot.js
 
     if (userState === "WAITING_OTP") {
-        bot.sendMessage(chatId, "⏳ Memverifikasi...");
+        bot.sendMessage(chatId, "⏳ Memverifikasi kode OTP Anda...");
         try {
-            const res = await axios.post(`${GOJEK_API_URL}/v3/customers/login_with_otp`, { otp: text, otp_token: TEMP_OTP_TOKEN }, { headers: GOJEK_HEADERS });
+            const res = await axios.post(`${GOJEK_API_URL}/v3/customers/login_with_otp`, { 
+                otp: text, 
+                otp_token: TEMP_OTP_TOKEN 
+            }, { headers: GOJEK_HEADERS });
+            
             SESSION_TOKEN = res.data.data.access_token;
-            userState = "";
-            bot.sendMessage(chatId, "🎊 *Login Berhasil!*", {parse_mode: "Markdown", ...mainKeyboard});
+            userState = ""; // Reset state setelah sukses
+            bot.sendMessage(chatId, "🎊 *Login Berhasil!*\nSesi akses telah disimpan dengan aman. Sekarang Anda bisa mengecek saldo.", {parse_mode: "Markdown", ...mainKeyboard});
         } catch (e) {
-            bot.sendMessage(chatId, "❌ OTP Salah.");
+            const errDetail = e.response ? JSON.stringify(e.response.data) : e.message;
+            bot.sendMessage(chatId, `❌ *Verifikasi OTP Gagal!*\nDetail: \`${errDetail}\` \n\nSilakan coba 'Minta OTP' kembali jika kode salah.`, {parse_mode: "Markdown"});
         }
         return;
     }
     
     if (text === '📊 Cek Saldo') {
-        bot.sendMessage(chatId, "🔍 Fitur saldo sedang diproses...");
+        if (!SESSION_TOKEN) return bot.sendMessage(chatId, "❌ Anda belum login. Silakan klik 'Minta OTP' terlebih dahulu.");
+        
+        bot.sendMessage(chatId, "🔍 Mengambil data saldo terbaru...");
+        try {
+            // Endpoint ini biasanya memerlukan penyesuaian berdasarkan hasil sniffing aplikasi asli
+            const res = await axios.get(`${GOJEK_API_URL}/wallet/profile`, { 
+                headers: { ...GOJEK_HEADERS, 'Authorization': `Bearer ${SESSION_TOKEN}` } 
+            });
+            bot.sendMessage(chatId, `💰 *Saldo Merchant:* Rp ${res.data.data.balance}`, {parse_mode: "Markdown"});
+        } catch (e) {
+            bot.sendMessage(chatId, "❌ Gagal mengambil saldo. Sesi mungkin sudah kedaluwarsa.");
+        }
     }
     
     if (text === '🌐 GoPay API') {
-        bot.sendMessage(chatId, `🌐 *Status API*\nToken: \`${SESSION_TOKEN || 'Belum Ada'}\``, {parse_mode: "Markdown"});
+        bot.sendMessage(chatId, `🌐 *Informasi API*\n\nStatus: \`${SESSION_TOKEN ? 'Connected' : 'Disconnected'}\`\nToken: \`${SESSION_TOKEN || 'Tidak Ada'}\``, {parse_mode: "Markdown"});
     }
 });
 EOF
 
-    # Mengganti placeholder dengan input user
+    # Mengganti placeholder TOKEN dan CHAT_ID dengan input asli dari user
     sed -i "s/TOKEN_BOT_PLACEHOLDER/${BOT_TOKEN}/g" bot.js
     sed -i "s/CHAT_ID_PLACEHOLDER/${CHAT_ID}/g" bot.js
 
-    # Lanjutan Part 2...
-    # Melanjutkan fungsi setup_telegram_bot...
     echo -e "\n${YELLOW}[+] Menjalankan Bot di background dengan PM2...${NC}"
     pm2 stop gopay-telegram-bot > /dev/null 2>&1 || true
     pm2 start bot.js --name "gopay-telegram-bot"
     pm2 save
     
     echo -e "\n${GREEN}Setup Bot Telegram Selesai!${NC}"
-    echo -e "Sekarang tombol 'GoPay API' sudah tersedia di menu bot."
+    echo -e "Bot sekarang sudah dilengkapi dengan fitur Debug Log."
     read -p "Tekan Enter untuk kembali ke Menu Utama..."
 }
 
 # ==========================================
-# MAIN MENU LOOP (INTERAKTIF)
+# MAIN MENU LOOP
 # ==========================================
 while true; do
     clear
@@ -204,18 +222,14 @@ while true; do
     echo -e "${GREEN}       GOPAY VPS TERMINAL MANAGER         ${NC}"
     echo -e "${CYAN}==========================================${NC}"
     echo -e "1. Setup Domain & HTTPS (SSL)"
-    echo -e "2. Setup Bot Telegram (Full Fixed OTP)"
+    echo -e "2. Setup Bot Telegram (With Debug Logic)"
     echo -e "3. Keluar"
     echo -e "${CYAN}==========================================${NC}"
     read -p "Pilih menu (1-3): " OPTION
     
     case $OPTION in
-        1) 
-            setup_domain_ssl 
-            ;;
-        2) 
-            setup_telegram_bot 
-            ;;
+        1) setup_domain_ssl ;;
+        2) setup_telegram_bot ;;
         3) 
             echo -e "${GREEN}Keluar dari Terminal Manager. Terima kasih!${NC}"
             exit 0 
@@ -227,4 +241,4 @@ while true; do
     esac
 done
 
-SELESAI
+# SELESAI
