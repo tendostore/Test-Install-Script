@@ -1199,6 +1199,7 @@ EOF
     <script>
         let sysMaintStart = "23:00";
         let sysMaintEnd = "00:30";
+        let sysMaintType = "off";
 
         // JAM DIGITAL REALTIME & SYSTEM PEMELIHARAAN
         setInterval(() => {
@@ -1221,10 +1222,17 @@ EOF
             let eMins = parseInt(eParts[0])*60 + parseInt(eParts[1]);
             
             let isMaint = false;
-            if(sMins < eMins) {
-                isMaint = (curMins >= sMins && curMins < eMins);
-            } else {
-                isMaint = (curMins >= sMins || curMins < eMins);
+            let maintMsg = '';
+            if (sysMaintType === 'total') {
+                isMaint = true;
+                maintMsg = '🛠️ TUTUP TOTAL / MAINTENANCE PERMANEN. TRANSAKSI DIHENTIKAN.';
+            } else if (sysMaintType === 'custom') {
+                if(sMins < eMins) {
+                    isMaint = (curMins >= sMins && curMins < eMins);
+                } else {
+                    isMaint = (curMins >= sMins || curMins < eMins);
+                }
+                maintMsg = `🛠️ PEMELIHARAAN KUSTOM (${sysMaintStart} - ${sysMaintEnd} WIB). TRANSAKSI SEMENTARA DITUTUP.`;
             }
             
             let mb = document.getElementById('maint-banner');
@@ -1233,10 +1241,10 @@ EOF
                 if(!mb) {
                     mb = document.createElement('div');
                     mb.id = 'maint-banner';
-                    mb.innerHTML = `🛠️ PEMELIHARAAN SISTEM (${sysMaintStart} - ${sysMaintEnd} WIB). TRANSAKSI SEMENTARA DITUTUP.`;
                     mb.style = 'background:#ef4444; color:#fff; font-size:11px; font-weight:bold; text-align:center; padding:12px; margin: 20px 20px 0; border-radius:12px; box-shadow: 0 4px 10px rgba(239,68,68,0.3);';
                     dbScreen.prepend(mb);
                 }
+                mb.innerHTML = maintMsg;
             } else {
                 if(mb) mb.remove();
             }
@@ -1447,6 +1455,7 @@ EOF
                     
                     if(res.maintStart) sysMaintStart = res.maintStart;
                     if(res.maintEnd) sysMaintEnd = res.maintEnd;
+                    if(res.maintType) sysMaintType = res.maintType;
                 }
             } catch(e){}
         }
@@ -1787,6 +1796,7 @@ EOF
                 let btnSidebarLogout = document.getElementById('sidebar-logout-btn');
                 if(btnSidebarLogout) btnSidebarLogout.innerHTML = '<svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg> <span>Masuk / Daftar</span>';
             }
+            await fetchGlobalStats();
             await fetchAllProducts(); 
             fetchCustomLayout();
             fetchVPNConfig(); 
@@ -1912,7 +1922,6 @@ EOF
                     data.forEach(n => {
                         let imgTag = '';
                         if(n.image) {
-                            // Cek jika gambar dari maint_images atau info_images
                             let imgSrc = n.image.startsWith('maint_') ? `/maint_images/${n.image}` : `/info_images/${n.image}`;
                             imgTag = `<img src="${imgSrc}" style="width:100%; border-radius:8px; margin-bottom:10px; display:block;">`;
                         }
@@ -2256,9 +2265,9 @@ EOF
                 if(data && data.success) {
                     // Berhasil masuk tanpa OTP
                     currentUser = data.phone; userData = data.data;
+                    await fetchGlobalStats();
                     await fetchAllProducts(); 
                     await fetchVPNConfig();
-                    fetchGlobalStats();
                     loadBanners();
                     
                     let lastTab = localStorage.getItem('tendo_last_tab') || 'dashboard-screen';
@@ -2909,13 +2918,14 @@ generate_admin_app() {
         .sidebar { width: 260px; background: var(--card); height: 100vh; border-right: 1px solid var(--border); display: flex; flex-direction: column; transition: transform 0.3s; position: fixed; left: 0; top: 0; z-index: 1000; }
         .sidebar-header { padding: 20px; font-size: 18px; font-weight: 900; color: var(--primary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;}
         .close-sidebar { display: none; background: none; border: none; color: var(--text); font-size: 24px; cursor: pointer; }
-        .menu-item { padding: 15px 20px; color: var(--text); text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.02); cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .menu-item { padding: 15px 20px; color: var(--text); text-decoration: none; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.02); cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .menu-item svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         .menu-item:hover, .menu-item.active { background: rgba(14, 165, 233, 0.1); color: var(--primary); border-left: 4px solid var(--primary); }
         
         .main-content { flex: 1; margin-left: 260px; display: flex; flex-direction: column; height: 100vh; transition: margin-left 0.3s; width: calc(100% - 260px); }
         .topbar { background: var(--card); padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 15px; }
         .hamburger { background: none; border: none; color: var(--text); font-size: 24px; cursor: pointer; display: none; }
-        .content-area { padding: 20px; overflow-y: auto; flex: 1; }
+        .content-area { padding: 20px; overflow-y: auto; flex: 1; padding-bottom: 100px; }
         
         /* COMPONENTS */
         .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
@@ -2963,7 +2973,7 @@ generate_admin_app() {
         <div class="login-box">
             <h1>Admin Security</h1>
             <p style="font-size:12px; color:var(--muted); margin-bottom:20px;">IP Anda: <span id="client-ip">Mendeteksi...</span></p>
-            <input type="password" id="admin-pass" placeholder="Password Admin (@Rohman32)">
+            <input type="password" id="admin-pass">
             <button class="btn" style="width:100%" onclick="loginAdmin()">Masuk Akses Rahasia</button>
         </div>
     </div>
@@ -2973,12 +2983,34 @@ generate_admin_app() {
             Boss Tendo <button class="close-sidebar" onclick="toggleSidebar()">×</button>
         </div>
         <div style="overflow-y: auto; flex:1;">
-            <div class="menu-item active" onclick="switchTab('tab-dashboard')">📊 Dashboard</div>
-            <div class="menu-item" onclick="switchTab('tab-transaksi')">🧾 Transaksi & Keuangan</div>
-            <div class="menu-item" onclick="switchTab('tab-pengguna')">👥 Manajemen Pengguna</div>
-            <div class="menu-item" onclick="switchTab('tab-katalog')">🛍️ Kontrol Harga & Katalog</div>
-            <div class="menu-item" onclick="switchTab('tab-sistem')">⚙️ Kendali Sistem</div>
-            <div class="menu-item" onclick="switchTab('tab-log')">🛡️ Log & Keamanan</div>
+            <div class="menu-item active" onclick="switchTab('tab-dashboard')">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+                Dashboard
+            </div>
+            <div class="menu-item" onclick="switchTab('tab-transaksi')">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                Keuangan & Transaksi
+            </div>
+            <div class="menu-item" onclick="switchTab('tab-pengguna')">
+                <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                Manajemen Pengguna
+            </div>
+            <div class="menu-item" onclick="switchTab('tab-katalog')">
+                <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                Kontrol Harga & Etalase
+            </div>
+            <div class="menu-item" onclick="switchTab('tab-tutorial')">
+                <svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+                Upload Tutorial
+            </div>
+            <div class="menu-item" onclick="switchTab('tab-sistem')">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                Kendali Sistem
+            </div>
+            <div class="menu-item" onclick="switchTab('tab-log')">
+                <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                Log & Keamanan
+            </div>
         </div>
         <div style="padding: 15px;">
             <button class="btn btn-danger" style="width:100%" onclick="logoutAdmin()">Keluar</button>
@@ -3008,6 +3040,28 @@ generate_admin_app() {
                         <div style="font-size:24px; font-weight:bold; margin-top:5px; color:#f59e0b" id="dash-profit">Rp 0</div>
                     </div>
                 </div>
+
+                <div class="card" style="border: 1px solid var(--primary);">
+                    <h3 style="display:flex; align-items:center; gap:8px;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                        Monitoring Server VPS
+                    </h3>
+                    <div class="grid-3" style="margin-top: 15px;">
+                        <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
+                            <div style="font-size:12px; color:var(--muted);">Beban CPU</div>
+                            <div style="font-size:18px; font-weight:bold; color:var(--primary);" id="mon-cpu">Mengecek...</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
+                            <div style="font-size:12px; color:var(--muted);">RAM Terpakai / Total</div>
+                            <div style="font-size:18px; font-weight:bold; color:var(--success);" id="mon-ram">Mengecek...</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
+                            <div style="font-size:12px; color:var(--muted);">Jaringan (Bandwidth)</div>
+                            <div style="font-size:14px; font-weight:bold; color:#f59e0b; line-height: 1.4;" id="mon-net">Mengecek...</div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="card">
                     <h3>Aksi Cepat</h3>
                     <div class="grid-2">
@@ -3099,16 +3153,39 @@ generate_admin_app() {
                 </div>
             </div>
 
+            <div id="tab-tutorial" class="tab-pane hidden">
+                <div class="card">
+                    <h3>Upload Tutorial / Panduan Video</h3>
+                    <p style="font-size:12px; color:var(--muted);">Tambahkan video tutorial atau teks panduan untuk ditampilkan di menu Aplikasi Pengguna.</p>
+                    
+                    <label style="font-size:12px; color:var(--muted);">Judul Tutorial</label>
+                    <input type="text" id="tut-title" placeholder="Contoh: Cara Topup Saldo QRIS">
+                    
+                    <label style="font-size:12px; color:var(--muted);">Deskripsi / Teks Panduan</label>
+                    <textarea id="tut-desc" rows="5" placeholder="Tuliskan panduan detail di sini..."></textarea>
+                    
+                    <label style="font-size:12px; color:var(--muted);">Upload Video (MP4) - Opsional. Max 40MB</label>
+                    <input type="file" id="tut-video" accept="video/mp4,video/x-m4v,video/*">
+                    
+                    <button class="btn btn-success" onclick="uploadTutorial()" id="btn-up-tut">Upload Tutorial Sekarang</button>
+                </div>
+            </div>
+
             <div id="tab-sistem" class="tab-pane hidden">
                 <div class="card" style="border-color:var(--danger);">
                     <h3 style="color:var(--danger);">Saklar Pemeliharaan (Maintenance Mode)</h3>
-                    <p style="font-size:12px; color:var(--muted);">Tutup semua transaksi di website secara instan.</p>
-                    <div style="display:flex; gap:15px; align-items:center;">
-                        <select id="maint-status" style="width:200px; margin:0;">
+                    <p style="font-size:12px; color:var(--muted);">Tutup seluruh transaksi di website. Pilih Custom untuk jam tertentu, atau Total untuk tutup permanen.</p>
+                    <div style="display:flex; flex-direction:column; gap:15px;">
+                        <select id="maint-status" style="margin:0;" onchange="toggleCustomMaint()">
                             <option value="off">🟢 Normal (Buka)</option>
-                            <option value="on">🔴 Maintenance (Tutup)</option>
+                            <option value="custom">🟡 Maintenance Custom (Atur Waktu)</option>
+                            <option value="total">🔴 Tutup Total (Permanen)</option>
                         </select>
-                        <button class="btn btn-danger" onclick="saveMaintenance()">Terapkan</button>
+                        <div id="custom-maint-times" class="hidden" style="display:flex; gap:10px; align-items:center;">
+                            <input type="time" id="maint-start" style="margin:0;"> s/d 
+                            <input type="time" id="maint-end" style="margin:0;"> WIB
+                        </div>
+                        <button class="btn btn-danger" onclick="saveMaintenance()">Terapkan Maintenance</button>
                     </div>
                 </div>
 
@@ -3139,7 +3216,7 @@ generate_admin_app() {
 
                 <div class="card">
                     <h3>Manajemen Info & Broadcast Saluran</h3>
-                    <p style="font-size:12px; color:var(--muted);">Kirim pesan promo ke Web, Telegram Channel, dan WA Saluran sekaligus.</p>
+                    <p style="font-size:12px; color:var(--muted);">Kirim pesan promo ke Web, Channel Telegram, dan Saluran WA sekaligus.</p>
                     <textarea id="bc-text" rows="4" placeholder="Tulis isi pengumuman promo di sini..."></textarea>
                     <label style="font-size:12px; color:var(--muted);">Upload Gambar Poster (Opsional)</label>
                     <input type="file" id="bc-image" accept="image/*">
@@ -3148,7 +3225,7 @@ generate_admin_app() {
                         <label><input type="checkbox" id="bc-tele" checked> Telegram Channel</label>
                         <label><input type="checkbox" id="bc-wa" checked> WA Broadcast</label>
                     </div>
-                    <button class="btn btn-success" onclick="sendBroadcast()">Kirim Broadcast</button>
+                    <button class="btn btn-success" onclick="sendBroadcast()" id="bc-btn">Kirim Broadcast</button>
                 </div>
             </div>
 
@@ -3209,7 +3286,7 @@ generate_admin_app() {
             document.getElementById(tabId).classList.remove('hidden');
             event.currentTarget.classList.add('active');
             
-            let title = event.currentTarget.innerText.replace(/[^a-zA-Z\s&]/g, '').trim();
+            let title = event.currentTarget.innerText.trim();
             document.getElementById('topbar-title').innerText = title;
             
             if(window.innerWidth <= 768) toggleSidebar();
@@ -3221,6 +3298,15 @@ generate_admin_app() {
             if(tabId === 'tab-katalog') { loadMarginForm(); loadEtalaseList(); }
             if(tabId === 'tab-sistem') loadSettings();
             if(tabId === 'tab-log') loadLogs();
+        }
+
+        function toggleCustomMaint() {
+            const status = document.getElementById('maint-status').value;
+            if (status === 'custom') {
+                document.getElementById('custom-maint-times').classList.remove('hidden');
+            } else {
+                document.getElementById('custom-maint-times').classList.add('hidden');
+            }
         }
 
         // --- LOGIN & AUTH ---
@@ -3262,13 +3348,20 @@ generate_admin_app() {
             document.getElementById('admin-pass').value = '';
         }
 
-        // --- DASHBOARD ---
+        // --- DASHBOARD & MONITORING ---
         async function loadDashboard() {
             const data = await fetchAdmin('/api/admin/stats');
             if(data && data.success) {
                 document.getElementById('dash-saldo').innerText = 'Rp ' + data.total_saldo.toLocaleString('id-ID');
                 document.getElementById('dash-users').innerText = data.total_user;
                 document.getElementById('dash-profit').innerText = 'Rp ' + (data.profit_monthly || 0).toLocaleString('id-ID');
+            }
+            
+            const sys = await fetchAdmin('/api/admin/system-stats');
+            if(sys && sys.success) {
+                document.getElementById('mon-cpu').innerText = sys.cpu + "%";
+                document.getElementById('mon-ram').innerText = sys.ram;
+                document.getElementById('mon-net').innerText = sys.network;
             }
         }
 
@@ -3441,22 +3534,59 @@ generate_admin_app() {
             if(data && data.success) loadEtalaseList();
         }
 
-        // --- SISTEM & SETTINGS ---
+        // --- SISTEM, SETTINGS & TUTORIAL ---
+        function getBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        async function uploadTutorial() {
+            let title = document.getElementById('tut-title').value;
+            let desc = document.getElementById('tut-desc').value;
+            let fileInput = document.getElementById('tut-video');
+            
+            if(!title || !desc) return showToast("Judul dan Deskripsi wajib diisi!", true);
+            
+            let btn = document.getElementById('btn-up-tut');
+            let ori = btn.innerText; btn.innerText = "Mengupload..."; btn.disabled = true;
+
+            let videoBase64 = null;
+            let filename = null;
+
+            if(fileInput.files.length > 0) {
+                let file = fileInput.files[0];
+                filename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                videoBase64 = await getBase64(file);
+            }
+
+            const data = await fetchAdmin('/api/admin/tutorial', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({title, desc, videoBase64, filename})
+            });
+
+            if(data && data.success) {
+                showToast("Tutorial berhasil diunggah!");
+                document.getElementById('tut-title').value = '';
+                document.getElementById('tut-desc').value = '';
+                document.getElementById('tut-video').value = '';
+            } else {
+                showToast("Gagal mengunggah tutorial.", true);
+            }
+            btn.innerText = ori; btn.disabled = false;
+        }
+
         async function loadSettings() {
             const data = await fetchAdmin('/api/admin/settings');
             if(data && data.success) {
                 let set = data.settings;
-                let maintOn = false;
-                // Simple logic check maintenance logic from config string
-                let d = new Date(); let h = d.getHours(); let m = d.getMinutes(); let cm = h*60+m;
-                let sm = set.maintStart? parseInt(set.maintStart.split(':')[0])*60+parseInt(set.maintStart.split(':')[1]) : 1380;
-                let em = set.maintEnd? parseInt(set.maintEnd.split(':')[0])*60+parseInt(set.maintEnd.split(':')[1]) : 30;
-                if(sm < em) maintOn = (cm >= sm && cm < em); else maintOn = (cm >= sm || cm < em);
-                
-                // If it was forced, we check if start==00:00 and end==23:59
-                if(set.maintStart === '00:00' && set.maintEnd === '23:59') maintOn = true;
-
-                document.getElementById('maint-status').value = maintOn ? 'on' : 'off';
+                document.getElementById('maint-status').value = set.maintType || 'off';
+                if(set.maintStart) document.getElementById('maint-start').value = set.maintStart;
+                if(set.maintEnd) document.getElementById('maint-end').value = set.maintEnd;
+                toggleCustomMaint();
                 
                 document.getElementById('api-digi-user').value = set.digiflazzUsername || '';
                 document.getElementById('api-digi-key').value = set.digiflazzApiKey || '';
@@ -3466,16 +3596,19 @@ generate_admin_app() {
         }
 
         async function saveMaintenance() {
-            const status = document.getElementById('maint-status').value;
-            let start, end;
-            if(status === 'on') { start = '00:00'; end = '23:59'; } // Force 24hrs
-            else { start = '23:00'; end = '00:30'; } // Default reset
+            const type = document.getElementById('maint-status').value;
+            let start = document.getElementById('maint-start').value || '23:00';
+            let end = document.getElementById('maint-end').value || '00:30';
             
             const data = await fetchAdmin('/api/admin/settings', {
                 method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({update: 'maintenance', maintStart: start, maintEnd: end})
+                body: JSON.stringify({update: 'maintenance', maintType: type, maintStart: start, maintEnd: end})
             });
-            if(data && data.success) showToast(status === 'on' ? "Toko Ditutup" : "Toko Dibuka Normal");
+            if(data && data.success) {
+                if (type === 'total') showToast("Sistem Ditutup Total");
+                else if (type === 'custom') showToast(`Maintenance Custom Aktif (${start}-${end})`);
+                else showToast("Sistem Normal / Terbuka");
+            }
         }
 
         async function saveApiKeys() {
@@ -3491,15 +3624,6 @@ generate_admin_app() {
                 body: JSON.stringify(payload)
             });
             if(data && data.success) showToast("API Keys berhasil disimpan");
-        }
-
-        function getBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-            });
         }
 
         async function uploadBanners() {
@@ -3524,6 +3648,9 @@ generate_admin_app() {
             const text = document.getElementById('bc-text').value;
             if(!text) return showToast("Teks wajib diisi", true);
             
+            let btn = document.getElementById('bc-btn');
+            let ori = btn.innerText; btn.innerText = "Mengirim..."; btn.disabled = true;
+
             let imageBase64 = null;
             let fileInput = document.getElementById('bc-image');
             if(fileInput.files.length > 0) imageBase64 = await getBase64(fileInput.files[0]);
@@ -3538,11 +3665,16 @@ generate_admin_app() {
                 method: 'POST', headers: {'Content-Type':'application/json'},
                 body: JSON.stringify({text, imageBase64, targets})
             });
+            
             if(data && data.success) { 
                 showToast("Broadcast sedang dikirim ke target terpilih!");
                 document.getElementById('bc-text').value = '';
                 document.getElementById('bc-image').value = '';
-            } else showToast("Gagal memproses", true);
+            } else {
+                showToast("Gagal memproses", true);
+            }
+            
+            btn.innerText = ori; btn.disabled = false;
         }
 
         // --- LOG & BACKUP ---
@@ -3566,7 +3698,6 @@ generate_admin_app() {
 </html>
 EOF
 }
-# SELESAI
 # ==========================================
 # 4. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND)
 # ==========================================
@@ -3577,7 +3708,8 @@ const fs = require('fs');
 const pino = require('pino');
 const express = require('express');
 const bodyParser = require('body-parser');
-const { exec } = require('child_process');
+const { exec, execSync } = require('child_process');
+const os = require('os');
 const axios = require('axios'); 
 const crypto = require('crypto'); 
 const crypt = require('./tendo_crypt.js');
@@ -3594,9 +3726,9 @@ app.use((req, res, next) => {
     next();
 });
 
-// Middleware for parsing large image base64
-app.use(bodyParser.json({limit: '10mb'}));
-app.use(bodyParser.urlencoded({extended: true, limit: '10mb'}));
+// Limit diubah menjadi 50MB agar mendukung upload video tutorial berukuran besar dari panel admin
+app.use(bodyParser.json({limit: '50mb'}));
+app.use(bodyParser.urlencoded({extended: true, limit: '50mb'}));
 app.use(express.static('public')); 
 
 const configFile = './config.json';
@@ -3662,6 +3794,12 @@ function updateLevelAndPoints(phone, hargaFix, marginAsli) {
 
 function cekPemeliharaan() {
     let cfg = loadJSON(configFile);
+    let type = cfg.maintType || 'off';
+    
+    if (type === 'total') return true;
+    if (type === 'off') return false;
+
+    // Untuk custom maintenance time
     let s = cfg.maintStart || "23:00";
     let e = cfg.maintEnd || "00:30";
     let d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
@@ -3836,6 +3974,30 @@ function authAdmin(req, res, next) {
     else res.status(401).json({success: false, message: 'Token invalid'});
 }
 
+app.get('/api/admin/system-stats', authAdmin, (req, res) => {
+    let totalRam = (os.totalmem() / 1024 / 1024 / 1024).toFixed(2);
+    let usedRam = ((os.totalmem() - os.freemem()) / 1024 / 1024 / 1024).toFixed(2);
+    
+    let cpuUsage = "0";
+    try {
+        let cpuRaw = execSync("top -bn1 | grep 'Cpu(s)' | awk '{print $2 + $4}'").toString().trim();
+        if (cpuRaw && !isNaN(parseFloat(cpuRaw))) cpuUsage = parseFloat(cpuRaw).toFixed(1);
+    } catch(e) {}
+    
+    let netStat = 'RX: 0 MB / TX: 0 MB';
+    try {
+        const net = execSync("cat /proc/net/dev | grep eth0 || cat /proc/net/dev | grep ens").toString();
+        let parts = net.trim().split(/\s+/);
+        if(parts.length > 9) {
+            let rx = (parseInt(parts[1]) / 1024 / 1024).toFixed(2);
+            let tx = (parseInt(parts[9]) / 1024 / 1024).toFixed(2);
+            netStat = `RX: ${rx} MB \nTX: ${tx} MB`;
+        }
+    } catch(e){}
+    
+    res.json({success: true, cpu: cpuUsage, ram: `${usedRam} GB / ${totalRam} GB`, network: netStat});
+});
+
 app.get('/api/admin/stats', authAdmin, (req, res) => {
     let db = loadJSON(dbFile);
     let totalSaldo = 0; let totalUser = 0;
@@ -3971,7 +4133,9 @@ app.get('/api/admin/settings', authAdmin, (req, res) => {
 app.post('/api/admin/settings', authAdmin, (req, res) => {
     let cfg = loadJSON(configFile);
     if(req.body.update === 'maintenance') {
-        cfg.maintStart = req.body.maintStart; cfg.maintEnd = req.body.maintEnd;
+        cfg.maintType = req.body.maintType;
+        cfg.maintStart = req.body.maintStart; 
+        cfg.maintEnd = req.body.maintEnd;
     } else if(req.body.update === 'keys') {
         cfg.digiflazzUsername = req.body.digiUser; cfg.digiflazzApiKey = req.body.digiKey;
         cfg.gopayMerchantId = req.body.gopayMid; cfg.gopayToken = req.body.gopayToken;
@@ -4000,6 +4164,21 @@ app.post('/api/admin/etalase', authAdmin, (req, res) => {
     saveJSON(customLayoutFile, db); res.json({success: true});
 });
 
+app.post('/api/admin/tutorial', authAdmin, (req, res) => {
+    let { title, desc, videoBase64, filename } = req.body;
+    let tuts = loadJSON(tutorialFile) || [];
+    
+    if(videoBase64) {
+        let base64Data = videoBase64.replace(/^data:video\/\w+;base64,/, "");
+        let buffer = Buffer.from(base64Data, 'base64');
+        fs.writeFileSync('./public/tutorials/' + filename, buffer);
+    }
+    
+    tuts.push({ id: 'TUT-' + Date.now(), title, desc, video: filename || '-' });
+    saveJSON(tutorialFile, tuts);
+    res.json({success: true});
+});
+
 app.post('/api/admin/banner', authAdmin, (req, res) => {
     let banners = req.body.banners;
     for(let k in banners) {
@@ -4018,12 +4197,14 @@ app.post('/api/admin/banner', authAdmin, (req, res) => {
 app.post('/api/admin/broadcast', authAdmin, (req, res) => {
     let { text, imageBase64, targets } = req.body;
     let imageName = null;
+    let imgPath = null;
     
     if(imageBase64) {
         let base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
         let buffer = Buffer.from(base64Data, 'base64');
         imageName = `promo_${Date.now()}.jpg`;
-        fs.writeFileSync(`./public/info_images/${imageName}`, buffer);
+        imgPath = `./public/info_images/${imageName}`;
+        fs.writeFileSync(imgPath, buffer);
     }
 
     if(targets.web) {
@@ -4041,18 +4222,18 @@ app.post('/api/admin/broadcast', authAdmin, (req, res) => {
         let chanId = cfg.teleChannelId.toString();
         if(!chanId.startsWith('-100') && !chanId.startsWith('@')) chanId = '-100' + chanId;
         
+        const botTele = new TelegramBot(cfg.teleTokenInfo);
         if(imageName) {
-            let imgUrl = `http://${process.env.IP_ADDRESS || 'localhost'}:3000/info_images/${imageName}`;
-            axios.post(`https://api.telegram.org/bot${cfg.teleTokenInfo}/sendPhoto`, { chat_id: chanId, photo: imgUrl, caption: text, parse_mode: 'HTML' }).catch(e=>{});
+            botTele.sendPhoto(chanId, fs.createReadStream(imgPath), {caption: text, parse_mode: 'HTML'}).catch(e=>{});
         } else {
-            axios.post(`https://api.telegram.org/bot${cfg.teleTokenInfo}/sendMessage`, { chat_id: chanId, text: text, parse_mode: 'HTML' }).catch(e=>{});
+            botTele.sendMessage(chanId, text, {parse_mode: 'HTML'}).catch(e=>{});
         }
     }
 
     if(targets.wa && globalSock && cfg.waBroadcastId) {
         if(imageName) {
-            let imgBuffer = fs.readFileSync(`./public/info_images/${imageName}`);
-            globalSock.sendMessage(cfg.waBroadcastId, { image: imgBuffer, caption: text }).catch(e=>{});
+            let imgBuffer = fs.readFileSync(imgPath);
+            globalSock.sendMessage(cfg.waBroadcastId, { image: imgBuffer, caption: text, mimetype: 'image/jpeg' }).catch(e=>{});
         } else {
             globalSock.sendMessage(cfg.waBroadcastId, { text: text }).catch(e=>{});
         }
@@ -4112,7 +4293,10 @@ app.get('/api/stats', (req, res) => {
             if(recordDate >= monday) weekly += count;
             if(recordDate.getFullYear() === nowYear && recordDate.getMonth() === nowMonth) monthly += count;
         }
-        res.json({ success: true, daily, weekly, monthly, total, maintStart: cfg.maintStart || '23:00', maintEnd: cfg.maintEnd || '00:30' });
+        res.json({ 
+            success: true, daily, weekly, monthly, total, 
+            maintType: cfg.maintType || 'off', maintStart: cfg.maintStart || '23:00', maintEnd: cfg.maintEnd || '00:30' 
+        });
     } catch(e) { res.json({ success: false, daily: 0, weekly: 0, monthly: 0, total: 0 }); }
 });
 
@@ -4182,6 +4366,10 @@ app.get('/api/user/:phone', (req, res) => {
     try {
         let db = loadJSON(dbFile); let p = req.params.phone;
         if(db[p]) {
+            if(!db[p].referral_code) {
+                db[p].referral_code = 'REF' + Math.floor(1000 + Math.random() * 9000);
+                saveJSON(dbFile, db);
+            }
             let safeData = { ...db[p] }; delete safeData.password; 
             res.json({success: true, data: safeData});
         } else res.json({success: false});
@@ -4248,6 +4436,7 @@ app.post('/api/login', (req, res) => {
 
         if (userPhone) {
             if(db[userPhone].banned) return res.json({success: false, message: 'Akun Anda Diblokir oleh Admin!'});
+            if(!db[userPhone].referral_code) { db[userPhone].referral_code = 'REF' + Math.floor(1000 + Math.random() * 9000); saveJSON(dbFile, db); }
             let safeData = { ...db[userPhone] }; delete safeData.password;
             res.json({success: true, phone: userPhone, data: safeData});
         }
@@ -5149,21 +5338,7 @@ async function startBot() {
     }, 15000); 
 
     sock.ev.on('messages.upsert', async m => {
-        try {
-            const msg = m.messages[0]; if (!msg.message || msg.key.fromMe) return;
-            const from = msg.key.remoteJid; const senderJid = jidNormalizedUser(msg.key.participant || msg.key.remoteJid);
-            const sender = senderJid.split('@')[0]; const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
-            if (!body) return;
-
-            let db = loadJSON(dbFile); 
-            if (!db[sender]) { db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: senderJid, step: 'idle', trx_count:0, history:[], level: 'Member', poin: 0, total_pengeluaran: 0 }; saveJSON(dbFile, db); }
-            let rawCommand = body.trim().toLowerCase().split(' ')[0];
-            if (['bot', 'menu', 'p'].includes(rawCommand)) {
-                let menuText = `👋 *${config.botName || "Digital Tendo Store"}*\n\nSilakan belanja lebih mudah di Aplikasi:\n🌐 http://${process.env.IP_ADDRESS || 'IP_VPS_ANDA'}:3000\n\n_(Atau balas 1 untuk Cek Saldo)_`;
-                return await sock.sendMessage(from, { text: menuText });
-            }
-            if (['1', 'saldo'].includes(rawCommand)) return await sock.sendMessage(from, { text: `💰 Saldo Anda: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` });
-        } catch (err) {}
+        // Semua interaksi bot via WhatsApp dihapus. Fokus WA hanya untuk OTP & Broadcast.
     });
 }
 
@@ -6427,747 +6602,3 @@ menu_manajemen_produk_instan() {
                         } else {
                             console.log('\x1b[31m❌ Nomor urut tidak valid.\x1b[0m');
                         }
-                    "
-                fi
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            0) break ;;
-            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
-        esac
-    done
-}
-
-menu_notifikasi() {
-    while true; do
-        clear
-        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "${C_YELLOW}${C_BOLD}        📢 SETUP INTEGRASI NOTIFIKASI BROADCAST       ${C_RST}"
-        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Setup Telegram ADMIN (Laporan Transaksi & Komplain)"
-        echo -e "  ${C_GREEN}[2]${C_RST} Setup Telegram PELANGGAN (Kirim Info Web & Saluran)"
-        echo -e "  ${C_GREEN}[3]${C_RST} Setup Grup / Saluran WA (Broadcast Sukses)"
-        echo -e "  ${C_GREEN}[4]${C_RST} Hapus / Bersihkan Notifikasi di Website"
-        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
-        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
-        echo -e "${C_CYAN}======================================================${C_RST}"
-        echo -ne "${C_YELLOW}Pilih menu [0-4]: ${C_RST}"
-        read notif_choice
-
-        case $notif_choice in
-            1)
-                echo -e "\n${C_MAG}--- SETUP TELEGRAM ADMIN ---${C_RST}"
-                echo -e "Notifikasi pesanan masuk, komplain, topup & backup akan dikirim kesini."
-                read -p "Masukkan Token Bot Telegram Admin: " token
-                read -p "Masukkan Chat ID Admin Anda: " chatid
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let config = crypt.load('config.json');
-                    if('$token' !== '') config.teleToken = '$token'.trim();
-                    if('$chatid' !== '') config.teleChatId = '$chatid'.trim();
-                    crypt.save('config.json', config);
-                    console.log('\x1b[32m\n✅ Konfigurasi Telegram Admin berhasil disimpan!\x1b[0m');
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            2)
-                echo -e "\n${C_MAG}--- SETUP TELEGRAM PELANGGAN (INFO/SALURAN) ---${C_RST}"
-                echo -e "Notifikasi untuk broadcast Global Transaksi Sukses dan Update Info di Web."
-                read -p "Masukkan Token Bot Telegram (Boleh bot yang sama/berbeda dari Admin): " token_info
-                read -p "Masukkan ID Channel/Saluran Pelanggan (Contoh: -100123456789): " chanid
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let config = crypt.load('config.json');
-                    if('$token_info' !== '') config.teleTokenInfo = '$token_info'.trim();
-                    if('$chanid' !== '') config.teleChannelId = '$chanid'.trim();
-                    crypt.save('config.json', config);
-                    console.log('\x1b[32m\n✅ Konfigurasi Telegram Pelanggan & Channel berhasil disimpan!\x1b[0m');
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            3)
-                echo -e "\n${C_MAG}--- SETUP GRUP / SALURAN WHATSAPP ---${C_RST}"
-                echo -e "Masukkan ID Grup (contoh: 12345678@g.us) atau Saluran (contoh: 120363xxx@newsletter)."
-                echo -e "Bot WA Anda akan mengirim broadcast notifikasi beli sukses kesini."
-                read -p "Masukkan ID WA: " waid
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let config = crypt.load('config.json');
-                    if('$waid' !== '') config.waBroadcastId = '$waid'.trim();
-                    crypt.save('config.json', config);
-                    console.log('\x1b[32m\n✅ ID WA Broadcast berhasil disimpan!\x1b[0m');
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            4)
-                echo -e "\n${C_MAG}--- HAPUS PEMBERITAHUAN WEBSITE ---${C_RST}"
-                read -p "Yakin ingin MENGHAPUS semua pemberitahuan di Web? (y/n): " hapus_notif
-                if [ "$hapus_notif" == "y" ] || [ "$hapus_notif" == "Y" ]; then
-                    node -e "
-                        const crypt = require('./tendo_crypt.js');
-                        crypt.save('web_notif.json', []);
-                        console.log('\x1b[32m\n✅ Semua pemberitahuan website berhasil dibersihkan!\x1b[0m');
-                    "
-                else
-                    echo -e "${C_YELLOW}Penghapusan dibatalkan.${C_RST}"
-                fi
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            0) break ;;
-            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
-        esac
-    done
-}
-
-submenu_server_vpn() {
-    while true; do
-        clear
-        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "${C_YELLOW}${C_BOLD}             🌍 MANAJEMEN SERVER VPN 🌍             ${C_RST}"
-        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Tambah / Edit Koneksi Server"
-        echo -e "  ${C_GREEN}[2]${C_RST} List Daftar Server"
-        echo -e "  ${C_GREEN}[3]${C_RST} Hapus Koneksi Server"
-        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
-        echo -e "  ${C_RED}[0]${C_RST} Kembali"
-        echo -e "${C_CYAN}======================================================${C_RST}"
-        echo -ne "${C_YELLOW}Pilih menu [0-3]: ${C_RST}"
-        read srv_choice
-
-        case $srv_choice in
-            1)
-                echo -e "\n${C_MAG}--- TAMBAH / EDIT KONEKSI SERVER ---${C_RST}"
-                read -p "Buat ID Server (Unik, misal: srv1 atau SG-VIP): " srv_id
-                if [ -z "$srv_id" ]; then echo "Batal."; sleep 1; continue; fi
-                
-                read -p "Masukkan Nama Server (Misal: VIP Singapura): " srv_name
-                read -p "Masukkan Hostname / IP Server: " srv_host
-                read -p "Masukkan Port Server (Biarkan kosong jika default): " srv_port
-                read -p "Masukkan Username VPS: " srv_user
-                read -p "Masukkan Password VPS: " srv_pass
-                read -p "Masukkan API Key VPN Panel: " srv_api
-                read -p "Masukkan Nama ISP Server: " srv_isp
-                read -p "Masukkan Nama Kota/City: " srv_city
-                
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let vpnDb = crypt.load('vpn_config.json');
-                    if(!vpnDb.servers) vpnDb.servers = {};
-                    vpnDb.servers['$srv_id'] = {
-                        server_name: '$srv_name', host: '$srv_host', port: '$srv_port',
-                        user: '$srv_user', pass: '$srv_pass', api_key: '$srv_api',
-                        isp: '$srv_isp', city: '$srv_city'
-                    };
-                    crypt.save('vpn_config.json', vpnDb);
-                    console.log('\x1b[32m\n✅ Konfigurasi Server ($srv_id) berhasil disimpan!\x1b[0m');
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            2)
-                echo -e "\n${C_CYAN}--- DAFTAR SERVER VPN ---${C_RST}"
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let vpnDb = crypt.load('vpn_config.json');
-                    let servers = vpnDb.servers || {};
-                    let count = 0;
-                    for(let id in servers) {
-                        count++;
-                        let s = servers[id];
-                        console.log('- ID: \x1b[33m' + id + '\x1b[0m | Nama: ' + s.server_name + ' | Host: ' + s.host);
-                    }
-                    if(count === 0) console.log('\x1b[31mBelum ada server VPN yang ditambahkan.\x1b[0m');
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            3)
-                echo -e "\n${C_MAG}--- HAPUS KONEKSI SERVER ---${C_RST}"
-                read -p "Masukkan ID Server yang ingin dihapus: " del_id
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let vpnDb = crypt.load('vpn_config.json');
-                    if(vpnDb.servers && vpnDb.servers['$del_id']) {
-                        delete vpnDb.servers['$del_id'];
-                        crypt.save('vpn_config.json', vpnDb);
-                        console.log('\x1b[32m\n✅ Server dengan ID ($del_id) berhasil dihapus!\x1b[0m');
-                    } else {
-                        console.log('\x1b[31m\n❌ Server dengan ID ($del_id) tidak ditemukan.\x1b[0m');
-                    }
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            0) break ;;
-            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
-        esac
-    done
-}
-
-submenu_produk_vpn() {
-    while true; do
-        clear
-        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "${C_YELLOW}${C_BOLD}             📦 MANAJEMEN PRODUK VPN 📦             ${C_RST}"
-        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk VPN Baru (ID Otomatis Unik)"
-        echo -e "  ${C_GREEN}[2]${C_RST} Edit Produk VPN Yang Sudah Ada"
-        echo -e "  ${C_GREEN}[3]${C_RST} List Daftar Produk"
-        echo -e "  ${C_GREEN}[4]${C_RST} Atur Ulang Stok Produk"
-        echo -e "  ${C_GREEN}[5]${C_RST} Hapus Produk"
-        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
-        echo -e "  ${C_RED}[0]${C_RST} Kembali"
-        echo -e "${C_CYAN}======================================================${C_RST}"
-        echo -ne "${C_YELLOW}Pilih menu [0-5]: ${C_RST}"
-        read prod_choice
-
-        case $prod_choice in
-            1)
-                echo -e "\n${C_MAG}--- TAMBAH PRODUK VPN BARU ---${C_RST}"
-                prod_id="VPN-$(date +%s)"
-                echo -e "${C_GREEN}Membuat ID Produk Unik: $prod_id${C_RST}"
-
-                echo -e "\nPilih Protokol:"
-                echo -e "  [1] SSH\n  [2] Vmess\n  [3] Vless\n  [4] Trojan\n  [5] ZIVPN"
-                read -p "Pilihan [1-5]: " proto_opt
-                target_proto=""
-                case $proto_opt in
-                    1) target_proto="SSH" ;;
-                    2) target_proto="Vmess" ;;
-                    3) target_proto="Vless" ;;
-                    4) target_proto="Trojan" ;;
-                    5) target_proto="ZIVPN" ;;
-                    *) target_proto="SSH" ;;
-                esac
-
-                echo -e "\nServer Tersedia:"
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let vpnDb = crypt.load('vpn_config.json');
-                    let servers = vpnDb.servers || {};
-                    for(let id in servers) console.log('  - ' + id + ' (' + servers[id].server_name + ')');
-                "
-                read -p "Ketik ID Server target: " srv_id_target
-                read -p "Nama Layanan (Misal: SSH Premium SG VIP): " p_nama
-                read -p "Harga Patokan 30 Hari (Rp): " p_harga
-                read -p "Limit IP (contoh: 2): " p_limitip
-                read -p "Limit Bandwidth Kuota GB (contoh: 200, Kosongkan utk SSH): " p_kuota
-                read -p "Jumlah Stok Awal: " p_stok
-                read -p "Deskripsi / Fitur Singkat: " p_desc
-                
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let vpnDb = crypt.load('vpn_config.json');
-                    if(!vpnDb.products) vpnDb.products = {};
-                    
-                    vpnDb.products['$prod_id'] = {
-                        protocol: '$target_proto',
-                        server_id: '$srv_id_target',
-                        name: '$p_nama' !== '' ? '$p_nama' : 'VPN Premium',
-                        price: '$p_harga' !== '' ? parseInt('$p_harga') : 0,
-                        desc: '$p_desc' !== '' ? '$p_desc' : 'Proses Otomatis',
-                        limit_ip: '$p_limitip' !== '' ? parseInt('$p_limitip') : 2,
-                        kuota: '$p_kuota' !== '' ? parseInt('$p_kuota') : 200,
-                        stok: '$p_stok' !== '' ? parseInt('$p_stok') : 0
-                    };
-                    
-                    crypt.save('vpn_config.json', vpnDb);
-                    console.log('\x1b[32m\n✅ Produk VPN Baru ($prod_id) berhasil ditambahkan ke Server!\x1b[0m');
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            2)
-                echo -e "\n${C_MAG}--- EDIT PRODUK VPN ---${C_RST}"
-                read -p "Masukkan ID Produk yang ingin diedit: " edit_prod_id
-                if [ -z "$edit_prod_id" ]; then echo "Batal."; sleep 1; continue; fi
-
-                echo -e "\nPilih Protokol (KOSONGKAN jika tidak ingin diubah):"
-                echo -e "  [1] SSH\n  [2] Vmess\n  [3] Vless\n  [4] Trojan\n  [5] ZIVPN"
-                read -p "Pilihan [1-5]: " proto_opt
-                target_proto=""
-                case $proto_opt in
-                    1) target_proto="SSH" ;;
-                    2) target_proto="Vmess" ;;
-                    3) target_proto="Vless" ;;
-                    4) target_proto="Trojan" ;;
-                    5) target_proto="ZIVPN" ;;
-                    *) target_proto="" ;;
-                esac
-
-                echo -e "\nServer Tersedia:"
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let vpnDb = crypt.load('vpn_config.json');
-                    let servers = vpnDb.servers || {};
-                    for(let id in servers) console.log('  - ' + id + ' (' + servers[id].server_name + ')');
-                "
-                read -p "Ketik ID Server target (Kosongkan jika tidak ingin diubah): " srv_id_target
-                
-                echo -e "\n${C_MAG}*Catatan: KOSONGKAN isian jika tidak ingin mengubah data lama.${C_RST}"
-                read -p "Nama Layanan: " p_nama
-                read -p "Harga Patokan 30 Hari (Rp): " p_harga
-                read -p "Limit IP: " p_limitip
-                read -p "Limit Bandwidth Kuota GB: " p_kuota
-                read -p "Deskripsi / Fitur Singkat: " p_desc
-                
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let vpnDb = crypt.load('vpn_config.json');
-                    if(!vpnDb.products || !vpnDb.products['$edit_prod_id']) {
-                        console.log('\x1b[31m❌ ID Produk tidak ditemukan!\x1b[0m');
-                        process.exit(0);
-                    }
-                    
-                    let existing = vpnDb.products['$edit_prod_id'];
-                    
-                    vpnDb.products['$edit_prod_id'] = {
-                        protocol: '$target_proto' !== '' ? '$target_proto' : existing.protocol,
-                        server_id: '$srv_id_target' !== '' ? '$srv_id_target' : existing.server_id,
-                        name: '$p_nama' !== '' ? '$p_nama' : existing.name,
-                        price: '$p_harga' !== '' ? parseInt('$p_harga') : existing.price,
-                        desc: '$p_desc' !== '' ? '$p_desc' : existing.desc,
-                        limit_ip: '$p_limitip' !== '' ? parseInt('$p_limitip') : existing.limit_ip,
-                        kuota: '$p_kuota' !== '' ? parseInt('$p_kuota') : existing.kuota,
-                        stok: existing.stok
-                    };
-                    
-                    crypt.save('vpn_config.json', vpnDb);
-                    console.log('\x1b[32m\n✅ Produk VPN ($edit_prod_id) berhasil diupdate!\x1b[0m');
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            3)
-                echo -e "\n${C_CYAN}--- DAFTAR PRODUK VPN ---${C_RST}"
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let vpnDb = crypt.load('vpn_config.json');
-                    let products = vpnDb.products || {};
-                    let count = 0;
-                    for(let id in products) {
-                        count++;
-                        let p = products[id];
-                        console.log('- ID: \x1b[33m' + id + '\x1b[0m | Nama: ' + p.name + ' | Proto: ' + p.protocol + ' | Server: ' + p.server_id + ' | Stok: ' + p.stok + ' | Harga: Rp ' + p.price);
-                    }
-                    if(count === 0) console.log('\x1b[31mBelum ada produk VPN yang ditambahkan.\x1b[0m');
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            4)
-                echo -e "\n${C_MAG}--- ATUR ULANG STOK PRODUK ---${C_RST}"
-                read -p "Masukkan ID Produk: " stok_id
-                read -p "Masukkan Jumlah Stok Baru: " stok_baru
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let vpnDb = crypt.load('vpn_config.json');
-                    if(vpnDb.products && vpnDb.products['$stok_id']) {
-                        vpnDb.products['$stok_id'].stok = parseInt('$stok_baru') || 0;
-                        crypt.save('vpn_config.json', vpnDb);
-                        console.log('\x1b[32m\n✅ Stok Produk ($stok_id) berhasil diupdate menjadi ' + vpnDb.products['$stok_id'].stok + '!\x1b[0m');
-                    } else {
-                        console.log('\x1b[31m\n❌ ID Produk tidak ditemukan.\x1b[0m');
-                    }
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            5)
-                echo -e "\n${C_MAG}--- HAPUS PRODUK ---${C_RST}"
-                read -p "Masukkan ID Produk yang ingin dihapus: " del_id
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let vpnDb = crypt.load('vpn_config.json');
-                    if(vpnDb.products && vpnDb.products['$del_id']) {
-                        delete vpnDb.products['$del_id'];
-                        crypt.save('vpn_config.json', vpnDb);
-                        console.log('\x1b[32m\n✅ Produk ($del_id) berhasil dihapus!\x1b[0m');
-                    } else {
-                        console.log('\x1b[31m\n❌ ID Produk tidak ditemukan.\x1b[0m');
-                    }
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            0) break ;;
-            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
-        esac
-    done
-}
-
-menu_etalase_custom() {
-    while true; do
-        clear
-        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "${C_YELLOW}${C_BOLD}          🌟 MANAJEMEN ETALASE CUSTOM 🌟            ${C_RST}"
-        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-        echo -e "  ${C_GREEN}[1]${C_RST} Buat Etalase Baru (Cth: Best Seller)"
-        echo -e "  ${C_GREEN}[2]${C_RST} Tambah Produk (SKU) ke Etalase"
-        echo -e "  ${C_GREEN}[3]${C_RST} Hapus Produk dari Etalase"
-        echo -e "  ${C_GREEN}[4]${C_RST} Hapus Etalase"
-        echo -e "  ${C_GREEN}[5]${C_RST} Lihat Daftar Etalase & Produk"
-        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
-        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
-        echo -e "${C_CYAN}======================================================${C_RST}"
-        echo -ne "${C_YELLOW}Pilih menu [0-5]: ${C_RST}"
-        read etalase_choice
-
-        case $etalase_choice in
-            1)
-echo -e "\n${C_MAG}--- BUAT ETALASE BARU ---${C_RST}"
-                read -p "Masukkan Judul Etalase (Cth: Best Seller): " judul_etalase
-                if [ ! -z "$judul_etalase" ]; then
-                    node -e "
-                        const crypt = require('./tendo_crypt.js');
-                        let db = crypt.load('custom_layout.json', {sections:[]});
-                        if(!db.sections) db.sections = [];
-                        db.sections.push({title: '$judul_etalase', skus: []});
-                        crypt.save('custom_layout.json', db);
-                        console.log('\x1b[32m✅ Etalase \'$judul_etalase\' berhasil dibuat!\x1b[0m');
-                    "
-                fi
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            2)
-                echo -e "\n${C_MAG}--- TAMBAH PRODUK KE ETALASE ---${C_RST}"
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let db = crypt.load('custom_layout.json', {sections:[]});
-                    if(!db.sections || db.sections.length === 0) { console.log('\x1b[31mBelum ada etalase. Buat dulu!\x1b[0m'); process.exit(0); }
-                    db.sections.forEach((sec, idx) => console.log('[' + (idx+1) + '] ' + sec.title));
-                "
-                echo -e ""
-                read -p "Pilih nomor Etalase: " nomor_etalase
-                if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
-                    read -p "Masukkan KODE SKU Produk: " sku_tambah
-                    if [ ! -z "$sku_tambah" ]; then
-                        node -e "
-                            const crypt = require('./tendo_crypt.js');
-                            let db = crypt.load('custom_layout.json', {sections:[]});
-                            let idx = parseInt('$nomor_etalase') - 1;
-                            if(db.sections[idx]) {
-                                if(!db.sections[idx].skus.includes('$sku_tambah')) {
-                                    db.sections[idx].skus.push('$sku_tambah');
-                                    crypt.save('custom_layout.json', db);
-                                    console.log('\x1b[32m✅ SKU \'$sku_tambah\' berhasil ditambahkan ke ' + db.sections[idx].title + '!\x1b[0m');
-                                } else {
-                                    console.log('\x1b[33mSKU sudah ada di etalase ini.\x1b[0m');
-                                }
-                            } else {
-                                console.log('\x1b[31m❌ Nomor etalase tidak valid.\x1b[0m');
-                            }
-                        "
-                    fi
-                fi
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            3)
-                echo -e "\n${C_MAG}--- HAPUS PRODUK DARI ETALASE ---${C_RST}"
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let db = crypt.load('custom_layout.json', {sections:[]});
-                    if(!db.sections || db.sections.length === 0) { console.log('\x1b[31mBelum ada etalase.\x1b[0m'); process.exit(0); }
-                    db.sections.forEach((sec, idx) => console.log('[' + (idx+1) + '] ' + sec.title));
-                "
-                echo -e ""
-                read -p "Pilih nomor Etalase: " nomor_etalase
-                if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
-                    read -p "Masukkan KODE SKU Produk yg ingin dihapus: " sku_hapus
-                    if [ ! -z "$sku_hapus" ]; then
-                        node -e "
-                            const crypt = require('./tendo_crypt.js');
-                            let db = crypt.load('custom_layout.json', {sections:[]});
-                            let idx = parseInt('$nomor_etalase') - 1;
-                            if(db.sections[idx]) {
-                                let oldLen = db.sections[idx].skus.length;
-                                db.sections[idx].skus = db.sections[idx].skus.filter(s => s !== '$sku_hapus');
-                                if(db.sections[idx].skus.length < oldLen) {
-                                    crypt.save('custom_layout.json', db);
-                                    console.log('\x1b[32m✅ SKU \'$sku_hapus\' berhasil dihapus dari ' + db.sections[idx].title + '!\x1b[0m');
-                                } else {
-                                    console.log('\x1b[31mSKU tidak ditemukan di etalase ini.\x1b[0m');
-                                }
-                            } else {
-                                console.log('\x1b[31m❌ Nomor etalase tidak valid.\x1b[0m');
-                            }
-                        "
-                    fi
-                fi
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            4)
-                echo -e "\n${C_MAG}--- HAPUS ETALASE ---${C_RST}"
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let db = crypt.load('custom_layout.json', {sections:[]});
-                    if(!db.sections || db.sections.length === 0) { console.log('\x1b[31mBelum ada etalase.\x1b[0m'); process.exit(0); }
-                    db.sections.forEach((sec, idx) => console.log('[' + (idx+1) + '] ' + sec.title));
-                "
-                echo -e ""
-                read -p "Pilih nomor Etalase yg ingin dihapus: " nomor_etalase
-                if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
-                    node -e "
-                        const crypt = require('./tendo_crypt.js');
-                        let db = crypt.load('custom_layout.json', {sections:[]});
-                        let idx = parseInt('$nomor_etalase') - 1;
-                        if(db.sections[idx]) {
-                            let title = db.sections[idx].title;
-                            db.sections.splice(idx, 1);
-                            crypt.save('custom_layout.json', db);
-                            console.log('\x1b[32m✅ Etalase \'' + title + '\' berhasil dihapus!\x1b[0m');
-                        } else {
-                            console.log('\x1b[31m❌ Nomor etalase tidak valid.\x1b[0m');
-                        }
-                    "
-                fi
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            5)
-                echo -e "\n${C_CYAN}--- DAFTAR ETALASE & PRODUK ---${C_RST}"
-                node -e "
-                    const crypt = require('./tendo_crypt.js');
-                    let db = crypt.load('custom_layout.json', {sections:[]});
-                    let prodDb = crypt.load('produk.json');
-                    if(!db.sections || db.sections.length === 0) {
-                        console.log('\x1b[33mBelum ada etalase yang dibuat.\x1b[0m');
-                    } else {
-                        db.sections.forEach((sec, idx) => {
-                            console.log('\n\x1b[36m[' + (idx+1) + '] ' + sec.title + '\x1b[0m');
-                            if(sec.skus.length === 0) console.log('   (Kosong)');
-                            else {
-                                sec.skus.forEach(sku => {
-                                    let pName = prodDb[sku] ? prodDb[sku].nama : 'Produk Tidak Ditemukan/Dihapus';
-                                    console.log('   - ' + sku + ' : ' + pName);
-                                });
-                            }
-                        });
-                    }
-                "
-                read -p "Tekan Enter untuk kembali..."
-                ;;
-            0) break ;;
-            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
-        esac
-    done
-}
-
-menu_pemeliharaan() {
-    clear
-    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_YELLOW}${C_BOLD}          🛠️ ATUR WAKTU PEMELIHARAAN SISTEM 🛠️        ${C_RST}"
-    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    node -e "
-        const crypt = require('./tendo_crypt.js');
-        let cfg = crypt.load('config.json');
-        console.log('Waktu Pemeliharaan Saat Ini: ' + (cfg.maintStart || '23:00') + ' s/d ' + (cfg.maintEnd || '00:30') + ' WIB');
-    "
-    echo -e "${C_MAG}Format waktu 24 Jam (Contoh: 23:00)${C_RST}"
-    read -p "Masukkan Jam Mulai Pemeliharaan: " m_start
-    read -p "Masukkan Jam Selesai Pemeliharaan: " m_end
-    
-    if [ ! -z "$m_start" ] && [ ! -z "$m_end" ]; then
-        node -e "
-            const crypt = require('./tendo_crypt.js');
-            let cfg = crypt.load('config.json');
-            cfg.maintStart = '$m_start';
-            cfg.maintEnd = '$m_end';
-            crypt.save('config.json', cfg);
-            console.log('\x1b[32m✅ Waktu pemeliharaan berhasil diupdate menjadi $m_start - $m_end WIB!\x1b[0m');
-        "
-    else
-        echo -e "${C_RED}❌ Gagal, format waktu tidak boleh kosong!${C_RST}"
-    fi
-    read -p "Tekan Enter untuk kembali..."
-}
-
-while true; do
-    clear
-    
-    SALDO_DIGI="Rp 0 (Memuat...)"
-    if [ -f "cek_saldo.js" ]; then
-        SALDO_DIGI=$(node cek_saldo.js 2>/dev/null)
-    fi
-
-    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_YELLOW}${C_BOLD}        🤖 PANEL ADMIN DIGITAL TENDO STORE 🤖         ${C_RST}"
-    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_GREEN}${C_BOLD} 💰 Sisa Saldo Digiflazz : ${C_YELLOW}${SALDO_DIGI}${C_RST}"
-    echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
-    echo -e "${C_MAG}▶ 🟢 SISTEM UTAMA${C_RST}"
-    echo -e "  ${C_GREEN}[1]${C_RST}  Install & Perbarui Sistem (Wajib Jalankan Dulu)"
-    echo -e "  ${C_GREEN}[2]${C_RST}  Mulai Sistem (Terminal / Scan QR)"
-    echo -e "  ${C_GREEN}[3]${C_RST}  Jalankan Sistem di Latar Belakang (PM2)"
-    echo -e "  ${C_GREEN}[4]${C_RST}  Hentikan Sistem (PM2)"
-    echo -e "  ${C_GREEN}[5]${C_RST}  Lihat Log / Error"
-    echo ""
-    echo -e "${C_MAG}▶ 📦 MANAJEMEN PRODUK & KATEGORI${C_RST}"
-    echo -e "  ${C_GREEN}[6]${C_RST}  🔄 Sinkronisasi Produk Digiflazz"
-    echo -e "  ${C_GREEN}[7]${C_RST}  💰 Manajemen Keuntungan Harga (13 Tingkat)"
-    echo -e "  ${C_GREEN}[8]${C_RST}  📦 Manajemen Produk Instan (Paket Custom)"
-    echo -e "  ${C_GREEN}[9]${C_RST}  🛡️ Manajemen VPN Premium"
-    echo -e "  ${C_GREEN}[10]${C_RST} 🌟 Manajemen Etalase Custom (Best Seller)"
-    echo -e "  ${C_GREEN}[11]${C_RST} 🎬 Manajemen Tutorial"
-    echo ""
-    echo -e "${C_MAG}▶ 👥 MANAJEMEN PENGGUNA${C_RST}"
-    echo -e "  ${C_GREEN}[12]${C_RST} 👥 Manajemen Saldo & Member"
-    echo ""
-    echo -e "${C_MAG}▶ ⚙️ PENGATURAN & INTEGRASI${C_RST}"
-    echo -e "  ${C_GREEN}[13]${C_RST} 🔌 Ganti API Digiflazz"
-    echo -e "  ${C_GREEN}[14]${C_RST} 💳 Setup GoPay Merchant API"
-    echo -e "  ${C_GREEN}[15]${C_RST} 📢 Setup Integrasi Notifikasi (Tele/Web)"
-    echo -e "  ${C_GREEN}[16]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
-    echo -e "  ${C_GREEN}[17]${C_RST} 🔄 Ganti Akun WA Web OTP (Reset Sesi)"
-    echo -e "  ${C_GREEN}[20]${C_RST} 🛠️ Atur Waktu Pemeliharaan Sistem"
-    echo ""
-    echo -e "${C_MAG}▶ 💾 BACKUP & RESTORE${C_RST}"
-    echo -e "  ${C_GREEN}[18]${C_RST} 💾 Backup & Restore Database"
-    echo -e "  ${C_GREEN}[19]${C_RST} ⚙️ Pengaturan Auto-Backup Telegram"
-    echo -e "${C_CYAN}======================================================${C_RST}"
-    echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
-    echo -e "${C_CYAN}======================================================${C_RST}"
-    echo -ne "${C_YELLOW}Pilih menu [0-20]: ${C_RST}"
-    read choice
-
-    case $choice in
-        1) install_dependencies ;;
-        2) 
-            if [ ! -f "index.js" ]; then echo -e "${C_RED}❌ Jalankan Menu 1 (Install) dulu!${C_RST}"; sleep 2; continue; fi
-            if [ ! -d "sesi_bot" ] || [ -z "$(ls -A sesi_bot 2>/dev/null)" ]; then
-                read -p "📲 Masukkan Nomor WA Bot (Awali 628...): " nomor_bot
-                if [ ! -z "$nomor_bot" ]; then
-                    node -e "
-                        const crypt = require('./tendo_crypt.js');
-                        let config = crypt.load('config.json');
-                        config.botNumber = '$nomor_bot';
-                        config.botName = config.botName || 'Digital Tendo Store';
-                        crypt.save('config.json', config);
-                    "
-                fi
-            fi
-            echo -e "\n${C_MAG}⏳ Membersihkan proses lama agar tidak bentrok...${C_RST}"
-            pm2 kill >/dev/null 2>&1
-            killall node >/dev/null 2>&1
-            echo -e "\n${C_MAG}⏳ Menjalankan bot... (Tekan CTRL+C untuk mematikan dan kembali ke menu)${C_RST}"
-            export IP_ADDRESS=$(curl -s ifconfig.me)
-            node index.js
-            echo -e "\n${C_YELLOW}⚠️ Proses bot terhenti.${C_RST}"
-            read -p "Tekan Enter untuk kembali ke panel utama..."
-            ;;
-        3) 
-            echo -e "\n${C_MAG}⏳ Membersihkan proses lama agar tidak bentrok...${C_RST}"
-            pm2 kill >/dev/null 2>&1
-            killall node >/dev/null 2>&1
-            pm2 delete tendo-bot >/dev/null 2>&1
-            export IP_ADDRESS=$(curl -s ifconfig.me)
-            pm2 start index.js --name "tendo-bot" >/dev/null 2>&1
-            pm2 save >/dev/null 2>&1
-            pm2 startup >/dev/null 2>&1
-            echo -e "\n${C_GREEN}✅ Sistem berjalan di latar belakang!${C_RST}"
-            sleep 2 ;;
-        4) 
-            pm2 stop tendo-bot >/dev/null 2>&1
-            pm2 delete tendo-bot >/dev/null 2>&1
-            echo -e "\n${C_GREEN}✅ Sistem dihentikan dan dibersihkan dari latar belakang.${C_RST}"
-            sleep 2 ;;
-        5) pm2 logs tendo-bot ;;
-        6) menu_sinkron ;;
-        7) menu_keuntungan ;;
-        8) menu_manajemen_produk_instan ;;
-        9) submenu_produk_vpn ;;
-        10) menu_etalase_custom ;;
-        11) menu_tutorial ;;
-        12) menu_member ;;
-        13)
-            echo -e "\n${C_MAG}--- GANTI API DIGIFLAZZ ---${C_RST}"
-            read -p "Username Digiflazz Baru: " user_api
-            read -p "API Key Digiflazz Baru: " key_api
-            node -e "
-                const crypt = require('./tendo_crypt.js');
-                let config = crypt.load('config.json');
-                if('$user_api' !== '') config.digiflazzUsername = '$user_api'.trim();
-                if('$key_api' !== '') config.digiflazzApiKey = '$key_api'.trim();
-                crypt.save('config.json', config);
-                console.log('\x1b[32m\n✅ Konfigurasi Digiflazz berhasil disimpan!\x1b[0m');
-            "
-            read -p "Tekan Enter untuk kembali..."
-            ;;
-        14)
-            echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT (BHM BIZ API) ---${C_RST}"
-            echo -e "${C_YELLOW}Fitur ini akan menghubungkan merchant GoPay Anda dan mengatur QRIS Dinamis!${C_RST}"
-            read -p "Masukkan API Token BHM Biz Anda: " gopay_token
-            read -p "Masukkan Merchant ID (Angka, contoh: 123): " gopay_mid
-            read -p "Masukkan Nomor HP GoPay (08...): " gopay_phone
-
-            if [ ! -z "$gopay_token" ] && [ ! -z "$gopay_phone" ] && [ ! -z "$gopay_mid" ]; then
-                echo -e "\n${C_CYAN}>> Mengirim Request OTP ke nomor $gopay_phone...${C_RST}"
-                req_otp=$(curl -sS -X POST http://gopay.bhm.biz.id/v1/gopay/merchants/connect/request-otp \
-                  -H 'Content-Type: application/json' \
-                  -d "{\"phone\":\"$gopay_phone\"}")
-                
-                echo -e "${C_YELLOW}Respon Server: $req_otp${C_RST}"
-                
-                read -p "Masukkan 4 Digit OTP dari WA/SMS Gojek: " gopay_otp
-                
-                if [ ! -z "$gopay_otp" ]; then
-                    echo -e "\n${C_CYAN}>> Memverifikasi OTP...${C_RST}"
-                    ver_otp=$(curl -sS -X POST http://gopay.bhm.biz.id/v1/gopay/merchants/$gopay_mid/connect/verify-otp \
-                      -H "Authorization: Bearer $gopay_token" \
-                      -H 'Content-Type: application/json' \
-                      -d "{\"otp\":\"$gopay_otp\"}")
-                    
-                    echo -e "${C_YELLOW}Respon Server: $ver_otp${C_RST}"
-                fi
-            fi
-
-            echo -e "\n${C_CYAN}Siapkan TEKS STRING dari QRIS Statis Anda.${C_RST}"
-            echo -e "Teks QRIS berawalan '000201010211...' dan diakhiri dengan kombinasi 4 huruf/angka (CRC)."
-            read -p "Paste TEKS STRING QRIS Anda di sini: " qris_text
-            node -e "
-                const crypt = require('./tendo_crypt.js'); let config = crypt.load('config.json');
-                if ('$gopay_token' !== '') config.gopayToken = '$gopay_token'.trim();
-                if ('$gopay_mid' !== '') config.gopayMerchantId = '$gopay_mid'.trim();
-                if ('$qris_text' !== '') config.qrisText = '$qris_text'.trim();
-                crypt.save('config.json', config);
-                console.log('\x1b[32m\n✅ Konfigurasi GoPay BHM Biz & QRIS Dinamis berhasil disimpan!\x1b[0m');
-            "
-            read -p "Tekan Enter untuk kembali..."
-            ;;
-        15) menu_notifikasi ;;
-        16)
-            echo -e "\n${C_MAG}--- SETUP DOMAIN & HTTPS ---${C_RST}"
-            read -p "Masukkan Nama Domain Anda (contoh: digitaltendostore.com): " domain_name
-            read -p "Masukkan Email Aktif (untuk SSL Let's Encrypt): " ssl_email
-            if [ ! -z "$domain_name" ] && [ ! -z "$ssl_email" ]; then
-                echo -e "${C_CYAN}>> Menginstal Nginx dan Certbot...${C_RST}"
-                sudo apt install -y nginx certbot python3-certbot-nginx > /dev/null 2>&1
-                
-                cat <<EOF | sudo tee /etc/nginx/sites-available/$domain_name
-server {
-    listen 80; server_name $domain_name;
-    add_header X-Frame-Options "SAMEORIGIN"; add_header X-XSS-Protection "1; mode=block"; add_header X-Content-Type-Options "nosniff";
-    location / {
-        proxy_pass http://localhost:3000; proxy_http_version 1.1; proxy_set_header Upgrade \$http_upgrade; proxy_set_header Connection 'upgrade'; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; proxy_read_timeout 90; proxy_connect_timeout 90; proxy_send_timeout 90; proxy_cache_bypass \$http_upgrade;
-    }
-}
-EOF
-                sudo ln -sf /etc/nginx/sites-available/$domain_name /etc/nginx/sites-enabled/
-                sudo rm -f /etc/nginx/sites-enabled/default
-                sudo nginx -t && sudo systemctl restart nginx
-                echo -e "${C_CYAN}>> Meminta Sertifikat SSL HTTPS ke Let's Encrypt...${C_RST}"
-                sudo certbot --nginx -d $domain_name --non-interactive --agree-tos -m $ssl_email --redirect --keep-until-expiring
-                echo -e "\n${C_GREEN}✅ Berhasil diamankan di: https://$domain_name ${C_RST}"
-            else
-                echo -e "${C_RED}❌ Domain atau Email tidak boleh kosong!${C_RST}"
-            fi
-            read -p "Tekan Enter untuk kembali..."
-            ;;
-        17)
-            echo -e "\n${C_RED}⚠️ Reset Sesi akan mengeluarkan sistem dari WhatsApp saat ini.${C_RST}"
-            read -p "Yakin ingin mereset sesi? (y/n): " reset_sesi
-            if [ "$reset_sesi" == "y" ]; then
-                pm2 stop tendo-bot >/dev/null 2>&1
-                rm -rf sesi_bot
-                echo -e "${C_GREEN}✅ Sesi berhasil dihapus. Silakan jalankan sistem kembali untuk menautkan nomor baru.${C_RST}"
-            fi
-            read -p "Tekan Enter untuk kembali..."
-            ;;
-        18) menu_backup ;;
-        19) menu_telegram ;;
-        20) menu_pemeliharaan ;;
-        0) echo -e "${C_GREEN}Sampai jumpa!${C_RST}"; exit 0 ;;
-        *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
-    esac
-done
-# SELESAI
