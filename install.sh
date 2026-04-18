@@ -334,10 +334,15 @@ EOF
         .nav-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
         .nav-item.active { color: var(--nav-active);}
 
-        /* Tombol WA Melayang */
-        .floating-wa { position: fixed; bottom: 85px; right: 20px; background-color: #25D366; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4); z-index: 950; text-decoration: none; transition: transform 0.2s; }
-        .floating-wa:active { transform: scale(0.9); }
-        .floating-wa svg { width: 28px; height: 28px; fill: currentColor; }
+        /* Tombol WA Melayang dengan animasi denyut */
+        @keyframes pulseWA {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(37, 211, 102, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+        }
+        .floating-wa { position: fixed; bottom: 85px; right: 20px; background-color: #25D366; color: white; width: 55px; height: 55px; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4); z-index: 950; text-decoration: none; animation: pulseWA 2s infinite; transition: transform 0.2s; }
+        .floating-wa:active { transform: scale(0.9); animation: none; }
+        .floating-wa svg { width: 32px; height: 32px; fill: currentColor; }
 
         .product-item { background: var(--bg-card); padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow-outer), var(--shadow-inner); cursor: pointer; transition: transform 0.2s;}
         .product-item:active { transform: scale(0.98); }
@@ -375,8 +380,8 @@ EOF
 
         .container { padding: 20px; }
         .card { background: var(--bg-card); padding: 25px 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.02);}
-        input, select { width: 100%; padding: 15px; margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 12px; box-sizing: border-box; font-size: 14px; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 600; transition: border-color 0.2s;}
-        input:focus, select:focus { border-color: #0284c7; background: var(--bg-card);}
+        input, select, textarea { width: 100%; padding: 15px; margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 12px; box-sizing: border-box; font-size: 14px; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 600; transition: border-color 0.2s;}
+        input:focus, select:focus, textarea:focus { border-color: #0284c7; background: var(--bg-card);}
         
         .checkbox-container { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 20px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer;}
         .checkbox-container input { width: 16px; height: 16px; margin: 0; padding: 0; cursor: pointer;}
@@ -509,8 +514,8 @@ EOF
             #notif-list .card, #global-trx-list .card, #tutorial-list .card { margin-bottom: 0 !important; }
             #login-screen .card, #register-screen .card, #otp-screen .card, #forgot-screen .card, #login-otp-screen .card { max-width: 450px; margin: 0 auto; padding: 40px; }
             .sidebar { width: 340px; }
-            .floating-wa { bottom: 40px; right: 40px; width: 60px; height: 60px; }
-            .floating-wa svg { width: 35px; height: 35px; }
+            .floating-wa { bottom: 40px; right: 40px; width: 65px; height: 65px; }
+            .floating-wa svg { width: 40px; height: 40px; }
         }
 
         @media screen and (min-width: 1024px) {
@@ -520,6 +525,7 @@ EOF
             #product-list, #brand-list, #history-list, #notif-list, #global-trx-list, #tutorial-list { grid-template-columns: repeat(3, 1fr); }
         }
     </style>
+#SELESAI
 </head>
 <body> <div id="app">
         <div id="initial-loader" style="display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; background: var(--bg-main); position: fixed; top:0; left:0; width:100%; z-index:9999; transition: opacity 0.3s;">
@@ -630,6 +636,7 @@ EOF
                 <input type="email" id="reg-email" placeholder="Alamat Email">
                 <input type="number" id="reg-phone" placeholder="Nomor WhatsApp">
                 <input type="password" id="reg-pass" placeholder="Buat Password">
+                <input type="text" id="reg-ref" placeholder="Kode Referral (Opsional)">
                 <button class="btn" id="btn-register" onclick="requestOTP()">Kirim OTP WhatsApp</button>
                 <button class="btn-outline" style="border:none;" onclick="showScreen('login-screen')">Kembali ke Login</button>
                 <button class="btn-outline" style="border:none; margin-top:5px; color:#0ea5e9; font-weight:bold;" onclick="contactAdmin()">Butuh Bantuan? Hubungi Admin</button>
@@ -1755,6 +1762,13 @@ EOF
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
+            let urlParams = new URLSearchParams(window.location.search);
+            let refCode = urlParams.get('ref');
+            if(refCode) {
+                let refInput = document.getElementById('reg-ref');
+                if(refInput) refInput.value = refCode;
+            }
+
             let savedId = localStorage.getItem('tendo_rem_id');
             let savedPass = localStorage.getItem('tendo_rem_pass');
             if(savedId && savedPass) {
@@ -1905,7 +1919,6 @@ EOF
                     data.forEach(n => {
                         let imgTag = '';
                         if(n.image) {
-                            // Cek jika gambar dari maint_images atau info_images
                             let imgSrc = n.image.startsWith('maint_') ? `/maint_images/${n.image}` : `/info_images/${n.image}`;
                             imgTag = `<img src="${imgSrc}" style="width:100%; border-radius:8px; margin-bottom:10px; display:block;">`;
                         }
@@ -2035,6 +2048,11 @@ EOF
             try {
                 let data = await apiCall('/api/user/' + currentUser);
                 if(data && data.success) {
+                    if (data.data.banned) {
+                        showToast("Akun Anda telah diblokir oleh Admin.", "error");
+                        logout();
+                        return;
+                    }
                     userData = data.data; let u = userData;
                     
                     let elSaldo = document.getElementById('user-saldo');
@@ -2247,7 +2265,11 @@ EOF
             try {
                 let data = await apiCall('/api/login', {id: idLogin, password:pass});
                 if(data && data.success) {
-                    // Berhasil masuk tanpa OTP
+                    if(data.data.banned) {
+                        showToast("Akun Anda diblokir oleh Admin.", "error");
+                        btn.innerText = ori; btn.disabled = false;
+                        return;
+                    }
                     currentUser = data.phone; userData = data.data;
                     await fetchAllProducts(); 
                     await fetchVPNConfig();
@@ -2315,15 +2337,16 @@ EOF
             let email = document.getElementById('reg-email').value.trim();
             let phone = document.getElementById('reg-phone').value.trim();
             let pass = document.getElementById('reg-pass').value.trim();
+            let refInput = document.getElementById('reg-ref').value.trim();
             if(!user || !email || !phone || !pass) return showToast('Semua kolom wajib diisi!', 'error');
             
             let btn = document.getElementById('btn-register');
             let ori = btn.innerText;
             btn.innerText = "Mengirim..."; btn.disabled = true;
 
-            // Tangkap kode referral dari URL
+            // Tangkap kode referral dari input atau URL
             let urlParams = new URLSearchParams(window.location.search);
-            let ref_code = urlParams.get('ref') || '';
+            let ref_code = refInput || urlParams.get('ref') || '';
             
             try {
                 let data = await apiCall('/api/register', {username:user, email, phone, password:pass, referral: ref_code});
@@ -2771,7 +2794,6 @@ EOF
                     closeVPNTrialModal();
                     await syncUserData();
                     
-                    // LANGSUNG ARAHKAN KE DETAIL HISTORY UNTUK MELIHAT AKUN VPN TRIAL
                     if(userData.history && userData.history.length > 0) {
                         let latest = userData.history[0];
                         openHistoryDetail(latest);
@@ -2802,7 +2824,7 @@ EOF
             document.getElementById('m-vpn-expired').value = '30';
             
             document.getElementById('m-vpn-payment').value = 'saldo';
-            selectPaymentVpn('saldo'); // set default btn
+            selectPaymentVpn('saldo'); 
 
             if(protocol.toUpperCase() === 'SSH' || protocol.toUpperCase() === 'ZIVPN') {
                 document.getElementById('m-vpn-password').classList.remove('hidden');
@@ -2877,7 +2899,7 @@ EOF
 }
 
 # ==========================================
-# FUNGSI MEMBUAT TAMPILAN PANEL ADMIN RAHASIA
+# FUNGSI MEMBUAT TAMPILAN PANEL ADMIN RAHASIA (UPDATE FULL)
 # ==========================================
 generate_admin_app() {
     cat << 'EOF' > public/tendo_admin_secret.html
@@ -2886,74 +2908,260 @@ generate_admin_app() {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Panel Admin Tendo Store</title>
+    <title>Panel Bos Tendo</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; background: #1e293b; padding: 20px; border-radius: 16px; border: 1px solid #334155; }
-        h1 { margin-top: 0; color: #38bdf8; text-align: center; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; display: flex; }
         .hidden { display: none !important; }
-        input, select { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: #fff; box-sizing: border-box;}
-        .btn { background: #0ea5e9; color: #fff; border: none; padding: 12px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 10px;}
+        
+        .sidebar { width: 260px; background: #1e293b; height: 100vh; position: fixed; left: -260px; transition: left 0.3s; z-index: 1000; border-right: 1px solid #334155; overflow-y: auto; }
+        .sidebar.open { left: 0; }
+        .sidebar-header { padding: 20px; font-size: 18px; font-weight: 900; color: #38bdf8; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+        .close-btn { background: none; border: none; color: #f8fafc; font-size: 24px; cursor: pointer; }
+        .menu-item { padding: 15px 20px; border-bottom: 1px solid #334155; cursor: pointer; transition: 0.2s; font-size: 14px; font-weight: 600; }
+        .menu-item:hover, .menu-item.active { background: #334155; color: #38bdf8; border-left: 4px solid #38bdf8; }
+        
+        .main-content { flex: 1; padding: 20px; margin-left: 0; transition: margin-left 0.3s; width: 100%; box-sizing: border-box; min-height: 100vh; }
+        .topbar { display: flex; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #334155; }
+        .hamburger { background: none; border: none; color: #38bdf8; font-size: 26px; cursor: pointer; margin-right: 15px; }
+        
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; color: #38bdf8; font-size: 20px; font-weight: 900; }
+        h3 { margin-top: 0; color: #f8fafc; font-size: 16px; margin-bottom: 15px; }
+        input, select, textarea, button { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: #fff; box-sizing: border-box; font-size: 14px; outline:none; }
+        input:focus, select:focus, textarea:focus { border-color: #38bdf8; }
+        button { background: #0ea5e9; font-weight: bold; cursor: pointer; border: none; transition: 0.2s; }
+        button:hover { opacity: 0.8; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-danger { background: #ef4444; }
-        .box { background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 15px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-        table, th, td { border: 1px solid #334155; }
-        th, td { padding: 8px; text-align: left; }
+        .btn-success { background: #10b981; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 12px 10px; border-bottom: 1px solid #334155; text-align: left; }
+        th { background: #0f172a; color: #38bdf8; font-weight: bold; white-space: nowrap; }
+        tr:hover { background: rgba(255,255,255,0.02); }
+        .badge { padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 11px; white-space: nowrap; display: inline-block; }
+        .bg-green { background: #dcfce7; color: #166534; }
+        .bg-yellow { background: #fef08a; color: #92400e; }
+        .bg-red { background: #fee2e2; color: #b91c1c; }
+
+        .toast { position: fixed; top: 20px; right: 20px; background: #10b981; color: white; padding: 12px 20px; border-radius: 8px; font-weight: bold; z-index: 2000; opacity: 0; transition: 0.3s; pointer-events: none; }
+        .toast.show { opacity: 1; }
+        .toast.error { background: #ef4444; }
+
+        #login-box { max-width: 400px; margin: 100px auto; width: 100%; }
+
+        @media screen and (min-width: 768px) {
+            .sidebar { left: 0; }
+            .main-content { margin-left: 260px; width: calc(100% - 260px); padding: 30px; }
+            .hamburger { display: none; }
+            .close-btn { display: none; }
+        }
     </style>
 </head>
 <body>
-    <div id="login-box" class="container">
-        <h1>Admin Security Login</h1>
-        <p style="text-align:center; font-size:12px; color:#94a3b8;">Hanya untuk role Superadmin (082224460678)</p>
-        <input type="password" id="admin-pass" placeholder="Masukkan Password Akun Admin...">
-        <button class="btn" onclick="loginAdmin()">Masuk Akses Rahasia</button>
+    <div id="toast" class="toast">Notifikasi</div>
+
+    <div id="login-box" class="card">
+        <h2 style="text-align:center;">Admin Tendo Store</h2>
+        <p style="text-align:center; font-size:12px; color:#94a3b8; margin-bottom:20px;">Password Default: @Rohman32</p>
+        <input type="password" id="admin-pass" placeholder="Password Admin...">
+        <button id="btn-login" onclick="loginAdmin()">Akses Panel</button>
     </div>
 
-    <div id="admin-dashboard" class="container hidden">
-        <h1>Dashboard Bos Tendo</h1>
+    <div id="admin-app" class="hidden" style="display:flex; width:100%;">
         
-        <div class="box" style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <span style="font-size:12px; color:#94a3b8;">Total Saldo Pelanggan:</span><br>
-                <strong id="total-saldo" style="font-size:20px; color:#10b981;">Rp 0</strong>
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                BOSS TENDO
+                <button class="close-btn" onclick="toggleSidebar()">×</button>
             </div>
-            <div>
-                <span style="font-size:12px; color:#94a3b8;">Total User:</span><br>
-                <strong id="total-user" style="font-size:20px;">0</strong>
-            </div>
+            <div class="menu-item active" onclick="switchMenu('trx')" id="nav-trx">📊 Transaksi & Keuangan</div>
+            <div class="menu-item" onclick="switchMenu('users')" id="nav-users">👥 Manajemen Pengguna</div>
+            <div class="menu-item" onclick="switchMenu('produk')" id="nav-produk">🏷️ Kontrol Harga & Produk</div>
+            <div class="menu-item" onclick="switchMenu('sistem')" id="nav-sistem">⚙️ Kendali Sistem</div>
+            <div class="menu-item" onclick="switchMenu('log')" id="nav-log">🛡️ Log & Keamanan</div>
+            <div class="menu-item" style="color:#ef4444; border-top: 1px solid #334155; margin-top:10px;" onclick="logoutAdmin()">🚪 Keluar Panel</div>
         </div>
 
-        <div class="box">
-            <h3>Tambah/Kurangi Saldo Pelanggan</h3>
-            <input type="number" id="target-phone" placeholder="Nomor WA Pelanggan (08/62)">
-            <input type="number" id="target-amount" placeholder="Nominal (Cth: 50000)">
-            <div style="display:flex; gap:10px;">
-                <button class="btn" style="background:#10b981;" onclick="manageBalance('add')">Tambah Saldo</button>
-                <button class="btn btn-danger" onclick="manageBalance('minus')">Tarik Saldo</button>
+        <div class="main-content" onclick="closeSidebarOutside()">
+            <div class="topbar">
+                <button class="hamburger" onclick="toggleSidebar(event)">☰</button>
+                <h2 id="page-title" style="margin:0;">Dashboard Admin</h2>
             </div>
-        </div>
-        
-        <div class="box">
-            <h3>Daftar Pelanggan Terbaru</h3>
-            <button class="btn" onclick="loadUsers()">Muat Ulang Data</button>
-            <div style="overflow-x:auto;">
-                <table id="users-table">
-                    <tr><th>WA</th><th>Nama</th><th>Level</th><th>Saldo</th></tr>
-                </table>
-            </div>
-        </div>
 
-        <button class="btn btn-danger" onclick="logoutAdmin()">Keluar (Hapus Stempel/Token)</button>
+            <div id="view-trx" class="view-section">
+                <div style="display:flex; gap:15px; margin-bottom:20px; flex-wrap:wrap;">
+                    <div class="card" style="flex:1; min-width:200px; margin-bottom:0; border-left:4px solid #10b981;">
+                        <span style="font-size:13px; color:#94a3b8; font-weight:bold;">Profit Bersih Hari Ini</span><br>
+                        <strong style="font-size:28px; color:#10b981;" id="profit-daily">Rp 0</strong>
+                    </div>
+                    <div class="card" style="flex:1; min-width:200px; margin-bottom:0; border-left:4px solid #38bdf8;">
+                        <span style="font-size:13px; color:#94a3b8; font-weight:bold;">Profit Bersih Bulan Ini</span><br>
+                        <strong style="font-size:28px; color:#38bdf8;" id="profit-monthly">Rp 0</strong>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>Riwayat Transaksi Global (Real-time)</h3>
+                    <div style="display:flex; gap:10px; margin-bottom:15px;">
+                        <select id="filter-trx" onchange="loadGlobalTrx()" style="margin-bottom:0; flex:1;">
+                            <option value="all">Semua Status (Campur)</option>
+                            <option value="Sukses">✅ Sukses Saja</option>
+                            <option value="Pending">⏳ Pending Saja</option>
+                            <option value="Gagal">❌ Gagal / Refund</option>
+                        </select>
+                        <button onclick="loadGlobalTrx()" style="width:auto; padding: 0 20px; margin-bottom:0;">Refresh</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table id="table-trx">
+                            <thead>
+                                <tr><th>Tgl/Waktu</th><th>User</th><th>Layanan</th><th>Target</th><th>Modal</th><th>Jual</th><th>Untung</th><th>Status</th></tr>
+                            </thead>
+                            <tbody id="tbody-trx">
+                                <tr><td colspan="8" style="text-align:center; padding:20px; color:#94a3b8;">Memuat data transaksi...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-users" class="view-section hidden">
+                <div class="card">
+                    <h3>Cari & Kelola Akun Pelanggan</h3>
+                    <div style="display:flex; gap:10px; margin-bottom:15px;">
+                        <input type="text" id="search-user" placeholder="Cari No WA / Username..." style="margin-bottom:0; flex:1;" onkeyup="if(event.key==='Enter') loadUsers()">
+                        <button onclick="loadUsers()" style="width:auto; padding: 0 20px; margin-bottom:0;">Cari</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table id="table-users">
+                            <thead>
+                                <tr><th>WA / Info</th><th>Saldo Aktif</th><th>Level Kasta</th><th>Ubah Level</th><th>Status</th><th>Aksi Blokir</th></tr>
+                            </thead>
+                            <tbody id="tbody-users">
+                                <tr><td colspan="6" style="text-align:center; padding:20px; color:#94a3b8;">Memuat data pengguna...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-produk" class="view-section hidden">
+                <div class="card" style="border-top: 4px solid #38bdf8;">
+                    <h3>Manajemen Keuntungan (Margin 13 Tier)</h3>
+                    <p style="font-size:12px; color:#94a3b8; margin-bottom:15px;">Harga jual ke pelanggan otomatis dihitung dari <strong>Harga Modal Digiflazz + Keuntungan (Margin)</strong> di bawah ini.</p>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px;" id="margin-form">
+                        </div>
+                    <button class="btn-success" id="btn-save-margin" onclick="saveMargins()" style="margin-top:20px; padding:15px; font-size:15px;">Simpan Semua Perubahan Margin</button>
+                </div>
+
+                <div class="card">
+                    <h3>Tambah/Edit Etalase Custom (Halaman Depan)</h3>
+                    <p style="font-size:12px; color:#94a3b8; margin-bottom:15px;">Atur produk apa saja yang tampil di "Layanan Unggulan" atau "Best Seller".</p>
+                    <input type="text" id="eta-name" placeholder="Judul Etalase (Cth: Promo Gila, Best Seller)">
+                    <input type="text" id="eta-skus" placeholder="Masukkan KODE SKU Produk (Pisahkan dengan Koma. Cth: TSEL10, ML50)">
+                    <button onclick="addEtalase()">Buat / Simpan Etalase Baru</button>
+                    
+                    <h4 style="margin-top:25px; border-bottom: 1px solid #334155; padding-bottom:10px;">Daftar Etalase Aktif:</h4>
+                    <div id="list-etalase">Memuat etalase...</div>
+                </div>
+            </div>
+
+            <div id="view-sistem" class="view-section hidden">
+                <div class="card" style="border-left: 4px solid #f59e0b;">
+                    <h3>Saklar Darurat Pemeliharaan (Maintenance)</h3>
+                    <p style="font-size:12px; color:#94a3b8;">Segera matikan semua akses transaksi jika server sedang gangguan tanpa harus repot setting jam VPS.</p>
+                    <div style="display:flex; align-items:center; justify-content:space-between; background:#0f172a; padding:15px; border-radius:8px; border:1px solid #334155;">
+                        <strong id="maint-status-text" style="color:#10b981;">Toko Buka (Normal)</strong>
+                        <button id="btn-maint" onclick="toggleMaintenance()" style="width:auto; margin:0; background:#f59e0b; color:#000;">Aktifkan Maintenance</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Upload Banner Promo Website</h3>
+                    <p style="font-size:12px; color:#94a3b8;">Unggah gambar (JPG/PNG) untuk mengganti slider banner di halaman utama.</p>
+                    <div style="display:flex; gap:10px;">
+                        <select id="banner-slot" style="width:120px;">
+                            <option value="1">Slot 1</option><option value="2">Slot 2</option><option value="3">Slot 3</option><option value="4">Slot 4</option><option value="5">Slot 5</option>
+                        </select>
+                        <input type="file" id="banner-file" accept="image/*" style="flex:1;">
+                    </div>
+                    <button id="btn-banner" onclick="uploadBanner()">Upload & Ganti Banner</button>
+                </div>
+
+                <div class="card" style="border-left: 4px solid #8b5cf6;">
+                    <h3>Broadcast Pengumuman & Promo Instan</h3>
+                    <p style="font-size:12px; color:#94a3b8;">Kirim pesan ke halaman Notifikasi Web, sekaligus Broadcast ke Saluran WhatsApp & Telegram.</p>
+                    <input type="text" id="info-title" placeholder="Judul Pengumuman (Cth: Promo Akhir Tahun!)">
+                    <textarea id="info-text" placeholder="Isi detail pengumuman panjang di sini..." rows="4"></textarea>
+                    <div style="margin-bottom:12px;">
+                        <label style="font-size:12px; color:#94a3b8; display:block; margin-bottom:5px;">Gambar Brosur (Opsional):</label>
+                        <input type="file" id="info-img" accept="image/*" style="margin-bottom:0;">
+                    </div>
+                    <label style="font-size:13px; font-weight:bold; margin-bottom:15px; display:flex; align-items:center; gap:10px; cursor:pointer; padding:10px; background:#0f172a; border-radius:8px; border:1px solid #334155;">
+                        <input type="checkbox" id="info-broadcast" style="width:20px; height:20px; margin:0;">
+                        Otomatis teruskan juga ke Channel Telegram & WhatsApp
+                    </label>
+                    <button class="btn-success" id="btn-info" onclick="sendInfo()">🚀 Kirim Pengumuman Sekarang</button>
+                </div>
+
+                <div class="card">
+                    <h3>Ubah Rahasia (API Keys) Tersembunyi</h3>
+                    <p style="font-size:12px; color:#ef4444; font-weight:bold;">Hati-hati! Mengubah ini dapat memutuskan koneksi pembayaran.</p>
+                    <label style="font-size:12px; color:#94a3b8;">Username Digiflazz:</label>
+                    <input type="text" id="api-digi-user">
+                    <label style="font-size:12px; color:#94a3b8;">API Key / Production Key Digiflazz:</label>
+                    <input type="password" id="api-digi-key">
+                    <label style="font-size:12px; color:#94a3b8;">Token GoPay BHM Biz (Untuk QRIS):</label>
+                    <input type="password" id="api-gopay-token">
+                    <label style="font-size:12px; color:#94a3b8;">Token Bot Telegram (Admin):</label>
+                    <input type="password" id="api-tele-bot">
+                    <button onclick="saveApiKeys()">Simpan API Keys Baru</button>
+                </div>
+            </div>
+
+            <div id="view-log" class="view-section hidden">
+                <div class="card" style="border-left: 4px solid #10b981;">
+                    <h3>Sistem Backup Instan (Disarankan Berkala)</h3>
+                    <p style="font-size:13px; color:#94a3b8; margin-bottom:15px;">Tekan tombol ini, maka sistem akan membungkus seluruh Database (User, Saldo, History, Transaksi) dan mengirimkannya langsung ke Chat Telegram Anda sebagai File ZIP. Aman 100%.</p>
+                    <button class="btn-success" id="btn-backup" onclick="instantBackup()" style="padding:15px; font-size:16px;">💾 Kirim Backup Ke Telegram Sekarang</button>
+                </div>
+
+                <div class="card">
+                    <h3>Log Aktivitas Login Admin Terakhir</h3>
+                    <p style="font-size:12px; color:#94a3b8;">Memantau IP dan waktu akses untuk mencegah pembobolan panel.</p>
+                    <ul id="list-logs" style="font-size:12px; font-family:monospace; background:#0f172a; padding:15px; border-radius:8px; border:1px solid #334155; max-height:300px; overflow-y:auto; list-style:none; margin:0;">
+                        <li style="color:#94a3b8;">Memuat log keamanan...</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
     </div>
-
+EOF
+}
+# SELESAI
+cat << 'EOF' >> public/tendo_admin_secret.html
     <script>
-        async function apiAdmin(path, body = null) {
-            let token = localStorage.getItem('tendo_admin_token');
+        // FRONTEND JS ADMIN
+        let token = localStorage.getItem('tendo_admin_token');
+        
+        function showToast(msg, isError = false) {
+            let t = document.getElementById('toast');
+            t.innerText = msg;
+            t.className = isError ? 'toast error show' : 'toast show';
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        async function apiAdmin(path, body = null, isFormData = false) {
             let options = { headers: { 'Authorization': 'Bearer ' + token } };
             if(body) {
                 options.method = 'POST';
-                options.headers['Content-Type'] = 'application/json';
-                options.body = JSON.stringify(body);
+                if (!isFormData) {
+                    options.headers['Content-Type'] = 'application/json';
+                    options.body = JSON.stringify(body);
+                } else {
+                    options.body = body;
+                }
             }
             let res = await fetch(path, options);
             return await res.json();
@@ -2961,72 +3169,298 @@ generate_admin_app() {
 
         async function loginAdmin() {
             let p = document.getElementById('admin-pass').value;
-            if(!p) return alert("Isi password!");
+            if(!p) return showToast("Isi password!", true);
+            let btn = document.getElementById('btn-login');
+            btn.innerText = "Memeriksa..."; btn.disabled = true;
             let res = await fetch('/api/admin/login', {
                 method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({password: p})
             });
             let data = await res.json();
             if(data.success) {
                 localStorage.setItem('tendo_admin_token', data.token);
-                showDashboard();
+                token = data.token;
+                document.getElementById('login-box').classList.add('hidden');
+                document.getElementById('admin-app').classList.remove('hidden');
+                loadDashboardData();
             } else {
-                alert(data.message || "Akses Ditolak!");
+                showToast(data.message || "Akses Ditolak!", true);
             }
-        }
-
-        async function showDashboard() {
-            document.getElementById('login-box').classList.add('hidden');
-            document.getElementById('admin-dashboard').classList.remove('hidden');
-            loadUsers();
-        }
-
-        async function loadUsers() {
-            let res = await apiAdmin('/api/admin/users');
-            if(res.success) {
-                document.getElementById('total-saldo').innerText = 'Rp ' + res.total_saldo.toLocaleString('id-ID');
-                document.getElementById('total-user').innerText = res.total_user;
-                
-                let html = '<tr><th>WA</th><th>Nama</th><th>Level</th><th>Saldo</th></tr>';
-                res.users.forEach(u => {
-                    html += `<tr><td>${u.phone}</td><td>${u.username}</td><td>${u.level}</td><td>Rp ${u.saldo.toLocaleString('id-ID')}</td></tr>`;
-                });
-                document.getElementById('users-table').innerHTML = html;
-            } else {
-                if(res.message === 'Token invalid') logoutAdmin();
-                else alert(res.message);
-            }
-        }
-
-        async function manageBalance(action) {
-            let phone = document.getElementById('target-phone').value;
-            let amount = document.getElementById('target-amount').value;
-            if(!phone || !amount) return alert("Isi WA dan Nominal!");
-            if(!confirm(`Yakin ingin ${action === 'add' ? 'menambah' : 'mengurangi'} Rp ${amount} pada ${phone}?`)) return;
-
-            let res = await apiAdmin('/api/admin/balance', {phone, amount: parseInt(amount), action});
-            if(res.success) {
-                alert("Berhasil!");
-                document.getElementById('target-amount').value = '';
-                loadUsers();
-            } else {
-                alert(res.message);
-            }
+            btn.innerText = "Akses Panel"; btn.disabled = false;
         }
 
         function logoutAdmin() {
             localStorage.removeItem('tendo_admin_token');
-            document.getElementById('login-box').classList.remove('hidden');
-            document.getElementById('admin-dashboard').classList.add('hidden');
+            location.reload();
         }
 
-        // Auto login check
-        if(localStorage.getItem('tendo_admin_token')) showDashboard();
+        // Cek login otomatis
+        if(token) {
+            document.getElementById('login-box').classList.add('hidden');
+            document.getElementById('admin-app').classList.remove('hidden');
+            loadDashboardData();
+        }
+
+        function toggleSidebar(e) {
+            if(e) e.stopPropagation();
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+        function closeSidebarOutside() {
+            let sb = document.getElementById('sidebar');
+            if(window.innerWidth < 768 && sb.classList.contains('open')) sb.classList.remove('open');
+        }
+
+        function switchMenu(menu) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('view-' + menu).classList.remove('hidden');
+            document.getElementById('nav-' + menu).classList.add('active');
+            closeSidebarOutside();
+
+            if(menu === 'trx') loadGlobalTrx();
+            if(menu === 'users') loadUsers();
+            if(menu === 'produk') loadProdukSettings();
+            if(menu === 'sistem') loadSistemSettings();
+            if(menu === 'log') loadLogs();
+        }
+
+        // --- MANAJEMEN TRANSAKSI ---
+        async function loadDashboardData() {
+            let res = await apiAdmin('/api/admin/dashboard');
+            if(res.success) {
+                document.getElementById('profit-daily').innerText = 'Rp ' + res.profit_daily.toLocaleString('id-ID');
+                document.getElementById('profit-monthly').innerText = 'Rp ' + res.profit_monthly.toLocaleString('id-ID');
+            } else if(res.message === 'Token invalid') logoutAdmin();
+            loadGlobalTrx();
+        }
+
+        async function loadGlobalTrx() {
+            let filter = document.getElementById('filter-trx').value;
+            let res = await apiAdmin('/api/admin/transactions?filter=' + filter);
+            if(res.success) {
+                let html = '';
+                if(res.data.length === 0) html = '<tr><td colspan="8" style="text-align:center;">Tidak ada transaksi.</td></tr>';
+                res.data.forEach(t => {
+                    let badge = 'bg-yellow';
+                    if(t.status.includes('Sukses')) badge = 'bg-green';
+                    if(t.status.includes('Gagal') || t.status.includes('Refund')) badge = 'bg-red';
+                    
+                    html += `<tr>
+                        <td>${t.tanggal}</td>
+                        <td>${t.user}</td>
+                        <td>${t.nama}</td>
+                        <td>${t.tujuan}</td>
+                        <td>Rp ${t.modal.toLocaleString('id-ID')}</td>
+                        <td>Rp ${t.jual.toLocaleString('id-ID')}</td>
+                        <td style="color:#10b981; font-weight:bold;">Rp ${t.profit.toLocaleString('id-ID')}</td>
+                        <td><span class="badge ${badge}">${t.status}</span></td>
+                    </tr>`;
+                });
+                document.getElementById('tbody-trx').innerHTML = html;
+            }
+        }
+
+        // --- MANAJEMEN PENGGUNA ---
+        async function loadUsers() {
+            let q = document.getElementById('search-user').value;
+            let res = await apiAdmin('/api/admin/users_advanced?q=' + encodeURIComponent(q));
+            if(res.success) {
+                let html = '';
+                if(res.users.length === 0) html = '<tr><td colspan="6" style="text-align:center;">User tidak ditemukan.</td></tr>';
+                res.users.forEach(u => {
+                    let banText = u.banned ? 'Buka Blokir' : 'Blokir Akun';
+                    let banColor = u.banned ? 'bg-yellow' : 'bg-red';
+                    let statusBadge = u.banned ? '<span class="badge bg-red">BANNED</span>' : '<span class="badge bg-green">AKTIF</span>';
+                    
+                    html += `<tr>
+                        <td><strong>${u.username}</strong><br><span style="font-size:11px; color:#94a3b8;">${u.phone}</span></td>
+                        <td>Rp ${u.saldo.toLocaleString('id-ID')}</td>
+                        <td style="font-weight:bold; color:#38bdf8;">${u.level}</td>
+                        <td>
+                            <select onchange="changeLevel('${u.phone}', this.value)" style="padding:6px; margin:0; width:100px;">
+                                <option value="Member" ${u.level==='Member'?'selected':''}>Member</option>
+                                <option value="Reseller" ${u.level==='Reseller'?'selected':''}>Reseller</option>
+                                <option value="VIP" ${u.level==='VIP'?'selected':''}>VIP</option>
+                            </select>
+                        </td>
+                        <td>${statusBadge}</td>
+                        <td><button onclick="toggleBan('${u.phone}', ${!u.banned})" style="padding:6px 10px; margin:0; width:auto;" class="badge ${banColor}">${banText}</button></td>
+                    </tr>`;
+                });
+                document.getElementById('tbody-users').innerHTML = html;
+            }
+        }
+        async function changeLevel(phone, newLevel) {
+            let res = await apiAdmin('/api/admin/user_action', {action: 'level', phone, value: newLevel});
+            if(res.success) { showToast("Level diubah!"); loadUsers(); }
+            else showToast(res.message, true);
+        }
+        async function toggleBan(phone, isBanned) {
+            if(!confirm(`Yakin ingin ${isBanned ? 'MEMBLOKIR' : 'MEMBUKA BLOKIR'} akun ini?`)) return;
+            let res = await apiAdmin('/api/admin/user_action', {action: 'ban', phone, value: isBanned});
+            if(res.success) { showToast("Status akun diperbarui!"); loadUsers(); }
+            else showToast(res.message, true);
+        }
+
+        // --- KONTROL HARGA & PRODUK ---
+        async function loadProdukSettings() {
+            let res = await apiAdmin('/api/admin/margins');
+            if(res.success) {
+                let html = '';
+                for(let i=1; i<=13; i++) {
+                    let key = 't'+i;
+                    let val = res.data[key] || 0;
+                    html += `<div><label style="font-size:12px; color:#94a3b8;">Tier ${i} (Margin Rp)</label><input type="number" id="margin-${key}" value="${val}" style="margin-bottom:0;"></div>`;
+                }
+                document.getElementById('margin-form').innerHTML = html;
+            }
+            loadEtalaseList();
+        }
+        async function saveMargins() {
+            let margins = {};
+            for(let i=1; i<=13; i++) {
+                margins['t'+i] = parseInt(document.getElementById('margin-t'+i).value) || 0;
+            }
+            let btn = document.getElementById('btn-save-margin');
+            btn.innerText = "Menyimpan...";
+            let res = await apiAdmin('/api/admin/margins_save', {margins});
+            if(res.success) showToast("Margin berhasil diperbarui!");
+            else showToast("Gagal menyimpan margin.", true);
+            btn.innerText = "Simpan Semua Perubahan Margin";
+        }
+        
+        async function loadEtalaseList() {
+            let res = await apiAdmin('/api/admin/etalase');
+            if(res.success) {
+                let html = '';
+                res.data.forEach((e, idx) => {
+                    html += `<div style="background:#0f172a; padding:15px; border-radius:8px; border:1px solid #334155; margin-bottom:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <strong>${e.title}</strong>
+                            <button onclick="delEtalase(${idx})" class="btn-danger" style="padding:6px 12px; width:auto; margin:0;">Hapus</button>
+                        </div>
+                        <div style="font-size:12px; color:#94a3b8; margin-top:5px;">SKU: ${e.skus.join(', ')}</div>
+                    </div>`;
+                });
+                if(html==='') html='<p style="font-size:12px; color:#94a3b8;">Belum ada etalase.</p>';
+                document.getElementById('list-etalase').innerHTML = html;
+            }
+        }
+        async function addEtalase() {
+            let title = document.getElementById('eta-name').value;
+            let skus = document.getElementById('eta-skus').value.split(',').map(s=>s.trim()).filter(s=>s);
+            if(!title || skus.length===0) return showToast("Isi judul dan SKU!", true);
+            let res = await apiAdmin('/api/admin/etalase_add', {title, skus});
+            if(res.success) { showToast("Etalase ditambahkan!"); document.getElementById('eta-name').value=''; document.getElementById('eta-skus').value=''; loadEtalaseList(); }
+        }
+        async function delEtalase(idx) {
+            if(!confirm("Hapus etalase ini?")) return;
+            let res = await apiAdmin('/api/admin/etalase_del', {idx});
+            if(res.success) { showToast("Etalase dihapus!"); loadEtalaseList(); }
+        }
+
+        // --- KENDALI SISTEM ---
+        async function loadSistemSettings() {
+            let res = await apiAdmin('/api/admin/sistem_status');
+            if(res.success) {
+                let isMaint = res.is_maintenance;
+                document.getElementById('maint-status-text').innerText = isMaint ? 'MAINTENANCE AKTIF' : 'Toko Buka (Normal)';
+                document.getElementById('maint-status-text').style.color = isMaint ? '#ef4444' : '#10b981';
+                let btn = document.getElementById('btn-maint');
+                btn.innerText = isMaint ? 'Matikan Maintenance' : 'Aktifkan Maintenance';
+                btn.className = isMaint ? 'btn-success' : 'btn-danger';
+            }
+        }
+        async function toggleMaintenance() {
+            let res = await apiAdmin('/api/admin/sistem_maint_toggle', {toggle: true});
+            if(res.success) { showToast("Status pemeliharaan diubah!"); loadSistemSettings(); }
+        }
+        
+        async function uploadBanner() {
+            let slot = document.getElementById('banner-slot').value;
+            let fileInput = document.getElementById('banner-file');
+            if(fileInput.files.length === 0) return showToast("Pilih gambar dulu!", true);
+            
+            let formData = new FormData();
+            formData.append('slot', slot);
+            formData.append('banner', fileInput.files[0]);
+            
+            document.getElementById('btn-banner').innerText = "Mengupload...";
+            let res = await apiAdmin('/api/admin/upload_banner', formData, true);
+            if(res.success) { showToast("Banner berhasil diupload!"); fileInput.value = ''; }
+            else showToast(res.message, true);
+            document.getElementById('btn-banner').innerText = "Upload & Ganti Banner";
+        }
+
+        async function sendInfo() {
+            let title = document.getElementById('info-title').value;
+            let text = document.getElementById('info-text').value;
+            let doBroadcast = document.getElementById('info-broadcast').checked;
+            let fileInput = document.getElementById('info-img');
+            
+            if(!title || !text) return showToast("Judul dan isi wajib diisi!", true);
+            
+            let formData = new FormData();
+            formData.append('title', title);
+            formData.append('text', text);
+            formData.append('broadcast', doBroadcast);
+            if(fileInput.files.length > 0) formData.append('image', fileInput.files[0]);
+
+            let btn = document.getElementById('btn-info');
+            btn.innerText = "Mengirim..."; btn.disabled = true;
+            let res = await apiAdmin('/api/admin/broadcast_info', formData, true);
+            if(res.success) { 
+                showToast("Pengumuman berhasil dikirim!"); 
+                document.getElementById('info-title').value=''; 
+                document.getElementById('info-text').value=''; 
+                fileInput.value=''; 
+            } else showToast("Gagal: " + res.message, true);
+            btn.innerText = "🚀 Kirim Pengumuman Sekarang"; btn.disabled = false;
+        }
+
+        async function saveApiKeys() {
+            if(!confirm("Yakin ingin mengubah API Keys?")) return;
+            let body = {
+                digi_user: document.getElementById('api-digi-user').value,
+                digi_key: document.getElementById('api-digi-key').value,
+                gopay_token: document.getElementById('api-gopay-token').value,
+                tele_bot: document.getElementById('api-tele-bot').value
+            };
+            let res = await apiAdmin('/api/admin/api_keys', body);
+            if(res.success) { 
+                showToast("API Keys tersimpan!"); 
+                document.getElementById('api-digi-user').value='';
+                document.getElementById('api-digi-key').value='';
+                document.getElementById('api-gopay-token').value='';
+                document.getElementById('api-tele-bot').value='';
+            }
+        }
+
+        // --- LOG & KEAMANAN ---
+        async function loadLogs() {
+            let res = await apiAdmin('/api/admin/logs');
+            if(res.success) {
+                let html = '';
+                res.data.forEach(l => {
+                    html += `<li style="padding:8px 0; border-bottom:1px dashed #334155;">[${l.time}] - IP: <span style="color:#38bdf8;">${l.ip}</span> - Status: <span style="color:${l.status==='SUCCESS'?'#10b981':'#ef4444'}">${l.status}</span></li>`;
+                });
+                if(html==='') html = '<li style="color:#94a3b8;">Belum ada catatan log.</li>';
+                document.getElementById('list-logs').innerHTML = html;
+            }
+        }
+
+        async function instantBackup() {
+            let btn = document.getElementById('btn-backup');
+            btn.innerText = "Memproses Backup..."; btn.disabled = true;
+            let res = await apiAdmin('/api/admin/instant_backup', {trigger: true});
+            if(res.success) showToast("Backup sedang dikirim ke Telegram Anda!");
+            else showToast(res.message, true);
+            btn.innerText = "💾 Kirim Backup Ke Telegram Sekarang"; btn.disabled = false;
+        }
     </script>
 </body>
 </html>
 EOF
-}
-# SELESAI
+
 # ==========================================
 # 4. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND)
 # ==========================================
@@ -3042,7 +3476,8 @@ const axios = require('axios');
 const crypto = require('crypto'); 
 const crypt = require('./tendo_crypt.js');
 const TelegramBot = require('node-telegram-bot-api');
-const { pipeline } = require('stream/promises');
+const multer = require('multer');
+const path = require('path');
 
 const app = express();
 app.disable('x-powered-by');
@@ -3070,15 +3505,36 @@ const vpnConfigFile = './vpn_config.json';
 const customLayoutFile = './custom_layout.json'; 
 const tutorialFile = './tutorial.json'; 
 const gopayHistoryFile = './gopay_processed.json';
+const securityLogFile = './security_log.json';
 
-const loadJSON = (file) => crypt.load(file, (file === notifFile || file === globalTrxFile || file === tutorialFile || file === gopayHistoryFile) ? [] : (file === customLayoutFile ? {sections:[]} : {}));
+const loadJSON = (file) => crypt.load(file, (file === notifFile || file === globalTrxFile || file === tutorialFile || file === gopayHistoryFile || file === securityLogFile) ? [] : (file === customLayoutFile ? {sections:[]} : {}));
 const saveJSON = (file, data) => crypt.save(file, data);
 
 const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
 
 // KONFIGURASI KEAMANAN ADMIN
 const SUPERADMIN_PHONE = "6282224460678";
-const ADMIN_TOKEN_SECRET = "TendoTokenSecure829103";
+const ADMIN_TOKEN_SECRET = "TendoTokenSecure" + Date.now(); // Dinamis per sesi server
+
+// Multer setup untuk upload file admin
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        if(req.path.includes('upload_banner')) cb(null, './public/baner' + req.body.slot);
+        else cb(null, './public/info_images');
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + path.extname(file.originalname));
+    }
+});
+const upload = multer({ storage: storage });
+
+function logAdminAccess(ip, status) {
+    let logs = loadJSON(securityLogFile);
+    let timeStr = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+    logs.unshift({ time: timeStr, ip: ip, status: status });
+    if(logs.length > 100) logs.pop();
+    saveJSON(securityLogFile, logs);
+}
 
 function maskStringTarget(str) {
     if (!str) return '-';
@@ -3102,9 +3558,14 @@ function updateLevelAndPoints(phone, hargaFix, marginAsli) {
         // Update Total Transaksi & Leveling
         db[phone].total_pengeluaran = (db[phone].total_pengeluaran || 0) + hargaFix;
         let tp = db[phone].total_pengeluaran;
-        if(tp >= 2000000) db[phone].level = 'VIP';
-        else if(tp >= 1000000) db[phone].level = 'Reseller';
-        else db[phone].level = 'Member';
+        // Leveling dihitung otomatis JIKA tidak di-override manual (tapi untuk amannya, kita izinkan otomatis naik, tapi kalau admin mau, admin bisa ubah manual nanti)
+        if(db[phone].level_manual) {
+            // Jangan ubah level jika sudah di-set manual oleh admin
+        } else {
+            if(tp >= 2000000) db[phone].level = 'VIP';
+            else if(tp >= 1000000) db[phone].level = 'Reseller';
+            else db[phone].level = 'Member';
+        }
 
         // Komisi Referral
         if(db[phone].referrer) {
@@ -3119,6 +3580,8 @@ function updateLevelAndPoints(phone, hargaFix, marginAsli) {
 
 function cekPemeliharaan() {
     let cfg = loadJSON(configFile);
+    if(cfg.is_maintenance === true) return true; // Cek saklar darurat
+    
     let s = cfg.maintStart || "23:00";
     let e = cfg.maintEnd || "00:30";
     let d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
@@ -3131,7 +3594,9 @@ function cekPemeliharaan() {
     if(sMins < eMins) return (curMins >= sMins && curMins < eMins);
     else return (curMins >= sMins || curMins < eMins);
 }
-
+EOF
+#SELESAI
+cat << 'EOF' >> index.js
 function cleanupOldHistory() {
     try {
         let db = loadJSON(dbFile);
@@ -3245,7 +3710,7 @@ configAwal.gopayMerchantId = configAwal.gopayMerchantId || "";
 configAwal.qrisUrl = configAwal.qrisUrl || "https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg";
 configAwal.qrisText = configAwal.qrisText || "";
 configAwal.teleTokenInfo = configAwal.teleTokenInfo || ""; 
-configAwal.adminPass = configAwal.adminPass || "admin123";
+configAwal.adminPass = configAwal.adminPass || "@Rohman32";
 configAwal.margin = configAwal.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
 saveJSON(configFile, configAwal);
 
@@ -3259,11 +3724,14 @@ if(!customLayoutAwal.sections) customLayoutAwal.sections = [];
 saveJSON(customLayoutFile, customLayoutAwal);
 
 if(!fs.existsSync('./public/maint_images')) fs.mkdirSync('./public/maint_images', { recursive: true });
+if(!fs.existsSync('./public/info_images')) fs.mkdirSync('./public/info_images', { recursive: true });
+for(let i=1; i<=5; i++) {
+    if(!fs.existsSync('./public/baner'+i)) fs.mkdirSync('./public/baner'+i, { recursive: true });
+}
 
 let globalSock = null;
 let tempOtpDB = {}; 
 let otpCooldown = {}; 
-let isMaintenanceNow = cekPemeliharaan();
 
 let teleBotInfo = null;
 let teleState = {}; 
@@ -3272,9 +3740,6 @@ if (configAwal.teleTokenInfo) {
     try {
         teleBotInfo = new TelegramBot(configAwal.teleTokenInfo, {polling: true});
         teleBotInfo.on('polling_error', (error) => { console.log('Telegram Info Polling Error:', error.message || error); });
-        
-        teleBotInfo.on('callback_query', (callbackQuery) => { /* ... Logika Telegram Bot Tetap Sama ... */ });
-        teleBotInfo.on('message', async (msg) => { /* ... Logika Telegram Bot Tetap Sama ... */ });
     } catch(e) {}
 }
 
@@ -3286,7 +3751,7 @@ function normalizePhone(phoneStr) {
 }
 
 // ==========================================
-// ROUTES ADMIN RAHASIA
+// ROUTES ADMIN RAHASIA (FULL FITUR)
 // ==========================================
 app.get('/panel-bos-tendo-rahasia', (req, res) => {
     res.sendFile(__dirname + '/public/tendo_admin_secret.html');
@@ -3294,9 +3759,12 @@ app.get('/panel-bos-tendo-rahasia', (req, res) => {
 
 app.post('/api/admin/login', (req, res) => {
     let cfg = loadJSON(configFile);
-    if(req.body.password === (cfg.adminPass || 'admin123')) {
+    let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    if(req.body.password === (cfg.adminPass || '@Rohman32')) {
+        logAdminAccess(ip, 'SUCCESS');
         res.json({success: true, token: ADMIN_TOKEN_SECRET});
     } else {
+        logAdminAccess(ip, 'FAILED');
         res.json({success: false, message: 'Password Admin Salah!'});
     }
 });
@@ -3310,1041 +3778,243 @@ function authAdmin(req, res, next) {
     }
 }
 
-app.get('/api/admin/users', authAdmin, (req, res) => {
+// 1. Manajemen Transaksi & Keuangan
+app.get('/api/admin/dashboard', authAdmin, (req, res) => {
+    let trxs = loadJSON(trxFile);
+    let db = loadJSON(dbFile);
+    let dailyProfit = 0, monthlyProfit = 0;
+    
+    let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
+    let nowYear = now.getFullYear();
+    let nowMonth = now.getMonth();
+    let nowDay = now.getDate();
+
+    // Hitung profit dari history sukses semua user (karena trx.json dihapus setelah sukses)
+    for(let k in db) {
+        if(db[k].history) {
+            db[k].history.forEach(h => {
+                if((h.type === 'Order' || h.type === 'Order QRIS' || h.type === 'Order VPN' || h.type === 'Order VPN QRIS') && (h.status === 'Sukses' || h.status === 'Sukses Bayar')) {
+                    let d = new Date(h.ts);
+                    // Asumsi: Kita harus tau margin dari history. Jika tidak ada, fallback ke selisih dari harga jual (simplifikasi jika data lama tdk ada)
+                    // Karena kita tambahkan margin di DB trx sebelumnya, kita akan perbarui logika di order untuk simpan margin di history.
+                    // Untuk saat ini, kita gunakan pendekatan estimasi atau ambil dari history.margin jika ada.
+                    let margin = h.margin || 0; 
+                    
+                    if(d.getFullYear() === nowYear && d.getMonth() === nowMonth) {
+                        monthlyProfit += margin;
+                        if(d.getDate() === nowDay) dailyProfit += margin;
+                    }
+                }
+            });
+        }
+    }
+    res.json({success: true, profit_daily: dailyProfit, profit_monthly: monthlyProfit});
+});
+
+app.get('/api/admin/transactions', authAdmin, (req, res) => {
+    let filter = req.query.filter || 'all';
+    let db = loadJSON(dbFile);
+    let allTrx = [];
+    
+    for(let k in db) {
+        if(db[k].history) {
+            db[k].history.forEach(h => {
+                if(h.type.includes('Order') || h.type === 'Refund') {
+                    let margin = h.margin || 0;
+                    let modal = (h.amount || 0) - margin;
+                    
+                    let match = false;
+                    if(filter === 'all') match = true;
+                    if(filter === 'Sukses' && (h.status === 'Sukses' || h.status === 'Sukses Bayar')) match = true;
+                    if(filter === 'Pending' && h.status === 'Pending') match = true;
+                    if(filter === 'Gagal' && (h.status.includes('Gagal') || h.status === 'Refund')) match = true;
+
+                    if(match) {
+                        allTrx.push({
+                            ts: h.ts, tanggal: h.tanggal, user: db[k].username || k,
+                            nama: h.nama, tujuan: h.tujuan, modal: modal, jual: h.amount || 0,
+                            profit: (h.status === 'Sukses' || h.status === 'Sukses Bayar') ? margin : 0,
+                            status: h.status
+                        });
+                    }
+                }
+            });
+        }
+    }
+    allTrx.sort((a,b) => b.ts - a.ts);
+    res.json({success: true, data: allTrx.slice(0, 100)}); // Limit 100 terbaru agar ringan
+});
+
+// 2. Manajemen Pengguna Tingkat Lanjut
+app.get('/api/admin/users_advanced', authAdmin, (req, res) => {
+    let q = (req.query.q || '').toLowerCase();
     let db = loadJSON(dbFile);
     let users = [];
-    let totalSaldo = 0;
+    
     for(let k in db) {
-        if(db[k].saldo !== undefined) {
+        if(!db[k].email) continue; // Skip guest accounts
+        let match = false;
+        if(!q) match = true;
+        else if(k.includes(q) || (db[k].username && db[k].username.toLowerCase().includes(q))) match = true;
+        
+        if(match) {
             users.push({
-                phone: k, username: db[k].username || '-', level: db[k].level || 'Member', saldo: db[k].saldo
+                phone: k, username: db[k].username || '-', saldo: db[k].saldo || 0, 
+                level: db[k].level || 'Member', banned: db[k].banned || false
             });
-            totalSaldo += db[k].saldo;
         }
     }
     users.sort((a,b) => b.saldo - a.saldo);
-    res.json({success: true, users, total_user: users.length, total_saldo: totalSaldo});
+    res.json({success: true, users});
 });
 
-app.post('/api/admin/balance', authAdmin, (req, res) => {
-    let { phone, amount, action } = req.body;
-    let normPhone = normalizePhone(phone);
+app.post('/api/admin/user_action', authAdmin, (req, res) => {
+    let { phone, action, value } = req.body;
     let db = loadJSON(dbFile);
-    if(!db[normPhone]) return res.json({success: false, message: 'User tidak ditemukan.'});
+    if(!db[phone]) return res.json({success: false, message: 'User tidak ditemukan.'});
     
-    let saldoSebelum = db[normPhone].saldo || 0;
-    if(action === 'add') {
-        db[normPhone].saldo += amount;
-    } else {
-        db[normPhone].saldo -= amount;
-        if(db[normPhone].saldo < 0) db[normPhone].saldo = 0;
+    if(action === 'level') {
+        db[phone].level = value;
+        db[phone].level_manual = true; // Tandai agar tidak dioverride otomatis oleh trx
+    } else if(action === 'ban') {
+        db[phone].banned = value; // true/false
     }
     saveJSON(dbFile, db);
     res.json({success: true});
 });
 
-
-// ==========================================
-// ROUTES APLIKASI UTAMA
-// ==========================================
-app.get('/api/banners', (req, res) => {
-    let banners = [];
-    try {
-        for (let i = 1; i <= 5; i++) {
-            let folderPath = `./public/baner${i}`;
-            if (fs.existsSync(folderPath)) {
-                let files = fs.readdirSync(folderPath);
-                let imgFiles = files.filter(f => f.match(/\.(jpg|jpeg|png|gif|webp)$/i));
-                if (imgFiles.length > 0) banners.push(`/baner${i}/${imgFiles[0]}`);
-            }
-        }
-    } catch(e) {}
-    res.json({ success: true, data: banners });
+// 3. Kontrol Harga & Produk
+app.get('/api/admin/margins', authAdmin, (req, res) => {
+    let cfg = loadJSON(configFile);
+    res.json({success: true, data: cfg.margin});
 });
 
-app.get('/api/stats', (req, res) => {
-    try {
-        let gStats = loadJSON(globalStatsFile);
+app.post('/api/admin/margins_save', authAdmin, (req, res) => {
+    let cfg = loadJSON(configFile);
+    cfg.margin = req.body.margins;
+    saveJSON(configFile, cfg);
+    res.json({success: true});
+});
+
+app.get('/api/admin/etalase', authAdmin, (req, res) => {
+    res.json({success: true, data: loadJSON(customLayoutFile).sections});
+});
+
+app.post('/api/admin/etalase_add', authAdmin, (req, res) => {
+    let db = loadJSON(customLayoutFile);
+    db.sections.push({title: req.body.title, skus: req.body.skus});
+    saveJSON(customLayoutFile, db);
+    res.json({success: true});
+});
+
+app.post('/api/admin/etalase_del', authAdmin, (req, res) => {
+    let db = loadJSON(customLayoutFile);
+    db.sections.splice(req.body.idx, 1);
+    saveJSON(customLayoutFile, db);
+    res.json({success: true});
+});
+
+// 4. Kendali Sistem
+app.get('/api/admin/sistem_status', authAdmin, (req, res) => {
+    let cfg = loadJSON(configFile);
+    res.json({success: true, is_maintenance: cfg.is_maintenance || false});
+});
+
+app.post('/api/admin/sistem_maint_toggle', authAdmin, (req, res) => {
+    let cfg = loadJSON(configFile);
+    cfg.is_maintenance = !(cfg.is_maintenance || false);
+    saveJSON(configFile, cfg);
+    res.json({success: true, is_maintenance: cfg.is_maintenance});
+});
+
+app.post('/api/admin/upload_banner', authAdmin, upload.single('banner'), (req, res) => {
+    if(!req.file) return res.json({success: false, message: 'Tidak ada file diupload.'});
+    // Hapus file lama di slot tersebut (agar tidak menumpuk)
+    let folder = './public/baner' + req.body.slot;
+    fs.readdirSync(folder).forEach(f => {
+        if(f !== req.file.filename) fs.unlinkSync(path.join(folder, f));
+    });
+    res.json({success: true});
+});
+
+app.post('/api/admin/broadcast_info', authAdmin, upload.single('image'), (req, res) => {
+    let { title, text, broadcast } = req.body;
+    let imageName = req.file ? req.file.filename : null;
+    
+    // Simpan ke Web Notif
+    let notifs = loadJSON(notifFile);
+    let dateStr = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    notifs.unshift({ date: dateStr + ' WIB', title: title, text: text, image: imageName });
+    if(notifs.length > 20) notifs.pop();
+    saveJSON(notifFile, notifs);
+
+    // Jika checklist broadcast dicentang
+    if(broadcast === 'true') {
         let cfg = loadJSON(configFile);
-        let daily = 0, weekly = 0, monthly = 0, total = 0;
+        let msgWaTele = `📢 *PENGUMUMAN: ${title}*\n\n${text}\n\n_🌐 Info lebih lanjut cek di Website Tendo Store._`;
         
-        let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
-        let nowYear = now.getFullYear();
-        let nowMonth = now.getMonth();
-        let nowString = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-        
-        let day = now.getDay() || 7; 
-        let monday = new Date(now);
-        monday.setDate(now.getDate() - day + 1);
-        monday.setHours(0,0,0,0);
-
-        for(let k in gStats) {
-            let count = gStats[k];
-            total += count;
-            let recordDate = new Date(k + 'T00:00:00+07:00');
-            if(k === nowString) daily += count;
-            if(recordDate >= monday) weekly += count;
-            if(recordDate.getFullYear() === nowYear && recordDate.getMonth() === nowMonth) monthly += count;
+        // Broadcast WA
+        if (globalSock && cfg.waBroadcastId) {
+            globalSock.sendMessage(cfg.waBroadcastId, { text: msgWaTele }).catch(e=>{});
         }
-        res.json({ success: true, daily, weekly, monthly, total, maintStart: cfg.maintStart || '23:00', maintEnd: cfg.maintEnd || '00:30' });
-    } catch(e) { res.json({ success: false, daily: 0, weekly: 0, monthly: 0, total: 0 }); }
+        // Broadcast Telegram Channel
+        if (cfg.teleTokenInfo && cfg.teleChannelId) {
+            let channelIdStr = cfg.teleChannelId.toString();
+            if (!channelIdStr.startsWith('-100') && !channelIdStr.startsWith('@')) channelIdStr = '-100' + channelIdStr;
+            let teleMsgFormat = `📢 <b>PENGUMUMAN: ${title}</b>\n\n${text}\n\n<i>🌐 Info lebih lanjut cek di Website Tendo Store.</i>`;
+            
+            if(imageName) {
+                let imgUrl = `http://localhost:3000/info_images/${imageName}`; // Lokal URL untuk dikirim ke bot via webhook/VPS
+                axios.post(`https://api.telegram.org/bot${cfg.teleTokenInfo}/sendPhoto`, {
+                    chat_id: channelIdStr, photo: imgUrl, caption: teleMsgFormat, parse_mode: 'HTML'
+                }).catch(e=>{});
+            } else {
+                axios.post(`https://api.telegram.org/bot${cfg.teleTokenInfo}/sendMessage`, {
+                    chat_id: channelIdStr, text: teleMsgFormat, parse_mode: 'HTML'
+                }).catch(e=>{});
+            }
+        }
+    }
+    res.json({success: true});
 });
 
-app.get('/api/produk', (req, res) => { 
-    // Hitung harga diskon jika ada request phone
-    let phone = req.query.phone;
-    let multiplier = 1.0;
-    if(phone) {
-        let db = loadJSON(dbFile);
-        let user = db[normalizePhone(phone)];
-        if(user) multiplier = getMarginMultiplier(user.level || 'Member');
-    }
+app.post('/api/admin/api_keys', authAdmin, (req, res) => {
+    let cfg = loadJSON(configFile);
+    let { digi_user, digi_key, gopay_token, tele_bot } = req.body;
+    if(digi_user) cfg.digiflazzUsername = digi_user;
+    if(digi_key) cfg.digiflazzApiKey = digi_key;
+    if(gopay_token) cfg.gopayToken = gopay_token;
+    if(tele_bot) cfg.teleToken = tele_bot;
+    saveJSON(configFile, cfg);
+    res.json({success: true});
+});
+
+// 5. Log & Keamanan
+app.get('/api/admin/logs', authAdmin, (req, res) => {
+    res.json({success: true, data: loadJSON(securityLogFile)});
+});
+
+app.post('/api/admin/instant_backup', authAdmin, (req, res) => {
+    let cfg = loadJSON(configFile);
+    if (!cfg.teleToken || !cfg.teleChatId) return res.json({success: false, message: 'Token & Chat ID Telegram Admin belum disetting!'});
     
-    let prods = loadJSON(produkFile);
-    let finalProds = {};
-    for(let k in prods) {
-        let p = {...prods[k]};
-        let margin = p.margin_keuntungan || 0;
-        let modal = p.harga_asli || p.harga; // fallback
-        if (p.is_manual_cat) {
-            finalProds[k] = p; // Produk custom tidak kena diskon otomatis
+    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json gopay_processed.json security_log.json ssl_backup.tar.gz 2>/dev/null`, (err) => {
+        if (!err) {
+            exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 [INSTANT] Backup Digital Tendo Store" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
+            res.json({success: true});
         } else {
-            p.harga = modal + Math.floor(margin * multiplier);
-            finalProds[k] = p;
+            res.json({success: false, message: 'Gagal membuat file backup.'});
         }
-    }
-    res.json(finalProds); 
+    });
 });
-
-app.get('/api/notif', (req, res) => { res.json(loadJSON(notifFile) || []); });
-app.get('/api/global-trx', (req, res) => { res.json(loadJSON(globalTrxFile) || []); });
-app.get('/api/custom-layout', (req, res) => { res.json({success: true, data: loadJSON(customLayoutFile)}); }); 
-app.get('/api/tutorials', (req, res) => { res.json(loadJSON(tutorialFile) || []); });
-
-app.get('/api/vpn-config', (req, res) => {
-    try {
-        let vpn = loadJSON(vpnConfigFile);
-        let safeConfig = JSON.parse(JSON.stringify(vpn));
-        
-        let phone = req.query.phone;
-        let multiplier = 1.0;
-        if(phone) {
-            let db = loadJSON(dbFile);
-            let user = db[normalizePhone(phone)];
-            if(user) multiplier = getMarginMultiplier(user.level || 'Member');
-        }
-
-        if(safeConfig.products) {
-            for(let k in safeConfig.products) {
-                let basePrice = safeConfig.products[k].price || 0;
-                let baseMargin = Math.floor(basePrice * 0.3); // Asumsi margin VPN 30%
-                let modal = basePrice - baseMargin;
-                safeConfig.products[k].price = modal + Math.floor(baseMargin * multiplier);
-            }
-        }
-
-        if(safeConfig.servers) {
-            for(let srv in safeConfig.servers) {
-                delete safeConfig.servers[srv].pass;
-                delete safeConfig.servers[srv].user;
-                delete safeConfig.servers[srv].api_key;
-                delete safeConfig.servers[srv].port;
-            }
-        }
-        res.json({success: true, data: safeConfig});
-    } catch(e) { res.json({success: false}); }
-});
-
-app.get('/api/user/:phone', (req, res) => {
-    try {
-        let db = loadJSON(dbFile); let p = req.params.phone;
-        if(db[p]) {
-            let safeData = { ...db[p] }; delete safeData.password; 
-            res.json({success: true, data: safeData});
-        } else res.json({success: false});
-    } catch(e) { res.json({success: false}); }
-});
-
-app.post('/api/exchange-points', (req, res) => {
-    try {
-        let { phone } = req.body;
-        let db = loadJSON(dbFile);
-        let pNorm = normalizePhone(phone);
-        if(!db[pNorm]) return res.json({success: false, message: 'User tidak ditemukan.'});
-        
-        let poin = db[pNorm].poin || 0;
-        if(poin <= 0) return res.json({success: false, message: 'Poin Anda masih kosong.'});
-
-        db[pNorm].saldo = (db[pNorm].saldo || 0) + poin;
-        db[pNorm].poin = 0; // Reset poin
-        
-        db[pNorm].history.unshift({ 
-            ts: Date.now(), 
-            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-            type: 'Topup', nama: 'Penukaran Poin Loyalitas', tujuan: 'Sistem', status: 'Sukses', sn: '-', amount: poin
-        });
-        if(db[pNorm].history.length > 50) db[pNorm].history.pop();
-        
-        saveJSON(dbFile, db);
-        res.json({success: true, message: `Berhasil menukar ${poin} Poin menjadi Rp ${poin}.`});
-    } catch(e) { res.json({success: false, message: 'Gagal menukar poin.'}); }
-});
-
-app.post('/api/cancel-topup', (req, res) => {
-    try {
-        let { sn, phone } = req.body;
-        let db = loadJSON(dbFile);
-        let topups = loadJSON(topupFile);
-        
-        if(topups[sn] && topups[sn].phone === phone) {
-            topups[sn].status = 'gagal';
-            saveJSON(topupFile, topups);
-        }
-        
-        if(db[phone]) {
-            let hist = db[phone].history.find(h => h.sn === sn);
-            if(hist && hist.status === 'Pending') {
-                hist.status = 'Gagal (Dibatalkan)';
-                saveJSON(dbFile, db);
-                
-                let emailUser = db[phone].email || '-';
-                let namaUser = db[phone].username || phone;
-                let teleMsg = `❌ <b>TOPUP DIBATALKAN PELANGGAN</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${sn}`;
-                sendTelegramAdmin(teleMsg);
-                
-                return res.json({success: true});
-            }
-        }
-        res.json({success: false, message: 'Topup tidak ditemukan atau sudah diproses.'});
-    } catch(e) { res.json({success: false, message: 'Server error'}); }
-});
-
-app.post('/api/login', (req, res) => {
-    try {
-        let { id, password } = req.body; let db = loadJSON(dbFile);
-        let hashedInput = hashPassword(password);
-        
-        let userPhone = Object.keys(db).find(k => {
-            if (!db[k]) return false;
-            let normInput = normalizePhone(id);
-            let matchId = (k === id) || (k === normInput) ||
-                          (db[k].email && db[k].email.toLowerCase() === id.toLowerCase()) || 
-                          (db[k].username && db[k].username.toLowerCase() === id.toLowerCase());
-                          
-            if (!matchId) return false;
-            
-            if (db[k].password === password) {
-                db[k].password = hashedInput; saveJSON(dbFile, db); return true;
-            }
-            if (db[k].password === hashedInput) return true;
-            return false;
-        });
-
-        if (userPhone) {
-            let safeData = { ...db[userPhone] }; delete safeData.password;
-            res.json({success: true, phone: userPhone, data: safeData});
-        }
-        else res.json({success: false, message: 'Data Akun (Email/WA/Username) atau Password salah!'});
-    } catch(e) { res.json({success: false, message: 'Server error'}); }
-});
-
-app.post('/api/register', (req, res) => {
-    try {
-        let { username, email, password, referral } = req.body;
-        let phone = normalizePhone(req.body.phone); 
-        if(!phone || phone.length < 9) return res.json({success: false, message: 'Nomor WA tidak valid!'});
-        
-        if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
-        otpCooldown[phone] = Date.now();
-        
-        let db = loadJSON(dbFile);
-        
-        let isEmailExist = Object.keys(db).some(k => db[k] && db[k].email && db[k].email.toLowerCase() === email.toLowerCase());
-        if (isEmailExist) return res.json({success: false, message: 'Email terdaftar!'});
-        
-        let isUsernameExist = Object.keys(db).some(k => db[k] && db[k].username && db[k].username.toLowerCase() === username.toLowerCase());
-        if (isUsernameExist) return res.json({success: false, message: 'Username sudah digunakan, silakan ganti yang lain!'});
-
-        // Verifikasi Referral
-        let referrerPhone = null;
-        if(referral) {
-            let refKey = Object.keys(db).find(k => db[k].referral_code === referral);
-            if(refKey) referrerPhone = refKey;
-        }
-
-        let otp = Math.floor(1000 + Math.random() * 9000).toString();
-        tempOtpDB[phone] = { username, email, password: hashPassword(password), otp, referrer: referrerPhone };
-
-        res.json({success: true});
-
-        setTimeout(() => {
-            try {
-                if (globalSock) {
-                    let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
-                    globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
-                }
-            } catch(err) {}
-        }, 100);
-
-    } catch(e) { if (!res.headersSent) res.json({success: false, message: 'Gagal memproses pendaftaran.'}); }
-});
-
-app.post('/api/verify-otp', (req, res) => {
-    try {
-        let otp = req.body.otp; let phone = normalizePhone(req.body.phone);
-        if(tempOtpDB[phone] && tempOtpDB[phone].otp === otp) {
-            let db = loadJSON(dbFile); 
-            let idPelanggan = 'TD-' + Math.floor(100000 + Math.random() * 900000); 
-            let refCode = 'REF' + Math.floor(1000 + Math.random() * 9000);
-
-            if(db[phone]) {
-                db[phone].username = tempOtpDB[phone].username; db[phone].email = tempOtpDB[phone].email; db[phone].password = tempOtpDB[phone].password;
-                if(!db[phone].id_pelanggan) db[phone].id_pelanggan = idPelanggan;
-                if(!db[phone].referral_code) db[phone].referral_code = refCode;
-                db[phone].referrer = tempOtpDB[phone].referrer;
-            } else {
-                db[phone] = { 
-                    id_pelanggan: idPelanggan, username: tempOtpDB[phone].username, email: tempOtpDB[phone].email, 
-                    password: tempOtpDB[phone].password, saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), 
-                    jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [],
-                    level: 'Member', poin: 0, total_pengeluaran: 0, referral_code: refCode, referrer: tempOtpDB[phone].referrer
-                };
-            }
-            saveJSON(dbFile, db); delete tempOtpDB[phone]; res.json({success: true});
-        } else res.json({success: false, message: 'Kode OTP Salah!'});
-    } catch(e) { res.json({success: false, message: 'Server error'}); }
-});
-
-app.post('/api/req-edit-otp', (req, res) => {
-    try {
-        let { phone, type, newValue } = req.body; let db = loadJSON(dbFile);
-        if(!db[phone]) return res.json({success: false, message: 'User tidak ditemukan.'});
-        if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
-        otpCooldown[phone] = Date.now();
-
-        let otp = Math.floor(1000 + Math.random() * 9000).toString();
-        if (type === 'password') newValue = hashPassword(newValue);
-        tempOtpDB[phone + '_edit'] = { type, newValue, otp };
-        res.json({success: true});
-
-        setTimeout(() => {
-            if (globalSock) globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nKode OTP perubahan data: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
-        }, 100);
-    } catch(e) { if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); }
-});
-
-app.post('/api/verify-edit-otp', (req, res) => {
-    try {
-        let { phone, otp } = req.body; let db = loadJSON(dbFile); let session = tempOtpDB[phone + '_edit'];
-        if(session && session.otp === otp) {
-            if(session.type === 'email') db[phone].email = session.newValue;
-            if(session.type === 'password') db[phone].password = session.newValue;
-            if(session.type === 'phone') {
-                let newPhone = normalizePhone(session.newValue);
-                if(db[newPhone]) return res.json({success: false, message: 'Nomor sudah dipakai akun lain.'});
-                db[newPhone] = db[phone]; db[newPhone].jid = newPhone + '@s.whatsapp.net'; delete db[phone];
-            }
-            saveJSON(dbFile, db); delete tempOtpDB[phone + '_edit']; res.json({success: true});
-        } else res.json({success: false, message: 'OTP Salah!'});
-    } catch(e) { res.json({success: false, message: 'Server error'}); }
-});
-
-app.post('/api/req-forgot-otp', (req, res) => {
-    try {
-        let phone = normalizePhone(req.body.phone); let db = loadJSON(dbFile);
-        if(!db[phone]) return res.json({success: false, message: 'Nomor WA tidak terdaftar!'});
-        if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
-        otpCooldown[phone] = Date.now();
-
-        let otp = Math.floor(1000 + Math.random() * 9000).toString();
-        tempOtpDB[phone + '_forgot'] = { otp };
-        res.json({success: true});
-
-        setTimeout(() => {
-            if (globalSock) globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nPermintaan Reset Password.\nKode OTP: *${otp}*\n\n_⚠️ Abaikan jika bukan Anda!_` }).catch(e=>{});
-        }, 100);
-    } catch(e) { if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); }
-});
-
-app.post('/api/verify-forgot-otp', (req, res) => {
-    try {
-        let phone = normalizePhone(req.body.phone); let { otp, newPass } = req.body; let db = loadJSON(dbFile);
-        let session = tempOtpDB[phone + '_forgot'];
-        if(session && session.otp === otp) {
-            if(db[phone]) { db[phone].password = hashPassword(newPass); saveJSON(dbFile, db); }
-            delete tempOtpDB[phone + '_forgot']; res.json({success: true});
-        } else res.json({success: false, message: 'Kode OTP Salah!'});
-    } catch(e) { res.json({success: false, message: 'Server error'}); }
-});
-
-app.post('/api/topup', async (req, res) => {
-    try {
-        if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
-        let config = loadJSON(configFile);
-        if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
-        
-        let { phone, nominal } = req.body; let db = loadJSON(dbFile);
-        if(!db[phone]) return res.json({success: false, message: "User tidak ditemukan."});
-        
-        let nominalAsli = parseInt(nominal);
-        let uniqueCode = Math.floor(Math.random() * 99) + 1;
-        let totalPay = nominalAsli + uniqueCode;
-
-        let finalQrisUrl = config.qrisUrl;
-        if (config.qrisText) {
-            let dynQris = convertToDynamicQris(config.qrisText, totalPay);
-            finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
-        }
-
-        let topups = loadJSON(topupFile);
-        let trxId = "TP-" + Date.now();
-        let expiredAt = Date.now() + 10 * 60 * 1000;
-
-        topups[trxId] = { phone, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, status: 'pending', timestamp: Date.now(), expired_at: expiredAt, is_order: false };
-        saveJSON(topupFile, topups);
-
-        db[phone].history = db[phone].history || [];
-        db[phone].history.unshift({ 
-            ts: Date.now(), 
-            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-            type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
-        });
-        if(db[phone].history.length > 50) db[phone].history.pop();
-        saveJSON(dbFile, db);
-
-        res.json({success: true});
-        
-        let emailUser = db[phone].email || '-';
-        let namaUser = db[phone].username || phone;
-        let teleMsg = `⏳ <b>TOPUP PENDING (QRIS)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${db[phone].saldo.toLocaleString('id-ID')}`;
-        sendTelegramAdmin(teleMsg);
-    } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
-});
-
-app.post('/api/order-qris', async (req, res) => {
-    try {
-        if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
-        
-        let config = loadJSON(configFile);
-        if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
-        
-        let { phone, sku, tujuan } = req.body; let pNorm = normalizePhone(phone);
-        let db = loadJSON(dbFile); let produkDB = loadJSON(produkFile);
-        let targetKey = db[pNorm] ? pNorm : (db[phone] ? phone : null);
-        if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid.'});
-        
-        let p = produkDB[sku];
-        if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
-        
-        // Cek Diskon Level
-        let multiplier = getMarginMultiplier(db[targetKey].level || 'Member');
-        let margin = p.margin_keuntungan || 0;
-        let modal = p.harga_asli || p.harga; 
-        let hargaFixLevel = p.is_manual_cat ? p.harga : (modal + Math.floor(margin * multiplier));
-
-        let nominalAsli = parseInt(hargaFixLevel);
-        let uniqueCode = Math.floor(Math.random() * 50) + 1; 
-        let totalPay = nominalAsli + uniqueCode;
-
-        let finalQrisUrl = config.qrisUrl;
-        if (config.qrisText) {
-            let dynQris = convertToDynamicQris(config.qrisText, totalPay);
-            finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
-        }
-
-        let topups = loadJSON(topupFile);
-        let trxId = "OQ-" + Date.now();
-        let expiredAt = Date.now() + 10 * 60 * 1000;
-
-        topups[trxId] = { phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, status: 'pending', timestamp: Date.now(), expired_at: expiredAt, is_order: true, sku: sku, tujuan: tujuan, nama_produk: p.nama, harga_asli: nominalAsli, is_pasca: p.is_pasca };
-        saveJSON(topupFile, topups);
-
-        db[targetKey].history = db[targetKey].history || [];
-        db[targetKey].history.unshift({ 
-            ts: Date.now(), 
-            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-            type: 'Order QRIS', nama: p.nama + ' (QRIS)', tujuan: tujuan, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
-        });
-        if(db[targetKey].history.length > 50) db[targetKey].history.pop();
-        saveJSON(dbFile, db);
-
-        res.json({success: true});
-        
-        let emailUser = db[targetKey].email || '-';
-        let namaUser = db[targetKey].username || targetKey;
-        let teleMsg = `🛒 <b>ORDER QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
-        sendTelegramAdmin(teleMsg);
-    } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
-});
-
-app.post('/api/order', async (req, res) => {
-    try {
-        if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
-        
-        let { phone, sku, tujuan } = req.body; let pNorm = normalizePhone(phone);
-        let db = loadJSON(dbFile); let produkDB = loadJSON(produkFile); let config = loadJSON(configFile);
-        
-        let targetKey = db[pNorm] ? pNorm : (db[phone] ? phone : null);
-        if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid. Silakan Logout dan Login kembali.'});
-        
-        let p = produkDB[sku];
-        if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
-        let realSku = p.sku_asli || sku;
-
-        let multiplier = getMarginMultiplier(db[targetKey].level || 'Member');
-        let margin = p.margin_keuntungan || 0;
-        let modal = p.harga_asli || p.harga; 
-        let hargaFix = p.is_manual_cat ? parseInt(p.harga) : parseInt(modal + Math.floor(margin * multiplier));
-
-        let username = (config.digiflazzUsername || '').trim();
-        let apiKey = (config.digiflazzApiKey || '').trim();
-        let refId = 'WEB-' + Date.now();
-
-        // JIKA PRODUK PASCABAYAR, LAKUKAN INQUIRY DULU
-        if(p.is_pasca) {
-            let signCek = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
-            const resCek = await axios.post('https://api.digiflazz.com/v1/transaction', { 
-                commands: 'inq-pasca', username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: signCek
-            });
-            let dataCek = resCek.data.data;
-            if(dataCek.status === 'Gagal') return res.json({success: false, message: dataCek.message || "Gagal cek tagihan."});
-            
-            // Harga total = tagihan + margin (admin fee)
-            let tagihanAsli = parseInt(dataCek.price) || parseInt(dataCek.selling_price) || 0;
-            hargaFix = tagihanAsli + Math.floor(margin * multiplier);
-            
-            let saldoSebelum = parseInt(db[targetKey].saldo);
-            if (saldoSebelum < hargaFix) return res.json({success: false, message: `Saldo tidak cukup. Tagihan Anda: Rp ${hargaFix.toLocaleString('id-ID')}`});
-            
-            db[targetKey].saldo = saldoSebelum - hargaFix;
-            saveJSON(dbFile, db);
-
-            // LANJUT BAYAR
-            let signPay = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
-            const resPay = await axios.post('https://api.digiflazz.com/v1/transaction', { 
-                commands: 'pay-pasca', username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: signPay
-            });
-
-            const statusOrder = resPay.data.data.status; 
-            db = loadJSON(dbFile);
-            
-            if (statusOrder === 'Gagal') {
-                db[targetKey].saldo += hargaFix;
-                saveJSON(dbFile, db);
-                return res.json({success: false, message: resPay.data.data.message});
-            }
-
-            db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
-            db[targetKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: resPay.data.data.sn || '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[targetKey].saldo });
-            saveJSON(dbFile, db);
-            
-            if(statusOrder === 'Sukses') {
-                updateLevelAndPoints(targetKey, hargaFix, margin);
-                sendBroadcastSuccess(p.nama, db[targetKey].username||targetKey, tujuan, hargaFix, 'Saldo Akun');
-            }
-            
-            return res.json({success: true, saldo: db[targetKey].saldo});
-        }
-        
-        // ALUR PRABAYAR REGULER
-        let saldoSebelum = parseInt(db[targetKey].saldo);
-        if (saldoSebelum < hargaFix) return res.json({success: false, message: 'Saldo tidak cukup.'});
-
-        db[targetKey].saldo = saldoSebelum - hargaFix;
-        saveJSON(dbFile, db);
-
-        let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
-        const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
-            username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
-        });
-        
-        const statusOrder = response.data.data.status; 
-        db = loadJSON(dbFile);
-        let saldoTerkini = parseInt(db[targetKey].saldo);
-        let emailUser = db[targetKey].email || '-';
-        let namaUser = db[targetKey].username || targetKey;
-        
-        if (statusOrder === 'Gagal') {
-            db[targetKey].saldo = saldoTerkini + hargaFix;
-            saveJSON(dbFile, db);
-            
-            let teleMsgFail = `❌ <b>PESANAN GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
-            sendTelegramAdmin(teleMsgFail);
-            
-            return res.json({success: false, message: response.data.data.message});
-        }
-        
-        db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
-        
-        db[targetKey].history = db[targetKey].history || [];
-        db[targetKey].history.unshift({ 
-            ts: Date.now(), 
-            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-            type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId,
-            saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[targetKey].saldo
-        });
-        if(db[targetKey].history.length > 50) db[targetKey].history.pop();
-        saveJSON(dbFile, db);
-        
-        let trxs = loadJSON(trxFile);
-        let targetJid = db[targetKey].jid || targetKey + '@s.whatsapp.net';
-        trxs[refId] = { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: p.nama, tanggal: Date.now(), phone: targetKey, margin: margin };
-        saveJSON(trxFile, trxs);
-
-        if (statusOrder === 'Sukses') {
-            let gStats = loadJSON(globalStatsFile);
-            let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-            gStats[dateKey] = (gStats[dateKey] || 0) + 1;
-            saveJSON(globalStatsFile, gStats);
-
-            let globalTrx = loadJSON(globalTrxFile);
-            let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-            globalTrx.unshift({ time: timeStr, product: p.nama, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'Saldo Akun' });
-            if(globalTrx.length > 100) globalTrx.pop();
-            saveJSON(globalTrxFile, globalTrx);
-
-            updateLevelAndPoints(targetKey, hargaFix, margin);
-            sendBroadcastSuccess(p.nama, namaUser, tujuan, hargaFix, 'Saldo Akun');
-        }
-
-        res.json({success: true, saldo: db[targetKey].saldo});
-
-        let teleMsg = `🔔 <b>PESANAN BARU MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
-        sendTelegramAdmin(teleMsg);
-
-    } catch (error) { 
-        if (!res.headersSent) {
-            let errInfo = error.response && error.response.data && error.response.data.data ? error.response.data.data.message : 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)';
-            return res.json({success: false, message: errInfo});
-        }
-    }
-});
-
-// ==============================================================
-// CORE LOGIC: EKSEKUSI PEMBUATAN AKUN VPN KE SERVER VPS 
-// ==============================================================
-async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vpnPassword, expiredDays, refIdAsal = null, paymentMethod = 'Saldo Akun') {
-    let db = loadJSON(dbFile);
-    let vpnConfig = loadJSON(vpnConfigFile);
-    let targetKey = db[normalizePhone(phone)] ? normalizePhone(phone) : (db[phone] ? phone : null);
-    if(!targetKey) return { success: false, message: "Sesi tidak valid." };
-
-    let prod = vpnConfig.products[productId];
-    if(!prod) return { success: false, message: "Produk VPN tidak ditemukan atau telah dihapus." };
-    if(mode === 'reguler' && parseInt(prod.stok) <= 0) return { success: false, message: "Stok untuk produk ini sedang habis." };
-
-    let serverKey = prod.server_id;
-    let srv = vpnConfig.servers[serverKey];
-    if(!srv || !srv.host || !srv.api_key) {
-        return { success: false, message: "Server VPN ini sedang gangguan / konfigurasi tidak valid." };
-    }
-
-    if (mode === 'trial') {
-        if (!db[targetKey].trial_claims) db[targetKey].trial_claims = {};
-        let lastClaim = db[targetKey].trial_claims[productId] || 0;
-        if (Date.now() - lastClaim < 2 * 60 * 60 * 1000) { 
-            return { success: false, message: "⚠️ Gagal: Anda sudah melakukan trial di Produk ini. Silakan coba 2 Jam lagi." };
-        }
-    }
-
-    let hargaFix = 0;
-    let multiplier = getMarginMultiplier(db[targetKey].level || 'Member');
-    
-    if (mode === 'reguler') {
-        let basePrice = parseInt(prod.price) || 0;
-        let baseMargin = Math.floor(basePrice * 0.3); 
-        let modal = basePrice - baseMargin;
-        let pricePerMonth = modal + Math.floor(baseMargin * multiplier);
-        
-        let hari = parseInt(expiredDays);
-        if (hari > 30) hari = 30;
-        if (hari < 1) hari = 1;
-        hargaFix = Math.ceil((pricePerMonth / 30) * hari);
-        
-        let saldoSebelum = parseInt(db[targetKey].saldo);
-        if(saldoSebelum < hargaFix && paymentMethod === 'Saldo Akun') return { success: false, message: "Saldo tidak mencukupi." };
-        
-        // BUG FATAL 2 FIX: Potong saldo duluan sebelum nembak API
-        if (paymentMethod === 'Saldo Akun') {
-            db[targetKey].saldo = saldoSebelum - hargaFix;
-            saveJSON(dbFile, db);
-        }
-    }
-
-    let protoLower = protocol.toLowerCase();
-    let endpoint = '';
-    
-    let vpnLimitIp = parseInt(prod.limit_ip) || 2;
-    let vpnKuota = parseInt(prod.kuota) || 200;
-    
-    let payload = {};
-    let cleanHost = srv.host.replace(/^https?:\/\//i, '');
-
-    if (mode === 'trial') {
-        payload = { timelimit: "30m", kuota: 2, limitip: 2 };
-        if(protoLower === 'ssh') endpoint = `http://${cleanHost}/vps/trialsshvpn`;
-        else endpoint = `http://${cleanHost}/vps/trial${protoLower}all`;
-    } else {
-        payload = { username: vpnUsername, expired: parseInt(expiredDays), limitip: vpnLimitIp, kuota: vpnKuota };
-        if(protoLower === 'ssh' || protoLower === 'zivpn') payload.password = vpnPassword;
-        else payload.uuidv2 = '';
-        
-        if(protoLower === 'ssh') endpoint = `http://${cleanHost}/vps/sshvpn`;
-        else endpoint = `http://${cleanHost}/vps/${protoLower}all`; 
-    }
-
-    try {
-        let resApi = await axios.post(endpoint, payload, {
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer ' + srv.api_key },
-            timeout: 120000,
-            validateStatus: () => true, 
-            httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
-        });
-
-        db = loadJSON(dbFile); 
-        
-        let isSuccessResponse = (resApi.status >= 200 && resApi.status < 300) && resApi.data && !resApi.data.error && resApi.data.status !== false;
-        let isErrorResponse = resApi.data && (resApi.data.status === false || resApi.data.error || resApi.status >= 400);
-
-        if(isSuccessResponse && !isErrorResponse) {
-            let apiData = resApi.data.data || resApi.data || {};
-            let domain = srv.host;
-            let expDate = apiData.expired || apiData.exp || apiData.to || (mode === 'trial' ? '30 Menit' : `${expiredDays} Hari`);
-            let vpnDetails = '';
-            
-            let fixCity = srv.city || apiData.city || '-';
-            let fixIsp = srv.isp || apiData.isp || '-';
-            let vpnUser = apiData.username || vpnUsername || "TrialUser";
-
-            if (protoLower === 'ssh') {
-                vpnDetails = `Account Created Successfully\n————————————————————————————————————\nDomain Host     : ${domain}\nCity            : ${fixCity}\nISP             : ${fixIsp}\nUsername        : ${vpnUser}\nPassword        : ${apiData.password || vpnPassword || '1'}\n————————————————————————————————————\nExpired         : ${expDate}\n————————————————————————————————————\nTLS             : ${apiData.port?.tls || '443,8443'}\nNone TLS        : ${apiData.port?.none || '80,8080'}\nAny             : 2082,2083,8880\nOpenSSH         : 444\nDropbear        : 90\n————————————————————————————————————\nSlowDNS         : 53,5300\nUDP-Custom      : 1-65535\nOHP + SSH       : 9080\nSquid Proxy     : 3128\nUDPGW           : 7100-7600\nOpenVPN TCP     : 80,1194\nOpenVPN SSL     : 443\nOpenVPN UDP     : 25000\nOpenVPN DNS     : 53\nOHP + OVPN      : 9088\n————————————————————————————————————`;
-            } else if (protoLower === 'vmess') {
-                vpnDetails = `————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : ${vpnUser}\nDomain Host    : ${domain}\nCity           : ${fixCity}\nISP            : ${fixIsp}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nalterId        : 0\nSecurity       : auto\nnetwork        : ws,grpc,upgrade\npath ws        : /vmess\nserviceName    : vmess\npath upgrade   : /upvmess\nExpired On     : ${expDate}\n————————————————————————————————————\n           VMESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VMESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VMESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
-            } else if (protoLower === 'vless') {
-                vpnDetails = `————————————————————————————————————\n               VLESS\n————————————————————————————————————\nRemarks        : ${vpnUser}\nDomain Host    : ${domain}\nCity           : ${fixCity}\nISP            : ${fixIsp}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nEncryption     : none\nNetwork        : ws,grpc,upgrade\nPath ws        : /vless\nserviceName    : vless\nPath upgrade   : /upvless\nExpired On     : ${expDate}\n————————————————————————————————————\n            VLESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VLESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VLESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
-            } else if (protoLower === 'trojan') {
-                vpnDetails = `————————————————————————————————————\n               TROJAN\n————————————————————————————————————\nRemarks      : ${vpnUser}\nDomain Host  : ${domain}\nCity         : ${fixCity}\nISP          : ${fixIsp}\nPort         : 443,8443\nPort any     : 2052,2053,8880\nKey          : ${apiData.uuid || apiData.id || '-'}\nNetwork      : ws,grpc,upgrade\nPath ws      : /trojan\nserviceName  : trojan\nPath upgrade : /uptrojan\nExpired On   : ${expDate}\n————————————————————————————————————\n           TROJAN WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n            TROJAN GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
-            } else {
-                vpnDetails = `Detail Akun ZIVPN:\nDomain Host: ${domain}\nCity: ${fixCity}\nISP: ${fixIsp}\nUsername: ${vpnUser}\nExp: ${expDate}\nLimit IP: ${vpnLimitIp}\n\nInfo selengkapnya cek di aplikasi.`;
-            }
-
-            let prodName = prod.name;
-            if (mode === 'trial') prodName += ' (TRIAL)';
-            
-            let saldoTerkini = parseInt(db[targetKey].saldo);
-            let saldoSebelumnya = paymentMethod === 'Saldo Akun' ? saldoTerkini + hargaFix : saldoTerkini;
-
-            if (mode === 'reguler') {
-                db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
-                vpnConfig = loadJSON(vpnConfigFile);
-                vpnConfig.products[productId].stok -= 1;
-                saveJSON(vpnConfigFile, vpnConfig);
-                updateLevelAndPoints(targetKey, hargaFix, 0); // Margin dicatat 0 utk VPN sbg simplifikasi
-            } else if (mode === 'trial') {
-                if(!db[targetKey].trial_claims) db[targetKey].trial_claims = {};
-                db[targetKey].trial_claims[productId] = Date.now();
-            }
-            
-            let refId = refIdAsal || ("VPN-" + Date.now());
-            
-            if (refIdAsal) {
-                let existingHist = db[targetKey].history.find(h => h.sn === refIdAsal);
-                if (existingHist) {
-                    existingHist.status = 'Sukses';
-                    existingHist.vpn_details = vpnDetails;
-                    existingHist.nama = prodName;
-                    existingHist.type = 'Order VPN';
-                    existingHist.saldo_sebelumnya = saldoSebelumnya;
-                    existingHist.saldo_sesudah = saldoTerkini;
-                }
-            } else {
-                db[targetKey].history.unshift({
-                    ts: Date.now(), 
-                    tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-                    type: 'Order VPN', nama: prodName, tujuan: (mode==='trial'?'Sistem':vpnUser), status: 'Sukses', sn: '-', amount: hargaFix, ref_id: refId,
-                    saldo_sebelumnya: saldoSebelumnya, saldo_sesudah: saldoTerkini,
-                    vpn_details: vpnDetails
-                });
-                if(db[targetKey].history.length > 50) db[targetKey].history.pop();
-            }
-            saveJSON(dbFile, db);
-
-            let gStats = loadJSON(globalStatsFile);
-            let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-            gStats[dateKey] = (gStats[dateKey] || 0) + 1;
-            saveJSON(globalStatsFile, gStats);
-
-            let namaUser = db[targetKey].username || targetKey;
-
-            if (mode !== 'trial') {
-                let globalTrx = loadJSON(globalTrxFile);
-                let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-                globalTrx.unshift({ time: timeStr, product: prodName, user: namaUser, target: maskStringTarget(vpnUser), price: hargaFix, method: paymentMethod });
-                if(globalTrx.length > 100) globalTrx.pop();
-                saveJSON(globalTrxFile, globalTrx);
-
-                sendBroadcastSuccess(prodName, namaUser, vpnUser, hargaFix, paymentMethod);
-            }
-
-            let emailUser = db[targetKey].email || '-';
-            let teleSuccess = `🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${vpnUser}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: ${mode === 'trial' ? 'Gratis (Trial)' : paymentMethod}\n📦 Sisa Stok: ${mode === 'reguler' ? vpnConfig.products[productId].stok : 'Trial'}\n💳 Saldo Terkini: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
-            sendTelegramAdmin(teleSuccess);
-
-            return { success: true };
-        } else {
-            let errMsg = "unknown error";
-            if (resApi.data && resApi.data.message) errMsg = resApi.data.message;
-            else if (resApi.data && resApi.data.error) errMsg = resApi.data.error;
-            else if (resApi.statusText) errMsg = resApi.statusText;
-            
-            // BUG FATAL 2 FIX: REFUND SALDO JIKA GAGAL
-            if (mode === 'reguler' && paymentMethod === 'Saldo Akun') {
-                db[targetKey].saldo += hargaFix;
-                saveJSON(dbFile, db);
-            }
-            
-            if(errMsg.toLowerCase().includes('exist') || errMsg.toLowerCase().includes('already') || errMsg.toLowerCase().includes('sudah ada')) {
-                return { success: false, message: "Username sudah ada/terpakai, silakan ganti username lain." };
-            }
-            return { success: false, message: "Gagal membuat akun di Server VPN. Pesan: " + errMsg };
-        }
-    } catch(e) {
-        let db = loadJSON(dbFile);
-        if (mode === 'reguler' && paymentMethod === 'Saldo Akun') {
-            db[targetKey].saldo += hargaFix;
-            saveJSON(dbFile, db);
-        }
-        return { success: false, message: "Koneksi ke Server VPN Gagal / Timeout. Pesan: " + e.message };
-    }
-}
-
-app.post('/api/order-vpn', async (req, res) => {
-    if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
-    let { phone, protocol, product_id, mode, username, password, expired } = req.body;
-    let result = await executeVpnOrder(phone, protocol, product_id, mode, username, password, expired, null, 'Saldo Akun');
-    res.json(result);
-});
-
-app.post('/api/order-vpn-qris', async (req, res) => {
-    try {
-        if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
-        
-        let config = loadJSON(configFile);
-        if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
-        
-        let { phone, protocol, product_id, mode, username, password, expired } = req.body;
-        
-        let db = loadJSON(dbFile); let vpnConfig = loadJSON(vpnConfigFile);
-        let pNorm = normalizePhone(phone);
-        let targetKey = db[pNorm] ? pNorm : (db[phone] ? phone : null);
-        if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid.'});
-        
-        let prod = vpnConfig.products[product_id];
-        if(!prod) return res.json({success: false, message: 'Produk VPN tidak ditemukan.'});
-        if(mode === 'reguler' && parseInt(prod.stok) <= 0) return res.json({success: false, message: 'Stok habis.'});
-
-        let multiplier = getMarginMultiplier(db[targetKey].level || 'Member');
-        let basePrice = parseInt(prod.price) || 0;
-        let baseMargin = Math.floor(basePrice * 0.3); 
-        let modal = basePrice - baseMargin;
-        let pricePerMonth = modal + Math.floor(baseMargin * multiplier);
-        
-        let hari = parseInt(expired);
-        if(hari > 30) hari = 30; if(hari < 1) hari = 1;
-        let nominalAsli = Math.ceil((pricePerMonth / 30) * hari);
-        
-        let uniqueCode = Math.floor(Math.random() * 50) + 1; 
-        let totalPay = nominalAsli + uniqueCode;
-
-        let finalQrisUrl = config.qrisUrl;
-        if (config.qrisText) {
-            let dynQris = convertToDynamicQris(config.qrisText, totalPay);
-            finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
-        }
-
-        let topups = loadJSON(topupFile);
-        let trxId = "VQ-" + Date.now();
-        let expiredAt = Date.now() + 10 * 60 * 1000;
-        let prodName = prod.name;
-
-        topups[trxId] = { 
-            phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
-            status: 'pending', timestamp: Date.now(), expired_at: expiredAt, 
-            is_order: true, vpn_data: { protocol, product_id, mode, username, password, expired, nama_produk: prodName, harga_asli: nominalAsli }
-        };
-        saveJSON(topupFile, topups);
-
-        db[targetKey].history.unshift({ 
-            ts: Date.now(), 
-            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-            type: 'Order VPN QRIS', nama: prodName + ' (QRIS)', tujuan: username, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
-        });
-        if(db[targetKey].history.length > 50) db[targetKey].history.pop();
-        saveJSON(dbFile, db);
-
-        res.json({success: true});
-        
-        let emailUser = db[targetKey].email || '-';
-        let namaUser = db[targetKey].username || targetKey;
-        let teleMsg = `🛒 <b>ORDER VPN QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${username}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
-        sendTelegramAdmin(teleMsg);
-    } catch(e) { res.json({success: false, message: "Gagal memproses QRIS VPN."}); }
-});
-
-async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
-    let result = await executeVpnOrder(phone, vpnData.protocol, vpnData.product_id, vpnData.mode, vpnData.username, vpnData.password, vpnData.expired, refIdAsal, 'QRIS');
-    let db = loadJSON(dbFile);
-    
-    let hist = db[phone].history.find(h => h.sn === refIdAsal);
-    if(!hist) return;
-
-    if(!result.success) {
-        let saldoSblm = parseInt(db[phone].saldo);
-        db[phone].saldo = saldoSblm + parseInt(vpnData.harga_asli);
-        hist.status = 'Refund';
-        hist.nama = 'Refund: ' + vpnData.nama_produk;
-        hist.type = 'Refund';
-        hist.amount = vpnData.harga_asli;
-        hist.saldo_sebelumnya = saldoSblm;
-        hist.saldo_sesudah = db[phone].saldo;
-        saveJSON(dbFile, db);
-        
-        let failMsg = result.message || "GAGAL VPS";
-        let emailUser = db[phone].email || '-';
-        let namaUser = db[phone].username || phone;
-        let teleMsg = `⚠️ <b>INFO ORDER VPN QRIS: GAGAL VPS</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Alasan: ${failMsg}\n💰 Saldo Rp ${vpnData.harga_asli.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
-        sendTelegramAdmin(teleMsg);
-    }
-}
-
-async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, refIdAsal, margin) {
-    try {
-        let db = loadJSON(dbFile); let config = loadJSON(configFile); let produkDB = loadJSON(produkFile);
-        let hargaFix = parseInt(harga_asli);
-        let p = produkDB[sku] || {};
-        let realSku = p.sku_asli || sku;
-        let saldoSebelum = parseInt(db[phone].saldo);
-        
-        let emailUser = db[phone].email || '-';
-        let namaUser = db[phone].username || phone;
-        
-        // Cek PASCABAYAR
-        if(p.is_pasca) {
-            let refId = 'WEB-' + Date.now();
-            let signCek = crypto.createHash('md5').update((config.digiflazzUsername || '') + (config.digiflazzApiKey || '') + refId).digest('hex');
-            const resCek = await axios.post('https://api.digiflazz.com/v1/transaction', { commands: 'inq-pasca', username: (config.digiflazzUsername || ''), buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: signCek });
-            if(resCek.data.data.status === 'Gagal') {
-                db[phone].saldo += hargaFix; saveJSON(dbFile, db);
-                return;
-            }
-            let tagihan = parseInt(resCek.data.data.price) || parseInt(resCek.data.data.selling_price) || 0;
-            let realHargaFix = tagihan + Math.floor(margin * getMarginMultiplier(db[phone].level||'Member'));
-            if(saldoSebelum < realHargaFix) { db[phone].saldo += hargaFix; saveJSON(dbFile, db); return; } // refund jika selisih
-            
-            db[phone].saldo = saldoSebelum - realHargaFix;
-            let signPay = crypto.createHash('md5').update((config.digiflazzUsername || '') + (config.digiflazzApiKey || '') + refId).digest('hex');
-            const resPay = await axios.post('https://api.digiflazz.com/v1/transaction', { commands: 'pay-pasca', username: (config.digiflazzUsername || ''), buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: signPay });
-            
-            if(resPay.data.data.status === 'Gagal') {
-                db[phone].saldo += realHargaFix; saveJSON(dbFile, db);
-                return;
-            }
-            updateLevelAndPoints(phone, realHargaFix, margin);
-            // ... (lanjutan sukses update status, mirip di bawah)
-            return;
-        }
-
-        if (saldoSebelum < hargaFix) return; 
-        
-        db[phone].saldo = saldoSebelum - hargaFix; 
-        saveJSON(dbFile, db);
-
-        let username = (config.digiflazzUsername || '').trim();
-        let apiKey = (config.digiflazzApiKey || '').trim();
-        let refId = 'WEB-' + Date.now();
-        let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
-
-        const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
-            username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
-        });
-        
-        const statusOrder = response.data.data.status; 
-        
-        db = loadJSON(dbFile);
-        let saldoTerkini = parseInt(db[phone].saldo);
-
-        if (statusOrder === 'Gagal') {
-            db[phone].saldo = saldoTerkini + hargaFix;
-            
-            let hist = db[phone].history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
-            if(hist) {
-                hist.status = 'Refund';
-                hist.nama = 'Refund: ' + nama_produk;
-                hist.type = 'Refund';
-                hist.amount = hargaFix;
-                hist.ref_id = refId;
-                hist.sn = '-';
-                hist.saldo_sebelumnya = saldoTerkini;
-                hist.saldo_sesudah = db[phone].saldo;
-            } else {
-                db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoTerkini, saldo_sesudah: db[phone].saldo });
-                if(db[phone].history.length > 50) db[phone].history.pop();
-            }
-            saveJSON(dbFile, db);
-            
-            if(globalSock) {
-                globalSock.sendMessage(db[phone].jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf, pesanan ${nama_produk} tujuan ${tujuan} ditolak oleh sistem.\n\n💰 Saldo Anda sebesar Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan utuh ke akun Website.` }).catch(e=>{});
-            }
-
-            let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Status Digiflazz Gagal.\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
-            sendTelegramAdmin(teleMsgFail);
-            return;
-        }
-        
-        db[phone].trx_count = (db[phone].trx_count || 0) + 1;
-        
-        let hist = db[phone].history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
-        if(hist) {
-            hist.status = statusOrder;
-            hist.sn = response.data.data.sn || '-';
-            hist.nama = nama_produk;
-            hist.type = 'Order';
-            hist.amount = hargaFix;
-            hist.ref_id = refId;
-            hist.saldo_sebelumnya = saldoTerkini;
-            hist.saldo_sesudah = db[phone].saldo;
-        } else {
-            db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoTerkini, saldo_sesudah: db[phone].saldo });
-            if(db[phone].history.length > 50) db[phone].history.pop();
-        }
-        saveJSON(dbFile, db);
-        
-        let trxs = loadJSON(trxFile);
-        let targetJid = db[phone].jid || phone + '@s.whatsapp.net';
-        trxs[refId] = { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: nama_produk, tanggal: Date.now(), phone: phone, margin: margin };
-        saveJSON(trxFile, trxs);
-
-        if (statusOrder === 'Sukses') {
-            let globalTrx = loadJSON(globalTrxFile);
-            let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-            globalTrx.unshift({ time: timeStr, product: nama_produk, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'QRIS' });
-            if(globalTrx.length > 100) globalTrx.pop();
-            saveJSON(globalTrxFile, globalTrx);
-
-            updateLevelAndPoints(phone, hargaFix, margin);
-            sendBroadcastSuccess(nama_produk, namaUser, tujuan, hargaFix, 'QRIS');
-        }
-
-        let teleMsg = `🚀 <b>AUTO ORDER QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${db[phone].saldo.toLocaleString('id-ID')}`;
-        sendTelegramAdmin(teleMsg);
-
-    } catch(e) {}
-}
+EOF
+#SELESAI
+cat << 'EOF' >> index.js
 
 function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
-    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json gopay_processed.json ssl_backup.tar.gz 2>/dev/null`, (err) => {
+    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json gopay_processed.json security_log.json ssl_backup.tar.gz 2>/dev/null`, (err) => {
         if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
     });
 }
@@ -4402,7 +4072,6 @@ async function startBot() {
         }
     });
 
-    // BUG FATAL 1 FIX: Pengecekan GoPay menggunakan array dan Object Data (Bukan String Includes)
     let isCheckingQris = false;
     setInterval(async () => {
         if(isCheckingQris) return;
@@ -4441,7 +4110,6 @@ async function startBot() {
                     let isFound = false;
                     let targetAmount = parseInt(req.amount_to_pay);
                     
-                    // Cek di array Mutasi
                     for(let mutasi of mutasiData) {
                         let mutasiAmount = parseInt(mutasi.amount || 0);
                         if(mutasi.type === 'credit' && mutasiAmount === targetAmount) {
@@ -4475,7 +4143,6 @@ async function startBot() {
                                 if(req.vpn_data) {
                                     prosesAutoOrderVPN(req.phone, req.vpn_data, req.trx_id);
                                 } else {
-                                    // Ambil data margin untuk pass ke function order
                                     let prodDb = loadJSON(produkFile);
                                     let mgn = prodDb[req.sku] ? (prodDb[req.sku].margin_keuntungan || 0) : 0;
                                     prosesAutoOrderQRIS(req.phone, req.sku, req.tujuan, req.nama_produk, req.harga_asli, req.trx_id, mgn);
@@ -5132,7 +4799,7 @@ install_dependencies() {
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
     echo -ne "${C_MAG}>> Mengunduh modul utama...${C_RST}"
-    npm install @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api > /dev/null 2>&1 &
+    npm install @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api multer > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
@@ -5635,7 +5302,7 @@ menu_backup() {
                 if [ -d "/etc/letsencrypt" ]; then
                     sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null
                 fi
-                zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json ssl_backup.tar.gz gopay_processed.json 2>/dev/null
+                zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json ssl_backup.tar.gz gopay_processed.json security_log.json 2>/dev/null
                 echo -e "${C_GREEN}✅ File backup.zip (termasuk config API/ID) berhasil dikompresi!${C_RST}"
                 node -e "
                     const crypt = require('./tendo_crypt.js');
@@ -6585,4 +6252,4 @@ EOF
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
 done
-# SELESAI
+#SELESAI
