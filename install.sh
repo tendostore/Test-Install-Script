@@ -4962,3 +4962,2054 @@ if (require.main === module) {
 EOF
 }
 # SELESAI
+# ==========================================
+# 4. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND)
+# ==========================================
+generate_bot_script() {
+    cat << 'EOF' > index.js
+process.env.TZ = 'Asia/Jakarta';
+const fs = require('fs');
+const pino = require('pino');
+const express = require('express');
+const bodyParser = require('body-parser');
+const { exec } = require('child_process');
+const axios = require('axios'); 
+const crypto = require('crypto'); 
+const crypt = require('./tendo_crypt.js');
+const TelegramBot = require('node-telegram-bot-api');
+const multer = require('multer');
+const path = require('path');
+
+const app = express();
+app.disable('x-powered-by');
+
+// SECURITY: Memblokir akses langsung file konfigurasi JSON lewat URL
+app.use((req, res, next) => {
+    if (req.path.endsWith('.json') && !req.path.endsWith('manifest.json')) {
+        return res.status(403).json({success: false, message: 'Akses Ditolak (Sistem Keamanan Tendo)'});
+    }
+    next();
+});
+
+app.use(bodyParser.json());
+app.use(express.static('public')); 
+
+const configFile = './config.json';
+const dbFile = './database.json';
+const produkFile = './produk.json';
+const trxFile = './trx.json';
+const notifFile = './web_notif.json';
+const globalStatsFile = './global_stats.json';
+const topupFile = './topup.json';
+const globalTrxFile = './global_trx.json'; 
+const vpnConfigFile = './vpn_config.json'; 
+const customLayoutFile = './custom_layout.json'; 
+const tutorialFile = './tutorial.json'; 
+const gopayHistoryFile = './gopay_processed.json';
+const adminLogsFile = './admin_logs.json';
+
+const loadJSON = (file) => crypt.load(file, (file === notifFile || file === globalTrxFile || file === tutorialFile || file === gopayHistoryFile || file === adminLogsFile) ? [] : (file === customLayoutFile ? {sections:[]} : {}));
+const saveJSON = (file, data) => crypt.save(file, data);
+
+const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
+
+// KONFIGURASI KEAMANAN ADMIN
+const SUPERADMIN_PHONE = "6282224460678";
+const ADMIN_TOKEN_SECRET = "TendoTokenSecure829103";
+
+// Setup Multer untuk Upload Gambar
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        if(req.path.includes('/api/admin/upload-banners')) {
+            cb(null, './public/baner1'); 
+        } else if (req.path.includes('/api/admin/broadcast')) {
+            cb(null, './public/info_images');
+        } else {
+            cb(null, './public/');
+        }
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + path.extname(file.originalname));
+    }
+});
+const upload = multer({ storage: storage });
+
+function maskStringTarget(str) {
+    if (!str) return '-';
+    let s = str.toString().trim();
+    if (s.length <= 3) return s;
+    return '*'.repeat(s.length - 3) + s.substring(s.length - 3);
+}
+
+function getMarginMultiplier(level) {
+    if(level === 'VIP') return 0.6; // Diskon margin 40%
+    if(level === 'Reseller') return 0.8; // Diskon margin 20%
+    return 1.0; // Member normal
+}
+
+function updateLevelAndPoints(phone, hargaFix, marginAsli) {
+    let db = loadJSON(dbFile);
+    if(db[phone]) {
+        // Poin Loyalitas
+        db[phone].poin = (db[phone].poin || 0) + 10;
+        
+        // Update Total Transaksi & Leveling
+        db[phone].total_pengeluaran = (db[phone].total_pengeluaran || 0) + hargaFix;
+        let tp = db[phone].total_pengeluaran;
+        
+        // Cek jika admin secara manual mengganti level ke VIP/Reseller (jangan di-downgrade otomatis)
+        if(db[phone].level !== 'VIP' && db[phone].level !== 'Reseller') {
+             if(tp >= 2000000) db[phone].level = 'VIP';
+             else if(tp >= 1000000) db[phone].level = 'Reseller';
+        } else if (db[phone].level === 'Reseller' && tp >= 2000000) {
+             db[phone].level = 'VIP';
+        }
+
+        // Komisi Referral
+        if(db[phone].referrer) {
+            let refPhone = db[phone].referrer;
+            if(db[refPhone]) {
+                db[refPhone].saldo = (db[refPhone].saldo || 0) + 10; // Bonus Rp 10 per trx
+            }
+        }
+        saveJSON(dbFile, db);
+    }
+}
+
+function cekPemeliharaan() {
+    let cfg = loadJSON(configFile);
+    if (cfg.isMaintenanceMode) return true; // Maintenance diaktifkan manual dari admin panel
+    
+    let s = cfg.maintStart || "23:00";
+    let e = cfg.maintEnd || "00:30";
+    let d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
+    let h = d.getHours(); let m = d.getMinutes();
+    let curMins = h * 60 + m;
+    let sParts = s.split(':'); let eParts = e.split(':');
+    let sMins = parseInt(sParts[0])*60 + parseInt(sParts[1]);
+    let eMins = parseInt(eParts[0])*60 + parseInt(eParts[1]);
+    
+    if(sMins < eMins) return (curMins >= sMins && curMins < eMins);
+    else return (curMins >= sMins || curMins < eMins);
+}
+
+function cleanupOldHistory() {
+    try {
+        let db = loadJSON(dbFile);
+        let changed = false;
+        let now = Date.now();
+        let thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+        
+        for (let phone in db) {
+            if (db[phone] && db[phone].history && db[phone].history.length > 0) {
+                let origLen = db[phone].history.length;
+                db[phone].history = db[phone].history.filter(h => (now - h.ts) < thirtyDaysMs);
+                if (db[phone].history.length !== origLen) changed = true;
+            }
+        }
+        if (changed) saveJSON(dbFile, db);
+        
+        // Cleanup GoPay History (Simpan ID transaksi agar tidak double claim)
+        let gopayHist = loadJSON(gopayHistoryFile);
+        if(gopayHist.length > 500) {
+            gopayHist = gopayHist.slice(-500); // Sisakan 500 terbaru
+            saveJSON(gopayHistoryFile, gopayHist);
+        }
+    } catch (e) {}
+}
+setInterval(cleanupOldHistory, 6 * 60 * 60 * 1000); 
+
+function sendTelegramAdmin(message) {
+    try {
+        let cfg = loadJSON(configFile);
+        if (cfg.teleToken && cfg.teleChatId) {
+            let chatIdStr = cfg.teleChatId.toString();
+            axios.post(`https://api.telegram.org/bot${cfg.teleToken}/sendMessage`, {
+                chat_id: chatIdStr,
+                text: message,
+                parse_mode: 'HTML'
+            }).catch(e => {});
+        }
+    } catch(e) {}
+}
+
+function sendBroadcastSuccess(productName, rawUser, rawTarget, price, method) {
+    try {
+        let cfg = loadJSON(configFile);
+        let maskTarget = maskStringTarget(rawTarget); 
+        let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+        let priceStr = price ? `\n💰 Harga: Rp ${price.toLocaleString('id-ID')}` : '';
+        let methodStr = method ? `\n💳 Metode: ${method}` : '';
+        
+        let msgTele = `✅ <b>PEMBELIAN BERHASIL</b>\n\n👤 Pelanggan: ${rawUser}\n📦 Layanan: ${productName}\n🎯 Tujuan: ${maskTarget}${priceStr}${methodStr}\n🕒 Waktu: ${timeStr} WIB\n\n<i>🌐 Transaksi diproses otomatis oleh sistem.</i>`;
+
+        if (cfg.teleTokenInfo && cfg.teleChannelId) {
+            let channelIdStr = cfg.teleChannelId.toString();
+            if (!channelIdStr.startsWith('-100') && !channelIdStr.startsWith('@')) {
+                channelIdStr = '-100' + channelIdStr;
+            }
+            axios.post(`https://api.telegram.org/bot${cfg.teleTokenInfo}/sendMessage`, {
+                chat_id: channelIdStr,
+                text: msgTele,
+                parse_mode: 'HTML'
+            }).catch(e => { console.error("Gagal kirim Telegram Channel:", e.message); });
+        }
+
+        if (globalSock && cfg.waBroadcastId) {
+            let msgWa = `✅ *PEMBELIAN BERHASIL*\n\n👤 Pelanggan: ${rawUser}\n📦 Layanan: ${productName}\n🎯 Tujuan: ${maskTarget}${priceStr}${methodStr}\n🕒 Waktu: ${timeStr} WIB\n\n_🌐 Transaksi diproses otomatis oleh sistem._`;
+            globalSock.sendMessage(cfg.waBroadcastId, { text: msgWa }).catch(e => {});
+        }
+    } catch(e) {}
+}
+
+function convertToDynamicQris(staticQris, amount) {
+    try {
+        if(!staticQris || staticQris.length < 30) return staticQris;
+        let qris = staticQris.substring(0, staticQris.length - 8);
+        qris = qris.replace("010211", "010212");
+        let parsed = ""; let i = 0;
+        while (i < qris.length) {
+            let id = qris.substring(i, i+2);
+            let lenStr = qris.substring(i+2, i+4);
+            let len = parseInt(lenStr, 10);
+            if (isNaN(len)) break;
+            let val = qris.substring(i+4, i+4+len);
+            if (id !== "54") parsed += id + lenStr + val;
+            i += 4 + len;
+        }
+        let amtStr = amount.toString();
+        let amtLen = amtStr.length.toString().padStart(2, '0');
+        let tag54 = "54" + amtLen + amtStr;
+        let finalQris = "";
+        if (parsed.includes("5802ID")) finalQris = parsed.replace("5802ID", tag54 + "5802ID");
+        else finalQris = parsed + tag54;
+        finalQris += "6304";
+        
+        let crc = 0xFFFF;
+        for(let j=0; j<finalQris.length; j++){
+            crc ^= finalQris.charCodeAt(j) << 8;
+            for(let k=0; k<8; k++){
+                if(crc & 0x8000) crc = (crc << 1) ^ 0x1021;
+                else crc = crc << 1;
+            }
+        }
+        let crcStr = (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+        return finalQris + crcStr;
+    } catch(e) { return staticQris; }
+}
+
+function logAdminActivity(req, actionDesc) {
+    let logs = loadJSON(adminLogsFile);
+    let ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    let agent = req.headers['user-agent'] || '-';
+    let timeStr = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+    
+    logs.unshift({ time: timeStr, ip: ip, agent: agent, action: actionDesc });
+    if(logs.length > 100) logs.pop(); 
+    saveJSON(adminLogsFile, logs);
+}
+
+let configAwal = loadJSON(configFile);
+configAwal.botName = configAwal.botName || "Digital Tendo Store";
+configAwal.botNumber = configAwal.botNumber || "";
+configAwal.gopayToken = configAwal.gopayToken || "";
+configAwal.gopayMerchantId = configAwal.gopayMerchantId || "";
+configAwal.qrisUrl = configAwal.qrisUrl || "https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg";
+configAwal.qrisText = configAwal.qrisText || "";
+configAwal.teleTokenInfo = configAwal.teleTokenInfo || ""; 
+// Password Admin diupdate ke @Rohman32
+configAwal.adminPass = configAwal.adminPass || "@Rohman32";
+configAwal.isMaintenanceMode = configAwal.isMaintenanceMode || false;
+configAwal.margin = configAwal.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
+saveJSON(configFile, configAwal);
+
+let vpnAwal = loadJSON(vpnConfigFile);
+if(!vpnAwal.servers) vpnAwal.servers = {};
+if(!vpnAwal.products) vpnAwal.products = {};
+saveJSON(vpnConfigFile, vpnAwal);
+
+let customLayoutAwal = loadJSON(customLayoutFile);
+if(!customLayoutAwal.sections) customLayoutAwal.sections = [];
+saveJSON(customLayoutFile, customLayoutAwal);
+
+if(!fs.existsSync('./public/maint_images')) fs.mkdirSync('./public/maint_images', { recursive: true });
+if(!fs.existsSync('./public/info_images')) fs.mkdirSync('./public/info_images', { recursive: true });
+
+let globalSock = null;
+let tempOtpDB = {}; 
+let otpCooldown = {}; 
+
+let teleBotInfo = null;
+let teleState = {}; 
+
+if (configAwal.teleTokenInfo) {
+    try {
+        teleBotInfo = new TelegramBot(configAwal.teleTokenInfo, {polling: true});
+        teleBotInfo.on('polling_error', (error) => { console.log('Telegram Info Polling Error:', error.message || error); });
+    } catch(e) {}
+}
+
+function normalizePhone(phoneStr) {
+    if(!phoneStr) return '';
+    let num = phoneStr.replace(/[^0-9]/g, '');
+    if(num.startsWith('0')) return '62' + num.substring(1);
+    return num;
+}
+
+// ==========================================
+// ROUTES ADMIN RAHASIA
+// ==========================================
+app.get('/panel-bos-tendo-rahasia', (req, res) => {
+    res.sendFile(__dirname + '/public/tendo_admin_secret.html');
+});
+
+app.post('/api/admin/login', (req, res) => {
+    let cfg = loadJSON(configFile);
+    if(req.body.password === (cfg.adminPass || '@Rohman32')) {
+        logAdminActivity(req, 'Login sukses ke Panel Admin');
+        res.json({success: true, token: ADMIN_TOKEN_SECRET});
+    } else {
+        logAdminActivity(req, 'Gagal Login: Password Salah');
+        res.json({success: false, message: 'Password Admin Salah!'});
+    }
+});
+
+function authAdmin(req, res, next) {
+    let authHeader = req.headers['authorization'];
+    if(authHeader && authHeader.split(' ')[1] === ADMIN_TOKEN_SECRET) {
+        next();
+    } else {
+        res.status(401).json({success: false, message: 'Token invalid'});
+    }
+}
+
+app.get('/api/admin/dashboard', authAdmin, (req, res) => {
+    let db = loadJSON(dbFile);
+    let gStats = loadJSON(globalStatsFile);
+    
+    let totalUser = Object.keys(db).length;
+    let totalSaldo = 0;
+    for(let k in db) {
+        if(db[k].saldo !== undefined) totalSaldo += db[k].saldo;
+    }
+
+    let totalTrx = 0;
+    for(let k in gStats) totalTrx += gStats[k];
+
+    let globalTrx = loadJSON(globalTrxFile);
+    let recentTrx = globalTrx.slice(0, 10).map(t => {
+        return {
+            waktu: t.time,
+            user: t.user,
+            produk: t.product,
+            status: 'Sukses' 
+        };
+    });
+
+    res.json({ success: true, data: { totalUser, totalSaldo, totalTrx, recentTrx } });
+});
+
+app.get('/api/admin/transactions', authAdmin, (req, res) => {
+    let db = loadJSON(dbFile);
+    let filterStatus = req.query.filter || 'ALL';
+    let allHistory = [];
+    
+    let labaHariIni = 0;
+    let labaBulanIni = 0;
+    let trxGagal = 0;
+    
+    let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
+    let nowYear = now.getFullYear();
+    let nowMonth = now.getMonth();
+    let nowDate = now.getDate();
+
+    for(let k in db) {
+        if(db[k] && db[k].history) {
+            db[k].history.forEach(h => {
+                if (h.status === 'Sukses' || h.status === 'Sukses Bayar') {
+                    let d = new Date(h.ts);
+                    let profit = 0;
+                    if(h.margin !== undefined) {
+                        profit = h.margin;
+                    } else {
+                         profit = Math.floor((h.amount || 0) * 0.05); 
+                    }
+                    
+                    if(d.getFullYear() === nowYear && d.getMonth() === nowMonth) {
+                        labaBulanIni += profit;
+                        if(d.getDate() === nowDate) labaHariIni += profit;
+                    }
+                } else if(h.status.includes('Gagal')) {
+                    trxGagal++;
+                }
+
+                if(filterStatus === 'ALL' || h.status.includes(filterStatus)) {
+                    allHistory.push({
+                        phone: k,
+                        nama_user: db[k].username || 'User',
+                        ...h
+                    });
+                }
+            });
+        }
+    }
+
+    allHistory.sort((a,b) => b.ts - a.ts);
+    let limitedData = allHistory.slice(0, 200);
+
+    res.json({success: true, data: limitedData, labaHari: labaHariIni, labaBulan: labaBulanIni, trxGagal: trxGagal});
+});
+
+app.post('/api/admin/transaction/status', authAdmin, (req, res) => {
+    let { phone, sn, status } = req.body;
+    let db = loadJSON(dbFile);
+    if(!db[phone]) return res.json({success: false, message: 'User tidak ditemukan'});
+    
+    let hist = db[phone].history.find(h => h.sn === sn);
+    if(hist) {
+        hist.status = status;
+        saveJSON(dbFile, db);
+        logAdminActivity(req, `Mengubah status transaksi ${sn} menjadi ${status}`);
+        res.json({success: true});
+    } else {
+        res.json({success: false, message: 'Transaksi tidak ditemukan'});
+    }
+});
+
+app.post('/api/admin/transaction/refund', authAdmin, (req, res) => {
+    let { phone, sn } = req.body;
+    let db = loadJSON(dbFile);
+    if(!db[phone]) return res.json({success: false, message: 'User tidak ditemukan'});
+    
+    let hist = db[phone].history.find(h => h.sn === sn);
+    if(hist && (hist.status === 'Pending' || hist.status.includes('Gagal'))) {
+        let amt = hist.amount || 0;
+        let sblm = db[phone].saldo;
+        db[phone].saldo += amt;
+        
+        hist.status = 'Refund';
+        hist.saldo_sebelumnya = sblm;
+        hist.saldo_sesudah = db[phone].saldo;
+        
+        saveJSON(dbFile, db);
+        logAdminActivity(req, `Melakukan refund transaksi ${sn} sebesar Rp ${amt}`);
+        res.json({success: true});
+    } else {
+        res.json({success: false, message: 'Transaksi tidak ditemukan / sudah sukses / sudah refund.'});
+    }
+});
+
+app.get('/api/admin/users', authAdmin, (req, res) => {
+    let db = loadJSON(dbFile);
+    let users = [];
+    for(let k in db) {
+        if(db[k].saldo !== undefined) {
+            users.push({
+                phone: k, username: db[k].username || '-', level: db[k].level || 'Member', 
+                poin: db[k].poin || 0, saldo: db[k].saldo, banned: db[k].banned || false
+            });
+        }
+    }
+    users.sort((a,b) => b.saldo - a.saldo);
+    res.json({success: true, users});
+});
+
+app.post('/api/admin/user/update', authAdmin, (req, res) => {
+    let { phone, level, banned } = req.body;
+    let db = loadJSON(dbFile);
+    if(db[phone]) {
+        db[phone].level = level;
+        db[phone].banned = banned;
+        saveJSON(dbFile, db);
+        logAdminActivity(req, `Mengubah data user ${phone} (Level: ${level}, Banned: ${banned})`);
+        res.json({success: true});
+    } else {
+        res.json({success: false, message: 'User tidak ditemukan'});
+    }
+});
+
+app.post('/api/admin/balance', authAdmin, (req, res) => {
+    let { phone, amount, action } = req.body;
+    let normPhone = normalizePhone(phone);
+    let db = loadJSON(dbFile);
+    if(!db[normPhone]) return res.json({success: false, message: 'User tidak ditemukan.'});
+    
+    let saldoSebelum = db[normPhone].saldo || 0;
+    if(action === 'add') {
+        db[normPhone].saldo += amount;
+    } else {
+        db[normPhone].saldo -= amount;
+        if(db[normPhone].saldo < 0) db[normPhone].saldo = 0;
+    }
+    
+    db[normPhone].history.unshift({ 
+        ts: Date.now(), 
+        tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+        type: 'Topup', nama: (action === 'add' ? 'Topup Manual (Admin)' : 'Pengurangan Saldo (Admin)'), tujuan: 'Sistem', status: 'Sukses', sn: '-', amount: amount, 
+        saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[normPhone].saldo 
+    });
+    if(db[normPhone].history.length > 50) db[normPhone].history.pop();
+
+    saveJSON(dbFile, db);
+    logAdminActivity(req, `${action==='add'?'Tambah':'Tarik'} saldo ${normPhone} sebesar ${amount}`);
+    res.json({success: true});
+});
+
+app.get('/api/admin/settings', authAdmin, (req, res) => {
+    let cfg = loadJSON(configFile);
+    let layout = loadJSON(customLayoutFile);
+    res.json({success: true, margin: cfg.margin || {}, etalase: layout.sections || []});
+});
+
+app.post('/api/admin/margins', authAdmin, (req, res) => {
+    let margins = req.body;
+    let cfg = loadJSON(configFile);
+    cfg.margin = margins;
+    saveJSON(configFile, cfg);
+    logAdminActivity(req, `Mengubah struktur Margin`);
+    res.json({success: true});
+});
+
+app.post('/api/admin/etalase', authAdmin, (req, res) => {
+    let { sections } = req.body;
+    let layout = loadJSON(customLayoutFile);
+    layout.sections = sections;
+    saveJSON(customLayoutFile, layout);
+    logAdminActivity(req, `Mengupdate struktur Etalase`);
+    res.json({success: true});
+});
+
+app.get('/api/admin/system/config', authAdmin, (req, res) => {
+    let cfg = loadJSON(configFile);
+    let safeCfg = {
+        isMaintenanceMode: cfg.isMaintenanceMode || false,
+        digiflazzUsername: cfg.digiflazzUsername || '',
+        digiflazzApiKey: cfg.digiflazzApiKey || '',
+        gopayToken: cfg.gopayToken || '',
+        gopayMerchantId: cfg.gopayMerchantId || '',
+        teleToken: cfg.teleToken || '',
+        teleTokenInfo: cfg.teleTokenInfo || ''
+    };
+    res.json({success: true, config: safeCfg});
+});
+
+app.post('/api/admin/system/maintenance', authAdmin, (req, res) => {
+    let cfg = loadJSON(configFile);
+    cfg.isMaintenanceMode = req.body.status;
+    saveJSON(configFile, cfg);
+    logAdminActivity(req, `Mengubah status Maintenance Mode menjadi ${req.body.status}`);
+    res.json({success: true});
+});
+
+app.post('/api/admin/upload-banners', authAdmin, upload.any(), (req, res) => {
+    let files = req.files;
+    if(files) {
+        files.forEach(f => {
+            let numMatch = f.fieldname.match(/\d+/);
+            if(numMatch) {
+                let bannerNum = numMatch[0];
+                let targetDir = `./public/baner${bannerNum}`;
+                if(!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+                
+                let oldFiles = fs.readdirSync(targetDir);
+                oldFiles.forEach(of => { if(of.match(/\.(jpg|jpeg|png|gif|webp)$/i)) fs.unlinkSync(path.join(targetDir, of)); });
+                
+                fs.renameSync(f.path, path.join(targetDir, f.filename));
+            }
+        });
+        logAdminActivity(req, `Mengupload banner baru`);
+        res.json({success: true});
+    } else {
+        res.json({success: false, message: "Tidak ada file."});
+    }
+});
+
+app.post('/api/admin/broadcast', authAdmin, upload.single('image'), (req, res) => {
+    let { text, sendTele, sendWa } = req.body;
+    let file = req.file;
+    
+    // 1. Simpan ke web_notif.json
+    let notifs = loadJSON(notifFile);
+    let notifObj = {
+        date: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric' }),
+        text: text,
+    };
+    if(file) {
+        notifObj.image = file.filename;
+    }
+    notifs.unshift(notifObj);
+    if(notifs.length > 20) notifs.pop(); // Max 20 history notif web
+    saveJSON(notifFile, notifs);
+
+    // 2. Broadcast Eksternal
+    let cfg = loadJSON(configFile);
+    let isSendTele = (sendTele === 'true' || sendTele === true);
+    let isSendWa = (sendWa === 'true' || sendWa === true);
+
+    if(isSendTele && cfg.teleTokenInfo && cfg.teleChannelId) {
+        let chanId = cfg.teleChannelId.toString();
+        if (!chanId.startsWith('-100') && !chanId.startsWith('@')) chanId = '-100' + chanId;
+        
+        let teleUrl = `https://api.telegram.org/bot${cfg.teleTokenInfo}/sendMessage`;
+        let payload = { chat_id: chanId, text: text, parse_mode: 'HTML' };
+        
+        if(file) {
+            let publicImgUrl = `http://${process.env.IP_ADDRESS || 'localhost'}:3000/info_images/${file.filename}`;
+            teleUrl = `https://api.telegram.org/bot${cfg.teleTokenInfo}/sendPhoto`;
+            payload = { chat_id: chanId, photo: publicImgUrl, caption: text, parse_mode: 'HTML' };
+        }
+        
+        axios.post(teleUrl, payload).catch(e => { console.error("Broadcast Tele error"); });
+    }
+
+    if(isSendWa && globalSock && cfg.waBroadcastId) {
+        let msgWa = { text: text };
+        globalSock.sendMessage(cfg.waBroadcastId, msgWa).catch(e => {});
+    }
+
+    logAdminActivity(req, `Mengirim broadcast informasi`);
+    res.json({success: true});
+});
+
+app.post('/api/admin/system/apikeys', authAdmin, (req, res) => {
+    let keys = req.body;
+    let cfg = loadJSON(configFile);
+    if(keys.digiflazzUsername) cfg.digiflazzUsername = keys.digiflazzUsername;
+    if(keys.digiflazzApiKey) cfg.digiflazzApiKey = keys.digiflazzApiKey;
+    if(keys.gopayToken) cfg.gopayToken = keys.gopayToken;
+    if(keys.gopayMerchantId) cfg.gopayMerchantId = keys.gopayMerchantId;
+    if(keys.teleToken) cfg.teleToken = keys.teleToken;
+    if(keys.teleTokenInfo) cfg.teleTokenInfo = keys.teleTokenInfo;
+    saveJSON(configFile, cfg);
+    logAdminActivity(req, `Mengubah System API Keys`);
+    res.json({success: true});
+});
+
+app.post('/api/admin/trigger-backup', authAdmin, (req, res) => {
+    let cfg = loadJSON(configFile);
+    if (!cfg.teleToken || !cfg.teleChatId) return res.json({success: false, message: 'Setup Telegram Admin belum dilakukan!'});
+    
+    exec(`rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json gopay_processed.json admin_logs.json 2>/dev/null`, (err) => {
+        if (!err) {
+            exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Manual (Panel Admin)" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
+            logAdminActivity(req, `Melakukan trigger manual backup database`);
+            res.json({success: true});
+        } else {
+            res.json({success: false, message: 'Gagal membuat file zip'});
+        }
+    });
+});
+
+app.get('/api/admin/logs', authAdmin, (req, res) => {
+    let logs = loadJSON(adminLogsFile);
+    res.json({success: true, logs: logs});
+});
+
+
+// ==========================================
+// ROUTES APLIKASI UTAMA (CUSTOMER WEB)
+// ==========================================
+app.get('/api/banners', (req, res) => {
+    let banners = [];
+    try {
+        for (let i = 1; i <= 5; i++) {
+            let folderPath = `./public/baner${i}`;
+            if (fs.existsSync(folderPath)) {
+                let files = fs.readdirSync(folderPath);
+                let imgFiles = files.filter(f => f.match(/\.(jpg|jpeg|png|gif|webp)$/i));
+                if (imgFiles.length > 0) banners.push(`/baner${i}/${imgFiles[0]}`);
+            }
+        }
+    } catch(e) {}
+    res.json({ success: true, data: banners });
+});
+
+app.get('/api/stats', (req, res) => {
+    try {
+        let gStats = loadJSON(globalStatsFile);
+        let cfg = loadJSON(configFile);
+        let daily = 0, weekly = 0, monthly = 0, total = 0;
+        
+        let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
+        let nowYear = now.getFullYear();
+        let nowMonth = now.getMonth();
+        let nowString = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+        
+        let day = now.getDay() || 7; 
+        let monday = new Date(now);
+        monday.setDate(now.getDate() - day + 1);
+        monday.setHours(0,0,0,0);
+
+        for(let k in gStats) {
+            let count = gStats[k];
+            total += count;
+            let recordDate = new Date(k + 'T00:00:00+07:00');
+            if(k === nowString) daily += count;
+            if(recordDate >= monday) weekly += count;
+            if(recordDate.getFullYear() === nowYear && recordDate.getMonth() === nowMonth) monthly += count;
+        }
+        res.json({ success: true, daily, weekly, monthly, total, maintStart: cfg.maintStart || '23:00', maintEnd: cfg.maintEnd || '00:30' });
+    } catch(e) { res.json({ success: false, daily: 0, weekly: 0, monthly: 0, total: 0 }); }
+});
+
+app.get('/api/produk', (req, res) => { 
+    let phone = req.query.phone;
+    let multiplier = 1.0;
+    if(phone) {
+        let db = loadJSON(dbFile);
+        let user = db[normalizePhone(phone)];
+        if(user) multiplier = getMarginMultiplier(user.level || 'Member');
+    }
+    
+    let prods = loadJSON(produkFile);
+    let finalProds = {};
+    for(let k in prods) {
+        let p = {...prods[k]};
+        let margin = p.margin_keuntungan || 0;
+        let modal = p.harga_asli || p.harga; 
+        if (p.is_manual_cat) {
+            finalProds[k] = p; 
+        } else {
+            p.harga = modal + Math.floor(margin * multiplier);
+            finalProds[k] = p;
+        }
+    }
+    res.json(finalProds); 
+});
+
+app.get('/api/notif', (req, res) => { res.json(loadJSON(notifFile) || []); });
+app.get('/api/global-trx', (req, res) => { res.json(loadJSON(globalTrxFile) || []); });
+app.get('/api/custom-layout', (req, res) => { res.json({success: true, data: loadJSON(customLayoutFile)}); }); 
+app.get('/api/tutorials', (req, res) => { res.json(loadJSON(tutorialFile) || []); });
+
+app.get('/api/vpn-config', (req, res) => {
+    try {
+        let vpn = loadJSON(vpnConfigFile);
+        let safeConfig = JSON.parse(JSON.stringify(vpn));
+        
+        let phone = req.query.phone;
+        let multiplier = 1.0;
+        if(phone) {
+            let db = loadJSON(dbFile);
+            let user = db[normalizePhone(phone)];
+            if(user) multiplier = getMarginMultiplier(user.level || 'Member');
+        }
+
+        if(safeConfig.products) {
+            for(let k in safeConfig.products) {
+                let basePrice = safeConfig.products[k].price || 0;
+                let baseMargin = Math.floor(basePrice * 0.3); 
+                let modal = basePrice - baseMargin;
+                safeConfig.products[k].price = modal + Math.floor(baseMargin * multiplier);
+            }
+        }
+
+        if(safeConfig.servers) {
+            for(let srv in safeConfig.servers) {
+                delete safeConfig.servers[srv].pass;
+                delete safeConfig.servers[srv].user;
+                delete safeConfig.servers[srv].api_key;
+                delete safeConfig.servers[srv].port;
+            }
+        }
+        res.json({success: true, data: safeConfig});
+    } catch(e) { res.json({success: false}); }
+});
+
+app.get('/api/user/:phone', (req, res) => {
+    try {
+        let db = loadJSON(dbFile); let p = req.params.phone;
+        if(db[p]) {
+            let safeData = { ...db[p] }; delete safeData.password; 
+            
+            // Cek referral_code lama
+            if (!safeData.referral_code) {
+                safeData.referral_code = 'REF' + Math.floor(1000 + Math.random() * 9000);
+                db[p].referral_code = safeData.referral_code;
+                saveJSON(dbFile, db);
+            }
+            
+            // Cek Banned
+            if (safeData.banned) {
+                 return res.json({success: false, message: 'AKUN DIBLOKIR'});
+            }
+            
+            res.json({success: true, data: safeData});
+        } else res.json({success: false});
+    } catch(e) { res.json({success: false}); }
+});
+
+app.post('/api/exchange-points', (req, res) => {
+    try {
+        let { phone } = req.body;
+        let db = loadJSON(dbFile);
+        let pNorm = normalizePhone(phone);
+        if(!db[pNorm]) return res.json({success: false, message: 'User tidak ditemukan.'});
+        
+        let poin = db[pNorm].poin || 0;
+        if(poin <= 0) return res.json({success: false, message: 'Poin Anda masih kosong.'});
+
+        db[pNorm].saldo = (db[pNorm].saldo || 0) + poin;
+        db[pNorm].poin = 0; 
+        
+        db[pNorm].history.unshift({ 
+            ts: Date.now(), 
+            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+            type: 'Topup', nama: 'Penukaran Poin Loyalitas', tujuan: 'Sistem', status: 'Sukses', sn: '-', amount: poin
+        });
+        if(db[pNorm].history.length > 50) db[pNorm].history.pop();
+        
+        saveJSON(dbFile, db);
+        res.json({success: true, message: `Berhasil menukar ${poin} Poin menjadi Rp ${poin}.`});
+    } catch(e) { res.json({success: false, message: 'Gagal menukar poin.'}); }
+});
+
+app.post('/api/cancel-topup', (req, res) => {
+    try {
+        let { sn, phone } = req.body;
+        let db = loadJSON(dbFile);
+        let topups = loadJSON(topupFile);
+        
+        if(topups[sn] && topups[sn].phone === phone) {
+            topups[sn].status = 'gagal';
+            saveJSON(topupFile, topups);
+        }
+        
+        if(db[phone]) {
+            let hist = db[phone].history.find(h => h.sn === sn);
+            if(hist && hist.status === 'Pending') {
+                hist.status = 'Gagal (Dibatalkan)';
+                saveJSON(dbFile, db);
+                
+                let emailUser = db[phone].email || '-';
+                let namaUser = db[phone].username || phone;
+                let teleMsg = `❌ <b>TOPUP DIBATALKAN PELANGGAN</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${sn}`;
+                sendTelegramAdmin(teleMsg);
+                
+                return res.json({success: true});
+            }
+        }
+        res.json({success: false, message: 'Topup tidak ditemukan atau sudah diproses.'});
+    } catch(e) { res.json({success: false, message: 'Server error'}); }
+});
+
+app.post('/api/login', (req, res) => {
+    try {
+        let { id, password } = req.body; let db = loadJSON(dbFile);
+        let hashedInput = hashPassword(password);
+        
+        let userPhone = Object.keys(db).find(k => {
+            if (!db[k]) return false;
+            let normInput = normalizePhone(id);
+            let matchId = (k === id) || (k === normInput) ||
+                          (db[k].email && db[k].email.toLowerCase() === id.toLowerCase()) || 
+                          (db[k].username && db[k].username.toLowerCase() === id.toLowerCase());
+                          
+            if (!matchId) return false;
+            
+            if (db[k].password === password) {
+                db[k].password = hashedInput; saveJSON(dbFile, db); return true;
+            }
+            if (db[k].password === hashedInput) return true;
+            return false;
+        });
+
+        if (userPhone) {
+            if(db[userPhone].banned) return res.json({success: false, message: 'Akun Anda diblokir!'});
+            let safeData = { ...db[userPhone] }; delete safeData.password;
+            res.json({success: true, phone: userPhone, data: safeData});
+        }
+        else res.json({success: false, message: 'Data Akun (Email/WA/Username) atau Password salah!'});
+    } catch(e) { res.json({success: false, message: 'Server error'}); }
+});
+
+app.post('/api/register', (req, res) => {
+    try {
+        let { username, email, password, referral } = req.body;
+        let phone = normalizePhone(req.body.phone); 
+        if(!phone || phone.length < 9) return res.json({success: false, message: 'Nomor WA tidak valid!'});
+        
+        if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
+        otpCooldown[phone] = Date.now();
+        
+        let db = loadJSON(dbFile);
+        
+        let isEmailExist = Object.keys(db).some(k => db[k] && db[k].email && db[k].email.toLowerCase() === email.toLowerCase());
+        if (isEmailExist) return res.json({success: false, message: 'Email terdaftar!'});
+        
+        let isUsernameExist = Object.keys(db).some(k => db[k] && db[k].username && db[k].username.toLowerCase() === username.toLowerCase());
+        if (isUsernameExist) return res.json({success: false, message: 'Username sudah digunakan, silakan ganti yang lain!'});
+
+        // Verifikasi Referral
+        let referrerPhone = null;
+        if(referral) {
+            let refKey = Object.keys(db).find(k => db[k].referral_code === referral);
+            if(refKey) referrerPhone = refKey;
+        }
+
+        let otp = Math.floor(1000 + Math.random() * 9000).toString();
+        tempOtpDB[phone] = { username, email, password: hashPassword(password), otp, referrer: referrerPhone };
+
+        res.json({success: true});
+
+        setTimeout(() => {
+            try {
+                if (globalSock) {
+                    let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
+                    globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
+                }
+            } catch(err) {}
+        }, 100);
+
+    } catch(e) { if (!res.headersSent) res.json({success: false, message: 'Gagal memproses pendaftaran.'}); }
+});
+
+app.post('/api/verify-otp', (req, res) => {
+    try {
+        let otp = req.body.otp; let phone = normalizePhone(req.body.phone);
+        if(tempOtpDB[phone] && tempOtpDB[phone].otp === otp) {
+            let db = loadJSON(dbFile); 
+            let idPelanggan = 'TD-' + Math.floor(100000 + Math.random() * 900000); 
+            let refCode = 'REF' + Math.floor(1000 + Math.random() * 9000);
+
+            if(db[phone]) {
+                db[phone].username = tempOtpDB[phone].username; db[phone].email = tempOtpDB[phone].email; db[phone].password = tempOtpDB[phone].password;
+                if(!db[phone].id_pelanggan) db[phone].id_pelanggan = idPelanggan;
+                if(!db[phone].referral_code) db[phone].referral_code = refCode;
+                db[phone].referrer = tempOtpDB[phone].referrer;
+                db[phone].banned = false; // hapus ban jika register ulang
+            } else {
+                db[phone] = { 
+                    id_pelanggan: idPelanggan, username: tempOtpDB[phone].username, email: tempOtpDB[phone].email, 
+                    password: tempOtpDB[phone].password, saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), 
+                    jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [],
+                    level: 'Member', poin: 0, total_pengeluaran: 0, referral_code: refCode, referrer: tempOtpDB[phone].referrer,
+                    banned: false
+                };
+            }
+            saveJSON(dbFile, db); delete tempOtpDB[phone]; res.json({success: true});
+        } else res.json({success: false, message: 'Kode OTP Salah!'});
+    } catch(e) { res.json({success: false, message: 'Server error'}); }
+});
+
+app.post('/api/req-edit-otp', (req, res) => {
+    try {
+        let { phone, type, newValue } = req.body; let db = loadJSON(dbFile);
+        if(!db[phone]) return res.json({success: false, message: 'User tidak ditemukan.'});
+        if(db[phone].banned) return res.json({success: false, message: 'Akun Anda diblokir.'});
+        
+        if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
+        otpCooldown[phone] = Date.now();
+
+        let otp = Math.floor(1000 + Math.random() * 9000).toString();
+        if (type === 'password') newValue = hashPassword(newValue);
+        tempOtpDB[phone + '_edit'] = { type, newValue, otp };
+        res.json({success: true});
+
+        setTimeout(() => {
+            if (globalSock) globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nKode OTP perubahan data: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
+        }, 100);
+    } catch(e) { if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); }
+});
+
+app.post('/api/verify-edit-otp', (req, res) => {
+    try {
+        let { phone, otp } = req.body; let db = loadJSON(dbFile); let session = tempOtpDB[phone + '_edit'];
+        if(session && session.otp === otp) {
+            if(session.type === 'email') db[phone].email = session.newValue;
+            if(session.type === 'password') db[phone].password = session.newValue;
+            if(session.type === 'phone') {
+                let newPhone = normalizePhone(session.newValue);
+                if(db[newPhone]) return res.json({success: false, message: 'Nomor sudah dipakai akun lain.'});
+                db[newPhone] = db[phone]; db[newPhone].jid = newPhone + '@s.whatsapp.net'; delete db[phone];
+            }
+            saveJSON(dbFile, db); delete tempOtpDB[phone + '_edit']; res.json({success: true});
+        } else res.json({success: false, message: 'OTP Salah!'});
+    } catch(e) { res.json({success: false, message: 'Server error'}); }
+});
+
+app.post('/api/req-forgot-otp', (req, res) => {
+    try {
+        let phone = normalizePhone(req.body.phone); let db = loadJSON(dbFile);
+        if(!db[phone]) return res.json({success: false, message: 'Nomor WA tidak terdaftar!'});
+        if(db[phone].banned) return res.json({success: false, message: 'Akun Anda diblokir.'});
+        
+        if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
+        otpCooldown[phone] = Date.now();
+
+        let otp = Math.floor(1000 + Math.random() * 9000).toString();
+        tempOtpDB[phone + '_forgot'] = { otp };
+        res.json({success: true});
+
+        setTimeout(() => {
+            if (globalSock) globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nPermintaan Reset Password.\nKode OTP: *${otp}*\n\n_⚠️ Abaikan jika bukan Anda!_` }).catch(e=>{});
+        }, 100);
+    } catch(e) { if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); }
+});
+
+app.post('/api/verify-forgot-otp', (req, res) => {
+    try {
+        let phone = normalizePhone(req.body.phone); let { otp, newPass } = req.body; let db = loadJSON(dbFile);
+        let session = tempOtpDB[phone + '_forgot'];
+        if(session && session.otp === otp) {
+            if(db[phone]) { db[phone].password = hashPassword(newPass); saveJSON(dbFile, db); }
+            delete tempOtpDB[phone + '_forgot']; res.json({success: true});
+        } else res.json({success: false, message: 'Kode OTP Salah!'});
+    } catch(e) { res.json({success: false, message: 'Server error'}); }
+});
+
+app.post('/api/topup', async (req, res) => {
+    try {
+        if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
+        let config = loadJSON(configFile);
+        if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
+        
+        let { phone, nominal } = req.body; let db = loadJSON(dbFile);
+        if(!db[phone]) return res.json({success: false, message: "User tidak ditemukan."});
+        if(db[phone].banned) return res.json({success: false, message: "Akun diblokir."});
+        
+        let nominalAsli = parseInt(nominal);
+        let uniqueCode = Math.floor(Math.random() * 99) + 1;
+        let totalPay = nominalAsli + uniqueCode;
+
+        let finalQrisUrl = config.qrisUrl;
+        if (config.qrisText) {
+            let dynQris = convertToDynamicQris(config.qrisText, totalPay);
+            finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
+        }
+
+        let topups = loadJSON(topupFile);
+        let trxId = "TP-" + Date.now();
+        let expiredAt = Date.now() + 10 * 60 * 1000;
+
+        topups[trxId] = { phone, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, status: 'pending', timestamp: Date.now(), expired_at: expiredAt, is_order: false };
+        saveJSON(topupFile, topups);
+
+        db[phone].history = db[phone].history || [];
+        db[phone].history.unshift({ 
+            ts: Date.now(), 
+            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+            type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
+        });
+        if(db[phone].history.length > 50) db[phone].history.pop();
+        saveJSON(dbFile, db);
+
+        res.json({success: true});
+        
+        let emailUser = db[phone].email || '-';
+        let namaUser = db[phone].username || phone;
+        let teleMsg = `⏳ <b>TOPUP PENDING (QRIS)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${db[phone].saldo.toLocaleString('id-ID')}`;
+        sendTelegramAdmin(teleMsg);
+    } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
+});
+
+app.post('/api/order-qris', async (req, res) => {
+    try {
+        if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
+        
+        let config = loadJSON(configFile);
+        if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
+        
+        let { phone, sku, tujuan } = req.body; let pNorm = normalizePhone(phone);
+        let db = loadJSON(dbFile); let produkDB = loadJSON(produkFile);
+        let targetKey = db[pNorm] ? pNorm : (db[phone] ? phone : null);
+        if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid.'});
+        if (db[targetKey].banned) return res.json({success: false, message: 'Akun diblokir.'});
+        
+        let p = produkDB[sku];
+        if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
+        
+        // Cek Diskon Level
+        let multiplier = getMarginMultiplier(db[targetKey].level || 'Member');
+        let margin = p.margin_keuntungan || 0;
+        let modal = p.harga_asli || p.harga; 
+        let hargaFixLevel = p.is_manual_cat ? p.harga : (modal + Math.floor(margin * multiplier));
+
+        let nominalAsli = parseInt(hargaFixLevel);
+        let uniqueCode = Math.floor(Math.random() * 50) + 1; 
+        let totalPay = nominalAsli + uniqueCode;
+
+        let finalQrisUrl = config.qrisUrl;
+        if (config.qrisText) {
+            let dynQris = convertToDynamicQris(config.qrisText, totalPay);
+            finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
+        }
+
+        let topups = loadJSON(topupFile);
+        let trxId = "OQ-" + Date.now();
+        let expiredAt = Date.now() + 10 * 60 * 1000;
+
+        topups[trxId] = { phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, status: 'pending', timestamp: Date.now(), expired_at: expiredAt, is_order: true, sku: sku, tujuan: tujuan, nama_produk: p.nama, harga_asli: nominalAsli, is_pasca: p.is_pasca, margin: Math.floor(margin * multiplier) };
+        saveJSON(topupFile, topups);
+
+        db[targetKey].history = db[targetKey].history || [];
+        db[targetKey].history.unshift({ 
+            ts: Date.now(), 
+            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+            type: 'Order QRIS', nama: p.nama + ' (QRIS)', tujuan: tujuan, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
+        });
+        if(db[targetKey].history.length > 50) db[targetKey].history.pop();
+        saveJSON(dbFile, db);
+
+        res.json({success: true});
+        
+        let emailUser = db[targetKey].email || '-';
+        let namaUser = db[targetKey].username || targetKey;
+        let teleMsg = `🛒 <b>ORDER QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
+        sendTelegramAdmin(teleMsg);
+    } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
+});
+
+app.post('/api/order', async (req, res) => {
+    try {
+        if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
+        
+        let { phone, sku, tujuan } = req.body; let pNorm = normalizePhone(phone);
+        let db = loadJSON(dbFile); let produkDB = loadJSON(produkFile); let config = loadJSON(configFile);
+        
+        let targetKey = db[pNorm] ? pNorm : (db[phone] ? phone : null);
+        if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid. Silakan Logout dan Login kembali.'});
+        if (db[targetKey].banned) return res.json({success: false, message: 'Akun diblokir.'});
+        
+        let p = produkDB[sku];
+        if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
+        let realSku = p.sku_asli || sku;
+
+        let multiplier = getMarginMultiplier(db[targetKey].level || 'Member');
+        let margin = p.margin_keuntungan || 0;
+        let modal = p.harga_asli || p.harga; 
+        let currentMargin = Math.floor(margin * multiplier);
+        let hargaFix = p.is_manual_cat ? parseInt(p.harga) : parseInt(modal + currentMargin);
+
+        let username = (config.digiflazzUsername || '').trim();
+        let apiKey = (config.digiflazzApiKey || '').trim();
+        let refId = 'WEB-' + Date.now();
+
+        // JIKA PRODUK PASCABAYAR, LAKUKAN INQUIRY DULU
+        if(p.is_pasca) {
+            let signCek = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
+            const resCek = await axios.post('https://api.digiflazz.com/v1/transaction', { 
+                commands: 'inq-pasca', username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: signCek
+            });
+            let dataCek = resCek.data.data;
+            if(dataCek.status === 'Gagal') return res.json({success: false, message: dataCek.message || "Gagal cek tagihan."});
+            
+            // Harga total = tagihan + margin (admin fee)
+            let tagihanAsli = parseInt(dataCek.price) || parseInt(dataCek.selling_price) || 0;
+            hargaFix = tagihanAsli + currentMargin;
+            
+            let saldoSebelum = parseInt(db[targetKey].saldo);
+            if (saldoSebelum < hargaFix) return res.json({success: false, message: `Saldo tidak cukup. Tagihan Anda: Rp ${hargaFix.toLocaleString('id-ID')}`});
+            
+            db[targetKey].saldo = saldoSebelum - hargaFix;
+            saveJSON(dbFile, db);
+
+            // LANJUT BAYAR
+            let signPay = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
+            const resPay = await axios.post('https://api.digiflazz.com/v1/transaction', { 
+                commands: 'pay-pasca', username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: signPay
+            });
+
+            const statusOrder = resPay.data.data.status; 
+            db = loadJSON(dbFile);
+            
+            if (statusOrder === 'Gagal') {
+                db[targetKey].saldo += hargaFix;
+                saveJSON(dbFile, db);
+                return res.json({success: false, message: resPay.data.data.message});
+            }
+
+            db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
+            db[targetKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: resPay.data.data.sn || '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[targetKey].saldo, margin: currentMargin });
+            saveJSON(dbFile, db);
+            
+            if(statusOrder === 'Sukses') {
+                updateLevelAndPoints(targetKey, hargaFix, currentMargin);
+                sendBroadcastSuccess(p.nama, db[targetKey].username||targetKey, tujuan, hargaFix, 'Saldo Akun');
+            }
+            
+            return res.json({success: true, saldo: db[targetKey].saldo});
+        }
+        
+        // ALUR PRABAYAR REGULER
+        let saldoSebelum = parseInt(db[targetKey].saldo);
+        if (saldoSebelum < hargaFix) return res.json({success: false, message: 'Saldo tidak cukup.'});
+
+        db[targetKey].saldo = saldoSebelum - hargaFix;
+        saveJSON(dbFile, db);
+
+        let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
+        const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
+            username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
+        });
+        
+        const statusOrder = response.data.data.status; 
+        db = loadJSON(dbFile);
+        let saldoTerkini = parseInt(db[targetKey].saldo);
+        let emailUser = db[targetKey].email || '-';
+        let namaUser = db[targetKey].username || targetKey;
+        
+        if (statusOrder === 'Gagal') {
+            db[targetKey].saldo = saldoTerkini + hargaFix;
+            saveJSON(dbFile, db);
+            
+            let teleMsgFail = `❌ <b>PESANAN GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
+            sendTelegramAdmin(teleMsgFail);
+            
+            return res.json({success: false, message: response.data.data.message});
+        }
+        
+        db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
+        
+        db[targetKey].history = db[targetKey].history || [];
+        db[targetKey].history.unshift({ 
+            ts: Date.now(), 
+            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+            type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId,
+            saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[targetKey].saldo, margin: currentMargin
+        });
+        if(db[targetKey].history.length > 50) db[targetKey].history.pop();
+        saveJSON(dbFile, db);
+        
+        let trxs = loadJSON(trxFile);
+        let targetJid = db[targetKey].jid || targetKey + '@s.whatsapp.net';
+        trxs[refId] = { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: p.nama, tanggal: Date.now(), phone: targetKey, margin: currentMargin };
+        saveJSON(trxFile, trxs);
+
+        if (statusOrder === 'Sukses') {
+            let gStats = loadJSON(globalStatsFile);
+            let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+            gStats[dateKey] = (gStats[dateKey] || 0) + 1;
+            saveJSON(globalStatsFile, gStats);
+
+            let globalTrx = loadJSON(globalTrxFile);
+            let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+            globalTrx.unshift({ time: timeStr, product: p.nama, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'Saldo Akun' });
+            if(globalTrx.length > 100) globalTrx.pop();
+            saveJSON(globalTrxFile, globalTrx);
+
+            updateLevelAndPoints(targetKey, hargaFix, currentMargin);
+            sendBroadcastSuccess(p.nama, namaUser, tujuan, hargaFix, 'Saldo Akun');
+        }
+
+        res.json({success: true, saldo: db[targetKey].saldo});
+
+        let teleMsg = `🔔 <b>PESANAN BARU MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
+        sendTelegramAdmin(teleMsg);
+
+    } catch (error) { 
+        if (!res.headersSent) {
+            let errInfo = error.response && error.response.data && error.response.data.data ? error.response.data.data.message : 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)';
+            return res.json({success: false, message: errInfo});
+        }
+    }
+});
+
+// ==============================================================
+// CORE LOGIC: EKSEKUSI PEMBUATAN AKUN VPN KE SERVER VPS 
+// ==============================================================
+async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vpnPassword, expiredDays, refIdAsal = null, paymentMethod = 'Saldo Akun') {
+    let db = loadJSON(dbFile);
+    let vpnConfig = loadJSON(vpnConfigFile);
+    let targetKey = db[normalizePhone(phone)] ? normalizePhone(phone) : (db[phone] ? phone : null);
+    if(!targetKey) return { success: false, message: "Sesi tidak valid." };
+
+    let prod = vpnConfig.products[productId];
+    if(!prod) return { success: false, message: "Produk VPN tidak ditemukan atau telah dihapus." };
+    if(mode === 'reguler' && parseInt(prod.stok) <= 0) return { success: false, message: "Stok untuk produk ini sedang habis." };
+
+    let serverKey = prod.server_id;
+    let srv = vpnConfig.servers[serverKey];
+    if(!srv || !srv.host || !srv.api_key) {
+        return { success: false, message: "Server VPN ini sedang gangguan / konfigurasi tidak valid." };
+    }
+
+    if (mode === 'trial') {
+        if (!db[targetKey].trial_claims) db[targetKey].trial_claims = {};
+        let lastClaim = db[targetKey].trial_claims[productId] || 0;
+        if (Date.now() - lastClaim < 2 * 60 * 60 * 1000) { 
+            return { success: false, message: "⚠️ Gagal: Anda sudah melakukan trial di Produk ini. Silakan coba 2 Jam lagi." };
+        }
+    }
+
+    let hargaFix = 0;
+    let multiplier = getMarginMultiplier(db[targetKey].level || 'Member');
+    let currentMargin = 0;
+    
+    if (mode === 'reguler') {
+        let basePrice = parseInt(prod.price) || 0;
+        let baseMargin = Math.floor(basePrice * 0.3); 
+        let modal = basePrice - baseMargin;
+        currentMargin = Math.floor(baseMargin * multiplier);
+        let pricePerMonth = modal + currentMargin;
+        
+        let hari = parseInt(expiredDays);
+        if (hari > 30) hari = 30;
+        if (hari < 1) hari = 1;
+        hargaFix = Math.ceil((pricePerMonth / 30) * hari);
+        
+        let saldoSebelum = parseInt(db[targetKey].saldo);
+        if(saldoSebelum < hargaFix && paymentMethod === 'Saldo Akun') return { success: false, message: "Saldo tidak mencukupi." };
+        
+        // BUG FATAL 2 FIX: Potong saldo duluan sebelum nembak API
+        if (paymentMethod === 'Saldo Akun') {
+            db[targetKey].saldo = saldoSebelum - hargaFix;
+            saveJSON(dbFile, db);
+        }
+    }
+
+    let protoLower = protocol.toLowerCase();
+    let endpoint = '';
+    
+    let vpnLimitIp = parseInt(prod.limit_ip) || 2;
+    let vpnKuota = parseInt(prod.kuota) || 200;
+    
+    let payload = {};
+    let cleanHost = srv.host.replace(/^https?:\/\//i, '');
+
+    if (mode === 'trial') {
+        payload = { timelimit: "30m", kuota: 2, limitip: 2 };
+        if(protoLower === 'ssh') endpoint = `http://${cleanHost}/vps/trialsshvpn`;
+        else endpoint = `http://${cleanHost}/vps/trial${protoLower}all`;
+    } else {
+        payload = { username: vpnUsername, expired: parseInt(expiredDays), limitip: vpnLimitIp, kuota: vpnKuota };
+        if(protoLower === 'ssh' || protoLower === 'zivpn') payload.password = vpnPassword;
+        else payload.uuidv2 = '';
+        
+        if(protoLower === 'ssh') endpoint = `http://${cleanHost}/vps/sshvpn`;
+        else endpoint = `http://${cleanHost}/vps/${protoLower}all`; 
+    }
+
+    try {
+        let resApi = await axios.post(endpoint, payload, {
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer ' + srv.api_key },
+            timeout: 120000,
+            validateStatus: () => true, 
+            httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
+        });
+
+        db = loadJSON(dbFile); 
+        
+        let isSuccessResponse = (resApi.status >= 200 && resApi.status < 300) && resApi.data && !resApi.data.error && resApi.data.status !== false;
+        let isErrorResponse = resApi.data && (resApi.data.status === false || resApi.data.error || resApi.status >= 400);
+
+        if(isSuccessResponse && !isErrorResponse) {
+            let apiData = resApi.data.data || resApi.data || {};
+            let domain = srv.host;
+            let expDate = apiData.expired || apiData.exp || apiData.to || (mode === 'trial' ? '30 Menit' : `${expiredDays} Hari`);
+            let vpnDetails = '';
+            
+            let fixCity = srv.city || apiData.city || '-';
+            let fixIsp = srv.isp || apiData.isp || '-';
+            let vpnUser = apiData.username || vpnUsername || "TrialUser";
+
+            if (protoLower === 'ssh') {
+                vpnDetails = `Account Created Successfully\n————————————————————————————————————\nDomain Host     : ${domain}\nCity            : ${fixCity}\nISP             : ${fixIsp}\nUsername        : ${vpnUser}\nPassword        : ${apiData.password || vpnPassword || '1'}\n————————————————————————————————————\nExpired         : ${expDate}\n————————————————————————————————————\nTLS             : ${apiData.port?.tls || '443,8443'}\nNone TLS        : ${apiData.port?.none || '80,8080'}\nAny             : 2082,2083,8880\nOpenSSH         : 444\nDropbear        : 90\n————————————————————————————————————\nSlowDNS         : 53,5300\nUDP-Custom      : 1-65535\nOHP + SSH       : 9080\nSquid Proxy     : 3128\nUDPGW           : 7100-7600\nOpenVPN TCP     : 80,1194\nOpenVPN SSL     : 443\nOpenVPN UDP     : 25000\nOpenVPN DNS     : 53\nOHP + OVPN      : 9088\n————————————————————————————————————`;
+            } else if (protoLower === 'vmess') {
+                vpnDetails = `————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : ${vpnUser}\nDomain Host    : ${domain}\nCity           : ${fixCity}\nISP            : ${fixIsp}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nalterId        : 0\nSecurity       : auto\nnetwork        : ws,grpc,upgrade\npath ws        : /vmess\nserviceName    : vmess\npath upgrade   : /upvmess\nExpired On     : ${expDate}\n————————————————————————————————————\n           VMESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VMESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VMESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+            } else if (protoLower === 'vless') {
+                vpnDetails = `————————————————————————————————————\n               VLESS\n————————————————————————————————————\nRemarks        : ${vpnUser}\nDomain Host    : ${domain}\nCity           : ${fixCity}\nISP            : ${fixIsp}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nEncryption     : none\nNetwork        : ws,grpc,upgrade\nPath ws        : /vless\nserviceName    : vless\nPath upgrade   : /upvless\nExpired On     : ${expDate}\n————————————————————————————————————\n            VLESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VLESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VLESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+            } else if (protoLower === 'trojan') {
+                vpnDetails = `————————————————————————————————————\n               TROJAN\n————————————————————————————————————\nRemarks      : ${vpnUser}\nDomain Host  : ${domain}\nCity         : ${fixCity}\nISP          : ${fixIsp}\nPort         : 443,8443\nPort any     : 2052,2053,8880\nKey          : ${apiData.uuid || apiData.id || '-'}\nNetwork      : ws,grpc,upgrade\nPath ws      : /trojan\nserviceName  : trojan\nPath upgrade : /uptrojan\nExpired On   : ${expDate}\n————————————————————————————————————\n           TROJAN WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n            TROJAN GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+            } else {
+                vpnDetails = `Detail Akun ZIVPN:\nDomain Host: ${domain}\nCity: ${fixCity}\nISP: ${fixIsp}\nUsername: ${vpnUser}\nExp: ${expDate}\nLimit IP: ${vpnLimitIp}\n\nInfo selengkapnya cek di aplikasi.`;
+            }
+
+            let prodName = prod.name;
+            if (mode === 'trial') prodName += ' (TRIAL)';
+            
+            let saldoTerkini = parseInt(db[targetKey].saldo);
+            let saldoSebelumnya = paymentMethod === 'Saldo Akun' ? saldoTerkini + hargaFix : saldoTerkini;
+
+            if (mode === 'reguler') {
+                db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
+                vpnConfig = loadJSON(vpnConfigFile);
+                vpnConfig.products[productId].stok -= 1;
+                saveJSON(vpnConfigFile, vpnConfig);
+                updateLevelAndPoints(targetKey, hargaFix, currentMargin); 
+            } else if (mode === 'trial') {
+                if(!db[targetKey].trial_claims) db[targetKey].trial_claims = {};
+                db[targetKey].trial_claims[productId] = Date.now();
+            }
+            
+            let refId = refIdAsal || ("VPN-" + Date.now());
+            
+            if (refIdAsal) {
+                let existingHist = db[targetKey].history.find(h => h.sn === refIdAsal);
+                if (existingHist) {
+                    existingHist.status = 'Sukses';
+                    existingHist.vpn_details = vpnDetails;
+                    existingHist.nama = prodName;
+                    existingHist.type = 'Order VPN';
+                    existingHist.saldo_sebelumnya = saldoSebelumnya;
+                    existingHist.saldo_sesudah = saldoTerkini;
+                    existingHist.margin = currentMargin;
+                }
+            } else {
+                db[targetKey].history.unshift({
+                    ts: Date.now(), 
+                    tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+                    type: 'Order VPN', nama: prodName, tujuan: (mode==='trial'?'Sistem':vpnUser), status: 'Sukses', sn: '-', amount: hargaFix, ref_id: refId,
+                    saldo_sebelumnya: saldoSebelumnya, saldo_sesudah: saldoTerkini,
+                    vpn_details: vpnDetails, margin: currentMargin
+                });
+                if(db[targetKey].history.length > 50) db[targetKey].history.pop();
+            }
+            saveJSON(dbFile, db);
+
+            let gStats = loadJSON(globalStatsFile);
+            let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+            gStats[dateKey] = (gStats[dateKey] || 0) + 1;
+            saveJSON(globalStatsFile, gStats);
+
+            let namaUser = db[targetKey].username || targetKey;
+
+            if (mode !== 'trial') {
+                let globalTrx = loadJSON(globalTrxFile);
+                let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+                globalTrx.unshift({ time: timeStr, product: prodName, user: namaUser, target: maskStringTarget(vpnUser), price: hargaFix, method: paymentMethod });
+                if(globalTrx.length > 100) globalTrx.pop();
+                saveJSON(globalTrxFile, globalTrx);
+
+                sendBroadcastSuccess(prodName, namaUser, vpnUser, hargaFix, paymentMethod);
+            }
+
+            let emailUser = db[targetKey].email || '-';
+            let teleSuccess = `🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${vpnUser}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: ${mode === 'trial' ? 'Gratis (Trial)' : paymentMethod}\n📦 Sisa Stok: ${mode === 'reguler' ? vpnConfig.products[productId].stok : 'Trial'}\n💳 Saldo Terkini: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
+            sendTelegramAdmin(teleSuccess);
+
+            return { success: true };
+        } else {
+            let errMsg = "unknown error";
+            if (resApi.data && resApi.data.message) errMsg = resApi.data.message;
+            else if (resApi.data && resApi.data.error) errMsg = resApi.data.error;
+            else if (resApi.statusText) errMsg = resApi.statusText;
+            
+            // BUG FATAL 2 FIX: REFUND SALDO JIKA GAGAL
+            if (mode === 'reguler' && paymentMethod === 'Saldo Akun') {
+                db[targetKey].saldo += hargaFix;
+                saveJSON(dbFile, db);
+            }
+            
+            if(errMsg.toLowerCase().includes('exist') || errMsg.toLowerCase().includes('already') || errMsg.toLowerCase().includes('sudah ada')) {
+                return { success: false, message: "Username sudah ada/terpakai, silakan ganti username lain." };
+            }
+            return { success: false, message: "Gagal membuat akun di Server VPN. Pesan: " + errMsg };
+        }
+    } catch(e) {
+        let db = loadJSON(dbFile);
+        if (mode === 'reguler' && paymentMethod === 'Saldo Akun') {
+            db[targetKey].saldo += hargaFix;
+            saveJSON(dbFile, db);
+        }
+        return { success: false, message: "Koneksi ke Server VPN Gagal / Timeout. Pesan: " + e.message };
+    }
+}
+
+app.post('/api/order-vpn', async (req, res) => {
+    if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
+    let { phone, protocol, product_id, mode, username, password, expired } = req.body;
+    let result = await executeVpnOrder(phone, protocol, product_id, mode, username, password, expired, null, 'Saldo Akun');
+    res.json(result);
+});
+
+app.post('/api/order-vpn-qris', async (req, res) => {
+    try {
+        if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
+        
+        let config = loadJSON(configFile);
+        if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
+        
+        let { phone, protocol, product_id, mode, username, password, expired } = req.body;
+        
+        let db = loadJSON(dbFile); let vpnConfig = loadJSON(vpnConfigFile);
+        let pNorm = normalizePhone(phone);
+        let targetKey = db[pNorm] ? pNorm : (db[phone] ? phone : null);
+        if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid.'});
+        
+        let prod = vpnConfig.products[product_id];
+        if(!prod) return res.json({success: false, message: 'Produk VPN tidak ditemukan.'});
+        if(mode === 'reguler' && parseInt(prod.stok) <= 0) return res.json({success: false, message: 'Stok habis.'});
+
+        let multiplier = getMarginMultiplier(db[targetKey].level || 'Member');
+        let basePrice = parseInt(prod.price) || 0;
+        let baseMargin = Math.floor(basePrice * 0.3); 
+        let modal = basePrice - baseMargin;
+        let currentMargin = Math.floor(baseMargin * multiplier);
+        let pricePerMonth = modal + currentMargin;
+        
+        let hari = parseInt(expired);
+        if(hari > 30) hari = 30; if(hari < 1) hari = 1;
+        let nominalAsli = Math.ceil((pricePerMonth / 30) * hari);
+        
+        let uniqueCode = Math.floor(Math.random() * 50) + 1; 
+        let totalPay = nominalAsli + uniqueCode;
+
+        let finalQrisUrl = config.qrisUrl;
+        if (config.qrisText) {
+            let dynQris = convertToDynamicQris(config.qrisText, totalPay);
+            finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
+        }
+
+        let topups = loadJSON(topupFile);
+        let trxId = "VQ-" + Date.now();
+        let expiredAt = Date.now() + 10 * 60 * 1000;
+        let prodName = prod.name;
+
+        topups[trxId] = { 
+            phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
+            status: 'pending', timestamp: Date.now(), expired_at: expiredAt, 
+            is_order: true, vpn_data: { protocol, product_id, mode, username, password, expired, nama_produk: prodName, harga_asli: nominalAsli, margin: currentMargin }
+        };
+        saveJSON(topupFile, topups);
+
+        db[targetKey].history.unshift({ 
+            ts: Date.now(), 
+            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+            type: 'Order VPN QRIS', nama: prodName + ' (QRIS)', tujuan: username, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
+        });
+        if(db[targetKey].history.length > 50) db[targetKey].history.pop();
+        saveJSON(dbFile, db);
+
+        res.json({success: true});
+        
+        let emailUser = db[targetKey].email || '-';
+        let namaUser = db[targetKey].username || targetKey;
+        let teleMsg = `🛒 <b>ORDER VPN QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${username}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
+        sendTelegramAdmin(teleMsg);
+    } catch(e) { res.json({success: false, message: "Gagal memproses QRIS VPN."}); }
+});
+
+async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
+    let result = await executeVpnOrder(phone, vpnData.protocol, vpnData.product_id, vpnData.mode, vpnData.username, vpnData.password, vpnData.expired, refIdAsal, 'QRIS');
+    let db = loadJSON(dbFile);
+    
+    let hist = db[phone].history.find(h => h.sn === refIdAsal);
+    if(!hist) return;
+
+    if(!result.success) {
+        let saldoSblm = parseInt(db[phone].saldo);
+        db[phone].saldo = saldoSblm + parseInt(vpnData.harga_asli);
+        hist.status = 'Refund';
+        hist.nama = 'Refund: ' + vpnData.nama_produk;
+        hist.type = 'Refund';
+        hist.amount = vpnData.harga_asli;
+        hist.saldo_sebelumnya = saldoSblm;
+        hist.saldo_sesudah = db[phone].saldo;
+        saveJSON(dbFile, db);
+        
+        let failMsg = result.message || "GAGAL VPS";
+        let emailUser = db[phone].email || '-';
+        let namaUser = db[phone].username || phone;
+        let teleMsg = `⚠️ <b>INFO ORDER VPN QRIS: GAGAL VPS</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Alasan: ${failMsg}\n💰 Saldo Rp ${vpnData.harga_asli.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
+        sendTelegramAdmin(teleMsg);
+    }
+}
+
+async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, refIdAsal, margin) {
+    try {
+        let db = loadJSON(dbFile); let config = loadJSON(configFile); let produkDB = loadJSON(produkFile);
+        let hargaFix = parseInt(harga_asli);
+        let p = produkDB[sku] || {};
+        let realSku = p.sku_asli || sku;
+        let saldoSebelum = parseInt(db[phone].saldo);
+        let currentMargin = Math.floor(margin * getMarginMultiplier(db[phone].level||'Member'));
+        
+        let emailUser = db[phone].email || '-';
+        let namaUser = db[phone].username || phone;
+        
+        // Cek PASCABAYAR
+        if(p.is_pasca) {
+            let refId = 'WEB-' + Date.now();
+            let signCek = crypto.createHash('md5').update((config.digiflazzUsername || '') + (config.digiflazzApiKey || '') + refId).digest('hex');
+            const resCek = await axios.post('https://api.digiflazz.com/v1/transaction', { commands: 'inq-pasca', username: (config.digiflazzUsername || ''), buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: signCek });
+            if(resCek.data.data.status === 'Gagal') {
+                db[phone].saldo += hargaFix; saveJSON(dbFile, db);
+                return;
+            }
+            let tagihan = parseInt(resCek.data.data.price) || parseInt(resCek.data.data.selling_price) || 0;
+            let realHargaFix = tagihan + currentMargin;
+            if(saldoSebelum < realHargaFix) { db[phone].saldo += hargaFix; saveJSON(dbFile, db); return; } // refund jika selisih
+            
+            db[phone].saldo = saldoSebelum - realHargaFix;
+            let signPay = crypto.createHash('md5').update((config.digiflazzUsername || '') + (config.digiflazzApiKey || '') + refId).digest('hex');
+            const resPay = await axios.post('https://api.digiflazz.com/v1/transaction', { commands: 'pay-pasca', username: (config.digiflazzUsername || ''), buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: signPay });
+            
+            if(resPay.data.data.status === 'Gagal') {
+                db[phone].saldo += realHargaFix; saveJSON(dbFile, db);
+                return;
+            }
+            updateLevelAndPoints(phone, realHargaFix, currentMargin);
+            // Lanjut ubah history status (sama seperti prabayar)
+            let hist = db[phone].history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
+            if(hist) {
+                hist.status = 'Sukses';
+                hist.sn = resPay.data.data.sn || '-';
+                hist.nama = nama_produk;
+                hist.type = 'Order';
+                hist.amount = realHargaFix;
+                hist.ref_id = refId;
+                hist.saldo_sebelumnya = saldoSebelum;
+                hist.saldo_sesudah = db[phone].saldo;
+                hist.margin = currentMargin;
+            }
+            saveJSON(dbFile, db);
+            sendBroadcastSuccess(nama_produk, namaUser, tujuan, realHargaFix, 'QRIS');
+            return;
+        }
+
+        if (saldoSebelum < hargaFix) return; 
+        
+        db[phone].saldo = saldoSebelum - hargaFix; 
+        saveJSON(dbFile, db);
+
+        let username = (config.digiflazzUsername || '').trim();
+        let apiKey = (config.digiflazzApiKey || '').trim();
+        let refId = 'WEB-' + Date.now();
+        let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
+
+        const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
+            username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
+        });
+        
+        const statusOrder = response.data.data.status; 
+        
+        db = loadJSON(dbFile);
+        let saldoTerkini = parseInt(db[phone].saldo);
+
+        if (statusOrder === 'Gagal') {
+            db[phone].saldo = saldoTerkini + hargaFix;
+            
+            let hist = db[phone].history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
+            if(hist) {
+                hist.status = 'Refund';
+                hist.nama = 'Refund: ' + nama_produk;
+                hist.type = 'Refund';
+                hist.amount = hargaFix;
+                hist.ref_id = refId;
+                hist.sn = '-';
+                hist.saldo_sebelumnya = saldoTerkini;
+                hist.saldo_sesudah = db[phone].saldo;
+            } else {
+                db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoTerkini, saldo_sesudah: db[phone].saldo });
+                if(db[phone].history.length > 50) db[phone].history.pop();
+            }
+            saveJSON(dbFile, db);
+            
+            if(globalSock) {
+                globalSock.sendMessage(db[phone].jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf, pesanan ${nama_produk} tujuan ${tujuan} ditolak oleh sistem.\n\n💰 Saldo Anda sebesar Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan utuh ke akun Website.` }).catch(e=>{});
+            }
+
+            let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Status Digiflazz Gagal.\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
+            sendTelegramAdmin(teleMsgFail);
+            return;
+        }
+        
+        db[phone].trx_count = (db[phone].trx_count || 0) + 1;
+        
+        let hist = db[phone].history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
+        if(hist) {
+            hist.status = statusOrder;
+            hist.sn = response.data.data.sn || '-';
+            hist.nama = nama_produk;
+            hist.type = 'Order';
+            hist.amount = hargaFix;
+            hist.ref_id = refId;
+            hist.saldo_sebelumnya = saldoTerkini;
+            hist.saldo_sesudah = db[phone].saldo;
+            hist.margin = currentMargin;
+        } else {
+            db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoTerkini, saldo_sesudah: db[phone].saldo, margin: currentMargin });
+            if(db[phone].history.length > 50) db[phone].history.pop();
+        }
+        saveJSON(dbFile, db);
+        
+        let trxs = loadJSON(trxFile);
+        let targetJid = db[phone].jid || phone + '@s.whatsapp.net';
+        trxs[refId] = { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: nama_produk, tanggal: Date.now(), phone: phone, margin: currentMargin };
+        saveJSON(trxFile, trxs);
+
+        if (statusOrder === 'Sukses') {
+            let globalTrx = loadJSON(globalTrxFile);
+            let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+            globalTrx.unshift({ time: timeStr, product: nama_produk, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'QRIS' });
+            if(globalTrx.length > 100) globalTrx.pop();
+            saveJSON(globalTrxFile, globalTrx);
+
+            updateLevelAndPoints(phone, hargaFix, margin);
+            sendBroadcastSuccess(nama_produk, namaUser, tujuan, hargaFix, 'QRIS');
+        }
+
+        let teleMsg = `🚀 <b>AUTO ORDER QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${db[phone].saldo.toLocaleString('id-ID')}`;
+        sendTelegramAdmin(teleMsg);
+
+    } catch(e) {}
+}
+
+function doBackupAndSend() {
+    let cfg = loadJSON(configFile);
+    if (!cfg.teleToken || !cfg.teleChatId) return;
+    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json gopay_processed.json admin_logs.json ssl_backup.tar.gz 2>/dev/null`, (err) => {
+        if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
+    });
+}
+if (configAwal.autoBackup) setInterval(doBackupAndSend, (configAwal.backupInterval || 720) * 60 * 1000); 
+
+async function startBot() {
+    const baileys = await import('@whiskeysockets/baileys');
+    const makeWASocket = baileys.default.default || baileys.default;
+    const { useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = baileys;
+
+    const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
+    let config = loadJSON(configFile);
+    const { version } = await fetchLatestBaileysVersion();
+    const sock = makeWASocket({ version, auth: state, logger: pino({ level: 'silent' }), browser: Browsers.ubuntu('Chrome'), printQRInTerminal: false, syncFullHistory: false });
+    globalSock = sock; 
+
+    if (!sock.authState.creds.registered) {
+        setTimeout(async () => {
+            try {
+                let formattedNumber = config.botNumber.replace(/[^0-9]/g, '');
+                const code = await sock.requestPairingCode(formattedNumber);
+                console.log(`\n\x1b[36m==================================================\x1b[0m`);
+                console.log(`\x1b[32m📱 NOMOR BOT WA  : \x1b[33m+${formattedNumber}\x1b[0m`);
+                console.log(`\x1b[32m🔑 KODE PAIRING  : \x1b[1m\x1b[37m${code}\x1b[0m`);
+                console.log(`\x1b[36m==================================================\x1b[0m`);
+                console.log(`\x1b[33m📌 TATA CARA TAUTAN:\x1b[0m`);
+                console.log(`\x1b[37m1. Buka aplikasi WhatsApp di HP bot Anda.\x1b[0m`);
+                console.log(`\x1b[37m2. Ketik 'Perangkat Taut' / 'Linked Devices'.\x1b[0m`);
+                console.log(`\x1b[37m3. Pilih 'Tautkan dengan nomor telepon saja'.\x1b[0m`);
+                console.log(`\x1b[37m4. Masukkan kode 8 digit di atas.\x1b[0m`);
+                console.log(`\x1b[36m==================================================\x1b[0m\n`);
+            } catch (error) {}
+        }, 8000); 
+    }
+    sock.ev.on('creds.update', saveCreds);
+    sock.ev.on('connection.update', (u) => { if(u.connection === 'close') setTimeout(startBot, 4000); });
+
+    let callAttempts = {};
+    sock.ev.on('call', async (calls) => {
+        for (let call of calls) {
+            if (call.status === 'offer') {
+                let callerId = call.from;
+                callAttempts[callerId] = (callAttempts[callerId] || 0) + 1;
+                if (callAttempts[callerId] >= 3) {
+                    await sock.sendMessage(callerId, { text: "Sesuai kebijakan sistem, nomor Anda diblokir sementara 15 detik." });
+                    await sock.updateBlockStatus(callerId, 'block');
+                    callAttempts[callerId] = 0; 
+                    setTimeout(async () => {
+                        await sock.updateBlockStatus(callerId, 'unblock');
+                    }, 15000);
+                } else {
+                    await sock.sendMessage(callerId, { text: "Sistem tidak menerima panggilan." });
+                }
+            }
+        }
+    });
+
+    // BUG FATAL 1 FIX: Pengecekan GoPay menggunakan array dan Object Data (Bukan String Includes)
+    let isCheckingQris = false;
+    setInterval(async () => {
+        if(isCheckingQris) return;
+        isCheckingQris = true;
+        try {
+            let cfg = loadJSON(configFile); let topups = loadJSON(topupFile);
+            let pendingKeys = Object.keys(topups).filter(k => topups[k].status === 'pending');
+            if(pendingKeys.length === 0 || !cfg.gopayToken || !cfg.gopayMerchantId) {
+                isCheckingQris = false;
+                return;
+            }
+
+            const gopayRes = await axios.get('http://gopay.bhm.biz.id/api/transactions', 
+                { headers: { 'Authorization': 'Bearer ' + cfg.gopayToken } }
+            );
+            
+            let mutasiData = gopayRes.data.data || gopayRes.data;
+            if(!Array.isArray(mutasiData)) mutasiData = [];
+            
+            let processedGopay = loadJSON(gopayHistoryFile);
+            let changedTp = false;
+
+            for(let key of pendingKeys) {
+                let req = topups[key];
+                let db = loadJSON(dbFile); 
+                let changedDb = false;
+
+                if (Date.now() > req.expired_at) {
+                    req.status = 'gagal'; changedTp = true;
+                    if(db[req.phone]) {
+                        let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
+                        if(hist && hist.status === 'Pending') { hist.status = 'Gagal (Kedaluwarsa)'; changedDb = true; }
+                    }
+                } 
+                else {
+                    let isFound = false;
+                    let targetAmount = parseInt(req.amount_to_pay);
+                    
+                    // Cek di array Mutasi
+                    for(let mutasi of mutasiData) {
+                        let mutasiAmount = parseInt(mutasi.amount || 0);
+                        if(mutasi.type === 'credit' && mutasiAmount === targetAmount) {
+                            if(!processedGopay.includes(mutasi.transaction_id)) {
+                                isFound = true;
+                                processedGopay.push(mutasi.transaction_id);
+                                saveJSON(gopayHistoryFile, processedGopay);
+                                break;
+                            }
+                        }
+                    }
+
+                    if(isFound) {
+                        req.status = 'sukses'; changedTp = true;
+                        if(db[req.phone]) {
+                            let saldoSebelumnya = parseInt(db[req.phone].saldo);
+                            db[req.phone].saldo = saldoSebelumnya + parseInt(req.saldo_to_add); 
+                            
+                            if (!req.is_order) {
+                                let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
+                                if(hist) {
+                                    hist.status = 'Sukses';
+                                    hist.saldo_sebelumnya = saldoSebelumnya;
+                                    hist.saldo_sesudah = db[req.phone].saldo;
+                                }
+                            }
+                            saveJSON(dbFile, db);
+                            changedDb = false; 
+
+                            if (req.is_order) {
+                                if(req.vpn_data) {
+                                    prosesAutoOrderVPN(req.phone, req.vpn_data, req.trx_id);
+                                } else {
+                                    let mgn = req.margin || 0;
+                                    prosesAutoOrderQRIS(req.phone, req.sku, req.tujuan, req.nama_produk, req.harga_asli, req.trx_id, mgn);
+                                }
+                            }
+                        }
+                    }
+                }
+                if(changedDb) saveJSON(dbFile, db);
+            }
+            if(changedTp) saveJSON(topupFile, topups);
+        } catch(e) {}
+        isCheckingQris = false;
+    }, 30000); 
+
+    let isCheckingDigi = false;
+    setInterval(async () => {
+        if(isCheckingDigi) return;
+        isCheckingDigi = true;
+        try {
+            let trxs = loadJSON(trxFile); let keys = Object.keys(trxs); if (keys.length === 0) { isCheckingDigi = false; return; }
+            let cfg = loadJSON(configFile); let userAPI = (cfg.digiflazzUsername || '').trim(); let keyAPI = (cfg.digiflazzApiKey || '').trim();
+            if (!userAPI || !keyAPI) { isCheckingDigi = false; return; }
+
+            for (let ref of keys) {
+                let trx = trxs[ref]; let signCheck = crypto.createHash('md5').update(userAPI + keyAPI + ref).digest('hex');
+                try {
+                    const cekRes = await axios.post('https://api.digiflazz.com/v1/transaction', { username: userAPI, buyer_sku_code: trx.sku, customer_no: trx.tujuan, ref_id: ref, sign: signCheck });
+                    const resData = cekRes.data.data;
+                    if (resData.status === 'Sukses' || resData.status === 'Gagal') {
+                        let db = loadJSON(dbFile); let phoneKey = trx.phone || trx.jid.split('@')[0];
+                        let namaUser = db[phoneKey]?.username || phoneKey;
+                        let emailUser = db[phoneKey]?.email || '-';
+
+                        if(resData.status === 'Sukses') {
+                            let wasNotSuccess = false;
+                            if (db[phoneKey] && db[phoneKey].history) {
+                                let hist = db[phoneKey].history.find(h => h.ref_id === ref);
+                                if (hist && hist.status !== 'Sukses') { 
+                                    hist.status = 'Sukses'; hist.sn = resData.sn || '-'; saveJSON(dbFile, db); 
+                                    wasNotSuccess = true;
+                                }
+                            }
+                            
+                            if(wasNotSuccess) {
+                                let gStats = loadJSON(globalStatsFile);
+                                let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+                                gStats[dateKey] = (gStats[dateKey] || 0) + 1; saveJSON(globalStatsFile, gStats);
+                                
+                                let globalTrx = loadJSON(globalTrxFile);
+                                let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+                                globalTrx.unshift({ time: timeStr, product: trx.nama, user: namaUser, target: maskStringTarget(trx.tujuan), price: parseInt(trx.harga), method: 'Sistem Otomatis' });
+                                if(globalTrx.length > 100) globalTrx.pop();
+                                saveJSON(globalTrxFile, globalTrx);
+
+                                updateLevelAndPoints(phoneKey, parseInt(trx.harga), trx.margin||0);
+                                sendBroadcastSuccess(trx.nama, namaUser, trx.tujuan, parseInt(trx.harga), 'Sistem Otomatis');
+                            }
+                            
+                        } else {
+                            if (db[phoneKey]) { 
+                                let saldoSebelum = parseInt(db[phoneKey].saldo);
+                                db[phoneKey].saldo = saldoSebelum + parseInt(trx.harga); 
+                                if(db[phoneKey].history) {
+                                    let hist = db[phoneKey].history.find(h => h.ref_id === ref);
+                                    if (hist) {
+                                        hist.status = 'Refund';
+                                        hist.nama = 'Refund: ' + hist.nama;
+                                        hist.saldo_sebelumnya = saldoSebelum;
+                                        hist.saldo_sesudah = db[phoneKey].saldo;
+                                    } else {
+                                        db[phoneKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + trx.nama, tujuan: trx.tujuan, status: 'Refund', sn: '-', amount: parseInt(trx.harga), ref_id: ref, saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[phoneKey].saldo });
+                                    }
+                                    if(db[phoneKey].history.length > 50) db[phoneKey].history.pop();
+                                }
+                                saveJSON(dbFile, db); 
+                            }
+                        }
+                        delete trxs[ref]; saveJSON(trxFile, trxs);
+                    } else if (Date.now() - trx.tanggal > 24 * 60 * 60 * 1000) { delete trxs[ref]; saveJSON(trxFile, trxs); }
+                } catch (err) {}
+                await new Promise(r => setTimeout(r, 2000)); 
+            }
+        } catch (err) {}
+        isCheckingDigi = false;
+    }, 15000); 
+
+    sock.ev.on('messages.upsert', async m => {
+        try {
+            const msg = m.messages[0]; if (!msg.message || msg.key.fromMe) return;
+            const from = msg.key.remoteJid; const senderJid = jidNormalizedUser(msg.key.participant || msg.key.remoteJid);
+            const sender = senderJid.split('@')[0]; const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+            if (!body) return;
+
+            let db = loadJSON(dbFile); 
+            if (!db[sender]) { 
+                db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: senderJid, step: 'idle', trx_count:0, history:[], level: 'Member', poin: 0, total_pengeluaran: 0, referral_code: 'REF' + Math.floor(1000 + Math.random() * 9000), banned: false }; 
+                saveJSON(dbFile, db); 
+            }
+            if (db[sender].banned) return;
+
+            let rawCommand = body.trim().toLowerCase().split(' ')[0];
+            if (['bot', 'menu', 'p'].includes(rawCommand)) {
+                let menuText = `👋 *${config.botName || "Digital Tendo Store"}*\n\nSilakan belanja lebih mudah di Aplikasi:\n🌐 http://${process.env.IP_ADDRESS || 'IP_VPS_ANDA'}:3000\n\n_(Atau balas 1 untuk Cek Saldo)_`;
+                return await sock.sendMessage(from, { text: menuText });
+            }
+            if (['1', 'saldo'].includes(rawCommand)) return await sock.sendMessage(from, { text: `💰 Saldo Anda: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` });
+        } catch (err) {}
+    });
+}
+
+async function tarikDataLayananOtomatis() {
+    try {
+        let config = loadJSON(configFile);
+        let namaPengguna = (config.digiflazzUsername || '').trim();
+        let kunciAkses = (config.digiflazzApiKey || '').trim();
+        if (!namaPengguna || !kunciAkses) return;
+
+        let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
+        
+        let produkLama = loadJSON(produkFile);
+        let daftarLokal = {};
+        Object.keys(produkLama).forEach(k => {
+            if(produkLama[k].is_manual_cat) daftarLokal[k] = produkLama[k];
+        });
+
+        // 1. Tarik Layanan Prabayar
+        let tandaPengenalPra = crypto.createHash('md5').update(namaPengguna + kunciAkses + 'pricelist').digest('hex');
+        const balasanPra = await axios.post('https://api.digiflazz.com/v1/price-list', { cmd: 'prepaid', username: namaPengguna, sign: tandaPengenalPra });
+        
+        if (balasanPra.data && balasanPra.data.data) {
+            let daftarPra = balasanPra.data.data;
+            daftarPra.forEach(item => {
+                let kodeBarang = item.buyer_sku_code;
+                let hargaModal = item.price;
+                let keuntungan = hitungMargin(hargaModal, m);
+                
+                let catLower = (item.category || '').trim().toLowerCase();
+                let kategoriBarang = mapKategori(catLower, item.category);
+
+                daftarLokal[kodeBarang] = {
+                    sku_asli: kodeBarang, nama: item.product_name, harga_asli: hargaModal, margin_keuntungan: keuntungan,
+                    harga: hargaModal + keuntungan, // Harga dasar (Member)
+                    kategori: kategoriBarang, brand: item.brand || 'Lainnya',
+                    sub_kategori: item.type || 'Umum', deskripsi: item.desc || 'Proses Otomatis',
+                    status_produk: (item.buyer_product_status === true && item.seller_product_status === true),
+                    is_manual_cat: false, is_pasca: false
+                };
+            });
+        }
+
+        // 2. Tarik Layanan Pascabayar
+        let tandaPengenalPasca = crypto.createHash('md5').update(namaPengguna + kunciAkses + 'pricelist').digest('hex');
+        const balasanPasca = await axios.post('https://api.digiflazz.com/v1/price-list', { cmd: 'pasca', username: namaPengguna, sign: tandaPengenalPasca });
+        
+        if (balasanPasca.data && balasanPasca.data.data) {
+            let daftarPasca = balasanPasca.data.data;
+            daftarPasca.forEach(item => {
+                let kodeBarang = item.buyer_sku_code;
+                let adminFee = item.admin || 2500;
+                let keuntungan = hitungMargin(adminFee, m); // Margin pasca dihitung dari admin fee
+                
+                let catLower = (item.category || '').trim().toLowerCase();
+                let kategoriBarang = mapKategoriPasca(catLower, item.category);
+
+                daftarLokal[kodeBarang] = {
+                    sku_asli: kodeBarang, nama: item.product_name, harga_asli: 0, margin_keuntungan: keuntungan + adminFee,
+                    harga: adminFee + keuntungan, // Base admin fee web kita
+                    kategori: kategoriBarang, brand: item.brand || 'Lainnya',
+                    sub_kategori: item.type || 'Umum', deskripsi: 'Pascabayar (Harga tertera adalah Biaya Admin)',
+                    status_produk: (item.buyer_product_status === true && item.seller_product_status === true),
+                    is_manual_cat: false, is_pasca: true
+                };
+            });
+        }
+
+        saveJSON(produkFile, daftarLokal);
+        console.log('\x1b[32m✅ Data Produk (Pra & Pasca) Digiflazz Berhasil Tersinkronisasi!\x1b[0m');
+        
+    } catch(err) {}
+}
+
+function hitungMargin(hargaModal, m) {
+    if(hargaModal <= 100) return m.t1;
+    else if(hargaModal <= 500) return m.t2;
+    else if(hargaModal <= 1000) return m.t3;
+    else if(hargaModal <= 2000) return m.t4;
+    else if(hargaModal <= 3000) return m.t5;
+    else if(hargaModal <= 4000) return m.t6;
+    else if(hargaModal <= 5000) return m.t7;
+    else if(hargaModal <= 10000) return m.t8;
+    else if(hargaModal <= 25000) return m.t9;
+    else if(hargaModal <= 50000) return m.t10;
+    else if(hargaModal <= 75000) return m.t11;
+    else if(hargaModal <= 100000) return m.t12;
+    else return m.t13;
+}
+
+function mapKategori(catLower, catOri) {
+    if (catLower === 'pulsa') return 'Pulsa';
+    if (catLower === 'data') return 'Data';
+    if (catLower === 'e-money') return 'E-Money';
+    if (catLower === 'games') return 'Game';
+    if (catLower === 'pln') return 'PLN';
+    if (catLower === 'voucher') return 'Voucher';
+    if (catLower === 'paket sms & telpon') return 'Paket SMS & Telpon';
+    if (catLower === 'masa aktif') return 'Masa Aktif';
+    if (catLower === 'aktivasi perdana' || catLower === 'perdana') return 'Aktivasi Perdana';
+    return catOri; 
+}
+
+function mapKategoriPasca(catLower, catOri) {
+    if (catLower.includes('bpjs')) return 'BPJS';
+    if (catLower.includes('pdam') || catLower.includes('air')) return 'PDAM';
+    if (catLower.includes('pln')) return 'PLN Pascabayar';
+    if (catLower.includes('internet') || catLower.includes('wifi') || catLower.includes('telkom')) return 'Internet Pascabayar';
+    return catOri; 
+}
+
+app.get('/api/sync-digiflazz', async (req, res) => {
+    await tarikDataLayananOtomatis();
+    res.json({success: true, message: 'Sinkronisasi Selesai.'});
+});
+
+setInterval(tarikDataLayananOtomatis, 10 * 60 * 1000);
+setTimeout(tarikDataLayananOtomatis, 10000);
+
+if (require.main === module) {
+    app.listen(3000, '0.0.0.0', () => { console.log('\x1b[32m🌐 SERVER WEB AKTIF (PORT 3000).\x1b[0m'); });
+    startBot().catch(err => {});
+}
+EOF
+}
+# SELESAI
