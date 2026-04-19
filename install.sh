@@ -470,26 +470,27 @@ EOF
             top: -100px;
             left: 50%;
             transform: translateX(-50%);
-            background: var(--toast-bg);
-            color: var(--toast-text);
-            padding: 12px 24px;
-            border-radius: 30px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 16px;
             font-size: 13px;
-            font-weight: 800;
+            font-weight: 600;
             z-index: 9999;
             box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            transition: top 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-            text-align: center;
+            transition: top 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55), opacity 0.4s;
+            text-align: left;
             width: max-content;
             max-width: 90%;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             border: 1px solid rgba(255,255,255,0.1);
+            opacity: 0;
         }
-        .custom-toast.show { top: 40px; }
-        .custom-toast.error { background: #ef4444; color: #fff; }
-        .custom-toast.success { background: #10b981; color: #fff; }
+        .custom-toast.show { top: 40px; opacity: 1; }
 
         .vpn-server-list { display: flex; flex-direction: column; gap: 10px; text-align: left; margin-top: 15px; }
         .vpn-server-item { background: var(--bg-card); padding: 15px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: transform 0.2s;}
@@ -1201,6 +1202,18 @@ EOF
         let sysMaintEnd = "00:30";
         let sysMaintType = "off";
 
+        function isMaintenanceActive() {
+            if(sysMaintType === 'off') return false;
+            if(sysMaintType === 'total') return true;
+            let d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
+            let curMins = d.getHours() * 60 + d.getMinutes();
+            let sParts = sysMaintStart.split(':'); let eParts = sysMaintEnd.split(':');
+            let sMins = parseInt(sParts[0])*60 + parseInt(sParts[1]);
+            let eMins = parseInt(eParts[0])*60 + parseInt(eParts[1]);
+            if(sMins < eMins) return (curMins >= sMins && curMins < eMins);
+            return (curMins >= sMins || curMins < eMins);
+        }
+
         // JAM DIGITAL REALTIME & SYSTEM PEMELIHARAAN
         setInterval(() => {
             let d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
@@ -1213,26 +1226,12 @@ EOF
             }
 
             // Render Banner Maintenance
-            let h = d.getHours();
-            let m = d.getMinutes();
-            let curMins = h * 60 + m;
-            let sParts = sysMaintStart.split(':');
-            let eParts = sysMaintEnd.split(':');
-            let sMins = parseInt(sParts[0])*60 + parseInt(sParts[1]);
-            let eMins = parseInt(eParts[0])*60 + parseInt(eParts[1]);
-            
-            let isMaint = false;
+            let isMaint = isMaintenanceActive();
             let maintMsg = '';
             if (sysMaintType === 'total') {
-                isMaint = true;
-                maintMsg = '🛠️ TUTUP TOTAL / MAINTENANCE PERMANEN. TRANSAKSI DIHENTIKAN.';
+                maintMsg = 'Optimalisasi Sistem Menyeluruh';
             } else if (sysMaintType === 'custom') {
-                if(sMins < eMins) {
-                    isMaint = (curMins >= sMins && curMins < eMins);
-                } else {
-                    isMaint = (curMins >= sMins || curMins < eMins);
-                }
-                maintMsg = `🛠️ PEMELIHARAAN KUSTOM (${sysMaintStart} - ${sysMaintEnd} WIB). TRANSAKSI SEMENTARA DITUTUP.`;
+                maintMsg = `Peningkatan Layanan Rutin (${sysMaintStart} - ${sysMaintEnd} WIB)`;
             }
             
             let mb = document.getElementById('maint-banner');
@@ -1241,10 +1240,10 @@ EOF
                 if(!mb) {
                     mb = document.createElement('div');
                     mb.id = 'maint-banner';
-                    mb.style = 'background:#ef4444; color:#fff; font-size:11px; font-weight:bold; text-align:center; padding:12px; margin: 20px 20px 0; border-radius:12px; box-shadow: 0 4px 10px rgba(239,68,68,0.3);';
+                    mb.style = 'background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color: #fbbf24; font-size: 14px; font-weight: 800; text-align: left; padding: 15px 20px; margin: 20px 20px 0; border-radius: 16px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); border: 1px solid #fbbf24; display: flex; align-items: center; gap: 15px;';
                     dbScreen.prepend(mb);
                 }
-                mb.innerHTML = maintMsg;
+                mb.innerHTML = '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg><div><div style="margin-bottom:4px;">' + maintMsg + '</div><div style="font-size:11px; font-weight:500; color:#cbd5e1; line-height:1.4;">Kami sedang memperbarui sistem untuk kenyamanan transaksi Anda. Saldo Anda aman. Mohon maaf atas ketidaknyamanannya, kami akan segera kembali!</div></div>';
             } else {
                 if(mb) mb.remove();
             }
@@ -1295,10 +1294,19 @@ EOF
                 t.id = 'custom-toast-alert';
                 document.body.appendChild(t);
             }
-            let icon = type === 'error' ? '⚠️ ' : (type === 'success' ? '✅ ' : 'ℹ️ ');
-            t.className = 'custom-toast ' + (type === 'error' ? 'error' : (type === 'success' ? 'success' : '')) + ' show';
-            t.innerHTML = icon + msg;
-            setTimeout(() => { t.classList.remove('show'); }, 3500);
+            let iconSvg = '';
+            if(type === 'error') iconSvg = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
+            else if(type === 'success') iconSvg = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+            else iconSvg = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+
+            t.className = 'custom-toast';
+            t.innerHTML = iconSvg + '<span style="line-height:1.4;">' + msg + '</span>';
+            
+            void t.offsetWidth;
+            t.classList.add('show');
+            
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => { t.classList.remove('show'); }, 3000);
         }
 
         function copyData(elementId, label, isRef = false) {
@@ -1347,6 +1355,7 @@ EOF
         let vpnConfigData = null; let selectedVPNProto = ""; let selectedVPNServer = "";
         let currentVpnBasePrice = 0; let currentVpnBaseDesc = "";
         let bannerInterval; let qrisInterval;
+        let toastTimer;
 
         let currentHour = new Date().getHours();
         let isDarkTime = (currentHour >= 18 || currentHour < 6);
@@ -1408,7 +1417,7 @@ EOF
         }
 
         let lastDetected = "";
-        let toastTimer;
+        let providerTimer;
         function checkProvider(val) {
             if(val.length < 4) { lastDetected = ""; return; }
             let prefix = val.substring(0, 4);
@@ -1428,8 +1437,8 @@ EOF
                 let toast = document.getElementById('provider-toast');
                 toast.innerText = "Terdeteksi: " + provider;
                 toast.classList.add('show');
-                clearTimeout(toastTimer);
-                toastTimer = setTimeout(() => { toast.classList.remove('show'); lastDetected = ""; }, 3000);
+                clearTimeout(providerTimer);
+                providerTimer = setTimeout(() => { toast.classList.remove('show'); lastDetected = ""; }, 3000);
             }
         }
 
@@ -1943,6 +1952,7 @@ EOF
         function showNotif() { pushState({screen: 'notif-screen'}); showNotifInternal(); }
 
         function openTopupModal() { 
+            if(isMaintenanceActive()) { showToast("Sistem sedang optimalisasi. Transaksi dihentikan sementara.", "error"); return; }
             if(!currentUser) {
                 showToast("Silakan masuk/daftar terlebih dahulu untuk isi saldo.", "error");
                 showScreen("login-screen", null);
@@ -1953,6 +1963,7 @@ EOF
         function closeTopupModal() { document.getElementById('topup-modal').classList.add('hidden'); }
         
         async function generateQris() {
+            if(isMaintenanceActive()) { showToast("Sistem sedang optimalisasi. Transaksi dihentikan sementara.", "error"); return; }
             let nom = parseInt(document.getElementById('topup-nominal').value);
             if(!nom || nom < 1000) return showToast("Minimal Topup Rp 1.000", "error");
             let btn = document.getElementById('btn-topup-submit');
@@ -2628,6 +2639,7 @@ EOF
         function loadProducts(cat, brand, subCat = null) { pushState({screen: 'produk-screen', cat: cat, brand: brand, subcat: subCat}); loadProductsInternal(cat, brand, subCat); }
 
         function openOrderModal(sku, nama, harga, desc) {
+            if(isMaintenanceActive()) { showToast("Sistem sedang optimalisasi. Transaksi dihentikan sementara.", "error"); return; }
             if(!currentUser) {
                 showToast("Silakan masuk/daftar terlebih dahulu untuk membeli produk.", "error");
                 showScreen("login-screen", null);
@@ -2702,6 +2714,7 @@ EOF
         }
 
         function openVPNServerSelection(protocol) {
+            if(isMaintenanceActive()) { showToast("Sistem sedang optimalisasi. Transaksi dihentikan sementara.", "error"); return; }
             document.getElementById('vpn-modal-title').innerText = "Pilih Produk " + protocol;
 
             let html = '';
@@ -2753,6 +2766,7 @@ EOF
         }
 
         function openVPNTrialModal(productId, protocol, customName) {
+            if(isMaintenanceActive()) { showToast("Sistem sedang optimalisasi. Transaksi dihentikan sementara.", "error"); return; }
             if(!currentUser) {
                 showToast("Silakan masuk/daftar terlebih dahulu untuk klaim trial.", "error");
                 showScreen("login-screen", null);
@@ -2803,6 +2817,7 @@ EOF
         }
 
         function openVPNOrderModal(productId, protocol, price, desc, customName) {
+            if(isMaintenanceActive()) { showToast("Sistem sedang optimalisasi. Transaksi dihentikan sementara.", "error"); return; }
             if(!currentUser) {
                 showToast("Silakan masuk/daftar terlebih dahulu untuk membeli VPN.", "error");
                 showScreen("login-screen", null);
@@ -2907,22 +2922,29 @@ generate_admin_app() {
     <title>Panel Admin Boss Tendo</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --muted: #94a3b8; --border: #334155; --primary: #0ea5e9; --danger: #ef4444; --success: #10b981; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; display: flex; min-height: 100vh; overflow-x: hidden; }
         
-        /* LOGIN SCREEN */
-        #login-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100vh; background: var(--bg); position: absolute; z-index: 9999; }
-        .login-box { background: var(--card); padding: 30px; border-radius: 16px; border: 1px solid var(--border); width: 90%; max-width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .login-box h1 { color: var(--primary); margin-top: 0; }
+        /* LOGIN SCREEN GLASSMORPHISM */
+        #login-screen { display: flex; justify-content: center; align-items: center; width: 100%; min-height: 100vh; background: linear-gradient(-45deg, #0f172a, #1e3a8a, #0f172a, #38bdf8); background-size: 400% 400%; animation: gradientBG 15s ease infinite; position: fixed; z-index: 9999; top:0; left:0; }
+        @keyframes gradientBG { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} }
+        .login-box { background: rgba(30, 41, 59, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 40px 30px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); width: 90%; max-width: 400px; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.3); }
+        .login-box h1 { color: #fff; margin-top: 0; font-size: 24px; font-weight: 900; }
+        .input-glass { background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 14px 15px 14px 45px; border-radius: 12px; width: 100%; box-sizing: border-box; font-size: 15px; outline: none; transition: 0.3s; }
+        .input-glass:focus { border-color: #38bdf8; background: rgba(15, 23, 42, 0.8); }
+        .input-wrap { position: relative; margin-bottom: 20px; }
+        .input-wrap svg { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; fill: none; stroke: #94a3b8; stroke-width: 2; }
+        .btn-glow { background: linear-gradient(90deg, #0ea5e9, #3b82f6); color: #fff; border: none; padding: 14px; width: 100%; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4); }
+        .btn-glow:hover { box-shadow: 0 6px 20px rgba(14, 165, 233, 0.6); transform: translateY(-2px); }
         
         /* SIDEBAR & LAYOUT */
-        .sidebar { width: 260px; background: var(--card); height: 100vh; border-right: 1px solid var(--border); display: flex; flex-direction: column; transition: transform 0.3s; position: fixed; left: 0; top: 0; z-index: 1000; }
+        .sidebar { width: 260px; background: var(--card); height: 100vh; border-right: 1px solid var(--border); display: flex; flex-direction: column; transition: transform 0.3s; position: fixed; left: 0; top: 0; z-index: 1000; overflow-y: auto;}
         .sidebar-header { padding: 20px; font-size: 18px; font-weight: 900; color: var(--primary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;}
         .close-sidebar { display: none; background: none; border: none; color: var(--text); font-size: 24px; cursor: pointer; }
         .menu-item { padding: 15px 20px; color: var(--text); text-decoration: none; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.02); cursor: pointer; font-weight: 600; transition: 0.2s; }
         .menu-item svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         .menu-item:hover, .menu-item.active { background: rgba(14, 165, 233, 0.1); color: var(--primary); border-left: 4px solid var(--primary); }
         
-        .main-content { flex: 1; margin-left: 260px; display: flex; flex-direction: column; height: 100vh; transition: margin-left 0.3s; width: calc(100% - 260px); }
+        .main-content { flex: 1; margin-left: 260px; display: flex; flex-direction: column; min-height: 100vh; transition: margin-left 0.3s; width: calc(100% - 260px); }
         .topbar { background: var(--card); padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 15px; }
         .hamburger { background: none; border: none; color: var(--text); font-size: 24px; cursor: pointer; display: none; }
         .content-area { padding: 20px; overflow-y: auto; flex: 1; padding-bottom: 100px; }
@@ -2935,7 +2957,7 @@ generate_admin_app() {
         .btn:hover { opacity: 0.9; }
         .btn-danger { background: var(--danger); }
         .btn-success { background: var(--success); }
-        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); cursor: pointer; padding: 12px 15px; border-radius: 8px; font-weight: bold;}
         
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         table, th, td { border: 1px solid var(--border); }
@@ -2950,9 +2972,11 @@ generate_admin_app() {
         .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
         
         .hidden { display: none !important; }
-        .toast { position: fixed; top: 20px; right: 20px; background: var(--success); color: #fff; padding: 15px 20px; border-radius: 8px; z-index: 9999; box-shadow: 0 4px 15px rgba(0,0,0,0.3); opacity: 0; transition: 0.3s; pointer-events: none; font-weight: bold; }
-        .toast.show { opacity: 1; }
-        .toast.error { background: var(--danger); }
+        
+        .toast { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background: rgba(30, 41, 59, 0.9); backdrop-filter: blur(10px); color: #fff; padding: 12px 20px; border-radius: 12px; z-index: 99999; box-shadow: 0 10px 25px rgba(0,0,0,0.3); opacity: 0; transition: top 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55), opacity 0.4s; pointer-events: none; font-weight: bold; border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; }
+        .toast.show { opacity: 1; top: 30px; }
+        .toast.error { background: rgba(239, 68, 68, 0.9); border-color: rgba(255,100,100,0.3); }
+        .toast.success { background: rgba(16, 185, 129, 0.9); border-color: rgba(100,255,150,0.3); }
 
         /* RESPONSIVE */
         @media screen and (max-width: 768px) {
@@ -2971,10 +2995,31 @@ generate_admin_app() {
 
     <div id="login-screen">
         <div class="login-box">
+            <div style="margin-bottom:15px;">
+                <svg viewBox="0 0 24 24" width="55" height="55" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 8px rgba(56,189,248,0.5));">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+            </div>
             <h1>Admin Security</h1>
-            <p style="font-size:12px; color:var(--muted); margin-bottom:20px;">IP Anda: <span id="client-ip">Mendeteksi...</span></p>
-            <input type="password" id="admin-pass">
-            <button class="btn" style="width:100%" onclick="loginAdmin()">Masuk Akses Rahasia</button>
+            <p style="font-size:12px; color:#cbd5e1; margin-bottom:25px;">IP Anda: <span id="client-ip">Mendeteksi...</span></p>
+            
+            <div id="admin-step-1">
+                <div class="input-wrap">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    <input type="password" id="admin-pass" class="input-glass" placeholder="Masukkan Password Sistem">
+                </div>
+                <button class="btn-glow" id="btn-admin-login" onclick="loginAdminStep1()">Akses Sistem</button>
+            </div>
+
+            <div id="admin-step-2" class="hidden">
+                <p style="font-size:12px; color:#cbd5e1; margin-bottom:15px; line-height: 1.4;">Kode OTP telah dikirim ke WhatsApp Superadmin.</p>
+                <div class="input-wrap">
+                    <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    <input type="number" id="admin-otp" class="input-glass" placeholder="----" style="text-align:center; letter-spacing:10px; font-size:22px; padding-left:15px;" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
+                </div>
+                <button class="btn-glow" id="btn-admin-verify" onclick="loginAdminStep2()">Verifikasi OTP</button>
+                <button class="btn-outline" style="border:none; width:100%; margin-top:10px; color:#94a3b8;" onclick="location.reload()">Batal</button>
+            </div>
         </div>
     </div>
 
@@ -3002,6 +3047,10 @@ generate_admin_app() {
             <div class="menu-item" onclick="switchTab('tab-tutorial')">
                 <svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
                 Upload Tutorial
+            </div>
+            <div class="menu-item" onclick="switchTab('tab-notifikasi')">
+                <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                Setup Notifikasi
             </div>
             <div class="menu-item" onclick="switchTab('tab-sistem')">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
@@ -3135,7 +3184,10 @@ generate_admin_app() {
 
             <div id="tab-katalog" class="tab-pane hidden">
                 <div class="card">
-                    <h3>Manajemen Keuntungan (Margin) 13 Tingkat</h3>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin:0;">Manajemen Keuntungan (Margin) 13 Tingkat</h3>
+                        <button class="btn btn-outline" style="border-color: var(--primary); color: var(--primary); width:auto;" id="btn-sync-digi" onclick="syncDigiflazz()">🔄 Sinkronisasi Produk Digiflazz</button>
+                    </div>
                     <p style="font-size:12px; color:var(--muted);">Sistem akan otomatis menentukan harga jual berdasarkan modal Digiflazz ditambah margin di bawah ini.</p>
                     <div class="grid-2" id="margin-form-container">
                         </div>
@@ -3164,10 +3216,45 @@ generate_admin_app() {
                     <label style="font-size:12px; color:var(--muted);">Deskripsi / Teks Panduan</label>
                     <textarea id="tut-desc" rows="5" placeholder="Tuliskan panduan detail di sini..."></textarea>
                     
-                    <label style="font-size:12px; color:var(--muted);">Upload Video (MP4) - Opsional. Max 40MB</label>
+                    <label style="font-size:12px; color:var(--muted);">Upload Video (MP4) - Opsional. Max 200MB</label>
                     <input type="file" id="tut-video" accept="video/mp4,video/x-m4v,video/*">
                     
                     <button class="btn btn-success" onclick="uploadTutorial()" id="btn-up-tut">Upload Tutorial Sekarang</button>
+                </div>
+            </div>
+
+            <div id="tab-notifikasi" class="tab-pane hidden">
+                <div class="card">
+                    <h3>Setup Integrasi Notifikasi</h3>
+                    <p style="font-size:12px; color:var(--muted);">Atur API Keys dan Token Bot untuk mengarahkan pesan broadcast dan info sistem.</p>
+                    
+                    <div class="grid-2">
+                        <div>
+                            <label style="font-size:12px; color:var(--muted);">Token Bot Telegram Admin</label>
+                            <input type="text" id="set-tele-admin-token" placeholder="Token Bot Admin">
+                        </div>
+                        <div>
+                            <label style="font-size:12px; color:var(--muted);">Chat ID Telegram Admin</label>
+                            <input type="text" id="set-tele-admin-id" placeholder="Chat ID Admin (Log/Komplain)">
+                        </div>
+                        <div>
+                            <label style="font-size:12px; color:var(--muted);">Token Bot Telegram Pelanggan</label>
+                            <input type="text" id="set-tele-info-token" placeholder="Token Bot Pelanggan (Channel)">
+                        </div>
+                        <div>
+                            <label style="font-size:12px; color:var(--muted);">ID Channel Telegram Pelanggan</label>
+                            <input type="text" id="set-tele-channel-id" placeholder="Contoh: -100xxxxxxx">
+                        </div>
+                        <div style="grid-column: span 1;">
+                            <label style="font-size:12px; color:var(--muted);">ID Grup/Saluran WA Broadcast</label>
+                            <input type="text" id="set-wa-broadcast-id" placeholder="Contoh: 1203xxxx@newsletter">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:10px; margin-top: 15px;">
+                        <button class="btn btn-success" onclick="saveNotifSettings()">Simpan Konfigurasi</button>
+                        <button class="btn btn-outline" style="border-color:var(--primary); color:var(--primary);" onclick="testNotifConnection()">Cek Koneksi Bot</button>
+                    </div>
                 </div>
             </div>
 
@@ -3178,8 +3265,8 @@ generate_admin_app() {
                     <div style="display:flex; flex-direction:column; gap:15px;">
                         <select id="maint-status" style="margin:0;" onchange="toggleCustomMaint()">
                             <option value="off">🟢 Normal (Buka)</option>
-                            <option value="custom">🟡 Maintenance Custom (Atur Waktu)</option>
-                            <option value="total">🔴 Tutup Total (Permanen)</option>
+                            <option value="custom">🟡 Peningkatan Layanan Rutin (Atur Waktu)</option>
+                            <option value="total">🔴 Optimalisasi Sistem Menyeluruh (Permanen)</option>
                         </select>
                         <div id="custom-maint-times" class="hidden" style="display:flex; gap:10px; align-items:center;">
                             <input type="time" id="maint-start" style="margin:0;"> s/d 
@@ -3231,10 +3318,17 @@ generate_admin_app() {
 
             <div id="tab-log" class="tab-pane hidden">
                 <div class="card">
-                    <h3>Aktivitas Login Panel Admin</h3>
-                    <p style="font-size:12px; color:var(--muted);">Data akses terakhir ke halaman rahasia ini.</p>
-                    <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px; font-family:monospace; color:var(--primary);" id="log-ip">
-                        Memuat data...
+                    <h3>Log Aktivitas Sistem</h3>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <div style="font-weight:bold; font-size:14px; color:var(--text);">Status WA: <span id="wa-monitor-status" style="color:var(--muted);">Mengecek...</span></div>
+                        <div>
+                            <button class="btn btn-outline" style="padding:8px 12px; font-size:12px; margin-right:5px; width:auto;" onclick="loadSystemLogs()">Refresh Log</button>
+                            <button class="btn btn-danger" style="padding:8px 12px; font-size:12px; width:auto;" onclick="clearSystemLogs()">Bersihkan Log</button>
+                        </div>
+                    </div>
+                    <input type="text" id="search-log" placeholder="🔍 Cari log (misal: WhatsApp, Order)..." onkeyup="filterLogs()">
+                    <div style="background:#0a0a0a; color:#10b981; padding:15px; border-radius:8px; font-family:monospace; font-size:12px; height:400px; overflow-y:auto; line-height:1.5;" id="log-viewer-container">
+                        Memuat log...
                     </div>
                 </div>
 
@@ -3250,10 +3344,11 @@ generate_admin_app() {
 
     <script>
         // --- UTILITAS ---
-        function showToast(msg, isError = false) {
+        function showToast(msg, type='info') {
             const t = document.getElementById('toast');
-            t.innerText = msg;
-            t.className = isError ? 'toast show error' : 'toast show';
+            let icon = type === true || type === 'error' ? '⚠️ ' : (type === 'success' ? '✅ ' : 'ℹ️ ');
+            t.innerHTML = icon + msg;
+            t.className = type === true || type === 'error' ? 'toast show error' : (type === 'success' ? 'toast show success' : 'toast show');
             setTimeout(() => t.classList.remove('show'), 3000);
         }
 
@@ -3289,6 +3384,8 @@ generate_admin_app() {
             let title = event.currentTarget.innerText.trim();
             document.getElementById('topbar-title').innerText = title;
             
+            localStorage.setItem('tendo_admin_tab', tabId);
+
             if(window.innerWidth <= 768) toggleSidebar();
             
             // Load Data based on tab
@@ -3296,8 +3393,9 @@ generate_admin_app() {
             if(tabId === 'tab-transaksi') loadGlobalHistory();
             if(tabId === 'tab-pengguna') loadUsers();
             if(tabId === 'tab-katalog') { loadMarginForm(); loadEtalaseList(); }
+            if(tabId === 'tab-notifikasi') loadSettings();
             if(tabId === 'tab-sistem') loadSettings();
-            if(tabId === 'tab-log') loadLogs();
+            if(tabId === 'tab-log') loadSystemLogs();
         }
 
         function toggleCustomMaint() {
@@ -3319,33 +3417,68 @@ generate_admin_app() {
             
             if(localStorage.getItem('tendo_admin_token')) {
                 document.getElementById('login-screen').classList.add('hidden');
-                loadDashboard();
+                let activeTab = localStorage.getItem('tendo_admin_tab') || 'tab-dashboard';
+                let tabElement = document.querySelector(`.menu-item[onclick="switchTab('${activeTab}')"]`);
+                if(tabElement) tabElement.click();
+                else loadDashboard();
             }
         };
 
-        async function loginAdmin() {
+        async function loginAdminStep1() {
             const pass = document.getElementById('admin-pass').value;
             if(!pass) return showToast("Isi password!", true);
+            let btn = document.getElementById('btn-admin-login');
+            let ori = btn.innerText; btn.innerText = "Memeriksa..."; btn.disabled = true;
             try {
-                const res = await fetch('/api/admin/login', {
+                const res = await fetch('/api/admin/login-step1', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({password: pass})
                 });
                 const data = await res.json();
                 if(data.success) {
-                    localStorage.setItem('tendo_admin_token', data.token);
-                    document.getElementById('login-screen').classList.add('hidden');
-                    loadDashboard();
+                    document.getElementById('admin-step-1').classList.add('hidden');
+                    document.getElementById('admin-step-2').classList.remove('hidden');
+                    showToast("OTP Terkirim ke WA Superadmin!", 'success');
                 } else {
                     showToast(data.message || "Akses Ditolak", true);
                 }
             } catch(e) { showToast("Error koneksi", true); }
+            btn.innerText = ori; btn.disabled = false;
+        }
+
+        async function loginAdminStep2() {
+            const pass = document.getElementById('admin-pass').value;
+            const otp = document.getElementById('admin-otp').value;
+            if(!otp) return showToast("Isi OTP!", true);
+            let btn = document.getElementById('btn-admin-verify');
+            let ori = btn.innerText; btn.innerText = "Memverifikasi..."; btn.disabled = true;
+            try {
+                const res = await fetch('/api/admin/login-step2', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({password: pass, otp: otp})
+                });
+                const data = await res.json();
+                if(data.success) {
+                    localStorage.setItem('tendo_admin_token', data.token);
+                    document.getElementById('login-screen').classList.add('hidden');
+                    let activeTab = localStorage.getItem('tendo_admin_tab') || 'tab-dashboard';
+                    let tabElement = document.querySelector(`.menu-item[onclick="switchTab('${activeTab}')"]`);
+                    if(tabElement) tabElement.click();
+                    else loadDashboard();
+                } else {
+                    showToast(data.message || "OTP Salah", true);
+                }
+            } catch(e) { showToast("Error koneksi", true); }
+            btn.innerText = ori; btn.disabled = false;
         }
 
         function logoutAdmin() {
             localStorage.removeItem('tendo_admin_token');
             document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('admin-step-1').classList.remove('hidden');
+            document.getElementById('admin-step-2').classList.add('hidden');
             document.getElementById('admin-pass').value = '';
+            document.getElementById('admin-otp').value = '';
         }
 
         // --- DASHBOARD & MONITORING ---
@@ -3422,7 +3555,7 @@ generate_admin_app() {
                 method: 'POST', headers: {'Content-Type':'application/json'},
                 body: JSON.stringify({phone, level: newLevel})
             });
-            if(data && data.success) showToast("Level berhasil diubah");
+            if(data && data.success) showToast("Level berhasil diubah", 'success');
             else showToast(data?data.message:"Gagal", true);
         }
 
@@ -3432,7 +3565,7 @@ generate_admin_app() {
                 method: 'POST', headers: {'Content-Type':'application/json'},
                 body: JSON.stringify({phone, banned: isBanned})
             });
-            if(data && data.success) { showToast(isBanned?"Akun diblokir":"Blokir dibuka"); loadUsers(); }
+            if(data && data.success) { showToast(isBanned?"Akun diblokir":"Blokir dibuka", 'success'); loadUsers(); }
             else showToast("Gagal mengubah status", true);
         }
 
@@ -3448,7 +3581,7 @@ generate_admin_app() {
                 body: JSON.stringify({phone, amount: parseInt(amount), action})
             });
             if(data && data.success) {
-                showToast("Saldo berhasil disesuaikan");
+                showToast("Saldo berhasil disesuaikan", 'success');
                 document.getElementById('saldo-amount').value = '';
                 loadUsers();
             } else showToast(data?data.message:"Gagal", true);
@@ -3482,8 +3615,22 @@ generate_admin_app() {
                 method: 'POST', headers: {'Content-Type':'application/json'},
                 body: JSON.stringify({margin: newMargin})
             });
-            if(data && data.success) showToast("Margin tersimpan & Katalog disinkronkan");
+            if(data && data.success) showToast("Margin tersimpan & Katalog disinkronkan", 'success');
             else showToast("Gagal menyimpan", true);
+        }
+        
+        async function syncDigiflazz() {
+            let btn = document.getElementById('btn-sync-digi');
+            let ori = btn.innerText;
+            btn.innerText = "⏳ Sedang Sinkron..."; btn.disabled = true;
+            const data = await fetchAdmin('/api/sync-digiflazz');
+            if(data && data.success) {
+                showToast("Katalog Produk Berhasil Diperbarui!", 'success');
+                loadMarginForm();
+            } else {
+                showToast("Gagal melakukan sinkronisasi.", true);
+            }
+            btn.innerText = ori; btn.disabled = false;
         }
 
         async function loadEtalaseList() {
@@ -3498,7 +3645,7 @@ generate_admin_app() {
                             <button class="btn btn-danger" style="padding:6px;font-size:11px;" onclick="delEtalase(${idx})">Hapus Etalase</button>
                         </div>
                         <input type="text" id="et-sku-${idx}" value="${skuList}" placeholder="SKU1, SKU2, SKU3" style="margin-top:10px; margin-bottom:5px;">
-                        <button class="btn btn-outline" style="padding:6px;font-size:11px; width:100%;" onclick="updateEtalaseSku(${idx})">Simpan SKU</button>
+                        <button class="btn btn-outline" style="padding:6px;font-size:11px; width:100%; border-color:var(--primary); color:var(--primary);" onclick="updateEtalaseSku(${idx})">Simpan SKU</button>
                     </div>`;
                 });
                 document.getElementById('etalase-list-container').innerHTML = html || '<div style="font-size:13px;color:var(--muted)">Belum ada etalase.</div>';
@@ -3522,7 +3669,7 @@ generate_admin_app() {
                 method: 'POST', headers: {'Content-Type':'application/json'},
                 body: JSON.stringify({action: 'update_sku', idx, skus})
             });
-            if(data && data.success) showToast("SKU Etalase diperbarui");
+            if(data && data.success) showToast("SKU Etalase diperbarui", 'success');
         }
 
         async function delEtalase(idx) {
@@ -3551,32 +3698,54 @@ generate_admin_app() {
             
             if(!title || !desc) return showToast("Judul dan Deskripsi wajib diisi!", true);
             
+            let file = fileInput.files[0];
+            if(file && file.size > 200 * 1024 * 1024) return showToast("Ukuran video maksimal 200MB!", true);
+
             let btn = document.getElementById('btn-up-tut');
-            let ori = btn.innerText; btn.innerText = "Mengupload..."; btn.disabled = true;
+            let ori = btn.innerText; btn.innerText = "Mengupload 0%..."; btn.disabled = true;
 
             let videoBase64 = null;
             let filename = null;
-
-            if(fileInput.files.length > 0) {
-                let file = fileInput.files[0];
+            if(file) {
                 filename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
                 videoBase64 = await getBase64(file);
             }
 
-            const data = await fetchAdmin('/api/admin/tutorial', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({title, desc, videoBase64, filename})
-            });
+            const payload = JSON.stringify({title, desc, videoBase64, filename});
 
-            if(data && data.success) {
-                showToast("Tutorial berhasil diunggah!");
-                document.getElementById('tut-title').value = '';
-                document.getElementById('tut-desc').value = '';
-                document.getElementById('tut-video').value = '';
-            } else {
-                showToast("Gagal mengunggah tutorial.", true);
-            }
-            btn.innerText = ori; btn.disabled = false;
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "/api/admin/tutorial", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.setRequestHeader("Authorization", "Bearer " + localStorage.getItem('tendo_admin_token'));
+            
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    let percent = Math.round((e.loaded / e.total) * 100);
+                    btn.innerText = "Mengupload " + percent + "%...";
+                }
+            };
+
+            xhr.onload = function() {
+                btn.innerText = ori; btn.disabled = false;
+                if (xhr.status === 200) {
+                    let data = JSON.parse(xhr.responseText);
+                    if(data.success) {
+                        showToast("Tutorial berhasil diunggah!", 'success');
+                        document.getElementById('tut-title').value = '';
+                        document.getElementById('tut-desc').value = '';
+                        document.getElementById('tut-video').value = '';
+                    } else {
+                        showToast(data.message || "Gagal mengunggah tutorial.", true);
+                    }
+                } else {
+                    showToast("Koneksi terputus atau error server.", true);
+                }
+            };
+            xhr.onerror = function() {
+                btn.innerText = ori; btn.disabled = false;
+                showToast("Kesalahan jaringan.", true);
+            };
+            xhr.send(payload);
         }
 
         async function loadSettings() {
@@ -3592,6 +3761,12 @@ generate_admin_app() {
                 document.getElementById('api-digi-key').value = set.digiflazzApiKey || '';
                 document.getElementById('api-gopay-mid').value = set.gopayMerchantId || '';
                 document.getElementById('api-gopay-token').value = set.gopayToken || '';
+
+                document.getElementById('set-tele-admin-token').value = set.teleToken || '';
+                document.getElementById('set-tele-admin-id').value = set.teleChatId || '';
+                document.getElementById('set-tele-info-token').value = set.teleTokenInfo || '';
+                document.getElementById('set-tele-channel-id').value = set.teleChannelId || '';
+                document.getElementById('set-wa-broadcast-id').value = set.waBroadcastId || '';
             }
         }
 
@@ -3605,9 +3780,9 @@ generate_admin_app() {
                 body: JSON.stringify({update: 'maintenance', maintType: type, maintStart: start, maintEnd: end})
             });
             if(data && data.success) {
-                if (type === 'total') showToast("Sistem Ditutup Total");
-                else if (type === 'custom') showToast(`Maintenance Custom Aktif (${start}-${end})`);
-                else showToast("Sistem Normal / Terbuka");
+                if (type === 'total') showToast("Sistem Ditutup Total", 'success');
+                else if (type === 'custom') showToast(`Maintenance Custom Aktif (${start}-${end})`, 'success');
+                else showToast("Sistem Normal / Terbuka", 'success');
             }
         }
 
@@ -3623,7 +3798,7 @@ generate_admin_app() {
                 method: 'POST', headers: {'Content-Type':'application/json'},
                 body: JSON.stringify(payload)
             });
-            if(data && data.success) showToast("API Keys berhasil disimpan");
+            if(data && data.success) showToast("API Keys berhasil disimpan", 'success');
         }
 
         async function uploadBanners() {
@@ -3640,7 +3815,7 @@ generate_admin_app() {
                 method: 'POST', headers: {'Content-Type':'application/json'},
                 body: JSON.stringify({banners})
             });
-            if(data && data.success) { showToast("Banner berhasil dipasang"); document.querySelectorAll('input[type="file"]').forEach(i=>i.value=''); }
+            if(data && data.success) { showToast("Banner berhasil dipasang", 'success'); document.querySelectorAll('input[type="file"]').forEach(i=>i.value=''); }
             else showToast("Gagal upload", true);
         }
 
@@ -3667,7 +3842,7 @@ generate_admin_app() {
             });
             
             if(data && data.success) { 
-                showToast("Broadcast sedang dikirim ke target terpilih!");
+                showToast("Broadcast sedang dikirim ke target terpilih!", 'success');
                 document.getElementById('bc-text').value = '';
                 document.getElementById('bc-image').value = '';
             } else {
@@ -3677,19 +3852,65 @@ generate_admin_app() {
             btn.innerText = ori; btn.disabled = false;
         }
 
+        async function saveNotifSettings() {
+            const payload = {
+                update: 'notif',
+                teleAdminToken: document.getElementById('set-tele-admin-token').value,
+                teleAdminId: document.getElementById('set-tele-admin-id').value,
+                teleInfoToken: document.getElementById('set-tele-info-token').value,
+                teleChannelId: document.getElementById('set-tele-channel-id').value,
+                waBroadcastId: document.getElementById('set-wa-broadcast-id').value
+            };
+            const data = await fetchAdmin('/api/admin/settings', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(payload)
+            });
+            if(data && data.success) showToast("Konfigurasi notifikasi disimpan", 'success');
+        }
+
+        async function testNotifConnection() {
+            showToast("Mengecek koneksi...");
+            const data = await fetchAdmin('/api/admin/test-notif');
+            if(data && data.success) showToast("Koneksi berhasil! Cek WA/Tele Anda.", 'success');
+            else showToast(data.message || "Gagal tes koneksi", true);
+        }
+
         // --- LOG & BACKUP ---
-        async function loadLogs() {
-            const data = await fetchAdmin('/api/admin/logs');
+        window.allSystemLogs = [];
+        async function loadSystemLogs() {
+            const data = await fetchAdmin('/api/admin/system-logs');
             if(data && data.success) {
-                let html = '';
-                data.logs.forEach(l => { html += `> [${l.time}] Login IP: ${l.ip}<br>`; });
-                document.getElementById('log-ip').innerHTML = html || 'Belum ada log.';
+                let statusEl = document.getElementById('wa-monitor-status');
+                statusEl.innerText = data.wa_status;
+                statusEl.style.color = data.wa_status === 'Connected' ? 'var(--success)' : 'var(--danger)';
+                window.allSystemLogs = data.logs || [];
+                renderLogs(window.allSystemLogs);
             }
+        }
+        function renderLogs(logs) {
+            let html = '';
+            logs.forEach(l => {
+                let colorCat = '#38bdf8';
+                if(l.category === 'Keamanan') colorCat = '#ef4444';
+                if(l.category === 'Order') colorCat = '#10b981';
+                html += `<div style="margin-bottom:6px;"><span style="color:var(--muted);">[${l.time}]</span> <span style="color:${colorCat}; font-weight:bold;">[${l.category}]</span> <span style="color:#e2e8f0;">${l.message}</span></div>`;
+            });
+            document.getElementById('log-viewer-container').innerHTML = html || 'Belum ada log aktivitas.';
+        }
+        function filterLogs() {
+            let search = document.getElementById('search-log').value.toLowerCase();
+            let filtered = window.allSystemLogs.filter(l => l.category.toLowerCase().includes(search) || l.message.toLowerCase().includes(search));
+            renderLogs(filtered);
+        }
+        async function clearSystemLogs() {
+            if(!confirm("Yakin bersihkan semua log?")) return;
+            const data = await fetchAdmin('/api/admin/clear-logs', {method: 'POST'});
+            if(data && data.success) { showToast("Log dibersihkan", 'success'); loadSystemLogs(); }
         }
 
         async function triggerBackup() {
             const data = await fetchAdmin('/api/admin/backup', { method: 'POST' });
-            if(data && data.success) showToast("Backup diproses dan dikirim ke Telegram!");
+            if(data && data.success) showToast("Backup diproses dan dikirim ke Telegram!", 'success');
             else showToast(data?data.message:"Gagal proses backup", true);
         }
 
@@ -3726,9 +3947,9 @@ app.use((req, res, next) => {
     next();
 });
 
-// Limit diubah menjadi 50MB agar mendukung upload video tutorial berukuran besar dari panel admin
-app.use(bodyParser.json({limit: '50mb'}));
-app.use(bodyParser.urlencoded({extended: true, limit: '50mb'}));
+// Limit diubah menjadi 200MB agar mendukung upload video tutorial berukuran besar
+app.use(bodyParser.json({limit: '200mb'}));
+app.use(bodyParser.urlencoded({extended: true, limit: '200mb'}));
 app.use(express.static('public')); 
 
 const configFile = './config.json';
@@ -3744,15 +3965,27 @@ const customLayoutFile = './custom_layout.json';
 const tutorialFile = './tutorial.json'; 
 const gopayHistoryFile = './gopay_processed.json';
 const adminLogFile = './admin_logs.json';
+const systemLogFile = './system_logs.json';
 
-const loadJSON = (file) => crypt.load(file, (file === notifFile || file === globalTrxFile || file === tutorialFile || file === gopayHistoryFile || file === adminLogFile) ? [] : (file === customLayoutFile ? {sections:[]} : {}));
+const loadJSON = (file) => crypt.load(file, (file === notifFile || file === globalTrxFile || file === tutorialFile || file === gopayHistoryFile || file === adminLogFile || file === systemLogFile) ? [] : (file === customLayoutFile ? {sections:[]} : {}));
 const saveJSON = (file, data) => crypt.save(file, data);
 
 const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
 
+const writeLog = (category, message) => {
+    try {
+        let logs = loadJSON(systemLogFile);
+        let timeStr = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+        logs.unshift({ time: timeStr, category, message });
+        if (logs.length > 500) logs.pop();
+        saveJSON(systemLogFile, logs);
+    } catch(e) {}
+};
+
 // KONFIGURASI KEAMANAN ADMIN
 const SUPERADMIN_PHONE = "6282224460678";
 const ADMIN_TOKEN_SECRET = "TendoTokenSecure829103" + Date.now(); // Dinamis per restart
+let tempAdminOtp = "";
 
 function maskStringTarget(str) {
     if (!str) return '-';
@@ -3773,7 +4006,6 @@ function updateLevelAndPoints(phone, hargaFix, marginAsli) {
         db[phone].poin = (db[phone].poin || 0) + 10;
         db[phone].total_pengeluaran = (db[phone].total_pengeluaran || 0) + hargaFix;
         
-        // Cek jika status manual level tidak di override admin
         let isManualVIP = db[phone].is_manual_level === true;
         if(!isManualVIP) {
             let tp = db[phone].total_pengeluaran;
@@ -3799,7 +4031,6 @@ function cekPemeliharaan() {
     if (type === 'total') return true;
     if (type === 'off') return false;
 
-    // Untuk custom maintenance time
     let s = cfg.maintStart || "23:00";
     let e = cfg.maintEnd || "00:30";
     let d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
@@ -3902,7 +4133,7 @@ function convertToDynamicQris(staticQris, amount) {
 function doBackupAndSend() {
     let cfg = loadJSON(configFile);
     if (!cfg.teleToken || !cfg.teleChatId) return;
-    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json gopay_processed.json admin_logs.json ssl_backup.tar.gz 2>/dev/null`, (err) => {
+    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json gopay_processed.json admin_logs.json system_logs.json ssl_backup.tar.gz 2>/dev/null`, (err) => {
         if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
     });
 }
@@ -3934,6 +4165,7 @@ if(!fs.existsSync('./public/info_images')) fs.mkdirSync('./public/info_images', 
 for(let i=1; i<=5; i++) { if(!fs.existsSync(`./public/baner${i}`)) fs.mkdirSync(`./public/baner${i}`, { recursive: true }); }
 
 let globalSock = null;
+let waStatus = "Disconnected";
 let tempOtpDB = {}; 
 let otpCooldown = {}; 
 
@@ -3951,20 +4183,38 @@ app.get('/panel-bos-tendo-rahasia', (req, res) => {
     res.sendFile(__dirname + '/public/tendo_admin_secret.html');
 });
 
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/admin/login-step1', (req, res) => {
     let cfg = loadJSON(configFile);
     if(req.body.password === cfg.adminPass) {
-        // Catat IP Login
+        tempAdminOtp = Math.floor(1000 + Math.random() * 9000).toString();
+        let msg = `*🛡️ LOGIN ADMIN PANEL 🛡️*\n\nSeseorang mencoba masuk ke Panel Bos.\nKode OTP Anda: *${tempAdminOtp}*\n\n_Abaikan jika bukan Anda._`;
+        
+        if (globalSock && cfg.waBroadcastId) {
+            globalSock.sendMessage(SUPERADMIN_PHONE + '@s.whatsapp.net', { text: msg }).catch(e=>{});
+        }
+        writeLog("Keamanan", "Percobaan login admin Step 1 berhasil. OTP dikirim ke WA Superadmin.");
+        res.json({success: true});
+    } else {
+        writeLog("Keamanan", "Gagal login admin. Password salah.");
+        res.json({success: false, message: 'Password Admin Salah!'});
+    }
+});
+
+app.post('/api/admin/login-step2', (req, res) => {
+    let cfg = loadJSON(configFile);
+    if(req.body.password === cfg.adminPass && req.body.otp === tempAdminOtp) {
+        tempAdminOtp = "";
         let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
         let logs = loadJSON(adminLogFile);
         let timeStr = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
         logs.unshift({time: timeStr, ip: ip});
         if(logs.length > 20) logs.pop();
         saveJSON(adminLogFile, logs);
-        
+        writeLog("Keamanan", `Admin berhasil masuk dari IP: ${ip}`);
         res.json({success: true, token: ADMIN_TOKEN_SECRET});
     } else {
-        res.json({success: false, message: 'Password Admin Salah!'});
+        writeLog("Keamanan", "Gagal login admin step 2. OTP salah.");
+        res.json({success: false, message: 'OTP Salah!'});
     }
 });
 
@@ -4003,14 +4253,13 @@ app.get('/api/admin/stats', authAdmin, (req, res) => {
     let totalSaldo = 0; let totalUser = 0;
     for(let k in db) { if(db[k].saldo !== undefined) { totalSaldo += db[k].saldo; totalUser++; } }
     
-    // Hitung Laba Bulan Ini dari global_trx
     let gTrx = loadJSON(globalTrxFile);
     let profitMonthly = 0;
     let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
     let nowMonth = now.getMonth(); let nowYear = now.getFullYear();
     
     gTrx.forEach(t => {
-        let trDate = new Date(t.raw_time || Date.now()); // Jika tdk ada, asumsi baru
+        let trDate = new Date(t.raw_time || Date.now()); 
         if(trDate.getMonth() === nowMonth && trDate.getFullYear() === nowYear) {
             profitMonthly += (t.margin || 0);
         }
@@ -4028,7 +4277,6 @@ app.get('/api/admin/history', authAdmin, (req, res) => {
     let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
     let nowMonth = now.getMonth(); let nowYear = now.getFullYear(); let nowDate = now.getDate();
 
-    // Loop global_trx khusus utk Laba (Krn margin tersimpan di sana waktu sukses)
     let gTrx = loadJSON(globalTrxFile);
     gTrx.forEach(t => {
         let trDate = new Date(t.raw_time || Date.now());
@@ -4038,7 +4286,6 @@ app.get('/api/admin/history', authAdmin, (req, res) => {
         }
     });
 
-    // Mengumpulkan dari User DB utk Tampilan History Lengkap dgn modal & jual
     for(let phone in db) {
         if(db[phone].history) {
             db[phone].history.forEach(h => {
@@ -4048,8 +4295,7 @@ app.get('/api/admin/history', authAdmin, (req, res) => {
                        (filter === 'Pending' && h.status === 'Pending') || 
                        (filter === 'Gagal' && (h.status.includes('Gagal') || h.status.includes('Refund')))) {
                         
-                        // Cari Margin dari history jika kita simpan, jika tidak estimate
-                        let modal = h.harga_asli || (h.amount ? Math.floor(h.amount * 0.9) : 0); // fallback kasar jk tdk ada data
+                        let modal = h.harga_asli || (h.amount ? Math.floor(h.amount * 0.9) : 0); 
                         let laba = h.margin || (h.amount ? (h.amount - modal) : 0);
                         
                         allHistory.push({
@@ -4090,7 +4336,7 @@ app.post('/api/admin/user/level', authAdmin, (req, res) => {
     let normPhone = normalizePhone(phone);
     if(db[normPhone]) {
         db[normPhone].level = level;
-        db[normPhone].is_manual_level = true; // Kunci agar tdk override bot
+        db[normPhone].is_manual_level = true; 
         saveJSON(dbFile, db);
         res.json({success: true});
     } else res.json({success: false, message: 'User tidak ditemukan.'});
@@ -4139,6 +4385,12 @@ app.post('/api/admin/settings', authAdmin, (req, res) => {
     } else if(req.body.update === 'keys') {
         cfg.digiflazzUsername = req.body.digiUser; cfg.digiflazzApiKey = req.body.digiKey;
         cfg.gopayMerchantId = req.body.gopayMid; cfg.gopayToken = req.body.gopayToken;
+    } else if(req.body.update === 'notif') {
+        cfg.teleToken = req.body.teleAdminToken;
+        cfg.teleChatId = req.body.teleAdminId;
+        cfg.teleTokenInfo = req.body.teleInfoToken;
+        cfg.teleChannelId = req.body.teleChannelId;
+        cfg.waBroadcastId = req.body.waBroadcastId;
     }
     saveJSON(configFile, cfg); res.json({success: true});
 });
@@ -4147,7 +4399,6 @@ app.post('/api/admin/margin', authAdmin, async (req, res) => {
     let cfg = loadJSON(configFile);
     cfg.margin = req.body.margin;
     saveJSON(configFile, cfg);
-    // Auto Sync
     await tarikDataLayananOtomatis();
     res.json({success: true});
 });
@@ -4233,12 +4484,46 @@ app.post('/api/admin/broadcast', authAdmin, (req, res) => {
     if(targets.wa && globalSock && cfg.waBroadcastId) {
         if(imageName) {
             let imgBuffer = fs.readFileSync(imgPath);
-            globalSock.sendMessage(cfg.waBroadcastId, { image: imgBuffer, caption: text, mimetype: 'image/jpeg' }).catch(e=>{});
+            globalSock.sendMessage(cfg.waBroadcastId, { image: imgBuffer, caption: text }).catch(e=>{});
         } else {
             globalSock.sendMessage(cfg.waBroadcastId, { text: text }).catch(e=>{});
         }
     }
+    writeLog("Sistem", "Berhasil mengirim broadcast.");
+    res.json({success: true});
+});
 
+app.get('/api/admin/test-notif', authAdmin, (req, res) => {
+    let cfg = loadJSON(configFile);
+    let success = false;
+    try {
+        if (cfg.teleToken && cfg.teleChatId) {
+            axios.post(`https://api.telegram.org/bot${cfg.teleToken}/sendMessage`, { chat_id: cfg.teleChatId.toString(), text: '✅ Tes koneksi Bot Admin berhasil!' }).catch(e => {});
+            success = true;
+        }
+        if (cfg.teleTokenInfo && cfg.teleChannelId) {
+            let chanId = cfg.teleChannelId.toString();
+            if(!chanId.startsWith('-100') && !chanId.startsWith('@')) chanId = '-100' + chanId;
+            axios.post(`https://api.telegram.org/bot${cfg.teleTokenInfo}/sendMessage`, { chat_id: chanId, text: '✅ Tes koneksi Channel Info berhasil!' }).catch(e => {});
+            success = true;
+        }
+        if (globalSock && cfg.waBroadcastId) {
+            globalSock.sendMessage(cfg.waBroadcastId, { text: '✅ Tes koneksi Saluran/Grup WA berhasil!' }).catch(e=>{});
+            success = true;
+        }
+        if (success) res.json({success: true});
+        else res.json({success: false, message: 'Belum ada pengaturan API yang terisi.'});
+    } catch(e) {
+        res.json({success: false, message: 'Gagal memproses tes koneksi.'});
+    }
+});
+
+app.get('/api/admin/system-logs', authAdmin, (req, res) => {
+    res.json({success: true, wa_status: waStatus, logs: loadJSON(systemLogFile) || []});
+});
+
+app.post('/api/admin/clear-logs', authAdmin, (req, res) => {
+    saveJSON(systemLogFile, []);
     res.json({success: true});
 });
 
@@ -4459,7 +4744,6 @@ app.post('/api/register', (req, res) => {
         let isUsernameExist = Object.keys(db).some(k => db[k] && db[k].username && db[k].username.toLowerCase() === username.toLowerCase());
         if (isUsernameExist) return res.json({success: false, message: 'Username sudah digunakan!'});
 
-        // Verifikasi Referral
         let referrerPhone = null;
         if(referral) {
             let refKey = Object.keys(db).find(k => db[k].referral_code === referral);
@@ -4698,7 +4982,7 @@ app.post('/api/order', async (req, res) => {
             let signCek = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
             const resCek = await axios.post('https://api.digiflazz.com/v1/transaction', { commands: 'inq-pasca', username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: signCek });
             let dataCek = resCek.data.data;
-            if(dataCek.status === 'Gagal') return res.json({success: false, message: dataCek.message || "Gagal cek tagihan."});
+            if(dataCek.status === 'Gagal') { writeLog("Order", `Cek tagihan gagal: ${dataCek.message}`); return res.json({success: false, message: dataCek.message || "Gagal cek tagihan."}); }
             
             let tagihanAsli = parseInt(dataCek.price) || parseInt(dataCek.selling_price) || 0;
             hargaFix = tagihanAsli + realMargin;
@@ -4717,6 +5001,7 @@ app.post('/api/order', async (req, res) => {
             db = loadJSON(dbFile);
             
             if (statusOrder === 'Gagal') {
+                writeLog("Order", `Order Pascabayar gagal dari Digiflazz: ${resPay.data.data.message}`);
                 db[targetKey].saldo += hargaFix;
                 saveJSON(dbFile, db);
                 return res.json({success: false, message: resPay.data.data.message});
@@ -4729,6 +5014,7 @@ app.post('/api/order', async (req, res) => {
             if(statusOrder === 'Sukses') {
                 updateLevelAndPoints(targetKey, hargaFix, margin);
                 sendBroadcastSuccess(p.nama, db[targetKey].username||targetKey, tujuan, hargaFix, 'Saldo Akun');
+                writeLog("Order", `Order Pascabayar sukses. Ref: ${refId}`);
             }
             return res.json({success: true, saldo: db[targetKey].saldo});
         }
@@ -4749,6 +5035,7 @@ app.post('/api/order', async (req, res) => {
         let namaUser = db[targetKey].username || targetKey;
         
         if (statusOrder === 'Gagal') {
+            writeLog("Order", `Order gagal Digiflazz: ${response.data.data.message} (${p.nama})`);
             db[targetKey].saldo = saldoTerkini + hargaFix;
             saveJSON(dbFile, db);
             let teleMsgFail = `❌ <b>PESANAN GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
@@ -4785,6 +5072,9 @@ app.post('/api/order', async (req, res) => {
 
             updateLevelAndPoints(targetKey, hargaFix, margin);
             sendBroadcastSuccess(p.nama, namaUser, tujuan, hargaFix, 'Saldo Akun');
+            writeLog("Order", `Order sukses. Ref: ${refId}`);
+        } else {
+            writeLog("Order", `Order di-pending oleh Digiflazz. Ref: ${refId}`);
         }
 
         res.json({success: true, saldo: db[targetKey].saldo});
@@ -4795,6 +5085,7 @@ app.post('/api/order', async (req, res) => {
     } catch (error) { 
         if (!res.headersSent) {
             let errInfo = error.response && error.response.data && error.response.data.data ? error.response.data.data.message : 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)';
+            writeLog("Order", `Exception Order: ${errInfo}`);
             return res.json({success: false, message: errInfo});
         }
     }
@@ -4948,7 +5239,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
             let emailUser = db[targetKey].email || '-';
             let teleSuccess = `🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${vpnUser}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: ${mode === 'trial' ? 'Gratis (Trial)' : paymentMethod}\n📦 Sisa Stok: ${mode === 'reguler' ? vpnConfig.products[productId].stok : 'Trial'}\n💳 Saldo Terkini: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
             sendTelegramAdmin(teleSuccess);
-
+            writeLog("Order", `Order VPN sukses. Ref: ${refId}`);
             return { success: true };
         } else {
             let errMsg = "unknown error";
@@ -4957,12 +5248,14 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
             else if (resApi.statusText) errMsg = resApi.statusText;
             
             if (mode === 'reguler' && paymentMethod === 'Saldo Akun') { db[targetKey].saldo += hargaFix; saveJSON(dbFile, db); }
+            writeLog("Order", `Order VPN Gagal: ${errMsg}`);
             if(errMsg.toLowerCase().includes('exist') || errMsg.toLowerCase().includes('already') || errMsg.toLowerCase().includes('sudah ada')) { return { success: false, message: "Username sudah ada/terpakai, silakan ganti username lain." }; }
             return { success: false, message: "Gagal membuat akun di Server VPN. Pesan: " + errMsg };
         }
     } catch(e) {
         let db = loadJSON(dbFile);
         if (mode === 'reguler' && paymentMethod === 'Saldo Akun') { db[targetKey].saldo += hargaFix; saveJSON(dbFile, db); }
+        writeLog("Order", `Koneksi Order VPN Gagal: ${e.message}`);
         return { success: false, message: "Koneksi ke Server VPN Gagal / Timeout. Pesan: " + e.message };
     }
 }
@@ -5059,6 +5352,7 @@ async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
         let namaUser = db[phone].username || phone;
         let teleMsg = `⚠️ <b>INFO ORDER VPN QRIS: GAGAL VPS</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Alasan: ${failMsg}\n💰 Saldo Rp ${vpnData.harga_asli.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
         sendTelegramAdmin(teleMsg);
+        writeLog("Order", `Auto Order VPN QRIS Gagal: ${failMsg}`);
     }
 }
 
@@ -5077,17 +5371,18 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
             let refId = 'WEB-' + Date.now();
             let signCek = crypto.createHash('md5').update((config.digiflazzUsername || '') + (config.digiflazzApiKey || '') + refId).digest('hex');
             const resCek = await axios.post('https://api.digiflazz.com/v1/transaction', { commands: 'inq-pasca', username: (config.digiflazzUsername || ''), buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: signCek });
-            if(resCek.data.data.status === 'Gagal') { db[phone].saldo += hargaFix; saveJSON(dbFile, db); return; }
+            if(resCek.data.data.status === 'Gagal') { db[phone].saldo += hargaFix; saveJSON(dbFile, db); writeLog("Order", `Cek pascabayar gagal: ${resCek.data.data.message}`); return; }
             let tagihan = parseInt(resCek.data.data.price) || parseInt(resCek.data.data.selling_price) || 0;
             let realHargaFix = tagihan + marginLaba;
-            if(saldoSebelum < realHargaFix) { db[phone].saldo += hargaFix; saveJSON(dbFile, db); return; }
+            if(saldoSebelum < realHargaFix) { db[phone].saldo += hargaFix; saveJSON(dbFile, db); writeLog("Order", "Saldo tidak mencukupi untuk bayar tagihan pascabayar."); return; }
             
             db[phone].saldo = saldoSebelum - realHargaFix;
             let signPay = crypto.createHash('md5').update((config.digiflazzUsername || '') + (config.digiflazzApiKey || '') + refId).digest('hex');
             const resPay = await axios.post('https://api.digiflazz.com/v1/transaction', { commands: 'pay-pasca', username: (config.digiflazzUsername || ''), buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: signPay });
             
-            if(resPay.data.data.status === 'Gagal') { db[phone].saldo += realHargaFix; saveJSON(dbFile, db); return; }
+            if(resPay.data.data.status === 'Gagal') { db[phone].saldo += realHargaFix; saveJSON(dbFile, db); writeLog("Order", `Pascabayar gagal: ${resPay.data.data.message}`); return; }
             updateLevelAndPoints(phone, realHargaFix, marginLaba);
+            writeLog("Order", `Pascabayar berhasil.`);
             return;
         }
 
@@ -5119,6 +5414,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
             if(globalSock) globalSock.sendMessage(db[phone].jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf, pesanan ${nama_produk} tujuan ${tujuan} ditolak oleh sistem.\n\n💰 Saldo Anda sebesar Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan utuh ke akun Website.` }).catch(e=>{});
             let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Status Digiflazz Gagal.\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
             sendTelegramAdmin(teleMsgFail);
+            writeLog("Order", `Auto Order QRIS Gagal Digiflazz: ${response.data.data.message}`);
             return;
         }
         
@@ -5146,6 +5442,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
             saveJSON(globalTrxFile, globalTrx);
             updateLevelAndPoints(phone, hargaFix, marginLaba);
             sendBroadcastSuccess(nama_produk, namaUser, tujuan, hargaFix, 'QRIS');
+            writeLog("Order", `Auto Order QRIS Sukses.`);
         }
 
         let teleMsg = `🚀 <b>AUTO ORDER QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${db[phone].saldo.toLocaleString('id-ID')}`;
@@ -5186,7 +5483,16 @@ async function startBot() {
         }, 8000); 
     }
     sock.ev.on('creds.update', saveCreds);
-    sock.ev.on('connection.update', (u) => { if(u.connection === 'close') setTimeout(startBot, 4000); });
+    sock.ev.on('connection.update', (u) => { 
+        if(u.connection === 'open') {
+            waStatus = "Connected";
+            writeLog("WhatsApp", "Bot WhatsApp berhasil terhubung ke server.");
+        } else if(u.connection === 'close') {
+            waStatus = "Disconnected";
+            writeLog("WhatsApp", "Koneksi bot WA terputus, mencoba menghubungkan ulang...");
+            setTimeout(startBot, 4000); 
+        } 
+    });
 
     let callAttempts = {};
     sock.ev.on('call', async (calls) => {
@@ -5248,6 +5554,7 @@ async function startBot() {
 
                     if(isFound) {
                         req.status = 'sukses'; changedTp = true;
+                        writeLog("Keuangan", `Dana QRIS diterima sebesar Rp ${targetAmount}`);
                         if(db[req.phone]) {
                             let saldoSebelumnya = parseInt(db[req.phone].saldo);
                             db[req.phone].saldo = saldoSebelumnya + parseInt(req.saldo_to_add); 
@@ -5313,6 +5620,7 @@ async function startBot() {
 
                                 updateLevelAndPoints(phoneKey, parseInt(trx.harga), trx.margin||0);
                                 sendBroadcastSuccess(trx.nama, namaUser, trx.tujuan, parseInt(trx.harga), 'Sistem Otomatis');
+                                writeLog("Order", `Pesanan Pending akhirnya Sukses. Ref: ${ref}`);
                             }
                             
                         } else {
@@ -5327,6 +5635,7 @@ async function startBot() {
                                 }
                                 saveJSON(dbFile, db); 
                             }
+                            writeLog("Order", `Pesanan Pending akhirnya Gagal & Direfund. Ref: ${ref}`);
                         }
                         delete trxs[ref]; saveJSON(trxFile, trxs);
                     } else if (Date.now() - trx.tanggal > 24 * 60 * 60 * 1000) { delete trxs[ref]; saveJSON(trxFile, trxs); }
@@ -5409,8 +5718,10 @@ async function tarikDataLayananOtomatis() {
 
         saveJSON(produkFile, daftarLokal);
         console.log('\x1b[32m✅ Data Produk (Pra & Pasca) Digiflazz Berhasil Tersinkronisasi!\x1b[0m');
-        
-    } catch(err) {}
+        writeLog("Sistem", "Sinkronisasi produk Digiflazz berhasil.");
+    } catch(err) {
+        writeLog("Sistem", "Sinkronisasi produk Digiflazz gagal.");
+    }
 }
 
 function hitungMargin(hargaModal, m) {
@@ -5704,7 +6015,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Generator VPN - Tulisan Digital Tendo Store</title>
-    <style>
+<style>
         body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
         .container { max-width: 700px; margin: 30px auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); overflow: hidden; }
         .header-banner { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px 20px; text-align: center; color: #ffffff; }
@@ -6395,7 +6706,7 @@ menu_backup() {
                 if [ -d "/etc/letsencrypt" ]; then
                     sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null
                 fi
-                zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json ssl_backup.tar.gz gopay_processed.json admin_logs.json 2>/dev/null
+                zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json ssl_backup.tar.gz gopay_processed.json admin_logs.json system_logs.json 2>/dev/null
                 echo -e "${C_GREEN}✅ File backup.zip (termasuk config API/ID) berhasil dikompresi!${C_RST}"
                 node -e "
                     const crypt = require('./tendo_crypt.js');
