@@ -50,39 +50,24 @@ const fs = require('fs');
 const crypto = require('crypto');
 const ALGO = 'aes-256-cbc';
 
-// Kunci lama (Statis 32 karakter)
-const OLD_SECRET = 'DigitalTendoStore_SecureKey_2026';
-const OLD_KEY = Buffer.from(OLD_SECRET, 'utf8');
+// Sesuai Instruksi: Menggunakan kunci statis lama
+const secretKey = 'DigitalTendoStore_SecureKey_2026';
+const salt = 'TendoSaltStatic123'; 
+const KEY = crypto.scryptSync(secretKey, salt, 32);
 
-// Sesuai Instruksi: Salt & Key dinamis disimpan dalam file tersembunyi
-const secretFile = '.tendo_secret';
-let secretKey, salt;
-
-if (fs.existsSync(secretFile)) {
-    let sec = JSON.parse(fs.readFileSync(secretFile, 'utf8'));
-    secretKey = sec.key;
-    salt = sec.salt;
-} else {
-    secretKey = crypto.randomBytes(32).toString('hex');
-    salt = crypto.randomBytes(16).toString('hex');
-    fs.writeFileSync(secretFile, JSON.stringify({key: secretKey, salt: salt}));
-}
-
-const NEW_KEY = crypto.scryptSync(secretKey, salt, 32);
-
-function encrypt(text, key = NEW_KEY) {
+function encrypt(text) {
     let iv = crypto.randomBytes(16);
-    let cipher = crypto.createCipheriv(ALGO, key, iv);
+    let cipher = crypto.createCipheriv(ALGO, KEY, iv);
     let encrypted = cipher.update(text);
     encrypted = Buffer.concat([encrypted, cipher.final()]);
     return iv.toString('hex') + ':' + encrypted.toString('hex');
 }
 
-function decrypt(text, key = NEW_KEY) {
+function decrypt(text) {
     let textParts = text.split(':');
     let iv = Buffer.from(textParts.shift(), 'hex');
     let encryptedText = Buffer.from(textParts.join(':'), 'hex');
-    let decipher = crypto.createDecipheriv(ALGO, key, iv);
+    let decipher = crypto.createDecipheriv(ALGO, KEY, iv);
     let decrypted = decipher.update(encryptedText);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
@@ -94,35 +79,19 @@ module.exports = {
             if (!fs.existsSync(file)) return defaultData;
             let raw = fs.readFileSync(file, 'utf8');
             if(!raw) return defaultData;
-            
             // Migrasi otomatis jika file masih berupa teks asli
             if (raw.trim().startsWith('{') || raw.trim().startsWith('[')) {
                 let parsed = JSON.parse(raw);
                 module.exports.save(file, parsed); 
                 return parsed;
             }
-            
-            // Smart Migration Logic
-            try {
-                // Coba decrypt dengan NEW_KEY
-                return JSON.parse(decrypt(raw, NEW_KEY));
-            } catch(e_new) {
-                try {
-                    // Jika gagal, coba decrypt dengan OLD_KEY
-                    let parsedOld = JSON.parse(decrypt(raw, OLD_KEY));
-                    // Jika berhasil dengan OLD_KEY, simpan ulang menggunakan NEW_KEY
-                    module.exports.save(file, parsedOld);
-                    return parsedOld;
-                } catch(e_old) {
-                    return defaultData;
-                }
-            }
+            return JSON.parse(decrypt(raw));
         } catch(e) {
             return defaultData;
         }
     },
     save: (file, data) => {
-        fs.writeFileSync(file, encrypt(JSON.stringify(data, null, 2), NEW_KEY));
+        fs.writeFileSync(file, encrypt(JSON.stringify(data, null, 2)));
     }
 };
 EOF
@@ -2939,7 +2908,7 @@ EOF
 </html>
 EOF
 }
-
+SELESAI
 # ==========================================
 # FUNGSI MEMBUAT TAMPILAN PANEL ADMIN RAHASIA
 # ==========================================
@@ -2981,8 +2950,8 @@ generate_admin_app() {
         .menu-item i { width: 20px; height: 20px; color: currentColor; }
         .menu-item:hover, .menu-item.active { background: rgba(14, 165, 233, 0.1); color: var(--primary); border-left: 4px solid var(--primary); }
         
-        } /* Sesuai Instruksi: Dashboard Icons Glow */
-        .card[style*="border-left"] i { filter: drop-shadow(0 0 8px currentColor);
+        /* Sesuai Instruksi: Dashboard Icons Glow */
+        .card[style*="border-left"] i { filter: drop-shadow(0 0 8px currentColor); }
         
         .main-content { flex: 1; margin-left: 260px; display: flex; flex-direction: column; min-height: 100vh; transition: margin-left 0.3s; width: calc(100% - 260px); }
         .topbar { background: var(--card); padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
@@ -3012,7 +2981,7 @@ generate_admin_app() {
         .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
         .hidden { display: none !important; }
         
-/* Modern Toast & Custom Confirm Modal */
+        /* Modern Toast & Custom Confirm Modal */
         .toast { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background: rgba(30, 41, 59, 0.9); backdrop-filter: blur(10px); color: #fff; padding: 12px 20px; border-radius: 12px; z-index: 99999; box-shadow: 0 10px 25px rgba(0,0,0,0.3); opacity: 0; transition: top 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55), opacity 0.4s; pointer-events: none; font-weight: bold; border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; }
         .toast.show { opacity: 1; top: 30px; }
         .toast.error { background: rgba(239, 68, 68, 0.95); border-color: rgba(255,100,100,0.3); }
@@ -4059,7 +4028,6 @@ generate_admin_app() {
 </html>
 EOF
 }
-
 # ==========================================
 # 4. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND)
 # ==========================================
@@ -4095,7 +4063,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// Sesuai Instruksi: Limit body-parser ditingkatkan menjadi 200MB
+// Sesuai Instruksi: Batas payload 200mb
 app.use(bodyParser.json({limit: '200mb'}));
 app.use(bodyParser.urlencoded({extended: true, limit: '200mb'}));
 app.use(express.static('public')); 
@@ -6949,7 +6917,7 @@ menu_manajemen_produk_instan() {
         echo -e "${C_YELLOW}${C_BOLD}          📦 MANAJEMEN PRODUK INSTAN 📦             ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Instan Otomatis (Digiflazz)"
-echo -e "  ${C_GREEN}[2]${C_RST} Daftar Produk Instan"
+        echo -e "  ${C_GREEN}[2]${C_RST} Daftar Produk Instan"
         echo -e "  ${C_GREEN}[3]${C_RST} Edit Produk Instan"
         echo -e "  ${C_GREEN}[4]${C_RST} Hapus Produk Instan"
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
@@ -7779,8 +7747,8 @@ while true; do
                 cat <<EOF | sudo tee /etc/nginx/sites-available/$domain_name
 server {
     listen 80; server_name $domain_name;
-    client_max_body_size 200M;
     add_header X-Frame-Options "SAMEORIGIN"; add_header X-XSS-Protection "1; mode=block"; add_header X-Content-Type-Options "nosniff";
+    client_max_body_size 200M;
     location / {
         proxy_pass http://localhost:3000; proxy_http_version 1.1; proxy_set_header Upgrade \$http_upgrade; proxy_set_header Connection 'upgrade'; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; proxy_read_timeout 90; proxy_connect_timeout 90; proxy_send_timeout 90; proxy_cache_bypass \$http_upgrade;
     }
@@ -7813,4 +7781,4 @@ EOF
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
 done
-SELESAI
+# SELESAI
