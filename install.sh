@@ -3122,1007 +3122,1007 @@ generate_admin_app() {
             <i data-lucide="alert-triangle" style="width: 48px; height: 48px; color: #f59e0b; margin-bottom: 15px;"></i>
             <p id="confirm-msg">Apakah Anda yakin?</p>
             <div style="display: flex; gap: 10px; justify-content: center;">
-                <button class="btn btn-outline" style="flex:1;" onclick="closeConfirmModal(false)">Batal</button>
-                <button class="btn btn-danger" style="flex:1;" id="btn-confirm-yes" onclick="closeConfirmModal(true)">Ya, Yakin</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="login-screen">
-        <div class="login-box">
-            <div style="margin-bottom:15px;">
-                <i data-lucide="shield-check" style="width: 55px; height: 55px; color: #38bdf8; filter: drop-shadow(0 0 8px rgba(56,189,248,0.5));"></i>
-            </div>
-            <h1>Admin Security</h1>
-            <p style="font-size:12px; color:#cbd5e1; margin-bottom:25px;">IP Anda: <span id="client-ip">Mendeteksi...</span></p>
-            
-            <div id="admin-step-1">
-                <div class="input-wrap">
-                    <i data-lucide="lock"></i>
-                    <input type="password" id="admin-pass" class="input-glass" placeholder="Masukkan Password Sistem">
-                </div>
-                <button class="btn-glow" id="btn-admin-login" onclick="loginAdminStep1()">Akses Sistem</button>
-            </div>
-
-            <div id="admin-step-2" class="hidden">
-                <p style="font-size:12px; color:#cbd5e1; margin-bottom:15px; line-height: 1.4;">Kode OTP telah dikirim ke WhatsApp Superadmin.</p>
-                <div class="input-wrap">
-                    <i data-lucide="key"></i>
-                    <input type="number" id="admin-otp" class="input-glass" placeholder="----" style="text-align:center; letter-spacing:10px; font-size:22px; padding-left:15px;" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
-                </div>
-                <button class="btn-glow" id="btn-admin-verify" onclick="loginAdminStep2()">Verifikasi OTP</button>
-                <button class="btn-outline" style="border:none; width:100%; margin-top:10px; color:#94a3b8;" onclick="location.reload()">Batal</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            Boss Tendo <button class="close-sidebar" onclick="toggleSidebar()">×</button>
-        </div>
-        <div style="overflow-y: auto; flex:1;">
-            <div class="menu-item active" onclick="switchTab('tab-dashboard')">
-                <i data-lucide="layout-dashboard"></i> Dashboard
-            </div>
-            <div class="menu-item" onclick="switchTab('tab-transaksi')">
-                <i data-lucide="wallet"></i> Keuangan & Transaksi
-            </div>
-            <div class="menu-item" onclick="switchTab('tab-pengguna')">
-                <i data-lucide="users"></i> Manajemen Pengguna
-            </div>
-            <div class="menu-item" onclick="switchTab('tab-katalog')">
-                <i data-lucide="tags"></i> Kontrol Harga & Etalase
-            </div>
-            <div class="menu-item" onclick="switchTab('tab-tutorial')">
-                <i data-lucide="video"></i> Upload Tutorial
-            </div>
-            <div class="menu-item" onclick="switchTab('tab-notifikasi')">
-                <i data-lucide="bell"></i> Setup Notifikasi
-            </div>
-            <div class="menu-item" onclick="switchTab('tab-sistem')">
-                <i data-lucide="settings"></i> Kendali Sistem
-            </div>
-            <div class="menu-item" onclick="switchTab('tab-log')">
-                <i data-lucide="shield-alert"></i> Log & Keamanan
-            </div>
-        </div>
-        <div style="padding: 15px;">
-            <button class="btn btn-danger" style="width:100%" onclick="logoutAdmin()">
-                <i data-lucide="log-out"></i> Keluar
-            </button>
-        </div>
-    </div>
-
-    <div class="main-content" id="main-content">
-        <div class="topbar">
-            <div style="display:flex; align-items:center; gap:15px;">
-                <button class="hamburger" onclick="toggleSidebar()">☰</button>
-                <h2 style="margin:0; font-size:18px; color:var(--text);" id="topbar-title">Dashboard</h2>
-            </div>
-            <button class="btn btn-danger hamburger" style="font-size: 12px; padding: 8px 12px;" onclick="logoutAdmin()">
-                <i data-lucide="log-out" style="width:16px; height:16px;"></i>
-            </button>
-        </div>
-        
-        <div class="content-area">
-            
-            <div id="tab-dashboard" class="tab-pane">
-                <div class="grid-3">
-                    <div class="card" style="border-left:4px solid var(--primary)">
-                        <div style="font-size:12px; color:var(--muted);">Total Saldo Pelanggan</div>
-                        <div style="font-size:24px; font-weight:bold; margin-top:5px; display:flex; align-items:center; gap:8px;" id="dash-saldo">
-                            <i data-lucide="coins" style="color:var(--primary)"></i> Rp 0
-                        </div>
-                    </div>
-                    <div class="card" style="border-left:4px solid var(--success)">
-                        <div style="font-size:12px; color:var(--muted);">Total Pengguna</div>
-                        <div style="font-size:24px; font-weight:bold; margin-top:5px; display:flex; align-items:center; gap:8px;" id="dash-users">
-                            <i data-lucide="users-round" style="color:var(--success)"></i> 0
-                        </div>
-                    </div>
-                    <div class="card" style="border-left:4px solid #f59e0b">
-                        <div style="font-size:12px; color:var(--muted);">Laba Kotor (Bulan Ini)</div>
-                        <div style="font-size:24px; font-weight:bold; margin-top:5px; color:#f59e0b; display:flex; align-items:center; gap:8px;" id="dash-profit">
-                            <i data-lucide="trending-up"></i> Rp 0
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card" style="border: 1px solid var(--primary);">
-                    <h3><i data-lucide="activity"></i> Monitoring Server VPS</h3>
-                    <div class="grid-3" style="margin-top: 15px;">
-                        <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
-                            <div style="font-size:12px; color:var(--muted);">Beban CPU (<span id="mon-cpu-text">0%</span>)</div>
-                            <div class="chart-container"><canvas id="chartCpu"></canvas></div>
-                        </div>
-                        <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
-                            <div style="font-size:12px; color:var(--muted);">RAM Terpakai (<span id="mon-ram-text">0 GB</span>)</div>
-                            <div class="chart-container"><canvas id="chartRam"></canvas></div>
-                        </div>
-                        <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
-                            <div style="font-size:12px; color:var(--muted);">Jaringan RX/TX</div>
-                            <div class="chart-container"><canvas id="chartNet"></canvas></div>
-                            <div style="font-size:11px; margin-top:5px; color:#f59e0b;" id="mon-net-text">Mengecek...</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <h3><i data-lucide="zap"></i> Aksi Cepat</h3>
-                    <div class="grid-2">
-                        <button class="btn btn-outline" onclick="switchTab('tab-pengguna')">Kelola Level Akun</button>
-                        <button class="btn btn-outline" onclick="switchTab('tab-sistem')">Broadcast Pengumuman</button>
-                        <button class="btn btn-outline" onclick="switchTab('tab-katalog')">Ubah Harga Margin</button>
-                        <button class="btn btn-success" onclick="triggerBackup()">Backup Database Sekarang</button>
+                        <button class="btn btn-outline" style="flex:1;" onclick="closeConfirmModal(false)">Batal</button>
+                        <button class="btn btn-danger" style="flex:1;" id="btn-confirm-yes" onclick="closeConfirmModal(true)">Ya, Yakin</button>
                     </div>
                 </div>
             </div>
 
-            <div id="tab-transaksi" class="tab-pane hidden">
-                <div class="card">
-                    <h3>Laporan Laba (Profit)</h3>
-                    <div class="grid-2">
-                        <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
-                            <div style="font-size:12px; color:var(--muted);">Laba Hari Ini</div>
-                            <div style="font-size:20px; font-weight:bold; color:var(--success);" id="profit-daily">Rp 0</div>
-                        </div>
-                        <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
-                            <div style="font-size:12px; color:var(--muted);">Laba Bulan Ini</div>
-                            <div style="font-size:20px; font-weight:bold; color:var(--success);" id="profit-monthly">Rp 0</div>
-                        </div>
+            <div id="login-screen">
+                <div class="login-box">
+                    <div style="margin-bottom:15px;">
+                        <i data-lucide="shield-check" style="width: 55px; height: 55px; color: #38bdf8; filter: drop-shadow(0 0 8px rgba(56,189,248,0.5));"></i>
                     </div>
+                    <h1>Admin Security</h1>
+                    <p style="font-size:12px; color:#cbd5e1; margin-bottom:25px;">IP Anda: <span id="client-ip">Mendeteksi...</span></p>
+                    
+                    <div id="admin-step-1">
+                        <div class="input-wrap">
+                            <i data-lucide="lock"></i>
+                            <input type="password" id="admin-pass" class="input-glass" placeholder="Masukkan Password Sistem">
+                        </div>
+                        <button class="btn-glow" id="btn-admin-login" onclick="loginAdminStep1()">Akses Sistem</button>
+                    </div>
+
+                    <div id="admin-step-2" class="hidden">
+                        <p style="font-size:12px; color:#cbd5e1; margin-bottom:15px; line-height: 1.4;">Kode OTP telah dikirim ke WhatsApp Superadmin.</p>
+                        <div class="input-wrap">
+                            <i data-lucide="key"></i>
+                            <input type="number" id="admin-otp" class="input-glass" placeholder="----" style="text-align:center; letter-spacing:10px; font-size:22px; padding-left:15px;" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
+                        </div>
+                        <button class="btn-glow" id="btn-admin-verify" onclick="loginAdminStep2()">Verifikasi OTP</button>
+                        <button class="btn-outline" style="border:none; width:100%; margin-top:10px; color:#94a3b8;" onclick="location.reload()">Batal</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    Boss Tendo <button class="close-sidebar" onclick="toggleSidebar()">×</button>
+                </div>
+                <div style="overflow-y: auto; flex:1;">
+                    <div class="menu-item active" onclick="switchTab('tab-dashboard')">
+                        <i data-lucide="layout-dashboard"></i> Dashboard
+                    </div>
+                    <div class="menu-item" onclick="switchTab('tab-transaksi')">
+                        <i data-lucide="wallet"></i> Keuangan & Transaksi
+                    </div>
+                    <div class="menu-item" onclick="switchTab('tab-pengguna')">
+                        <i data-lucide="users"></i> Manajemen Pengguna
+                    </div>
+                    <div class="menu-item" onclick="switchTab('tab-katalog')">
+                        <i data-lucide="tags"></i> Kontrol Harga & Etalase
+                    </div>
+                    <div class="menu-item" onclick="switchTab('tab-tutorial')">
+                        <i data-lucide="video"></i> Upload Tutorial
+                    </div>
+                    <div class="menu-item" onclick="switchTab('tab-notifikasi')">
+                        <i data-lucide="bell"></i> Setup Notifikasi
+                    </div>
+                    <div class="menu-item" onclick="switchTab('tab-sistem')">
+                        <i data-lucide="settings"></i> Kendali Sistem
+                    </div>
+                    <div class="menu-item" onclick="switchTab('tab-log')">
+                        <i data-lucide="shield-alert"></i> Log & Keamanan
+                    </div>
+                </div>
+                <div style="padding: 15px;">
+                    <button class="btn btn-danger" style="width:100%" onclick="logoutAdmin()">
+                        <i data-lucide="log-out"></i> Keluar
+                    </button>
+                </div>
+            </div>
+
+            <div class="main-content" id="main-content">
+                <div class="topbar">
+                    <div style="display:flex; align-items:center; gap:15px;">
+                        <button class="hamburger" onclick="toggleSidebar()">☰</button>
+                        <h2 style="margin:0; font-size:18px; color:var(--text);" id="topbar-title">Dashboard</h2>
+                    </div>
+                    <button class="btn btn-danger hamburger" style="font-size: 12px; padding: 8px 12px;" onclick="logoutAdmin()">
+                        <i data-lucide="log-out" style="width:16px; height:16px;"></i>
+                    </button>
                 </div>
                 
-                <div class="card">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                        <h3 style="margin:0;">Riwayat Transaksi Global</h3>
-                        <select id="trx-filter" style="width:auto; margin:0;" onchange="loadGlobalHistory()">
-                            <option value="Semua">Semua Status</option>
-                            <option value="Sukses">Sukses</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Gagal">Gagal / Refund</option>
-                        </select>
-                    </div>
-                    <div style="overflow-x:auto;">
-                        <table id="trx-table">
-                            <tr><th>Waktu</th><th>Pelanggan</th><th>Produk</th><th>Tujuan</th><th>Modal</th><th>Jual</th><th>Laba</th><th>Status</th></tr>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div id="tab-pengguna" class="tab-pane hidden">
-                <div class="card">
-                    <h3>Manajemen Pengguna Tingkat Lanjut</h3>
-                    <div style="display:flex; gap:10px; margin-bottom:15px;">
-                        <input type="text" id="search-user" placeholder="Cari WA / Nama / Email..." style="margin:0;">
-                        <button class="btn" onclick="loadUsers()"><i data-lucide="search"></i> Cari</button>
-                    </div>
-                    <div style="overflow-x:auto;">
-                        <table id="users-table">
-                            <tr><th>WA</th><th>Nama / Email</th><th>Saldo</th><th>Level</th><th>Status</th><th>Aksi</th></tr>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <h3>Tambah / Kurangi Saldo Manual</h3>
-                    <div class="grid-2">
-                        <input type="number" id="saldo-phone" placeholder="Nomor WA Pelanggan">
-                        <input type="number" id="saldo-amount" placeholder="Nominal (Rp)">
-                    </div>
-                    <div style="display:flex; gap:10px;">
-                        <button class="btn btn-success" onclick="manageBalance('add')"><i data-lucide="plus-circle"></i> Tambah Saldo</button>
-                        <button class="btn btn-danger" onclick="manageBalance('minus')"><i data-lucide="minus-circle"></i> Tarik Saldo</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="tab-katalog" class="tab-pane hidden">
-                <div class="card">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                        <h3 style="margin:0;">Manajemen Keuntungan (Margin) 13 Tingkat</h3>
-                        <button class="btn btn-outline" style="border-color: var(--primary); color: var(--primary); width:auto;" id="btn-sync-digi" onclick="syncDigiflazz()"><i data-lucide="refresh-cw"></i> Sinkronisasi Produk Digiflazz</button>
-                    </div>
-                    <p style="font-size:12px; color:var(--muted);">Sistem akan otomatis menentukan harga jual berdasarkan modal Digiflazz ditambah margin di bawah ini.</p>
-                    <div class="grid-2" id="margin-form-container">
-                        </div>
-                    <button class="btn btn-success" style="margin-top:15px;" onclick="saveMargin()">Simpan Margin & Sinkronisasi</button>
-                </div>
-
-                <div class="card">
-                    <h3>Manajemen Etalase Custom (Layanan Unggulan)</h3>
-                    <div style="display:flex; gap:10px; margin-bottom:15px;">
-                        <input type="text" id="etalase-title" placeholder="Judul Etalase (Cth: Best Seller Game)" style="margin:0;">
-                        <button class="btn" onclick="createEtalase()">Buat Etalase Baru</button>
-                    </div>
-                    <div id="etalase-list-container">
-                        </div>
-                </div>
-            </div>
-
-            <div id="tab-tutorial" class="tab-pane hidden">
-                <div class="card">
-                    <h3>Upload Tutorial / Panduan Video</h3>
-                    <p style="font-size:12px; color:var(--muted);">Tambahkan video tutorial atau teks panduan untuk ditampilkan di menu Aplikasi Pengguna.</p>
+                <div class="content-area">
                     
-                    <label style="font-size:12px; color:var(--muted);">Judul Tutorial</label>
-                    <input type="text" id="tut-title" placeholder="Contoh: Cara Topup Saldo QRIS">
-                    
-                    <label style="font-size:12px; color:var(--muted);">Deskripsi / Teks Panduan</label>
-                    <textarea id="tut-desc" rows="5" placeholder="Tuliskan panduan detail di sini..."></textarea>
-                    
-                    <label style="font-size:12px; color:var(--muted);">Upload Video (MP4) - Opsional. Max 200MB</label>
-                    <input type="file" id="tut-video" accept="video/mp4,video/x-m4v,video/*">
-                    
-                    <button class="btn btn-success" onclick="uploadTutorial()" id="btn-up-tut"><i data-lucide="upload-cloud"></i> Upload Tutorial Sekarang</button>
+                    <div id="tab-dashboard" class="tab-pane">
+                        <div class="grid-3">
+                            <div class="card" style="border-left:4px solid var(--primary)">
+                                <div style="font-size:12px; color:var(--muted);">Total Saldo Pelanggan</div>
+                                <div style="font-size:24px; font-weight:bold; margin-top:5px; display:flex; align-items:center; gap:8px;" id="dash-saldo">
+                                    <i data-lucide="coins" style="color:var(--primary)"></i> Rp 0
+                                </div>
+                            </div>
+                            <div class="card" style="border-left:4px solid var(--success)">
+                                <div style="font-size:12px; color:var(--muted);">Total Pengguna</div>
+                                <div style="font-size:24px; font-weight:bold; margin-top:5px; display:flex; align-items:center; gap:8px;" id="dash-users">
+                                    <i data-lucide="users-round" style="color:var(--success)"></i> 0
+                                </div>
+                            </div>
+                            <div class="card" style="border-left:4px solid #f59e0b">
+                                <div style="font-size:12px; color:var(--muted);">Laba Kotor (Bulan Ini)</div>
+                                <div style="font-size:24px; font-weight:bold; margin-top:5px; color:#f59e0b; display:flex; align-items:center; gap:8px;" id="dash-profit">
+                                    <i data-lucide="trending-up"></i> Rp 0
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card" style="border: 1px solid var(--primary);">
+                            <h3><i data-lucide="activity"></i> Monitoring Server VPS</h3>
+                            <div class="grid-3" style="margin-top: 15px;">
+                                <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
+                                    <div style="font-size:12px; color:var(--muted);">Beban CPU (<span id="mon-cpu-text">0%</span>)</div>
+                                    <div class="chart-container"><canvas id="chartCpu"></canvas></div>
+                                </div>
+                                <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
+                                    <div style="font-size:12px; color:var(--muted);">RAM Terpakai (<span id="mon-ram-text">0 GB</span>)</div>
+                                    <div class="chart-container"><canvas id="chartRam"></canvas></div>
+                                </div>
+                                <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
+                                    <div style="font-size:12px; color:var(--muted);">Jaringan RX/TX</div>
+                                    <div class="chart-container"><canvas id="chartNet"></canvas></div>
+                                    <div style="font-size:11px; margin-top:5px; color:#f59e0b;" id="mon-net-text">Mengecek...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h3><i data-lucide="zap"></i> Aksi Cepat</h3>
+                            <div class="grid-2">
+                                <button class="btn btn-outline" onclick="switchTab('tab-pengguna')">Kelola Level Akun</button>
+                                <button class="btn btn-outline" onclick="switchTab('tab-sistem')">Broadcast Pengumuman</button>
+                                <button class="btn btn-outline" onclick="switchTab('tab-katalog')">Ubah Harga Margin</button>
+                                <button class="btn btn-success" onclick="triggerBackup()">Backup Database Sekarang</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tab-transaksi" class="tab-pane hidden">
+                        <div class="card">
+                            <h3>Laporan Laba (Profit)</h3>
+                            <div class="grid-2">
+                                <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
+                                    <div style="font-size:12px; color:var(--muted);">Laba Hari Ini</div>
+                                    <div style="font-size:20px; font-weight:bold; color:var(--success);" id="profit-daily">Rp 0</div>
+                                </div>
+                                <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
+                                    <div style="font-size:12px; color:var(--muted);">Laba Bulan Ini</div>
+                                    <div style="font-size:20px; font-weight:bold; color:var(--success);" id="profit-monthly">Rp 0</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                                <h3 style="margin:0;">Riwayat Transaksi Global</h3>
+                                <select id="trx-filter" style="width:auto; margin:0;" onchange="loadGlobalHistory()">
+                                    <option value="Semua">Semua Status</option>
+                                    <option value="Sukses">Sukses</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="Gagal">Gagal / Refund</option>
+                                </select>
+                            </div>
+                            <div style="overflow-x:auto;">
+                                <table id="trx-table">
+                                    <tr><th>Waktu</th><th>Pelanggan</th><th>Produk</th><th>Tujuan</th><th>Modal</th><th>Jual</th><th>Laba</th><th>Status</th></tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tab-pengguna" class="tab-pane hidden">
+                        <div class="card">
+                            <h3>Manajemen Pengguna Tingkat Lanjut</h3>
+                            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                                <input type="text" id="search-user" placeholder="Cari WA / Nama / Email..." style="margin:0;">
+                                <button class="btn" onclick="loadUsers()"><i data-lucide="search"></i> Cari</button>
+                            </div>
+                            <div style="overflow-x:auto;">
+                                <table id="users-table">
+                                    <tr><th>WA</th><th>Nama / Email</th><th>Saldo</th><th>Level</th><th>Status</th><th>Aksi</th></tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h3>Tambah / Kurangi Saldo Manual</h3>
+                            <div class="grid-2">
+                                <input type="number" id="saldo-phone" placeholder="Nomor WA Pelanggan">
+                                <input type="number" id="saldo-amount" placeholder="Nominal (Rp)">
+                            </div>
+                            <div style="display:flex; gap:10px;">
+                                <button class="btn btn-success" onclick="manageBalance('add')"><i data-lucide="plus-circle"></i> Tambah Saldo</button>
+                                <button class="btn btn-danger" onclick="manageBalance('minus')"><i data-lucide="minus-circle"></i> Tarik Saldo</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tab-katalog" class="tab-pane hidden">
+                        <div class="card">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                                <h3 style="margin:0;">Manajemen Keuntungan (Margin) 13 Tingkat</h3>
+                                <button class="btn btn-outline" style="border-color: var(--primary); color: var(--primary); width:auto;" id="btn-sync-digi" onclick="syncDigiflazz()"><i data-lucide="refresh-cw"></i> Sinkronisasi Produk Digiflazz</button>
+                            </div>
+                            <p style="font-size:12px; color:var(--muted);">Sistem akan otomatis menentukan harga jual berdasarkan modal Digiflazz ditambah margin di bawah ini.</p>
+                            <div class="grid-2" id="margin-form-container">
+                                </div>
+                            <button class="btn btn-success" style="margin-top:15px;" onclick="saveMargin()">Simpan Margin & Sinkronisasi</button>
+                        </div>
+
+                        <div class="card">
+                            <h3>Manajemen Etalase Custom (Layanan Unggulan)</h3>
+                            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                                <input type="text" id="etalase-title" placeholder="Judul Etalase (Cth: Best Seller Game)" style="margin:0;">
+                                <button class="btn" onclick="createEtalase()">Buat Etalase Baru</button>
+                            </div>
+                            <div id="etalase-list-container">
+                                </div>
+                        </div>
+                    </div>
+
+                    <div id="tab-tutorial" class="tab-pane hidden">
+                        <div class="card">
+                            <h3>Upload Tutorial / Panduan Video</h3>
+                            <p style="font-size:12px; color:var(--muted);">Tambahkan video tutorial atau teks panduan untuk ditampilkan di menu Aplikasi Pengguna.</p>
+                            
+                            <label style="font-size:12px; color:var(--muted);">Judul Tutorial</label>
+                            <input type="text" id="tut-title" placeholder="Contoh: Cara Topup Saldo QRIS">
+                            
+                            <label style="font-size:12px; color:var(--muted);">Deskripsi / Teks Panduan</label>
+                            <textarea id="tut-desc" rows="5" placeholder="Tuliskan panduan detail di sini..."></textarea>
+                            
+                            <label style="font-size:12px; color:var(--muted);">Upload Video (MP4) - Opsional. Max 200MB</label>
+                            <input type="file" id="tut-video" accept="video/mp4,video/x-m4v,video/*">
+                            
+                            <button class="btn btn-success" onclick="uploadTutorial()" id="btn-up-tut"><i data-lucide="upload-cloud"></i> Upload Tutorial Sekarang</button>
+                        </div>
+                    </div>
+
+                    <div id="tab-notifikasi" class="tab-pane hidden">
+                        <div class="card">
+                            <h3>Setup Integrasi Notifikasi</h3>
+                            <p style="font-size:12px; color:var(--muted);">Atur API Keys dan Token Bot untuk mengarahkan pesan broadcast dan info sistem.</p>
+                            
+                            <div class="grid-2">
+                                <div>
+                                    <label style="font-size:12px; color:var(--muted);">Token Bot Telegram Admin</label>
+                                    <input type="text" id="set-tele-admin-token" placeholder="Token Bot Admin">
+                                </div>
+                                <div>
+                                    <label style="font-size:12px; color:var(--muted);">Chat ID Telegram Admin</label>
+                                    <input type="text" id="set-tele-admin-id" placeholder="Chat ID Admin (Log/Komplain)">
+                                </div>
+                                <div>
+                                    <label style="font-size:12px; color:var(--muted);">Token Bot Telegram Pelanggan</label>
+                                    <input type="text" id="set-tele-info-token" placeholder="Token Bot Pelanggan (Channel)">
+                                </div>
+                                <div>
+                                    <label style="font-size:12px; color:var(--muted);">ID Channel Telegram Pelanggan</label>
+                                    <input type="text" id="set-tele-channel-id" placeholder="Contoh: -100xxxxxxx">
+                                </div>
+                                <div style="grid-column: span 1;">
+                                    <label style="font-size:12px; color:var(--muted);">ID Grup/Saluran WA Broadcast</label>
+                                    <input type="text" id="set-wa-broadcast-id" placeholder="Contoh: 1203xxxx@newsletter">
+                                </div>
+                            </div>
+
+                            <div style="display:flex; gap:10px; margin-top: 15px;">
+                                <button class="btn btn-success" onclick="saveNotifSettings()">Simpan Konfigurasi</button>
+                                <button class="btn btn-outline" style="border-color:var(--primary); color:var(--primary);" onclick="testNotifConnection()">Cek Koneksi Bot</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tab-sistem" class="tab-pane hidden">
+                        <div class="card" style="border-color:var(--danger);">
+                            <h3 style="color:var(--danger);"><i data-lucide="power"></i> Saklar Pemeliharaan (Maintenance Mode)</h3>
+                            <p style="font-size:12px; color:var(--muted);">Tutup seluruh transaksi di website. Pilih Custom untuk jam tertentu, atau Total untuk tutup permanen.</p>
+                            <div style="display:flex; flex-direction:column; gap:15px;">
+                                <select id="maint-status" style="margin:0;" onchange="toggleCustomMaint()">
+                                    <option value="off">🟢 Normal (Buka)</option>
+                                    <option value="custom">🟡 Peningkatan Layanan Rutin (Atur Waktu)</option>
+                                    <option value="total">🔴 Optimalisasi Sistem Menyeluruh (Permanen)</option>
+                                </select>
+                                <div id="custom-maint-times" class="hidden" style="display:flex; gap:10px; align-items:center;">
+                                    <input type="time" id="maint-start" style="margin:0;"> s/d 
+                                    <input type="time" id="maint-end" style="margin:0;"> WIB
+                                </div>
+                                <button class="btn btn-danger" onclick="saveMaintenance()">Terapkan Maintenance</button>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h3>Kunci API & Konfigurasi</h3>
+                            <label style="font-size:12px; color:var(--muted);">Digiflazz Username</label>
+                            <input type="text" id="api-digi-user" placeholder="Username Digiflazz">
+                            <label style="font-size:12px; color:var(--muted);">Digiflazz API Key</label>
+                            <input type="text" id="api-digi-key" placeholder="API Key Production">
+                            <label style="font-size:12px; color:var(--muted);">GoPay Merchant ID (BHM Biz)</label>
+                            <input type="text" id="api-gopay-mid" placeholder="Merchant ID">
+                            <label style="font-size:12px; color:var(--muted);">GoPay Token</label>
+                            <input type="text" id="api-gopay-token" placeholder="Bearer Token">
+                            <button class="btn" onclick="saveApiKeys()">Simpan API Keys</button>
+                        </div>
+
+                        <div class="card">
+                            <h3>Upload Banner Web</h3>
+                            <p style="font-size:12px; color:var(--muted);">Pilih file gambar (.jpg/.png) untuk Banner Slider di Dashboard Web.</p>
+                            <div class="grid-2">
+                                <div><label style="font-size:12px;">Banner 1</label><input type="file" id="banner-1" accept="image/*"></div>
+                                <div><label style="font-size:12px;">Banner 2</label><input type="file" id="banner-2" accept="image/*"></div>
+                                <div><label style="font-size:12px;">Banner 3</label><input type="file" id="banner-3" accept="image/*"></div>
+                                <div><label style="font-size:12px;">Banner 4</label><input type="file" id="banner-4" accept="image/*"></div>
+                            </div>
+                            <button class="btn" onclick="uploadBanners()">Upload & Pasang Banner</button>
+                        </div>
+
+                        <div class="card">
+                            <h3>Manajemen Info & Broadcast Saluran</h3>
+                            <p style="font-size:12px; color:var(--muted);">Kirim pesan promo ke Web, Channel Telegram, dan Saluran WA sekaligus.</p>
+                            <textarea id="bc-text" rows="4" placeholder="Tulis isi pengumuman promo di sini..."></textarea>
+                            <label style="font-size:12px; color:var(--muted);">Upload Gambar Poster (Opsional)</label>
+                            <input type="file" id="bc-image" accept="image/*">
+                            <div style="display:flex; gap:15px; margin-bottom:15px;">
+                                <label><input type="checkbox" id="bc-web" checked> Web Notif</label>
+                                <label><input type="checkbox" id="bc-tele" checked> Telegram Channel</label>
+                                <label><input type="checkbox" id="bc-wa" checked> WA Broadcast</label>
+                            </div>
+                            <button class="btn btn-success" onclick="sendBroadcast()" id="bc-btn"><i data-lucide="send"></i> Kirim Broadcast</button>
+                        </div>
+                    </div>
+
+                    <div id="tab-log" class="tab-pane hidden">
+                        <div class="card">
+                            <h3>Log Aktivitas Sistem</h3>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                                <div style="font-weight:bold; font-size:14px; color:var(--text);">Status WA: <span id="wa-monitor-status" style="color:var(--muted);">Mengecek...</span></div>
+                                <div>
+                                    <button class="btn btn-outline" style="padding:8px 12px; font-size:12px; margin-right:5px; width:auto;" onclick="loadSystemLogs()">Refresh Log</button>
+                                    <button class="btn btn-danger" style="padding:8px 12px; font-size:12px; width:auto;" onclick="clearSystemLogs()">Bersihkan Log</button>
+                                </div>
+                            </div>
+                            <input type="text" id="search-log" placeholder="🔍 Cari log (misal: WhatsApp, Order)..." onkeyup="filterLogs()">
+                            <div style="background:#0a0a0a; color:#10b981; padding:15px; border-radius:8px; font-family:monospace; font-size:12px; height:400px; overflow-y:auto; line-height:1.5;" id="log-viewer-container">
+                                Memuat log...
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h3>Backup Instan</h3>
+                            <p style="font-size:12px; color:var(--muted);">Kemas seluruh database dan konfigurasi ke format ZIP, lalu kirim otomatis ke Telegram Admin Anda.</p>
+                            <button class="btn btn-success" onclick="triggerBackup()"><i data-lucide="download-cloud"></i> Kirim Backup ke Telegram</button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
-            <div id="tab-notifikasi" class="tab-pane hidden">
-                <div class="card">
-                    <h3>Setup Integrasi Notifikasi</h3>
-                    <p style="font-size:12px; color:var(--muted);">Atur API Keys dan Token Bot untuk mengarahkan pesan broadcast dan info sistem.</p>
-                    
-                    <div class="grid-2">
-                        <div>
-                            <label style="font-size:12px; color:var(--muted);">Token Bot Telegram Admin</label>
-                            <input type="text" id="set-tele-admin-token" placeholder="Token Bot Admin">
-                        </div>
-                        <div>
-                            <label style="font-size:12px; color:var(--muted);">Chat ID Telegram Admin</label>
-                            <input type="text" id="set-tele-admin-id" placeholder="Chat ID Admin (Log/Komplain)">
-                        </div>
-                        <div>
-                            <label style="font-size:12px; color:var(--muted);">Token Bot Telegram Pelanggan</label>
-                            <input type="text" id="set-tele-info-token" placeholder="Token Bot Pelanggan (Channel)">
-                        </div>
-                        <div>
-                            <label style="font-size:12px; color:var(--muted);">ID Channel Telegram Pelanggan</label>
-                            <input type="text" id="set-tele-channel-id" placeholder="Contoh: -100xxxxxxx">
-                        </div>
-                        <div style="grid-column: span 1;">
-                            <label style="font-size:12px; color:var(--muted);">ID Grup/Saluran WA Broadcast</label>
-                            <input type="text" id="set-wa-broadcast-id" placeholder="Contoh: 1203xxxx@newsletter">
-                        </div>
-                    </div>
-
-                    <div style="display:flex; gap:10px; margin-top: 15px;">
-                        <button class="btn btn-success" onclick="saveNotifSettings()">Simpan Konfigurasi</button>
-                        <button class="btn btn-outline" style="border-color:var(--primary); color:var(--primary);" onclick="testNotifConnection()">Cek Koneksi Bot</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="tab-sistem" class="tab-pane hidden">
-                <div class="card" style="border-color:var(--danger);">
-                    <h3 style="color:var(--danger);"><i data-lucide="power"></i> Saklar Pemeliharaan (Maintenance Mode)</h3>
-                    <p style="font-size:12px; color:var(--muted);">Tutup seluruh transaksi di website. Pilih Custom untuk jam tertentu, atau Total untuk tutup permanen.</p>
-                    <div style="display:flex; flex-direction:column; gap:15px;">
-                        <select id="maint-status" style="margin:0;" onchange="toggleCustomMaint()">
-                            <option value="off">🟢 Normal (Buka)</option>
-                            <option value="custom">🟡 Peningkatan Layanan Rutin (Atur Waktu)</option>
-                            <option value="total">🔴 Optimalisasi Sistem Menyeluruh (Permanen)</option>
-                        </select>
-                        <div id="custom-maint-times" class="hidden" style="display:flex; gap:10px; align-items:center;">
-                            <input type="time" id="maint-start" style="margin:0;"> s/d 
-                            <input type="time" id="maint-end" style="margin:0;"> WIB
-                        </div>
-                        <button class="btn btn-danger" onclick="saveMaintenance()">Terapkan Maintenance</button>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <h3>Kunci API & Konfigurasi</h3>
-                    <label style="font-size:12px; color:var(--muted);">Digiflazz Username</label>
-                    <input type="text" id="api-digi-user" placeholder="Username Digiflazz">
-                    <label style="font-size:12px; color:var(--muted);">Digiflazz API Key</label>
-                    <input type="text" id="api-digi-key" placeholder="API Key Production">
-                    <label style="font-size:12px; color:var(--muted);">GoPay Merchant ID (BHM Biz)</label>
-                    <input type="text" id="api-gopay-mid" placeholder="Merchant ID">
-                    <label style="font-size:12px; color:var(--muted);">GoPay Token</label>
-                    <input type="text" id="api-gopay-token" placeholder="Bearer Token">
-                    <button class="btn" onclick="saveApiKeys()">Simpan API Keys</button>
-                </div>
-
-                <div class="card">
-                    <h3>Upload Banner Web</h3>
-                    <p style="font-size:12px; color:var(--muted);">Pilih file gambar (.jpg/.png) untuk Banner Slider di Dashboard Web.</p>
-                    <div class="grid-2">
-                        <div><label style="font-size:12px;">Banner 1</label><input type="file" id="banner-1" accept="image/*"></div>
-                        <div><label style="font-size:12px;">Banner 2</label><input type="file" id="banner-2" accept="image/*"></div>
-                        <div><label style="font-size:12px;">Banner 3</label><input type="file" id="banner-3" accept="image/*"></div>
-                        <div><label style="font-size:12px;">Banner 4</label><input type="file" id="banner-4" accept="image/*"></div>
-                    </div>
-                    <button class="btn" onclick="uploadBanners()">Upload & Pasang Banner</button>
-                </div>
-
-                <div class="card">
-                    <h3>Manajemen Info & Broadcast Saluran</h3>
-                    <p style="font-size:12px; color:var(--muted);">Kirim pesan promo ke Web, Channel Telegram, dan Saluran WA sekaligus.</p>
-                    <textarea id="bc-text" rows="4" placeholder="Tulis isi pengumuman promo di sini..."></textarea>
-                    <label style="font-size:12px; color:var(--muted);">Upload Gambar Poster (Opsional)</label>
-                    <input type="file" id="bc-image" accept="image/*">
-                    <div style="display:flex; gap:15px; margin-bottom:15px;">
-                        <label><input type="checkbox" id="bc-web" checked> Web Notif</label>
-                        <label><input type="checkbox" id="bc-tele" checked> Telegram Channel</label>
-                        <label><input type="checkbox" id="bc-wa" checked> WA Broadcast</label>
-                    </div>
-                    <button class="btn btn-success" onclick="sendBroadcast()" id="bc-btn"><i data-lucide="send"></i> Kirim Broadcast</button>
-                </div>
-            </div>
-
-            <div id="tab-log" class="tab-pane hidden">
-                <div class="card">
-                    <h3>Log Aktivitas Sistem</h3>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                        <div style="font-weight:bold; font-size:14px; color:var(--text);">Status WA: <span id="wa-monitor-status" style="color:var(--muted);">Mengecek...</span></div>
-                        <div>
-                            <button class="btn btn-outline" style="padding:8px 12px; font-size:12px; margin-right:5px; width:auto;" onclick="loadSystemLogs()">Refresh Log</button>
-                            <button class="btn btn-danger" style="padding:8px 12px; font-size:12px; width:auto;" onclick="clearSystemLogs()">Bersihkan Log</button>
-                        </div>
-                    </div>
-                    <input type="text" id="search-log" placeholder="🔍 Cari log (misal: WhatsApp, Order)..." onkeyup="filterLogs()">
-                    <div style="background:#0a0a0a; color:#10b981; padding:15px; border-radius:8px; font-family:monospace; font-size:12px; height:400px; overflow-y:auto; line-height:1.5;" id="log-viewer-container">
-                        Memuat log...
-                    </div>
-                </div>
-
-                <div class="card">
-                    <h3>Backup Instan</h3>
-                    <p style="font-size:12px; color:var(--muted);">Kemas seluruh database dan konfigurasi ke format ZIP, lalu kirim otomatis ke Telegram Admin Anda.</p>
-                    <button class="btn btn-success" onclick="triggerBackup()"><i data-lucide="download-cloud"></i> Kirim Backup ke Telegram</button>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <script>
-        lucide.createIcons();
-
-        let chartCpu, chartRam, chartNet;
-        let dataCpu = [], dataRam = [], dataNetRx = [], dataNetTx = [], labelsTime = [];
-        const maxDataPoints = 20;
-
-        function initCharts() {
-            const commonOptions = {
-                responsive: true, maintainAspectRatio: false,
-                animation: { duration: 0 },
-                scales: {
-                    x: { display: false },
-                    y: { display: false, min: 0 }
-                },
-                plugins: { legend: { display: false }, tooltip: { enabled: false } },
-                elements: { point: { radius: 0 }, line: { tension: 0.4, borderWidth: 2 } }
-            };
-
-            const ctxCpu = document.getElementById('chartCpu').getContext('2d');
-            let gradCpu = ctxCpu.createLinearGradient(0, 0, 0, 100); gradCpu.addColorStop(0, 'rgba(6, 182, 212, 0.4)'); gradCpu.addColorStop(1, 'rgba(6, 182, 212, 0)');
-            chartCpu = new Chart(ctxCpu, { type: 'line', data: { labels: labelsTime, datasets: [{ data: dataCpu, borderColor: '#06b6d4', backgroundColor: gradCpu, fill: true }] }, options: commonOptions });
-
-            const ctxRam = document.getElementById('chartRam').getContext('2d');
-            let gradRam = ctxRam.createLinearGradient(0, 0, 0, 100); gradRam.addColorStop(0, 'rgba(16, 185, 129, 0.4)'); gradRam.addColorStop(1, 'rgba(16, 185, 129, 0)');
-            chartRam = new Chart(ctxRam, { type: 'line', data: { labels: labelsTime, datasets: [{ data: dataRam, borderColor: '#10b981', backgroundColor: gradRam, fill: true }] }, options: commonOptions });
-
-            const ctxNet = document.getElementById('chartNet').getContext('2d');
-            let gradNet = ctxNet.createLinearGradient(0, 0, 0, 100); gradNet.addColorStop(0, 'rgba(245, 158, 11, 0.4)'); gradNet.addColorStop(1, 'rgba(245, 158, 11, 0)');
-            chartNet = new Chart(ctxNet, { type: 'line', data: { labels: labelsTime, datasets: [{ data: dataNetRx, borderColor: '#f59e0b', backgroundColor: gradNet, fill: true }, { data: dataNetTx, borderColor: '#ef4444', backgroundColor: 'transparent', fill: false, borderDash: [5, 5] }] }, options: commonOptions });
-        }
-
-        function updateCharts(cpuVal, ramVal, netRx, netTx) {
-            let now = new Date().toLocaleTimeString();
-            if (labelsTime.length >= maxDataPoints) { labelsTime.shift(); dataCpu.shift(); dataRam.shift(); dataNetRx.shift(); dataNetTx.shift(); }
-            labelsTime.push(now);
-            dataCpu.push(parseFloat(cpuVal));
-            dataRam.push(parseFloat(ramVal));
-            dataNetRx.push(parseFloat(netRx));
-            dataNetTx.push(parseFloat(netTx));
-            
-            if(chartCpu) { chartCpu.update(); chartRam.update(); chartNet.update(); }
-        }
-
-        function showToast(msg, type='info') {
-            const t = document.getElementById('toast');
-            let icon = type === true || type === 'error' ? '<i data-lucide="alert-circle"></i> ' : (type === 'success' ? '<i data-lucide="check-circle"></i> ' : '<i data-lucide="info"></i> ');
-            t.innerHTML = icon + msg;
-            lucide.createIcons();
-            t.className = type === true || type === 'error' ? 'toast show error' : (type === 'success' ? 'toast show success' : 'toast show');
-            setTimeout(() => t.classList.remove('show'), 3000);
-        }
-
-        let confirmCallback = null;
-        function showConfirm(msg, onConfirm) {
-            document.getElementById('confirm-msg').innerText = msg;
-            confirmCallback = onConfirm;
-            document.getElementById('custom-confirm').classList.add('show');
-        }
-        function closeConfirmModal(result) {
-            document.getElementById('custom-confirm').classList.remove('show');
-            if (result && confirmCallback) confirmCallback();
-        }
-
-        async function fetchAdmin(endpoint, options = {}) {
-            const token = localStorage.getItem('tendo_admin_token');
-            if(!token) { logoutAdmin(); return null; }
-            if(!options.headers) options.headers = {};
-            options.headers['Authorization'] = 'Bearer ' + token;
-            
-            try {
-                const res = await fetch(endpoint, options);
-                const data = await res.json();
-                if(res.status === 401) { logoutAdmin(); return null; }
-                return data;
-            } catch(e) {
-                showToast("Koneksi ke server gagal", true);
-                return null;
-            }
-        }
-
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
-        }
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
-            
-            document.getElementById(tabId).classList.remove('hidden');
-            event.currentTarget.classList.add('active');
-            
-            let titleText = event.currentTarget.innerText.trim();
-            let iconHtml = event.currentTarget.querySelector('i').outerHTML;
-            document.getElementById('topbar-title').innerHTML = iconHtml + ' ' + titleText;
-            
-            localStorage.setItem('tendo_admin_tab', tabId);
-
-            if(window.innerWidth <= 768) toggleSidebar();
-            
-            if(tabId === 'tab-dashboard') loadDashboard();
-            if(tabId === 'tab-transaksi') loadGlobalHistory();
-            if(tabId === 'tab-pengguna') loadUsers();
-            if(tabId === 'tab-katalog') { loadMarginForm(); loadEtalaseList(); }
-            if(tabId === 'tab-notifikasi') loadSettings();
-            if(tabId === 'tab-sistem') loadSettings();
-            if(tabId === 'tab-log') loadSystemLogs();
-        }
-
-        function toggleCustomMaint() {
-            const status = document.getElementById('maint-status').value;
-            if (status === 'custom') {
-                document.getElementById('custom-maint-times').classList.remove('hidden');
-            } else {
-                document.getElementById('custom-maint-times').classList.add('hidden');
-            }
-        }
-
-        window.onload = async () => {
-            initCharts();
-            setInterval(fetchSystemStats, 3000); 
-
-            try {
-                let res = await fetch('https://api.ipify.org?format=json');
-                let data = await res.json();
-                document.getElementById('client-ip').innerText = data.ip;
-            } catch(e) {}
-            
-            if(localStorage.getItem('tendo_admin_token')) {
-                document.getElementById('login-screen').style.opacity = '0';
-                setTimeout(() => document.getElementById('login-screen').classList.add('hidden'), 500);
-                
-                let activeTab = localStorage.getItem('tendo_admin_tab') || 'tab-dashboard';
-                let tabElement = document.querySelector(`.menu-item[onclick="switchTab('${activeTab}')"]`);
-                if(tabElement) tabElement.click();
-                else loadDashboard();
-            }
-        };
-
-        async function loginAdminStep1() {
-            const pass = document.getElementById('admin-pass').value;
-            if(!pass) return showToast("Isi password!", true);
-            let btn = document.getElementById('btn-admin-login');
-            let ori = btn.innerHTML; btn.innerHTML = "Memeriksa..."; btn.disabled = true;
-            try {
-                const res = await fetch('/api/admin/login-step1', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({password: pass})
-                });
-                const data = await res.json();
-                if(data.success) {
-                    document.getElementById('admin-step-1').classList.add('hidden');
-                    document.getElementById('admin-step-2').classList.remove('hidden');
-                    showToast("OTP Terkirim ke WA Superadmin!", 'success');
-                } else {
-                    showToast(data.message || "Akses Ditolak", true);
-                }
-            } catch(e) { showToast("Error koneksi", true); }
-            btn.innerHTML = ori; btn.disabled = false;
-        }
-
-        async function loginAdminStep2() {
-            const pass = document.getElementById('admin-pass').value;
-            const otp = document.getElementById('admin-otp').value;
-            if(!otp) return showToast("Isi OTP!", true);
-            let btn = document.getElementById('btn-admin-verify');
-            let ori = btn.innerHTML; btn.innerHTML = "Memverifikasi..."; btn.disabled = true;
-            try {
-                const res = await fetch('/api/admin/login-step2', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({password: pass, otp: otp})
-                });
-                const data = await res.json();
-                if(data.success) {
-                    localStorage.setItem('tendo_admin_token', data.token);
-                    document.getElementById('login-screen').style.opacity = '0';
-                    setTimeout(() => document.getElementById('login-screen').classList.add('hidden'), 500);
-                    
-                    let activeTab = localStorage.getItem('tendo_admin_tab') || 'tab-dashboard';
-                    let tabElement = document.querySelector(`.menu-item[onclick="switchTab('${activeTab}')"]`);
-                    if(tabElement) tabElement.click();
-                    else loadDashboard();
-                } else {
-                    showToast(data.message || "OTP Salah", true);
-                }
-            } catch(e) { showToast("Error koneksi", true); }
-            btn.innerHTML = ori; btn.disabled = false;
-        }
-
-        function logoutAdmin() {
-            localStorage.removeItem('tendo_admin_token');
-            localStorage.removeItem('tendo_admin_tab');
-            let ls = document.getElementById('login-screen');
-            ls.classList.remove('hidden');
-            setTimeout(() => ls.style.opacity = '1', 10);
-            
-            document.getElementById('admin-step-1').classList.remove('hidden');
-            document.getElementById('admin-step-2').classList.add('hidden');
-            document.getElementById('admin-pass').value = '';
-            document.getElementById('admin-otp').value = '';
-        }
-
-        async function loadDashboard() {
-            const data = await fetchAdmin('/api/admin/stats');
-            if(data && data.success) {
-                document.getElementById('dash-saldo').innerHTML = '<i data-lucide="coins" style="color:var(--primary)"></i> Rp ' + data.total_saldo.toLocaleString('id-ID');
-                document.getElementById('dash-users').innerHTML = '<i data-lucide="users-round" style="color:var(--success)"></i> ' + data.total_user;
-                document.getElementById('dash-profit').innerHTML = '<i data-lucide="trending-up"></i> Rp ' + (data.profit_monthly || 0).toLocaleString('id-ID');
+            <script>
                 lucide.createIcons();
-            }
-            fetchSystemStats();
-        }
 
-        async function fetchSystemStats() {
-            if(!localStorage.getItem('tendo_admin_token')) return;
-            const sys = await fetchAdmin('/api/admin/system-stats');
-            if(sys && sys.success) {
-                document.getElementById('mon-cpu-text').innerText = sys.cpu + "%";
-                let rawRam = sys.ram.split(' / ')[0].replace(' GB', '');
-                document.getElementById('mon-ram-text').innerText = sys.ram;
-                document.getElementById('mon-net-text').innerText = sys.network;
-                
-                let rxMatch = sys.network.match(/RX:\s*([\d.]+)/);
-                let txMatch = sys.network.match(/TX:\s*([\d.]+)/);
-                let rx = rxMatch ? parseFloat(rxMatch[1]) : 0;
-                let tx = txMatch ? parseFloat(txMatch[1]) : 0;
-                
-                updateCharts(sys.cpu, rawRam, rx, tx);
-            }
-        }
+                let chartCpu, chartRam, chartNet;
+                let dataCpu = [], dataRam = [], dataNetRx = [], dataNetTx = [], labelsTime = [];
+                const maxDataPoints = 20;
 
-        async function loadGlobalHistory() {
-            const filter = document.getElementById('trx-filter').value;
-            const data = await fetchAdmin('/api/admin/history?filter=' + filter);
-            if(data && data.success) {
-                document.getElementById('profit-daily').innerText = 'Rp ' + (data.profit_daily || 0).toLocaleString('id-ID');
-                document.getElementById('profit-monthly').innerText = 'Rp ' + (data.profit_monthly || 0).toLocaleString('id-ID');
-                
-                let html = '<tr><th>Waktu</th><th>Pelanggan</th><th>Produk</th><th>Tujuan</th><th>Modal</th><th>Jual</th><th>Laba</th><th>Status</th></tr>';
-                data.history.forEach(h => {
-                    let badgeClass = h.status === 'Sukses' ? 'badge-Sukses' : (h.status === 'Pending' ? 'badge-Pending' : 'badge-Gagal');
-                    html += `<tr>
-                        <td>${h.waktu}</td>
-                        <td>${h.pelanggan} (${h.phone})</td>
-                        <td>${h.produk}</td>
-                        <td>${h.tujuan}</td>
-                        <td style="color:var(--muted)">Rp ${(h.modal||0).toLocaleString('id-ID')}</td>
-                        <td style="color:var(--primary)">Rp ${(h.jual||0).toLocaleString('id-ID')}</td>
-                        <td style="color:var(--success)">+ Rp ${(h.laba||0).toLocaleString('id-ID')}</td>
-                        <td><span class="badge ${badgeClass}">${h.status}</span></td>
-                    </tr>`;
-                });
-                document.getElementById('trx-table').innerHTML = html;
-            }
-        }
+                function initCharts() {
+                    const commonOptions = {
+                        responsive: true, maintainAspectRatio: false,
+                        animation: { duration: 0 },
+                        scales: {
+                            x: { display: false },
+                            y: { display: false, min: 0 }
+                        },
+                        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                        elements: { point: { radius: 0 }, line: { tension: 0.4, borderWidth: 2 } }
+                    };
 
-        async function loadUsers() {
-            const search = document.getElementById('search-user').value;
-            const data = await fetchAdmin('/api/admin/users?search=' + encodeURIComponent(search));
-            if(data && data.success) {
-                let html = '<tr><th>WA</th><th>Nama / Email</th><th>Saldo</th><th>Level</th><th>Status</th><th>Aksi</th></tr>';
-                data.users.forEach(u => {
-                    let lvlOpts = ['Member', 'Reseller', 'VIP'].map(l => `<option value="${l}" ${u.level === l ? 'selected' : ''}>${l}</option>`).join('');
-                    let banBtn = u.banned 
-                        ? `<button class="btn btn-success" style="padding:6px;font-size:11px;" onclick="toggleBanned('${u.phone}', false)">Buka Blokir</button>` 
-                        : `<button class="btn btn-danger" style="padding:6px;font-size:11px;" onclick="toggleBanned('${u.phone}', true)">Blokir</button>`;
-                    let statusStr = u.banned ? '<span style="color:var(--danger);font-weight:bold;">Banned</span>' : '<span style="color:var(--success);">Aktif</span>';
+                    const ctxCpu = document.getElementById('chartCpu').getContext('2d');
+                    let gradCpu = ctxCpu.createLinearGradient(0, 0, 0, 100); gradCpu.addColorStop(0, 'rgba(6, 182, 212, 0.4)'); gradCpu.addColorStop(1, 'rgba(6, 182, 212, 0)');
+                    chartCpu = new Chart(ctxCpu, { type: 'line', data: { labels: labelsTime, datasets: [{ data: dataCpu, borderColor: '#06b6d4', backgroundColor: gradCpu, fill: true }] }, options: commonOptions });
+
+                    const ctxRam = document.getElementById('chartRam').getContext('2d');
+                    let gradRam = ctxRam.createLinearGradient(0, 0, 0, 100); gradRam.addColorStop(0, 'rgba(16, 185, 129, 0.4)'); gradRam.addColorStop(1, 'rgba(16, 185, 129, 0)');
+                    chartRam = new Chart(ctxRam, { type: 'line', data: { labels: labelsTime, datasets: [{ data: dataRam, borderColor: '#10b981', backgroundColor: gradRam, fill: true }] }, options: commonOptions });
+
+                    const ctxNet = document.getElementById('chartNet').getContext('2d');
+                    let gradNet = ctxNet.createLinearGradient(0, 0, 0, 100); gradNet.addColorStop(0, 'rgba(245, 158, 11, 0.4)'); gradNet.addColorStop(1, 'rgba(245, 158, 11, 0)');
+                    chartNet = new Chart(ctxNet, { type: 'line', data: { labels: labelsTime, datasets: [{ data: dataNetRx, borderColor: '#f59e0b', backgroundColor: gradNet, fill: true }, { data: dataNetTx, borderColor: '#ef4444', backgroundColor: 'transparent', fill: false, borderDash: [5, 5] }] }, options: commonOptions });
+                }
+
+                function updateCharts(cpuVal, ramVal, netRx, netTx) {
+                    let now = new Date().toLocaleTimeString();
+                    if (labelsTime.length >= maxDataPoints) { labelsTime.shift(); dataCpu.shift(); dataRam.shift(); dataNetRx.shift(); dataNetTx.shift(); }
+                    labelsTime.push(now);
+                    dataCpu.push(parseFloat(cpuVal));
+                    dataRam.push(parseFloat(ramVal));
+                    dataNetRx.push(parseFloat(netRx));
+                    dataNetTx.push(parseFloat(netTx));
                     
-                    html += `<tr>
-                        <td>${u.phone}</td>
-                        <td>${u.username}<br><span style="font-size:11px;color:var(--muted)">${u.email}</span></td>
-                        <td style="font-weight:bold;color:var(--primary)">Rp ${u.saldo.toLocaleString('id-ID')}</td>
-                        <td><select style="padding:6px;margin:0;font-size:12px;width:auto;" onchange="changeLevel('${u.phone}', this.value)">${lvlOpts}</select></td>
-                        <td>${statusStr}</td>
-                        <td>${banBtn}</td>
-                    </tr>`;
-                });
-                document.getElementById('users-table').innerHTML = html;
-            }
-        }
-
-        async function changeLevel(phone, newLevel) {
-            const data = await fetchAdmin('/api/admin/user/level', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({phone, level: newLevel})
-            });
-            if(data && data.success) showToast("Level berhasil diubah", 'success');
-            else showToast(data?data.message:"Gagal", true);
-        }
-
-        function toggleBanned(phone, isBanned) {
-            if(isBanned) {
-                showConfirm(`Yakin ingin memblokir permanen nomor ${phone}?`, async () => {
-                    const data = await fetchAdmin('/api/admin/user/banned', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({phone, banned: true}) });
-                    if(data && data.success) { showToast("Akun diblokir", 'success'); loadUsers(); } else showToast("Gagal mengubah status", true);
-                });
-            } else {
-                fetchAdmin('/api/admin/user/banned', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({phone, banned: false}) }).then(data => {
-                    if(data && data.success) { showToast("Blokir dibuka", 'success'); loadUsers(); } else showToast("Gagal", true);
-                });
-            }
-        }
-
-        function manageBalance(action) {
-            const phone = document.getElementById('saldo-phone').value;
-            const amount = document.getElementById('saldo-amount').value;
-            if(!phone || !amount) return showToast("Isi form dengan benar", true);
-            
-            showConfirm(`Yakin ingin ${action==='add'?'menambah':'menarik'} saldo Rp ${amount} pada ${phone}?`, async () => {
-                const data = await fetchAdmin('/api/admin/balance', {
-                    method: 'POST', headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({phone, amount: parseInt(amount), action})
-                });
-                if(data && data.success) {
-                    showToast("Saldo berhasil disesuaikan", 'success');
-                    document.getElementById('saldo-amount').value = '';
-                    loadUsers();
-                } else showToast(data?data.message:"Gagal", true);
-            });
-        }
-
-        async function loadMarginForm() {
-            const data = await fetchAdmin('/api/admin/settings');
-            if(data && data.success) {
-                let margin = data.settings.margin || {};
-                let html = '';
-                const ranges = [
-                    "Modal 0 - 100", "Modal 100 - 500", "Modal 500 - 1.000", "Modal 1k - 2k", "Modal 2k - 3k",
-                    "Modal 3k - 4k", "Modal 4k - 5k", "Modal 5k - 10k", "Modal 10k - 25k", "Modal 25k - 50k",
-                    "Modal 50k - 75k", "Modal 75k - 100k", "Modal > 100k"
-                ];
-                for(let i=1; i<=13; i++) {
-                    let val = margin['t'+i] || 0;
-                    html += `<div><label style="font-size:11px;color:var(--muted)">Tier ${i}: ${ranges[i-1]}</label>
-                             <input type="number" id="m-t${i}" value="${val}" style="margin-bottom:10px;"></div>`;
+                    if(chartCpu) { chartCpu.update(); chartRam.update(); chartNet.update(); }
                 }
-                document.getElementById('margin-form-container').innerHTML = html;
-            }
-        }
 
-        async function saveMargin() {
-            let newMargin = {};
-            for(let i=1; i<=13; i++) { newMargin['t'+i] = parseInt(document.getElementById('m-t'+i).value) || 0; }
-            
-            const data = await fetchAdmin('/api/admin/margin', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({margin: newMargin})
-            });
-            if(data && data.success) showToast("Margin tersimpan & Katalog disinkronkan", 'success');
-            else showToast("Gagal menyimpan", true);
-        }
-        
-        async function syncDigiflazz() {
-            let btn = document.getElementById('btn-sync-digi');
-            let ori = btn.innerHTML;
-            btn.innerHTML = "<i data-lucide='loader' class='spin'></i> Sinkron..."; btn.disabled = true; lucide.createIcons();
-            const data = await fetchAdmin('/api/sync-digiflazz');
-            if(data && data.success) {
-                showToast("Katalog Produk Berhasil Diperbarui!", 'success');
-                loadMarginForm();
-            } else {
-                showToast("Gagal melakukan sinkronisasi.", true);
-            }
-            btn.innerHTML = ori; btn.disabled = false; lucide.createIcons();
-        }
-
-        async function loadEtalaseList() {
-            const data = await fetchAdmin('/api/admin/etalase');
-            if(data && data.success) {
-                let html = '';
-                data.sections.forEach((sec, idx) => {
-                    let skuList = sec.skus.join(', ');
-                    html += `<div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px; margin-bottom:10px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <h4 style="margin:0; color:var(--text);">${sec.title}</h4>
-                            <button class="btn btn-danger" style="padding:6px;font-size:11px;" onclick="delEtalase(${idx})">Hapus Etalase</button>
-                        </div>
-                        <input type="text" id="et-sku-${idx}" value="${skuList}" placeholder="SKU1, SKU2, SKU3" style="margin-top:10px; margin-bottom:5px;">
-                        <button class="btn btn-outline" style="padding:6px;font-size:11px; width:100%; border-color:var(--primary); color:var(--primary);" onclick="updateEtalaseSku(${idx})">Simpan SKU</button>
-                    </div>`;
-                });
-                document.getElementById('etalase-list-container').innerHTML = html || '<div style="font-size:13px;color:var(--muted)">Belum ada etalase.</div>';
-            }
-        }
-
-        async function createEtalase() {
-            const title = document.getElementById('etalase-title').value;
-            if(!title) return showToast("Isi judul", true);
-            const data = await fetchAdmin('/api/admin/etalase', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({action: 'create', title})
-            });
-            if(data && data.success) { document.getElementById('etalase-title').value=''; loadEtalaseList(); }
-        }
-
-        async function updateEtalaseSku(idx) {
-            const rawSkus = document.getElementById(`et-sku-${idx}`).value;
-            const skus = rawSkus.split(',').map(s => s.trim()).filter(s => s);
-            const data = await fetchAdmin('/api/admin/etalase', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({action: 'update_sku', idx, skus})
-            });
-            if(data && data.success) showToast("SKU Etalase diperbarui", 'success');
-        }
-
-        function delEtalase(idx) {
-            showConfirm("Hapus etalase ini?", async () => {
-                const data = await fetchAdmin('/api/admin/etalase', {
-                    method: 'POST', headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({action: 'delete', idx})
-                });
-                if(data && data.success) loadEtalaseList();
-            });
-        }
-
-        function getBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-            });
-        }
-
-        async function uploadTutorial() {
-            let title = document.getElementById('tut-title').value;
-            let desc = document.getElementById('tut-desc').value;
-            let fileInput = document.getElementById('tut-video');
-            
-            if(!title || !desc) return showToast("Judul dan Deskripsi wajib diisi!", true);
-            
-            let file = fileInput.files[0];
-            if(file && file.size > 200 * 1024 * 1024) return showToast("Ukuran video maksimal 200MB!", true);
-
-            let btn = document.getElementById('btn-up-tut');
-            let ori = btn.innerHTML; btn.innerHTML = "Mengupload 0%..."; btn.disabled = true;
-
-            let formData = new FormData();
-            formData.append('title', title);
-            formData.append('desc', desc);
-            if(file) formData.append('video', file);
-
-            const xhr = new XMLHttpRequest();
-            xhr.open("POST", "/api/admin/tutorial", true);
-            xhr.setRequestHeader("Authorization", "Bearer " + localStorage.getItem('tendo_admin_token'));
-            
-            xhr.upload.onprogress = function(e) {
-                if (e.lengthComputable) {
-                    let percent = Math.round((e.loaded / e.total) * 100);
-                    btn.innerHTML = "Mengupload " + percent + "%...";
+                function showToast(msg, type='info') {
+                    const t = document.getElementById('toast');
+                    let icon = type === true || type === 'error' ? '<i data-lucide="alert-circle"></i> ' : (type === 'success' ? '<i data-lucide="check-circle"></i> ' : '<i data-lucide="info"></i> ');
+                    t.innerHTML = icon + msg;
+                    lucide.createIcons();
+                    t.className = type === true || type === 'error' ? 'toast show error' : (type === 'success' ? 'toast show success' : 'toast show');
+                    setTimeout(() => t.classList.remove('show'), 3000);
                 }
-            };
 
-            xhr.onload = function() {
-                btn.innerHTML = ori; btn.disabled = false; lucide.createIcons();
-                if (xhr.status === 200) {
-                    let data = JSON.parse(xhr.responseText);
-                    if(data.success) {
-                        showToast("Tutorial berhasil diunggah!", 'success');
-                        document.getElementById('tut-title').value = '';
-                        document.getElementById('tut-desc').value = '';
-                        document.getElementById('tut-video').value = '';
-                    } else {
-                        showToast(data.message || "Gagal mengunggah tutorial.", true);
+                let confirmCallback = null;
+                function showConfirm(msg, onConfirm) {
+                    document.getElementById('confirm-msg').innerText = msg;
+                    confirmCallback = onConfirm;
+                    document.getElementById('custom-confirm').classList.add('show');
+                }
+                function closeConfirmModal(result) {
+                    document.getElementById('custom-confirm').classList.remove('show');
+                    if (result && confirmCallback) confirmCallback();
+                }
+
+                async function fetchAdmin(endpoint, options = {}) {
+                    const token = localStorage.getItem('tendo_admin_token');
+                    if(!token) { logoutAdmin(); return null; }
+                    if(!options.headers) options.headers = {};
+                    options.headers['Authorization'] = 'Bearer ' + token;
+                    
+                    try {
+                        const res = await fetch(endpoint, options);
+                        const data = await res.json();
+                        if(res.status === 401) { logoutAdmin(); return null; }
+                        return data;
+                    } catch(e) {
+                        showToast("Koneksi ke server gagal", true);
+                        return null;
                     }
-                } else {
-                    showToast("Koneksi terputus atau error server.", true);
                 }
-            };
-            xhr.onerror = function() {
-                btn.innerHTML = ori; btn.disabled = false; lucide.createIcons();
-                showToast("Kesalahan jaringan.", true);
-            };
-            xhr.send(formData);
-        }
 
-        async function loadSettings() {
-            const data = await fetchAdmin('/api/admin/settings');
-            if(data && data.success) {
-                let set = data.settings;
-                document.getElementById('maint-status').value = set.maintType || 'off';
-                if(set.maintStart) document.getElementById('maint-start').value = set.maintStart;
-                if(set.maintEnd) document.getElementById('maint-end').value = set.maintEnd;
-                toggleCustomMaint();
+                function toggleSidebar() {
+                    document.getElementById('sidebar').classList.toggle('open');
+                }
+
+                function switchTab(tabId) {
+                    document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+                    document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+                    
+                    document.getElementById(tabId).classList.remove('hidden');
+                    event.currentTarget.classList.add('active');
+                    
+                    let titleText = event.currentTarget.innerText.trim();
+                    let iconHtml = event.currentTarget.querySelector('i').outerHTML;
+                    document.getElementById('topbar-title').innerHTML = iconHtml + ' ' + titleText;
+                    
+                    localStorage.setItem('tendo_admin_tab', tabId);
+
+                    if(window.innerWidth <= 768) toggleSidebar();
+                    
+                    if(tabId === 'tab-dashboard') loadDashboard();
+                    if(tabId === 'tab-transaksi') loadGlobalHistory();
+                    if(tabId === 'tab-pengguna') loadUsers();
+                    if(tabId === 'tab-katalog') { loadMarginForm(); loadEtalaseList(); }
+                    if(tabId === 'tab-notifikasi') loadSettings();
+                    if(tabId === 'tab-sistem') loadSettings();
+                    if(tabId === 'tab-log') loadSystemLogs();
+                }
+
+                function toggleCustomMaint() {
+                    const status = document.getElementById('maint-status').value;
+                    if (status === 'custom') {
+                        document.getElementById('custom-maint-times').classList.remove('hidden');
+                    } else {
+                        document.getElementById('custom-maint-times').classList.add('hidden');
+                    }
+                }
+
+                window.onload = async () => {
+                    initCharts();
+                    setInterval(fetchSystemStats, 3000); 
+
+                    try {
+                        let res = await fetch('https://api.ipify.org?format=json');
+                        let data = await res.json();
+                        document.getElementById('client-ip').innerText = data.ip;
+                    } catch(e) {}
+                    
+                    if(localStorage.getItem('tendo_admin_token')) {
+                        document.getElementById('login-screen').style.opacity = '0';
+                        setTimeout(() => document.getElementById('login-screen').classList.add('hidden'), 500);
+                        
+                        let activeTab = localStorage.getItem('tendo_admin_tab') || 'tab-dashboard';
+                        let tabElement = document.querySelector(`.menu-item[onclick="switchTab('${activeTab}')"]`);
+                        if(tabElement) tabElement.click();
+                        else loadDashboard();
+                    }
+                };
+
+                async function loginAdminStep1() {
+                    const pass = document.getElementById('admin-pass').value;
+                    if(!pass) return showToast("Isi password!", true);
+                    let btn = document.getElementById('btn-admin-login');
+                    let ori = btn.innerHTML; btn.innerHTML = "Memeriksa..."; btn.disabled = true;
+                    try {
+                        const res = await fetch('/api/admin/login-step1', {
+                            method: 'POST', headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({password: pass})
+                        });
+                        const data = await res.json();
+                        if(data.success) {
+                            document.getElementById('admin-step-1').classList.add('hidden');
+                            document.getElementById('admin-step-2').classList.remove('hidden');
+                            showToast("OTP Terkirim ke WA Superadmin!", 'success');
+                        } else {
+                            showToast(data.message || "Akses Ditolak", true);
+                        }
+                    } catch(e) { showToast("Error koneksi", true); }
+                    btn.innerHTML = ori; btn.disabled = false;
+                }
+
+                async function loginAdminStep2() {
+                    const pass = document.getElementById('admin-pass').value;
+                    const otp = document.getElementById('admin-otp').value;
+                    if(!otp) return showToast("Isi OTP!", true);
+                    let btn = document.getElementById('btn-admin-verify');
+                    let ori = btn.innerHTML; btn.innerHTML = "Memverifikasi..."; btn.disabled = true;
+                    try {
+                        const res = await fetch('/api/admin/login-step2', {
+                            method: 'POST', headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({password: pass, otp: otp})
+                        });
+                        const data = await res.json();
+                        if(data.success) {
+                            localStorage.setItem('tendo_admin_token', data.token);
+                            document.getElementById('login-screen').style.opacity = '0';
+                            setTimeout(() => document.getElementById('login-screen').classList.add('hidden'), 500);
+                            
+                            let activeTab = localStorage.getItem('tendo_admin_tab') || 'tab-dashboard';
+                            let tabElement = document.querySelector(`.menu-item[onclick="switchTab('${activeTab}')"]`);
+                            if(tabElement) tabElement.click();
+                            else loadDashboard();
+                        } else {
+                            showToast(data.message || "OTP Salah", true);
+                        }
+                    } catch(e) { showToast("Error koneksi", true); }
+                    btn.innerHTML = ori; btn.disabled = false;
+                }
+
+                function logoutAdmin() {
+                    localStorage.removeItem('tendo_admin_token');
+                    localStorage.removeItem('tendo_admin_tab');
+                    let ls = document.getElementById('login-screen');
+                    ls.classList.remove('hidden');
+                    setTimeout(() => ls.style.opacity = '1', 10);
+                    
+                    document.getElementById('admin-step-1').classList.remove('hidden');
+                    document.getElementById('admin-step-2').classList.add('hidden');
+                    document.getElementById('admin-pass').value = '';
+                    document.getElementById('admin-otp').value = '';
+                }
+
+                async function loadDashboard() {
+                    const data = await fetchAdmin('/api/admin/stats');
+                    if(data && data.success) {
+                        document.getElementById('dash-saldo').innerHTML = '<i data-lucide="coins" style="color:var(--primary)"></i> Rp ' + data.total_saldo.toLocaleString('id-ID');
+                        document.getElementById('dash-users').innerHTML = '<i data-lucide="users-round" style="color:var(--success)"></i> ' + data.total_user;
+                        document.getElementById('dash-profit').innerHTML = '<i data-lucide="trending-up"></i> Rp ' + (data.profit_monthly || 0).toLocaleString('id-ID');
+                        lucide.createIcons();
+                    }
+                    fetchSystemStats();
+                }
+
+                async function fetchSystemStats() {
+                    if(!localStorage.getItem('tendo_admin_token')) return;
+                    const sys = await fetchAdmin('/api/admin/system-stats');
+                    if(sys && sys.success) {
+                        document.getElementById('mon-cpu-text').innerText = sys.cpu + "%";
+                        let rawRam = sys.ram.split(' / ')[0].replace(' GB', '');
+                        document.getElementById('mon-ram-text').innerText = sys.ram;
+                        document.getElementById('mon-net-text').innerText = sys.network;
+                        
+                        let rxMatch = sys.network.match(/RX:\s*([\d.]+)/);
+                        let txMatch = sys.network.match(/TX:\s*([\d.]+)/);
+                        let rx = rxMatch ? parseFloat(rxMatch[1]) : 0;
+                        let tx = txMatch ? parseFloat(txMatch[1]) : 0;
+                        
+                        updateCharts(sys.cpu, rawRam, rx, tx);
+                    }
+                }
+
+                async function loadGlobalHistory() {
+                    const filter = document.getElementById('trx-filter').value;
+                    const data = await fetchAdmin('/api/admin/history?filter=' + filter);
+                    if(data && data.success) {
+                        document.getElementById('profit-daily').innerText = 'Rp ' + (data.profit_daily || 0).toLocaleString('id-ID');
+                        document.getElementById('profit-monthly').innerText = 'Rp ' + (data.profit_monthly || 0).toLocaleString('id-ID');
+                        
+                        let html = '<tr><th>Waktu</th><th>Pelanggan</th><th>Produk</th><th>Tujuan</th><th>Modal</th><th>Jual</th><th>Laba</th><th>Status</th></tr>';
+                        data.history.forEach(h => {
+                            let badgeClass = h.status === 'Sukses' ? 'badge-Sukses' : (h.status === 'Pending' ? 'badge-Pending' : 'badge-Gagal');
+                            html += `<tr>
+                                <td>${h.waktu}</td>
+                                <td>${h.pelanggan} (${h.phone})</td>
+                                <td>${h.produk}</td>
+                                <td>${h.tujuan}</td>
+                                <td style="color:var(--muted)">Rp ${(h.modal||0).toLocaleString('id-ID')}</td>
+                                <td style="color:var(--primary)">Rp ${(h.jual||0).toLocaleString('id-ID')}</td>
+                                <td style="color:var(--success)">+ Rp ${(h.laba||0).toLocaleString('id-ID')}</td>
+                                <td><span class="badge ${badgeClass}">${h.status}</span></td>
+                            </tr>`;
+                        });
+                        document.getElementById('trx-table').innerHTML = html;
+                    }
+                }
+
+                async function loadUsers() {
+                    const search = document.getElementById('search-user').value;
+                    const data = await fetchAdmin('/api/admin/users?search=' + encodeURIComponent(search));
+                    if(data && data.success) {
+                        let html = '<tr><th>WA</th><th>Nama / Email</th><th>Saldo</th><th>Level</th><th>Status</th><th>Aksi</th></tr>';
+                        data.users.forEach(u => {
+                            let lvlOpts = ['Member', 'Reseller', 'VIP'].map(l => `<option value="${l}" ${u.level === l ? 'selected' : ''}>${l}</option>`).join('');
+                            let banBtn = u.banned 
+                                ? `<button class="btn btn-success" style="padding:6px;font-size:11px;" onclick="toggleBanned('${u.phone}', false)">Buka Blokir</button>` 
+                                : `<button class="btn btn-danger" style="padding:6px;font-size:11px;" onclick="toggleBanned('${u.phone}', true)">Blokir</button>`;
+                            let statusStr = u.banned ? '<span style="color:var(--danger);font-weight:bold;">Banned</span>' : '<span style="color:var(--success);">Aktif</span>';
+                            
+                            html += `<tr>
+                                <td>${u.phone}</td>
+                                <td>${u.username}<br><span style="font-size:11px;color:var(--muted)">${u.email}</span></td>
+                                <td style="font-weight:bold;color:var(--primary)">Rp ${u.saldo.toLocaleString('id-ID')}</td>
+                                <td><select style="padding:6px;margin:0;font-size:12px;width:auto;" onchange="changeLevel('${u.phone}', this.value)">${lvlOpts}</select></td>
+                                <td>${statusStr}</td>
+                                <td>${banBtn}</td>
+                            </tr>`;
+                        });
+                        document.getElementById('users-table').innerHTML = html;
+                    }
+                }
+
+                async function changeLevel(phone, newLevel) {
+                    const data = await fetchAdmin('/api/admin/user/level', {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({phone, level: newLevel})
+                    });
+                    if(data && data.success) showToast("Level berhasil diubah", 'success');
+                    else showToast(data?data.message:"Gagal", true);
+                }
+
+                function toggleBanned(phone, isBanned) {
+                    if(isBanned) {
+                        showConfirm(`Yakin ingin memblokir permanen nomor ${phone}?`, async () => {
+                            const data = await fetchAdmin('/api/admin/user/banned', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({phone, banned: true}) });
+                            if(data && data.success) { showToast("Akun diblokir", 'success'); loadUsers(); } else showToast("Gagal mengubah status", true);
+                        });
+                    } else {
+                        fetchAdmin('/api/admin/user/banned', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({phone, banned: false}) }).then(data => {
+                            if(data && data.success) { showToast("Blokir dibuka", 'success'); loadUsers(); } else showToast("Gagal", true);
+                        });
+                    }
+                }
+
+                function manageBalance(action) {
+                    const phone = document.getElementById('saldo-phone').value;
+                    const amount = document.getElementById('saldo-amount').value;
+                    if(!phone || !amount) return showToast("Isi form dengan benar", true);
+                    
+                    showConfirm(`Yakin ingin ${action==='add'?'menambah':'menarik'} saldo Rp ${amount} pada ${phone}?`, async () => {
+                        const data = await fetchAdmin('/api/admin/balance', {
+                            method: 'POST', headers: {'Content-Type':'application/json'},
+                            body: JSON.stringify({phone, amount: parseInt(amount), action})
+                        });
+                        if(data && data.success) {
+                            showToast("Saldo berhasil disesuaikan", 'success');
+                            document.getElementById('saldo-amount').value = '';
+                            loadUsers();
+                        } else showToast(data?data.message:"Gagal", true);
+                    });
+                }
+
+                async function loadMarginForm() {
+                    const data = await fetchAdmin('/api/admin/settings');
+                    if(data && data.success) {
+                        let margin = data.settings.margin || {};
+                        let html = '';
+                        const ranges = [
+                            "Modal 0 - 100", "Modal 100 - 500", "Modal 500 - 1.000", "Modal 1k - 2k", "Modal 2k - 3k",
+                            "Modal 3k - 4k", "Modal 4k - 5k", "Modal 5k - 10k", "Modal 10k - 25k", "Modal 25k - 50k",
+                            "Modal 50k - 75k", "Modal 75k - 100k", "Modal > 100k"
+                        ];
+                        for(let i=1; i<=13; i++) {
+                            let val = margin['t'+i] || 0;
+                            html += `<div><label style="font-size:11px;color:var(--muted)">Tier ${i}: ${ranges[i-1]}</label>
+                                     <input type="number" id="m-t${i}" value="${val}" style="margin-bottom:10px;"></div>`;
+                        }
+                        document.getElementById('margin-form-container').innerHTML = html;
+                    }
+                }
+
+                async function saveMargin() {
+                    let newMargin = {};
+                    for(let i=1; i<=13; i++) { newMargin['t'+i] = parseInt(document.getElementById('m-t'+i).value) || 0; }
+                    
+                    const data = await fetchAdmin('/api/admin/margin', {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({margin: newMargin})
+                    });
+                    if(data && data.success) showToast("Margin tersimpan & Katalog disinkronkan", 'success');
+                    else showToast("Gagal menyimpan", true);
+                }
                 
-                document.getElementById('api-digi-user').value = set.digiflazzUsername || '';
-                document.getElementById('api-digi-key').value = set.digiflazzApiKey || '';
-                document.getElementById('api-gopay-mid').value = set.gopayMerchantId || '';
-                document.getElementById('api-gopay-token').value = set.gopayToken || '';
-
-                document.getElementById('set-tele-admin-token').value = set.teleToken || '';
-                document.getElementById('set-tele-admin-id').value = set.teleChatId || '';
-                document.getElementById('set-tele-info-token').value = set.teleTokenInfo || '';
-                document.getElementById('set-tele-channel-id').value = set.teleChannelId || '';
-                document.getElementById('set-wa-broadcast-id').value = set.waBroadcastId || '';
-            }
-        }
-
-        async function saveMaintenance() {
-            const type = document.getElementById('maint-status').value;
-            let start = document.getElementById('maint-start').value || '23:00';
-            let end = document.getElementById('maint-end').value || '00:30';
-            
-            const data = await fetchAdmin('/api/admin/settings', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({update: 'maintenance', maintType: type, maintStart: start, maintEnd: end})
-            });
-            if(data && data.success) {
-                if (type === 'total') showToast("Sistem Ditutup Total", 'success');
-                else if (type === 'custom') showToast(`Maintenance Custom Aktif (${start}-${end})`, 'success');
-                else showToast("Sistem Normal / Terbuka", 'success');
-            }
-        }
-
-        async function saveApiKeys() {
-            const payload = {
-                update: 'keys',
-                digiUser: document.getElementById('api-digi-user').value,
-                digiKey: document.getElementById('api-digi-key').value,
-                gopayMid: document.getElementById('api-gopay-mid').value,
-                gopayToken: document.getElementById('api-gopay-token').value
-            };
-            const data = await fetchAdmin('/api/admin/settings', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify(payload)
-            });
-            if(data && data.success) showToast("API Keys berhasil disimpan", 'success');
-        }
-
-        async function uploadBanners() {
-            let banners = {};
-            for(let i=1; i<=4; i++) {
-                let fileInput = document.getElementById('banner-'+i);
-                if(fileInput.files.length > 0) {
-                    banners['baner'+i] = await getBase64(fileInput.files[0]);
+                async function syncDigiflazz() {
+                    let btn = document.getElementById('btn-sync-digi');
+                    let ori = btn.innerHTML;
+                    btn.innerHTML = "<i data-lucide='loader' class='spin'></i> Sinkron..."; btn.disabled = true; lucide.createIcons();
+                    const data = await fetchAdmin('/api/sync-digiflazz');
+                    if(data && data.success) {
+                        showToast("Katalog Produk Berhasil Diperbarui!", 'success');
+                        loadMarginForm();
+                    } else {
+                        showToast("Gagal melakukan sinkronisasi.", true);
+                    }
+                    btn.innerHTML = ori; btn.disabled = false; lucide.createIcons();
                 }
-            }
-            if(Object.keys(banners).length === 0) return showToast("Pilih minimal 1 gambar", true);
-            
-            const data = await fetchAdmin('/api/admin/banner', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({banners})
-            });
-            if(data && data.success) { showToast("Banner berhasil dipasang", 'success'); document.querySelectorAll('input[type="file"]').forEach(i=>i.value=''); }
-            else showToast("Gagal upload", true);
-        }
 
-        async function sendBroadcast() {
-            const text = document.getElementById('bc-text').value;
-            if(!text) return showToast("Teks wajib diisi", true);
-            
-            let btn = document.getElementById('bc-btn');
-            let ori = btn.innerHTML; btn.innerHTML = "Mengirim..."; btn.disabled = true;
+                async function loadEtalaseList() {
+                    const data = await fetchAdmin('/api/admin/etalase');
+                    if(data && data.success) {
+                        let html = '';
+                        data.sections.forEach((sec, idx) => {
+                            let skuList = sec.skus.join(', ');
+                            html += `<div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px; margin-bottom:10px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <h4 style="margin:0; color:var(--text);">${sec.title}</h4>
+                                    <button class="btn btn-danger" style="padding:6px;font-size:11px;" onclick="delEtalase(${idx})">Hapus Etalase</button>
+                                </div>
+                                <input type="text" id="et-sku-${idx}" value="${skuList}" placeholder="SKU1, SKU2, SKU3" style="margin-top:10px; margin-bottom:5px;">
+                                <button class="btn btn-outline" style="padding:6px;font-size:11px; width:100%; border-color:var(--primary); color:var(--primary);" onclick="updateEtalaseSku(${idx})">Simpan SKU</button>
+                            </div>`;
+                        });
+                        document.getElementById('etalase-list-container').innerHTML = html || '<div style="font-size:13px;color:var(--muted)">Belum ada etalase.</div>';
+                    }
+                }
 
-            let imageBase64 = null;
-            let fileInput = document.getElementById('bc-image');
-            if(fileInput.files.length > 0) imageBase64 = await getBase64(fileInput.files[0]);
+                async function createEtalase() {
+                    const title = document.getElementById('etalase-title').value;
+                    if(!title) return showToast("Isi judul", true);
+                    const data = await fetchAdmin('/api/admin/etalase', {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({action: 'create', title})
+                    });
+                    if(data && data.success) { document.getElementById('etalase-title').value=''; loadEtalaseList(); }
+                }
 
-            const targets = {
-                web: document.getElementById('bc-web').checked,
-                tele: document.getElementById('bc-tele').checked,
-                wa: document.getElementById('bc-wa').checked
-            };
+                async function updateEtalaseSku(idx) {
+                    const rawSkus = document.getElementById(`et-sku-${idx}`).value;
+                    const skus = rawSkus.split(',').map(s => s.trim()).filter(s => s);
+                    const data = await fetchAdmin('/api/admin/etalase', {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({action: 'update_sku', idx, skus})
+                    });
+                    if(data && data.success) showToast("SKU Etalase diperbarui", 'success');
+                }
 
-            const data = await fetchAdmin('/api/admin/broadcast', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({text, imageBase64, targets})
-            });
-            
-            if(data && data.success) { 
-                showToast("Broadcast sedang dikirim ke target terpilih!", 'success');
-                document.getElementById('bc-text').value = '';
-                document.getElementById('bc-image').value = '';
-            } else {
-                showToast("Gagal memproses", true);
-            }
-            
-            btn.innerHTML = ori; btn.disabled = false; lucide.createIcons();
-        }
+                function delEtalase(idx) {
+                    showConfirm("Hapus etalase ini?", async () => {
+                        const data = await fetchAdmin('/api/admin/etalase', {
+                            method: 'POST', headers: {'Content-Type':'application/json'},
+                            body: JSON.stringify({action: 'delete', idx})
+                        });
+                        if(data && data.success) loadEtalaseList();
+                    });
+                }
 
-        async function saveNotifSettings() {
-            const payload = {
-                update: 'notif',
-                teleAdminToken: document.getElementById('set-tele-admin-token').value,
-                teleAdminId: document.getElementById('set-tele-admin-id').value,
-                teleInfoToken: document.getElementById('set-tele-info-token').value,
-                teleChannelId: document.getElementById('set-tele-channel-id').value,
-                waBroadcastId: document.getElementById('set-wa-broadcast-id').value
-            };
-            const data = await fetchAdmin('/api/admin/settings', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify(payload)
-            });
-            if(data && data.success) showToast("Konfigurasi notifikasi disimpan", 'success');
-        }
+                function getBase64(file) {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.readAsDataURL(file);
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = error => reject(error);
+                    });
+                }
 
-        async function testNotifConnection() {
-            showToast("Mengecek koneksi...");
-            const data = await fetchAdmin('/api/admin/test-notif');
-            if(data && data.success) showToast("Koneksi berhasil! Cek WA/Tele Anda.", 'success');
-            else showToast(data.message || "Gagal tes koneksi", true);
-        }
+                async function uploadTutorial() {
+                    let title = document.getElementById('tut-title').value;
+                    let desc = document.getElementById('tut-desc').value;
+                    let fileInput = document.getElementById('tut-video');
+                    
+                    if(!title || !desc) return showToast("Judul dan Deskripsi wajib diisi!", true);
+                    
+                    let file = fileInput.files[0];
+                    if(file && file.size > 200 * 1024 * 1024) return showToast("Ukuran video maksimal 200MB!", true);
 
-        window.allSystemLogs = [];
-        async function loadSystemLogs() {
-            const data = await fetchAdmin('/api/admin/system-logs');
-            if(data && data.success) {
-                let statusEl = document.getElementById('wa-monitor-status');
-                statusEl.innerText = data.wa_status;
-                statusEl.style.color = data.wa_status === 'Connected' ? 'var(--success)' : 'var(--danger)';
-                window.allSystemLogs = data.logs || [];
-                renderLogs(window.allSystemLogs);
-            }
-        }
-        function renderLogs(logs) {
-            let html = '';
-            logs.forEach(l => {
-                let colorCat = '#38bdf8';
-                if(l.category === 'Keamanan') colorCat = '#ef4444';
-                if(l.category === 'Order') colorCat = '#10b981';
-                html += `<div style="margin-bottom:6px;"><span style="color:var(--muted);">[${l.time}]</span> <span style="color:${colorCat}; font-weight:bold;">[${l.category}]</span> <span style="color:#e2e8f0;">${l.message}</span></div>`;
-            });
-            document.getElementById('log-viewer-container').innerHTML = html || 'Belum ada log aktivitas.';
-        }
-        function filterLogs() {
-            let search = document.getElementById('search-log').value.toLowerCase();
-            let filtered = window.allSystemLogs.filter(l => l.category.toLowerCase().includes(search) || l.message.toLowerCase().includes(search));
-            renderLogs(filtered);
-        }
-        function clearSystemLogs() {
-            showConfirm("Yakin bersihkan semua log?", async () => {
-                const data = await fetchAdmin('/api/admin/clear-logs', {method: 'POST'});
-                if(data && data.success) { showToast("Log dibersihkan", 'success'); loadSystemLogs(); }
-            });
-        }
+                    let btn = document.getElementById('btn-up-tut');
+                    let ori = btn.innerHTML; btn.innerHTML = "Mengupload 0%..."; btn.disabled = true;
 
-        async function triggerBackup() {
-            const data = await fetchAdmin('/api/admin/backup', { method: 'POST' });
-            if(data && data.success) showToast("Backup diproses dan dikirim ke Telegram!", 'success');
-            else showToast(data?data.message:"Gagal proses backup", true);
-        }
+                    let formData = new FormData();
+                    formData.append('title', title);
+                    formData.append('desc', desc);
+                    if(file) formData.append('video', file);
 
-    </script>
-</body>
-</html>
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("POST", "/api/admin/tutorial", true);
+                    xhr.setRequestHeader("Authorization", "Bearer " + localStorage.getItem('tendo_admin_token'));
+                    
+                    xhr.upload.onprogress = function(e) {
+                        if (e.lengthComputable) {
+                            let percent = Math.round((e.loaded / e.total) * 100);
+                            btn.innerHTML = "Mengupload " + percent + "%...";
+                        }
+                    };
+
+                    xhr.onload = function() {
+                        btn.innerHTML = ori; btn.disabled = false; lucide.createIcons();
+                        if (xhr.status === 200) {
+                            let data = JSON.parse(xhr.responseText);
+                            if(data.success) {
+                                showToast("Tutorial berhasil diunggah!", 'success');
+                                document.getElementById('tut-title').value = '';
+                                document.getElementById('tut-desc').value = '';
+                                document.getElementById('tut-video').value = '';
+                            } else {
+                                showToast(data.message || "Gagal mengunggah tutorial.", true);
+                            }
+                        } else {
+                            showToast("Koneksi terputus atau error server.", true);
+                        }
+                    };
+                    xhr.onerror = function() {
+                        btn.innerHTML = ori; btn.disabled = false; lucide.createIcons();
+                        showToast("Kesalahan jaringan.", true);
+                    };
+                    xhr.send(formData);
+                }
+
+                async function loadSettings() {
+                    const data = await fetchAdmin('/api/admin/settings');
+                    if(data && data.success) {
+                        let set = data.settings;
+                        document.getElementById('maint-status').value = set.maintType || 'off';
+                        if(set.maintStart) document.getElementById('maint-start').value = set.maintStart;
+                        if(set.maintEnd) document.getElementById('maint-end').value = set.maintEnd;
+                        toggleCustomMaint();
+                        
+                        document.getElementById('api-digi-user').value = set.digiflazzUsername || '';
+                        document.getElementById('api-digi-key').value = set.digiflazzApiKey || '';
+                        document.getElementById('api-gopay-mid').value = set.gopayMerchantId || '';
+                        document.getElementById('api-gopay-token').value = set.gopayToken || '';
+
+                        document.getElementById('set-tele-admin-token').value = set.teleToken || '';
+                        document.getElementById('set-tele-admin-id').value = set.teleChatId || '';
+                        document.getElementById('set-tele-info-token').value = set.teleTokenInfo || '';
+                        document.getElementById('set-tele-channel-id').value = set.teleChannelId || '';
+                        document.getElementById('set-wa-broadcast-id').value = set.waBroadcastId || '';
+                    }
+                }
+
+                async function saveMaintenance() {
+                    const type = document.getElementById('maint-status').value;
+                    let start = document.getElementById('maint-start').value || '23:00';
+                    let end = document.getElementById('maint-end').value || '00:30';
+                    
+                    const data = await fetchAdmin('/api/admin/settings', {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({update: 'maintenance', maintType: type, maintStart: start, maintEnd: end})
+                    });
+                    if(data && data.success) {
+                        if (type === 'total') showToast("Sistem Ditutup Total", 'success');
+                        else if (type === 'custom') showToast(`Maintenance Custom Aktif (${start}-${end})`, 'success');
+                        else showToast("Sistem Normal / Terbuka", 'success');
+                    }
+                }
+
+                async function saveApiKeys() {
+                    const payload = {
+                        update: 'keys',
+                        digiUser: document.getElementById('api-digi-user').value,
+                        digiKey: document.getElementById('api-digi-key').value,
+                        gopayMid: document.getElementById('api-gopay-mid').value,
+                        gopayToken: document.getElementById('api-gopay-token').value
+                    };
+                    const data = await fetchAdmin('/api/admin/settings', {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify(payload)
+                    });
+                    if(data && data.success) showToast("API Keys berhasil disimpan", 'success');
+                }
+
+                async function uploadBanners() {
+                    let banners = {};
+                    for(let i=1; i<=4; i++) {
+                        let fileInput = document.getElementById('banner-'+i);
+                        if(fileInput.files.length > 0) {
+                            banners['baner'+i] = await getBase64(fileInput.files[0]);
+                        }
+                    }
+                    if(Object.keys(banners).length === 0) return showToast("Pilih minimal 1 gambar", true);
+                    
+                    const data = await fetchAdmin('/api/admin/banner', {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({banners})
+                    });
+                    if(data && data.success) { showToast("Banner berhasil dipasang", 'success'); document.querySelectorAll('input[type="file"]').forEach(i=>i.value=''); }
+                    else showToast("Gagal upload", true);
+                }
+
+                async function sendBroadcast() {
+                    const text = document.getElementById('bc-text').value;
+                    if(!text) return showToast("Teks wajib diisi", true);
+                    
+                    let btn = document.getElementById('bc-btn');
+                    let ori = btn.innerHTML; btn.innerHTML = "Mengirim..."; btn.disabled = true;
+
+                    let imageBase64 = null;
+                    let fileInput = document.getElementById('bc-image');
+                    if(fileInput.files.length > 0) imageBase64 = await getBase64(fileInput.files[0]);
+
+                    const targets = {
+                        web: document.getElementById('bc-web').checked,
+                        tele: document.getElementById('bc-tele').checked,
+                        wa: document.getElementById('bc-wa').checked
+                    };
+
+                    const data = await fetchAdmin('/api/admin/broadcast', {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({text, imageBase64, targets})
+                    });
+                    
+                    if(data && data.success) { 
+                        showToast("Broadcast sedang dikirim ke target terpilih!", 'success');
+                        document.getElementById('bc-text').value = '';
+                        document.getElementById('bc-image').value = '';
+                    } else {
+                        showToast("Gagal memproses", true);
+                    }
+                    
+                    btn.innerHTML = ori; btn.disabled = false; lucide.createIcons();
+                }
+
+                async function saveNotifSettings() {
+                    const payload = {
+                        update: 'notif',
+                        teleAdminToken: document.getElementById('set-tele-admin-token').value,
+                        teleAdminId: document.getElementById('set-tele-admin-id').value,
+                        teleInfoToken: document.getElementById('set-tele-info-token').value,
+                        teleChannelId: document.getElementById('set-tele-channel-id').value,
+                        waBroadcastId: document.getElementById('set-wa-broadcast-id').value
+                    };
+                    const data = await fetchAdmin('/api/admin/settings', {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify(payload)
+                    });
+                    if(data && data.success) showToast("Konfigurasi notifikasi disimpan", 'success');
+                }
+
+                async function testNotifConnection() {
+                    showToast("Mengecek koneksi...");
+                    const data = await fetchAdmin('/api/admin/test-notif');
+                    if(data && data.success) showToast("Koneksi berhasil! Cek WA/Tele Anda.", 'success');
+                    else showToast(data.message || "Gagal tes koneksi", true);
+                }
+
+                window.allSystemLogs = [];
+                async function loadSystemLogs() {
+                    const data = await fetchAdmin('/api/admin/system-logs');
+                    if(data && data.success) {
+                        let statusEl = document.getElementById('wa-monitor-status');
+                        statusEl.innerText = data.wa_status;
+                        statusEl.style.color = data.wa_status === 'Connected' ? 'var(--success)' : 'var(--danger)';
+                        window.allSystemLogs = data.logs || [];
+                        renderLogs(window.allSystemLogs);
+                    }
+                }
+                function renderLogs(logs) {
+                    let html = '';
+                    logs.forEach(l => {
+                        let colorCat = '#38bdf8';
+                        if(l.category === 'Keamanan') colorCat = '#ef4444';
+                        if(l.category === 'Order') colorCat = '#10b981';
+                        html += `<div style="margin-bottom:6px;"><span style="color:var(--muted);">[${l.time}]</span> <span style="color:${colorCat}; font-weight:bold;">[${l.category}]</span> <span style="color:#e2e8f0;">${l.message}</span></div>`;
+                    });
+                    document.getElementById('log-viewer-container').innerHTML = html || 'Belum ada log aktivitas.';
+                }
+                function filterLogs() {
+                    let search = document.getElementById('search-log').value.toLowerCase();
+                    let filtered = window.allSystemLogs.filter(l => l.category.toLowerCase().includes(search) || l.message.toLowerCase().includes(search));
+                    renderLogs(filtered);
+                }
+                function clearSystemLogs() {
+                    showConfirm("Yakin bersihkan semua log?", async () => {
+                        const data = await fetchAdmin('/api/admin/clear-logs', {method: 'POST'});
+                        if(data && data.success) { showToast("Log dibersihkan", 'success'); loadSystemLogs(); }
+                    });
+                }
+
+                async function triggerBackup() {
+                    const data = await fetchAdmin('/api/admin/backup', { method: 'POST' });
+                    if(data && data.success) showToast("Backup diproses dan dikirim ke Telegram!", 'success');
+                    else showToast(data?data.message:"Gagal proses backup", true);
+                }
+
+            </script>
+        </body>
+        </html>
 EOF
 }
 
@@ -4134,6 +4134,7 @@ generate_bot_script() {
 require('dotenv').config({ path: './admin_tendo/.env' });
 process.env.TZ = 'Asia/Jakarta';
 const fs = require('fs');
+const path = require('path');
 const pino = require('pino');
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -4148,10 +4149,10 @@ const sqlite3 = require('sqlite3').verbose();
 const app = express();
 app.disable('x-powered-by');
 
-const ADMIN_DIR = './admin_tendo';
+const ADMIN_DIR = path.join(__dirname, 'admin_tendo');
 if (!fs.existsSync(ADMIN_DIR)) fs.mkdirSync(ADMIN_DIR, { recursive: true });
 
-const upload = multer({ dest: 'public/tutorials/', limits: { fileSize: 200 * 1024 * 1024 } });
+const upload = multer({ dest: path.join(__dirname, 'public', 'tutorials'), limits: { fileSize: 200 * 1024 * 1024 } });
 
 app.use((req, res, next) => {
     if (req.path.endsWith('.json') && !req.path.endsWith('manifest.json')) {
@@ -4162,15 +4163,17 @@ app.use((req, res, next) => {
 
 app.use(bodyParser.json({limit: '200mb'}));
 app.use(bodyParser.urlencoded({extended: true, limit: '200mb'}));
-app.use(express.static(__dirname + '/public')); 
 
-// Memaksa request '/' untuk merender index.html (Anti Cannot GET /)
+// PERBAIKAN: Menggunakan path absolut agar file index.html selalu terdeteksi
+app.use(express.static(path.join(__dirname, 'public'))); 
+
+// Memaksa request '/' untuk merender index.html (Mencegah Cannot GET /)
 app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/public/index.html');
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Setup SQLite3
-const dbPath = `${ADMIN_DIR}/database.db`;
+const dbPath = path.join(ADMIN_DIR, 'database.db');
 const db = new sqlite3.Database(dbPath);
 
 const runQuery = (query, params = []) => new Promise((resolve, reject) => db.run(query, params, function(err) { if(err) reject(err); else resolve(this); }));
@@ -4185,17 +4188,17 @@ db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS transactions (ref_id TEXT PRIMARY KEY, jid TEXT, sku TEXT, tujuan TEXT, harga INTEGER, nama TEXT, tanggal INTEGER, phone TEXT, margin INTEGER, modal INTEGER)`);
 });
 
-const configFile = `${ADMIN_DIR}/config.json`;
-const notifFile = `${ADMIN_DIR}/web_notif.json`;
-const globalStatsFile = `${ADMIN_DIR}/global_stats.json`;
-const globalTrxFile = `${ADMIN_DIR}/global_trx.json`; 
-const vpnConfigFile = `${ADMIN_DIR}/vpn_config.json`; 
-const customLayoutFile = `${ADMIN_DIR}/custom_layout.json`; 
-const tutorialFile = `${ADMIN_DIR}/tutorial.json`; 
-const gopayHistoryFile = `${ADMIN_DIR}/gopay_processed.json`;
-const adminLogFile = `${ADMIN_DIR}/admin_logs.json`;
-const systemLogFile = `${ADMIN_DIR}/system_logs.json`;
-const adminSecurityFile = `${ADMIN_DIR}/admin_security.json`;
+const configFile = path.join(ADMIN_DIR, 'config.json');
+const notifFile = path.join(ADMIN_DIR, 'web_notif.json');
+const globalStatsFile = path.join(ADMIN_DIR, 'global_stats.json');
+const globalTrxFile = path.join(ADMIN_DIR, 'global_trx.json'); 
+const vpnConfigFile = path.join(ADMIN_DIR, 'vpn_config.json'); 
+const customLayoutFile = path.join(ADMIN_DIR, 'custom_layout.json'); 
+const tutorialFile = path.join(ADMIN_DIR, 'tutorial.json'); 
+const gopayHistoryFile = path.join(ADMIN_DIR, 'gopay_processed.json');
+const adminLogFile = path.join(ADMIN_DIR, 'admin_logs.json');
+const systemLogFile = path.join(ADMIN_DIR, 'system_logs.json');
+const adminSecurityFile = path.join(ADMIN_DIR, 'admin_security.json');
 
 const ALGO = 'aes-256-cbc';
 const SECRET_KEY = 'DigitalTendoStore_SecureKey_2026';
@@ -4417,7 +4420,7 @@ function normalizePhone(phoneStr) {
 }
 
 app.get('/panel-bos-tendo-rahasia', (req, res) => {
-    res.sendFile(__dirname + '/public/tendo_admin_secret.html');
+    res.sendFile(path.join(__dirname, 'public', 'tendo_admin_secret.html'));
 });
 
 app.post('/api/admin/login-step1', (req, res) => {
@@ -4668,7 +4671,7 @@ app.post('/api/admin/tutorial', authAdmin, upload.single('video'), (req, res) =>
     let filename = '-';
     if(req.file) {
         filename = req.file.filename + '.mp4';
-        fs.renameSync(req.file.path, 'public/tutorials/' + filename);
+        fs.renameSync(req.file.path, path.join(__dirname, 'public', 'tutorials', filename));
     }
     tuts.push({ id: 'TUT-' + Date.now(), title, desc, video: filename });
     saveJSON(tutorialFile, tuts); res.json({success: true});
@@ -4679,12 +4682,12 @@ app.post('/api/admin/banner', authAdmin, async (req, res) => {
     for(let k in banners) {
         let base64Data = banners[k].replace(/^data:image\/\w+;base64,/, "");
         let buffer = Buffer.from(base64Data, 'base64');
-        let folder = `./public/${k}`;
+        let folder = path.join(__dirname, 'public', k);
         if(fs.existsSync(folder)) {
             let files = fs.readdirSync(folder);
-            files.forEach(f => fs.unlinkSync(`${folder}/${f}`));
+            files.forEach(f => fs.unlinkSync(path.join(folder, f)));
         } else fs.mkdirSync(folder, {recursive:true});
-        fs.writeFileSync(`${folder}/banner_${Date.now()}.jpg`, buffer);
+        fs.writeFileSync(path.join(folder, `banner_${Date.now()}.jpg`), buffer);
     }
     res.json({success: true});
 });
@@ -4696,7 +4699,7 @@ app.post('/api/admin/broadcast', authAdmin, async (req, res) => {
     if(imageBase64) {
         let base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
         let buffer = Buffer.from(base64Data, 'base64');
-        imageName = `promo_${Date.now()}.jpg`; imgPath = `./public/info_images/${imageName}`;
+        imageName = `promo_${Date.now()}.jpg`; imgPath = path.join(__dirname, 'public', 'info_images', imageName);
         fs.writeFileSync(imgPath, buffer);
     }
 
@@ -4757,7 +4760,7 @@ app.get('/api/banners', (req, res) => {
     let banners = [];
     try {
         for (let i = 1; i <= 5; i++) {
-            let folderPath = `./public/baner${i}`;
+            let folderPath = path.join(__dirname, 'public', `baner${i}`);
             if (fs.existsSync(folderPath)) {
                 let files = fs.readdirSync(folderPath);
                 let imgFiles = files.filter(f => f.match(/\.(jpg|jpeg|png|gif|webp)$/i));
