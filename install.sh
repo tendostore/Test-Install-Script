@@ -5688,3 +5688,1992 @@ if (require.main === module) {
 EOF
 }
 SELESAI
+# ==========================================
+# 5. SCRIPT MIGRASI JSON -> SQLITE
+# ==========================================
+generate_migration_script() {
+    cat << 'EOF' > migrate.js
+const fs = require('fs');
+const sqlite3 = require('sqlite3').verbose();
+const crypto = require('crypto');
+
+const ADMIN_DIR = './admin_tendo';
+if (!fs.existsSync(ADMIN_DIR)) fs.mkdirSync(ADMIN_DIR, { recursive: true });
+
+const ALGO = 'aes-256-cbc';
+const SECRET_KEY = 'DigitalTendoStore_SecureKey_2026';
+const SALT = 'salt';
+const KEY = crypto.scryptSync(SECRET_KEY, SALT, 32);
+
+function decrypt(text) {
+    try {
+        let textParts = text.split(':');
+        if (textParts.length < 2) return null;
+        let iv = Buffer.from(textParts.shift(), 'hex');
+        let encryptedText = Buffer.from(textParts.join(':'), 'hex');
+        let decipher = crypto.createDecipheriv(ALGO, KEY, iv);
+        let decrypted = decipher.update(encryptedText);
+        decrypted = Buffer.concat([decrypted, decipher.final()]);
+        return JSON.parse(decrypted.toString());
+    } catch (err) {
+        return null;
+    }
+}
+
+const loadOldData = (file) => {
+    if(!fs.existsSync(file)) return null;
+    let raw = fs.readFileSync(file, 'utf8');
+    if(!raw) return null;
+    if(raw.trim().startsWith('{') || raw.trim().startsWith('[')) return JSON.parse(raw);
+    return decrypt(raw);
+};
+
+const db = new sqlite3.Database(`${ADMIN_DIR}/database.db`);
+const runQuery = (query, params = []) => new Promise((resolve, reject) => db.run(query, params, function(err) { if(err) reject(err); else resolve(this); }));
+
+async function migrate() {
+    console.log('⏳ Memulai proses migrasi ke SQLite3...');
+    
+    db.serialize(() => {
+        db.run(`CREATE TABLE IF NOT EXISTS users (phone TEXT PRIMARY KEY, username TEXT, email TEXT, password TEXT, saldo INTEGER, level TEXT, poin INTEGER, referral_code TEXT, referrer TEXT, banned INTEGER, id_pelanggan TEXT, total_pengeluaran INTEGER, tanggal_daftar TEXT, jid TEXT, trx_count INTEGER, trial_claims TEXT)`);
+        db.run(`CREATE TABLE IF NOT EXISTS products (sku TEXT PRIMARY KEY, sku_asli TEXT, nama TEXT, harga INTEGER, harga_asli INTEGER, margin_keuntungan INTEGER, kategori TEXT, brand TEXT, sub_kategori TEXT, deskripsi TEXT, status_produk INTEGER, is_manual_cat INTEGER, is_pasca INTEGER)`);
+        db.run(`CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY AUTOINCREMENT, phone TEXT, ts INTEGER, tanggal TEXT, type TEXT, nama TEXT, tujuan TEXT, status TEXT, sn TEXT, amount INTEGER, ref_id TEXT, saldo_sebelumnya INTEGER, saldo_sesudah INTEGER, harga_asli INTEGER, margin INTEGER, vpn_details TEXT, qris_url TEXT, expired_at INTEGER)`);
+        db.run(`CREATE TABLE IF NOT EXISTS topups (trx_id TEXT PRIMARY KEY, phone TEXT, amount_to_pay INTEGER, saldo_to_add INTEGER, status TEXT, timestamp INTEGER, expired_at INTEGER, is_order INTEGER, sku TEXT, tujuan TEXT, nama_produk TEXT, harga_asli INTEGER, margin_laba INTEGER, is_pasca INTEGER, vpn_data TEXT)`);
+        db.run(`CREATE TABLE IF NOT EXISTS transactions (ref_id TEXT PRIMARY KEY, jid TEXT, sku TEXT, tujuan TEXT, harga INTEGER, nama TEXT, tanggal INTEGER, phone TEXT, margin INTEGER, modal INTEGER)`);
+    });
+
+    let oldDb = loadOldData('./database.json');
+    if(oldDb) {
+        for(let phone in oldDb) {
+            let u = oldDb[phone];
+            await runQuery(`INSERT OR REPLACE INTO users (phone, username, email, password, saldo, level, poin, referral_code, referrer, banned, id_pelanggan, total_pengeluaran, tanggal_daftar, jid, trx_count, trial_claims) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+                [phone, u.username, u.email, u.password, u.saldo||0, u.level||'Member', u.poin||0, u.referral_code, u.referrer, u.banned?1:0, u.id_pelanggan, u.total_pengeluaran||0, u.tanggal_daftar, u.jid, u.trx_count||0, JSON.stringify(u.trial_claims||{})]
+            );
+            if(u.history && u.history.length > 0) {
+                for(let h of u.history) {
+                    await runQuery(`INSERT INTO history (phone, ts, tanggal, type, nama, tujuan, status, sn, amount, ref_id, saldo_sebelumnya, saldo_sesudah, harga_asli, margin, vpn_details, qris_url, expired_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [phone, h.ts||0, h.tanggal, h.type, h.nama, h.tujuan, h.status, h.sn, h.amount||0, h.ref_id, h.saldo_sebelumnya, h.saldo_sesudah, h.harga_asli||0, h.margin||0, h.vpn_details, h.qris_url, h.expired_at]
+                    );
+                }
+            }
+        }
+        fs.unlinkSync('./database.json');
+    }
+
+    let oldProd = loadOldData('./produk.json');
+    if(oldProd) {
+        for(let sku in oldProd) {
+            let p = oldProd[sku];
+            await runQuery(`INSERT OR REPLACE INTO products (sku, sku_asli, nama, harga, harga_asli, margin_keuntungan, kategori, brand, sub_kategori, deskripsi, status_produk, is_manual_cat, is_pasca) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [sku, p.sku_asli, p.nama, p.harga||0, p.harga_asli||0, p.margin_keuntungan||0, p.kategori, p.brand, p.sub_kategori, p.deskripsi, p.status_produk?1:0, p.is_manual_cat?1:0, p.is_pasca?1:0]
+            );
+        }
+        fs.unlinkSync('./produk.json');
+    }
+
+    let oldTopups = loadOldData('./topup.json');
+    if(oldTopups) {
+        for(let tid in oldTopups) {
+            let t = oldTopups[tid];
+            await runQuery(`INSERT OR REPLACE INTO topups (trx_id, phone, amount_to_pay, saldo_to_add, status, timestamp, expired_at, is_order, sku, tujuan, nama_produk, harga_asli, margin_laba, is_pasca, vpn_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [tid, t.phone, t.amount_to_pay||0, t.saldo_to_add||0, t.status, t.timestamp||0, t.expired_at||0, t.is_order?1:0, t.sku, t.tujuan, t.nama_produk, t.harga_asli||0, t.margin_laba||0, t.is_pasca?1:0, JSON.stringify(t.vpn_data||{})]
+            );
+        }
+        fs.unlinkSync('./topup.json');
+    }
+
+    let oldTrx = loadOldData('./trx.json');
+    if(oldTrx) {
+        for(let ref in oldTrx) {
+            let t = oldTrx[ref];
+            await runQuery(`INSERT OR REPLACE INTO transactions (ref_id, jid, sku, tujuan, harga, nama, tanggal, phone, margin, modal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [ref, t.jid, t.sku, t.tujuan, t.harga||0, t.nama, t.tanggal||0, t.phone, t.margin||0, t.modal||0]
+            );
+        }
+        fs.unlinkSync('./trx.json');
+    }
+
+    const filesToMove = ['config.json', 'web_notif.json', 'global_stats.json', 'global_trx.json', 'vpn_config.json', 'custom_layout.json', 'tutorial.json', 'gopay_processed.json', 'admin_logs.json', 'system_logs.json', 'admin_security.json'];
+    for(let f of filesToMove) {
+        let oldPath = './' + f; let newPath = ADMIN_DIR + '/' + f;
+        if(fs.existsSync(oldPath)) {
+            let data = loadOldData(oldPath);
+            if(data) fs.writeFileSync(newPath, JSON.stringify(data, null, 2));
+            fs.unlinkSync(oldPath);
+        }
+    }
+    
+    if(fs.existsSync('./tendo_crypt.js')) fs.unlinkSync('./tendo_crypt.js');
+    console.log('✅ Migrasi database ke SQLite3 selesai! Enkripsi dihapus.');
+}
+migrate();
+EOF
+}
+
+generate_cek_saldo_script() {
+    cat << 'EOF' > cek_saldo.js
+const crypto = require('crypto');
+const axios = require('axios');
+const fs = require('fs');
+
+async function getSaldo() {
+    try {
+        let configPath = './admin_tendo/config.json';
+        if(!fs.existsSync(configPath)) return console.log('Rp 0 (Belum Setup)');
+        let config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        let user = config.digiflazzUsername || '';
+        let key = config.digiflazzApiKey || '';
+        if(!user || !key) return console.log('Rp 0 (API Belum Diatur)');
+        let sign = crypto.createHash('md5').update(user + key + 'depo').digest('hex');
+        let res = await axios.post('https://api.digiflazz.com/v1/cek-saldo', {
+            cmd: 'deposit', username: user, sign: sign
+        });
+        console.log('Rp ' + res.data.data.deposit.toLocaleString('id-ID'));
+    } catch(e) { console.log('Rp 0 (Gangguan Server)'); }
+}
+getSaldo();
+EOF
+}
+
+generate_vpn_panel_php() {
+    echo "Menginstal file tendo_vpn_panel.php ke public web..."
+    sudo mkdir -p /var/www/html/
+    cat << 'EOF' > /var/www/html/tendo_vpn_panel.php
+<?php
+/**
+ * ==============================================================================
+ * SCRIPT FULL INTEGRASI API WEB BILLING KE VPS VPN POTATO (ULTIMATE FINAL)
+ * Dibuat utuh tanpa dipotong, sesuai data JSON Swagger API.
+ * Fitur: Membuat Akun Reguler & Trial (SSH, Vless, Vmess, Trojan)
+ * Auto-Config: IP Limit = 2 | Kuota Reguler = 200GB | Trial = 30m & 2GB
+ * Sistem: Tulisan Digital Tendo Store
+ * ==============================================================================
+ */
+
+// 1. KUNCI API DAN KONFIGURASI SERVER VPN
+$auth_api_key = 'VPN_API_KEY_PLACEHOLDER';
+$ip_vps_vpn   = 'http://103.168.147.157';
+
+// Inisialisasi variabel pesan hasil
+$html_hasil = '';
+
+// 2. LOGIKA PEMROSESAN JIKA FORMULIR DIKIRIM (Metode POST)
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    
+    // Mengambil data dari form
+    $account_mode = isset($_POST['account_mode']) ? $_POST['account_mode'] : 'regular';
+    $vpn_type     = isset($_POST['vpn_type']) ? $_POST['vpn_type'] : '';
+    
+    // Data input user (Hanya untuk Reguler)
+    $username = isset($_POST['username']) ? trim($_POST['username']) : '';
+    $password = isset($_POST['password']) ? trim($_POST['password']) : '';
+    $expired  = isset($_POST['expired']) ? (int)$_POST['expired'] : 30;
+
+    // --- ATURAN SISTEM HARDCODED SESUAI REQUEST TENDO STORE ---
+    $limitip_all      = 2;     // Semua akun maksimal 2 IP
+    $kuota_reguler    = 200;   // Reguler maksimal 200 GB
+    $kuota_trial      = 2;     // Trial maksimal 2 GB
+    $timelimit_trial  = "30m"; // Trial maksimal 30 Menit
+
+    $endpoint_url = '';
+    $payload_json = '';
+
+    // 3. PENGATURAN ENDPOINT DAN PAYLOAD BERDASARKAN MODE & JENIS VPN
+    if ($account_mode === 'trial') {
+        // --- LOGIKA PEMBUATAN AKUN TRIAL ---
+        $data_body = array(
+            'timelimit' => $timelimit_trial,
+            'kuota'     => $kuota_trial,
+            'limitip'   => $limitip_all
+        );
+        $payload_json = json_encode($data_body);
+
+        switch ($vpn_type) {
+            case 'ssh':
+                $endpoint_url = $ip_vps_vpn . '/vps/trialsshvpn';
+                break;
+            case 'vless':
+                $endpoint_url = $ip_vps_vpn . '/vps/trialvlessall';
+                break;
+            case 'vmess':
+                $endpoint_url = $ip_vps_vpn . '/vps/trialvmessall';
+                break;
+            case 'trojan':
+                $endpoint_url = $ip_vps_vpn . '/vps/trialtrojanall';
+                break;
+            default:
+                $html_hasil = "<div class='alert-error'>Jenis VPN tidak valid!</div>";
+        }
+
+    } else {
+        // --- LOGIKA PEMBUATAN AKUN REGULER ---
+        switch ($vpn_type) {
+            case 'ssh':
+                $endpoint_url = $ip_vps_vpn . '/vps/sshvpn';
+                $data_body = array(
+                    'username' => $username,
+                    'password' => $password,
+                    'expired'  => $expired,
+                    'limitip'  => $limitip_all
+                );
+                $payload_json = json_encode($data_body);
+                break;
+            case 'vless':
+            case 'vmess':
+            case 'trojan':
+                $endpoint_url = $ip_vps_vpn . '/vps/' . $vpn_type . 'all';
+                $data_body = array(
+                    'username' => $username,
+                    'expired'  => $expired,
+                    'kuota'    => $kuota_reguler,
+                    'limitip'  => $limitip_all,
+                    'uuidv2'   => ''
+                );
+                $payload_json = json_encode($data_body);
+                break;
+            default:
+                $html_hasil = "<div class='alert-error'>Jenis VPN tidak valid!</div>";
+        }
+    }
+
+    // 4. EKSEKUSI API DENGAN cURL
+    if ($endpoint_url !== '') {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $endpoint_url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload_json);
+
+        // Header wajib dengan Bearer Auth
+        $headers = array(
+            'Content-Type: application/json',
+            'Accept: application/json',
+            'Authorization: Bearer ' . $auth_api_key 
+        );
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+
+        $response   = curl_exec($ch);
+        $http_code  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($ch);
+        curl_close($ch);
+
+        // 5. MEMFORMAT BALASAN API (TAMPILAN HASIL TRANSAKSI)
+        if ($curl_error) {
+            $html_hasil = "<div class='alert-error'><strong>Koneksi API Gagal:</strong> " . htmlspecialchars($curl_error) . "</div>";
+        } elseif ($http_code == 401) {
+            $html_hasil = "<div class='alert-error'><strong>Otorisasi Ditolak (401):</strong> Pastikan Kunci Auth API benar.</div>";
+        } elseif ($http_code == 200) {
+            $res_array = json_decode($response, true);
+            
+            if (isset($res_array['data'])) {
+                $data_api = $res_array['data'];
+                $status_title = ($account_mode === 'trial') ? 'Trial ' . strtoupper($vpn_type) . ' (30 Menit)' : 'Premium ' . strtoupper($vpn_type);
+                
+                $html_hasil .= "<div class='result-box'>";
+                $html_hasil .= "<div class='alert-success'><strong>&#10004; Sukses!</strong> Akun ".$status_title." berhasil dibuat.</div>";
+                
+                // --- TAMPILAN UNTUK SSH ---
+                if ($vpn_type == 'ssh') {
+                    $html_hasil .= "<h4>Detail Akun SSH / OpenVPN</h4>";
+                    $html_hasil .= "<table class='detail-table'>";
+                    $html_hasil .= "<tr><td><strong>Username</strong></td><td>".htmlspecialchars($data_api['username'])."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>Password</strong></td><td>".htmlspecialchars($data_api['password'])."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>Domain Host</strong></td><td>".htmlspecialchars($data_api['hostname'])."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>City</strong></td><td>".htmlspecialchars(isset($data_api['city']) ? $data_api['city'] : '-')."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>ISP</strong></td><td>".htmlspecialchars(isset($data_api['isp']) ? $data_api['isp'] : '-')."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>Masa Aktif</strong></td><td>".htmlspecialchars($data_api['exp'])."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>Limit IP</strong></td><td>".$limitip_all." Device</td></tr>";
+                    $html_hasil .= "</table>";
+                    
+                    $html_hasil .= "<h4>Informasi Port:</h4>";
+                    $html_hasil .= "<ul style='font-size:14px; color:#555;'>";
+                    $html_hasil .= "<li><strong>TLS/SSL:</strong> ".htmlspecialchars($data_api['port']['tls'])."</li>";
+                    $html_hasil .= "<li><strong>Non-TLS:</strong> ".htmlspecialchars($data_api['port']['none'])."</li>";
+                    $html_hasil .= "<li><strong>UDP Custom:</strong> ".htmlspecialchars($data_api['port']['udpcustom'])."</li>";
+                    $html_hasil .= "</ul>";
+
+                } 
+                // --- TAMPILAN UNTUK XRAY (VLESS / VMESS / TROJAN) ---
+                else {
+                    $html_hasil .= "<h4>Detail Akun ".strtoupper($vpn_type)."</h4>";
+                    $html_hasil .= "<table class='detail-table'>";
+                    $html_hasil .= "<tr><td><strong>Username</strong></td><td>".htmlspecialchars($data_api['username'])."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>Domain Host</strong></td><td>".htmlspecialchars($data_api['hostname'])."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>City</strong></td><td>".htmlspecialchars(isset($data_api['city']) ? $data_api['city'] : '-')."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>ISP</strong></td><td>".htmlspecialchars(isset($data_api['isp']) ? $data_api['isp'] : '-')."</td></tr>";
+                    
+                    // Mengambil data expired sesuai struktur balasan
+                    $display_exp = isset($data_api['expired']) ? $data_api['expired'] : (isset($data_api['to']) ? $data_api['to'] : '-');
+                    $html_hasil .= "<tr><td><strong>Masa Aktif</strong></td><td>".htmlspecialchars($display_exp)."</td></tr>";
+                    
+                    // Menampilkan Kuota Sesuai Mode
+                    $tampil_kuota = ($account_mode === 'trial') ? $kuota_trial . ' GB' : $kuota_reguler . ' GB';
+                    $html_hasil .= "<tr><td><strong>Limit Kuota</strong></td><td>".$tampil_kuota."</td></tr>";
+                    $html_hasil .= "<tr><td><strong>Limit IP</strong></td><td>".$limitip_all." Device</td></tr>";
+                    $html_hasil .= "</table>";
+
+                    // Data link (tls, none, grpc) dikembalikan oleh server
+                    if (isset($data_api['link'])) {
+                        $html_hasil .= "<h4>Link Konfigurasi:</h4>";
+                        if (!empty($data_api['link']['tls'])) {
+                            $html_hasil .= "<label class='link-label'>".strtoupper($vpn_type)." TLS:</label>";
+                            $html_hasil .= "<textarea readonly class='link-textarea' onclick='this.select()'>".htmlspecialchars($data_api['link']['tls'])."</textarea>";
+                        }
+                        if (!empty($data_api['link']['none'])) {
+                            $html_hasil .= "<label class='link-label'>".strtoupper($vpn_type)." Non-TLS:</label>";
+                            $html_hasil .= "<textarea readonly class='link-textarea' onclick='this.select()'>".htmlspecialchars($data_api['link']['none'])."</textarea>";
+                        }
+                        if (!empty($data_api['link']['grpc'])) {
+                            $html_hasil .= "<label class='link-label'>".strtoupper($vpn_type)." gRPC:</label>";
+                            $html_hasil .= "<textarea readonly class='link-textarea' onclick='this.select()'>".htmlspecialchars($data_api['link']['grpc'])."</textarea>";
+                        }
+                    } else {
+                        $html_hasil .= "<p style='font-size:13px; color:#d35400; margin-top:15px; font-weight:bold;'>Info: Link akun telah dibuat di server. Silakan cek panel/aplikasi VPN.</p>";
+                    }
+                }
+                
+                $html_hasil .= "</div>"; 
+            } else {
+                $html_hasil = "<div class='alert-error'><strong>Error:</strong> Format JSON dari server tidak sesuai.</div>";
+            }
+        } else {
+            $html_hasil = "<div class='alert-error'><strong>Gagal (Code $http_code):</strong> <pre class='raw-response'>".htmlspecialchars($response)."</pre></div>";
+        }
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Generator VPN - Tulisan Digital Tendo Store</title>
+<style>
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        .container { max-width: 700px; margin: 30px auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); overflow: hidden; }
+        .header-banner { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px 20px; text-align: center; color: #ffffff; }
+        .header-banner h2 { margin: 0 0 5px 0; font-size: 26px; font-weight: 800; letter-spacing: 0.5px; }
+        .header-banner p { margin: 0; font-size: 15px; font-weight: 400; opacity: 0.9; }
+        .content { padding: 30px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-weight: 600; color: #34495e; margin-bottom: 8px; font-size: 14px; }
+        .form-control { width: 100%; padding: 12px 15px; border: 1px solid #dcdde1; border-radius: 6px; font-size: 15px; box-sizing: border-box; transition: border-color 0.3s; }
+        .form-control:focus { border-color: #2a5298; outline: none; }
+        .form-row { display: flex; gap: 15px; }
+        .form-row .form-group { flex: 1; }
+        .btn-submit { display: block; width: 100%; background-color: #2a5298; color: #ffffff; border: none; padding: 15px; font-size: 16px; font-weight: 700; border-radius: 6px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 6px rgba(42, 82, 152, 0.3); transition: background-color 0.3s, transform 0.1s; margin-top: 10px; }
+        .btn-submit:hover { background-color: #1e3c72; }
+        .btn-submit:active { transform: scale(0.98); }
+        .result-box { background: #fdfbf7; padding: 25px; border-radius: 8px; border: 1px solid #eaeaea; margin-top: 30px; }
+        .alert-success { background: #e8f5e9; color: #2e7d32; padding: 15px; border-radius: 6px; margin-bottom: 20px; border-left: 5px solid #2e7d32; }
+        .alert-error { background: #ffebee; color: #c62828; padding: 15px; border-radius: 6px; margin-top: 30px; border-left: 5px solid #c62828; }
+        .detail-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 20px; }
+        .detail-table td { padding: 12px 8px; border-bottom: 1px dashed #ddd; color: #333; }
+        .detail-table td:last-child { text-align: right; font-weight: 600; color: #2a5298; }
+        .link-label { display: block; font-size: 13px; font-weight: 700; color: #333; margin-top: 10px; margin-bottom: 5px; }
+        .link-textarea { width: 100%; height: 70px; padding: 10px; border-radius: 5px; border: 1px solid #ccc; font-size: 11px; resize: none; box-sizing: border-box; background-color: #f9f9f9; cursor: pointer; }
+        .raw-response { font-size: 11px; background: #fff; padding: 10px; border: 1px solid #ffcdd2; overflow-x: auto; }
+        .trial-info { display: none; background: #e3f2fd; color: #1565c0; padding: 15px; border-radius: 6px; margin-bottom: 20px; border-left: 5px solid #1565c0; font-size: 14px; font-weight: 500;}
+        #password-group { display: none; }
+    </style>
+    <script>
+        function toggleFields() {
+            var mode = document.getElementById("account_mode").value;
+            var vpnType = document.getElementById("vpn_type").value;
+            
+            var regularGroups = document.getElementsByClassName("regular-group");
+            var trialInfo = document.getElementById("trial-info-box");
+            var passGroup = document.getElementById("password-group");
+
+            if (mode === "trial") {
+                for (var i = 0; i < regularGroups.length; i++) {
+                    regularGroups[i].style.display = "none";
+                }
+                trialInfo.style.display = "block";
+                passGroup.style.display = "none";
+            } else {
+                for (var i = 0; i < regularGroups.length; i++) {
+                    regularGroups[i].style.display = "block";
+                }
+                trialInfo.style.display = "none";
+                
+                if (vpnType === "ssh") {
+                    passGroup.style.display = "block";
+                } else {
+                    passGroup.style.display = "none";
+                }
+            }
+        }
+        window.onload = toggleFields;
+    </script>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-banner">
+        <h2>Panel Generator VPN</h2>
+        <p>Tulisan Digital Tendo Store</p>
+    </div>
+
+    <div class="content">
+        <form method="POST" action="">
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="account_mode">Tipe Akun</label>
+                    <select name="account_mode" id="account_mode" class="form-control" onchange="toggleFields()" required>
+                        <option value="regular">Reguler (Premium)</option>
+                        <option value="trial">Trial (Uji Coba)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="vpn_type">Jenis VPN</label>
+                    <select name="vpn_type" id="vpn_type" class="form-control" onchange="toggleFields()" required>
+                        <option value="vless">VLESS</option>
+                        <option value="vmess">VMESS</option>
+                        <option value="ssh">SSH / OpenVPN</option>
+                        <option value="trojan">TROJAN</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="trial-info-box" class="trial-info">
+                Mode Uji Coba (Trial) aktif. Sistem akan otomatis meng-generate username & password acak dengan durasi <strong>30 Menit</strong>, Kuota <strong>2 GB</strong>, dan Limit <strong>2 Device</strong>.
+            </div>
+
+            <div class="form-group regular-group">
+                <label for="username">Username Pelanggan</label>
+                <input type="text" name="username" id="username" class="form-control" placeholder="Contoh: tendo_user1">
+            </div>
+
+            <div class="form-group" id="password-group">
+                <label for="password">Password (Hanya untuk SSH)</label>
+                <input type="text" name="password" id="password" class="form-control" placeholder="Masukkan password SSH">
+            </div>
+
+            <div class="form-group regular-group">
+                <label for="expired">Masa Aktif (Hari)</label>
+                <input type="number" name="expired" id="expired" class="form-control" value="30" min="1">
+            </div>
+
+            <div class="regular-group" style="margin-bottom: 20px; font-size: 13px; color: #7f8c8d;">
+                <em>*Limit IP otomatis diatur <strong>2 Device</strong> dan Kuota <strong>200 GB</strong>.</em>
+            </div>
+
+            <button type="submit" class="btn-submit">Eksekusi Sekarang</button>
+            
+        </form>
+
+        <?php echo $html_hasil; ?>
+
+    </div>
+</div>
+
+</body>
+</html>
+EOF
+    source admin_tendo/.env
+    sudo sed -i "s/VPN_API_KEY_PLACEHOLDER/${VPN_API_KEY}/g" /var/www/html/tendo_vpn_panel.php
+    sudo chmod 644 /var/www/html/tendo_vpn_panel.php 2>/dev/null || true
+    echo "Instalasi file tendo_vpn_panel.php selesai!"
+}
+
+install_dependencies() {
+    clear
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}             🚀 MENGINSTALL SISTEM BOT 🚀             ${C_RST}"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    
+    export DEBIAN_FRONTEND=noninteractive
+    export NEEDRESTART_MODE=a
+
+    spin() {
+        local pid=$1
+        local delay=0.1
+        local spinstr='|/-\'
+        while kill -0 $pid 2>/dev/null; do
+            local temp=${spinstr#?}
+            printf " [%c] " "$spinstr"
+            local spinstr=$temp${spinstr%"$temp"}
+            sleep $delay
+            printf "\b\b\b\b\b"
+        done
+        printf "      \b\b\b\b\b\b"
+    }
+
+    echo -ne "${C_MAG}>> Menyiapkan Environment Variables (.env)...${C_RST}"
+    mkdir -p admin_tendo
+    if [ ! -f "admin_tendo/.env" ]; then
+        echo ""
+        read -p "Masukkan Password Admin Baru (Sistem Keamanan): " admin_pass
+        read -p "Masukkan API Key Auth VPN Anda: " vpn_api_key
+        echo "ADMIN_PASS=$admin_pass" > admin_tendo/.env
+        echo "VPN_API_KEY=$vpn_api_key" >> admin_tendo/.env
+        export VPN_API_KEY=$vpn_api_key
+    else
+        source admin_tendo/.env
+    fi
+
+    echo -ne "${C_MAG}>> Mengatur zona waktu (Asia/Jakarta)...${C_RST}"
+    sudo timedatectl set-timezone Asia/Jakarta > /dev/null 2>&1 || sudo ln -sf /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+
+    echo -ne "${C_MAG}>> Mengupdate repositori sistem...${C_RST}"
+    (sudo -E apt-get update > /dev/null 2>&1 && sudo -E apt-get upgrade -y > /dev/null 2>&1) &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+
+    echo -ne "${C_MAG}>> Menginstall dependensi (curl, zip, unzip, sqlite3)...${C_RST}"
+    sudo -E apt-get install -y curl git wget nano zip unzip sqlite3 > /dev/null 2>&1 &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+    
+    echo -ne "${C_MAG}>> Menginstall Node.js...${C_RST}"
+    (curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - > /dev/null 2>&1 && sudo -E apt-get install -y nodejs > /dev/null 2>&1) &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+    
+    echo -ne "${C_MAG}>> Menginstall PM2...${C_RST}"
+    (sudo npm install -g pm2 > /dev/null 2>&1) &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+
+    echo -ne "${C_MAG}>> Meracik sistem utama & Web App...${C_RST}"
+    generate_migration_script
+    generate_bot_script
+    generate_cek_saldo_script
+    generate_vpn_panel_php
+    if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
+    rm -rf node_modules package-lock.json tendo_crypt.js
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+    
+    echo -ne "${C_MAG}>> Mengunduh modul utama (termasuk sqlite3, dotenv & multer)...${C_RST}"
+    npm install dotenv @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api multer sqlite3 > /dev/null 2>&1 &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+
+    echo -ne "${C_MAG}>> Menjalankan Migrasi Data ke SQLite3...${C_RST}"
+    node migrate.js > /dev/null 2>&1 &
+    spin $!
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+    
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_GREEN}${C_BOLD}                 ✅ INSTALASI SELESAI!                ${C_RST}"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    read -p "Tekan Enter untuk kembali..."
+}
+
+menu_tutorial() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             🎬 MANAJEMEN TUTORIAL 🎬               ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Tutorial Baru"
+        echo -e "  ${C_GREEN}[2]${C_RST} Edit Tutorial"
+        echo -e "  ${C_GREEN}[3]${C_RST} Hapus Tutorial"
+        echo -e "  ${C_GREEN}[4]${C_RST} Lihat Daftar Tutorial"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-4]: ${C_RST}"
+        read tut_choice
+
+        case $tut_choice in
+            1)
+                echo -e "\n${C_MAG}--- TAMBAH TUTORIAL BARU ---${C_RST}"
+                read -p "Masukkan Judul Tutorial: " t_judul
+                if [ -z "$t_judul" ]; then echo "Batal."; sleep 1; continue; fi
+                
+                echo -e "Anda bisa memasukkan URL video (mp4) untuk didownload otomatis,"
+                echo -e "ATAU masukkan path file lokal di VPS (contoh: /root/video.mp4)"
+                echo -e "ATAU KOSONGKAN saja jika tutorial ini HANYA BERUPA TEKS."
+                read -p "URL / Path Video (Boleh Kosong): " t_video_src
+                
+                if [ -z "$t_video_src" ]; then
+                    t_video_name="-"
+                    echo -e "${C_YELLOW}Tutorial ini dibuat tanpa video (hanya teks).${C_RST}"
+                else
+                    read -p "Nama file saat disimpan (contoh: tutor1.mp4): " t_video_name
+                    mkdir -p public/tutorials
+                    
+                    if [[ "$t_video_src" == http* ]]; then
+                        echo -e "${C_CYAN}⏳ Mendownload video...${C_RST}"
+                        wget -qO "public/tutorials/$t_video_name" "$t_video_src"
+                        if [ $? -eq 0 ]; then
+                            echo -e "${C_GREEN}✅ Video berhasil didownload!${C_RST}"
+                        else
+                            echo -e "${C_RED}❌ Gagal mendownload video.${C_RST}"
+                        fi
+                    else
+                        if [ -f "$t_video_src" ]; then
+                            cp "$t_video_src" "public/tutorials/$t_video_name"
+                            echo -e "${C_GREEN}✅ Video berhasil dicopy!${C_RST}"
+                        else
+                            echo -e "${C_RED}❌ File lokal tidak ditemukan. Melanjutkan simpan data saja...${C_RST}"
+                        fi
+                    fi
+                fi
+                
+                echo -e "Untuk baris baru gunakan tag <br>, atau tulis teks panjang."
+                read -p "Masukkan Deskripsi (Bisa paragraf/list): " t_desc
+                
+                node -e "
+                    require('dotenv').config({ path: './admin_tendo/.env' });
+                    const fs = require('fs'); const file = './admin_tendo/tutorial.json';
+                    let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : [];
+                    db.push({
+                        id: 'TUT-' + Date.now(),
+                        title: '$t_judul',
+                        video: '$t_video_name',
+                        desc: '$t_desc'
+                    });
+                    fs.writeFileSync(file, JSON.stringify(db, null, 2));
+                    console.log('\x1b[32m✅ Data tutorial berhasil disimpan!\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo -e "\n${C_MAG}--- EDIT TUTORIAL ---${C_RST}"
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/tutorial.json';
+                    let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : [];
+                    if(db.length === 0) { console.log('\x1b[31mBelum ada tutorial.\x1b[0m'); process.exit(0); }
+                    db.forEach((t, i) => console.log('[' + (i+1) + '] ' + t.title + ' (' + t.video + ')'));
+                "
+                echo ""
+                read -p "Pilih nomor tutorial yang ingin diedit: " t_num
+                if [[ "$t_num" =~ ^[0-9]+$ ]]; then
+                    read -p "Judul Baru (Kosongkan jika tidak diubah): " t_judul
+                    read -p "Nama File Video Baru (Kosongkan jika tidak diubah, isi '-' untuk hapus video): " t_video
+                    read -p "Deskripsi Baru (Kosongkan jika tidak diubah): " t_desc
+                    
+                    node -e "
+                        const fs = require('fs'); const file = './admin_tendo/tutorial.json';
+                        let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : [];
+                        let idx = parseInt('$t_num') - 1;
+                        if(db[idx]) {
+                            if('$t_judul' !== '') db[idx].title = '$t_judul';
+                            if('$t_video' !== '') db[idx].video = '$t_video';
+                            if('$t_desc' !== '') db[idx].desc = '$t_desc';
+                            fs.writeFileSync(file, JSON.stringify(db, null, 2));
+                            console.log('\x1b[32m✅ Tutorial berhasil diupdate!\x1b[0m');
+                        } else {
+                            console.log('\x1b[31m❌ Nomor tidak valid.\x1b[0m');
+                        }
+                    "
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            3)
+                echo -e "\n${C_MAG}--- HAPUS TUTORIAL ---${C_RST}"
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/tutorial.json';
+                    let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : [];
+                    if(db.length === 0) { console.log('\x1b[31mBelum ada tutorial.\x1b[0m'); process.exit(0); }
+                    db.forEach((t, i) => console.log('[' + (i+1) + '] ' + t.title));
+                "
+                echo ""
+                read -p "Pilih nomor tutorial yang ingin dihapus: " t_num
+                if [[ "$t_num" =~ ^[0-9]+$ ]]; then
+                    node -e "
+                        const fs = require('fs'); const file = './admin_tendo/tutorial.json';
+                        let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : [];
+                        let idx = parseInt('$t_num') - 1;
+                        if(db[idx]) {
+                            let videoName = db[idx].video;
+                            let filepath = 'public/tutorials/' + videoName;
+                            if(videoName !== '-' && fs.existsSync(filepath)) {
+                                fs.unlinkSync(filepath);
+                                console.log('\x1b[33mFile video ' + videoName + ' dihapus.\x1b[0m');
+                            }
+                            db.splice(idx, 1);
+                            fs.writeFileSync(file, JSON.stringify(db, null, 2));
+                            console.log('\x1b[32m✅ Tutorial berhasil dihapus!\x1b[0m');
+                        } else {
+                            console.log('\x1b[31m❌ Nomor tidak valid.\x1b[0m');
+                        }
+                    "
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            4)
+                echo -e "\n${C_CYAN}--- DAFTAR TUTORIAL ---${C_RST}"
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/tutorial.json';
+                    let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : [];
+                    if(db.length === 0) { console.log('\x1b[33mBelum ada tutorial.\x1b[0m'); }
+                    else {
+                        db.forEach((t, i) => {
+                            console.log('\n\x1b[36m[' + (i+1) + '] ' + t.title + '\x1b[0m');
+                            console.log('   Video: ' + t.video);
+                            console.log('   Deskripsi: ' + t.desc);
+                        });
+                    }
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
+menu_member() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             👥 MANAJEMEN MEMBER BOT 👥             ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Saldo Member"
+        echo -e "  ${C_GREEN}[2]${C_RST} Kurangi Saldo Member"
+        echo -e "  ${C_GREEN}[3]${C_RST} Lihat Daftar Semua Member Aktif"
+        echo -e "  ${C_GREEN}[4]${C_RST} Cek Riwayat Transaksi/Topup Member"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-4]: ${C_RST}"
+        read subchoice
+
+        case $subchoice in
+            1)
+                echo -e "\n${C_MAG}--- TAMBAH SALDO ---${C_RST}"
+                read -p "Cari Target (WA, Email, atau Username): " pencarian
+                read -p "Masukkan Jumlah Saldo: " jumlah
+                node -e "
+                    const sqlite3 = require('sqlite3').verbose();
+                    const db = new sqlite3.Database('./admin_tendo/database.db');
+                    const run = (q, p) => new Promise((res, rej) => db.run(q, p, function(e){ e ? rej(e) : res(this) }));
+                    const get = (q, p) => new Promise((res, rej) => db.get(q, p, (e, r) => e ? rej(e) : res(r)));
+                    
+                    (async () => {
+                        let input = '$pencarian'.trim();
+                        let normPhone = input.replace(/[^0-9]/g, '');
+                        if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
+                        else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
+                        
+                        let u = await get('SELECT * FROM users WHERE phone=? OR LOWER(email)=? OR LOWER(username)=?', [normPhone, input.toLowerCase(), input.toLowerCase()]);
+                        
+                        if(!u) {
+                            if(normPhone === '') { console.log('\x1b[31m\n❌ Akun tidak ditemukan dengan nama atau email tersebut.\x1b[0m'); process.exit(0); }
+                            await run(\`INSERT INTO users (phone, username, email, password, saldo, level, poin, banned, trx_count, tanggal_daftar, id_pelanggan, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\`, 
+                                [normPhone, normPhone, '-', '', 0, 'Member', 0, 0, 0, new Date().toLocaleDateString('id-ID', {timeZone: 'Asia/Jakarta'}), 'TD-'+Date.now(), 'REF'+Date.now()]);
+                            u = { phone: normPhone, username: normPhone, saldo: 0 };
+                        }
+                        
+                        let namaUser = u.username || u.phone;
+                        let saldoSebelum = parseInt(u.saldo || 0);
+                        let nominalTambah = parseInt('$jumlah');
+                        let sStlh = saldoSebelum + nominalTambah;
+                        
+                        await run('UPDATE users SET saldo = ? WHERE phone = ?', [sStlh, u.phone]);
+                        let dateStr = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+                        
+                        await run(\`INSERT INTO history (phone, ts, tanggal, type, nama, tujuan, status, sn, amount, saldo_sebelumnya, saldo_sesudah) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\`, 
+                            [u.phone, Date.now(), dateStr, 'Topup', 'Topup Manual (Admin)', 'Sistem', 'Sukses', '-', nominalTambah, saldoSebelum, sStlh]);
+                        
+                        console.log('\x1b[32m\n✅ Saldo Rp ' + nominalTambah.toLocaleString('id-ID') + ' berhasil ditambahkan ke ' + namaUser + ' (' + u.phone + ')!\x1b[0m');
+                        console.log('\x1b[33mSaldo Sebelumnya: Rp ' + saldoSebelum.toLocaleString('id-ID') + '\x1b[0m');
+                        console.log('\x1b[36mSaldo Sekarang  : Rp ' + sStlh.toLocaleString('id-ID') + '\x1b[0m');
+                    })();
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo -e "\n${C_MAG}--- KURANGI SALDO ---${C_RST}"
+                read -p "Cari Target (WA, Email, atau Username): " pencarian
+                read -p "Masukkan Jumlah Saldo yg dikurangi: " jumlah
+                node -e "
+                    const sqlite3 = require('sqlite3').verbose();
+                    const db = new sqlite3.Database('./admin_tendo/database.db');
+                    const run = (q, p) => new Promise((res, rej) => db.run(q, p, function(e){ e ? rej(e) : res(this) }));
+                    const get = (q, p) => new Promise((res, rej) => db.get(q, p, (e, r) => e ? rej(e) : res(r)));
+
+                    (async () => {
+                        let input = '$pencarian'.trim();
+                        let normPhone = input.replace(/[^0-9]/g, '');
+                        if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
+                        else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
+                        
+                        let u = await get('SELECT * FROM users WHERE phone=? OR LOWER(email)=? OR LOWER(username)=?', [normPhone, input.toLowerCase(), input.toLowerCase()]);
+                        
+                        if(!u) { 
+                            console.log('\x1b[31m\n❌ Akun tidak ditemukan di database.\x1b[0m'); 
+                        } else {
+                            let namaUser = u.username || u.phone;
+                            let saldoSebelum = parseInt(u.saldo || 0);
+                            let nominalKurang = parseInt('$jumlah');
+                            let sStlh = saldoSebelum - nominalKurang;
+                            if(sStlh < 0) sStlh = 0;
+                            
+                            await run('UPDATE users SET saldo = ? WHERE phone = ?', [sStlh, u.phone]);
+                            let dateStr = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+                            
+                            await run(\`INSERT INTO history (phone, ts, tanggal, type, nama, tujuan, status, sn, amount, saldo_sebelumnya, saldo_sesudah) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\`, 
+                                [u.phone, Date.now(), dateStr, 'Topup', 'Pengurangan Saldo (Admin)', 'Sistem', 'Sukses', '-', nominalKurang, saldoSebelum, sStlh]);
+                            
+                            console.log('\x1b[32m\n✅ Saldo ' + namaUser + ' (' + u.phone + ') berhasil dikurangi!\x1b[0m');
+                            console.log('\x1b[33mSaldo Sebelumnya: Rp ' + saldoSebelum.toLocaleString('id-ID') + '\x1b[0m');
+                            console.log('\x1b[36mSaldo Sekarang  : Rp ' + sStlh.toLocaleString('id-ID') + '\x1b[0m');
+                        }
+                    })();
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            3)
+                echo -e "\n${C_CYAN}--- DAFTAR MEMBER AKTIF ---${C_RST}"
+                node -e "
+                    const sqlite3 = require('sqlite3').verbose();
+                    const db = new sqlite3.Database('./admin_tendo/database.db');
+                    
+                    db.all('SELECT * FROM users WHERE email IS NOT NULL AND email != \"-\" AND email != \"\" ORDER BY saldo DESC', [], (err, rows) => {
+                        if(err || rows.length === 0) {
+                            console.log('\x1b[33mBelum ada member aktif (yang terdaftar email).\x1b[0m');
+                        } else {
+                            rows.forEach((m, i) => {
+                                let nama = m.username || 'Member';
+                                let email = m.email || '-';
+                                console.log((i + 1) + '. Nama: ' + nama + ' | WA: ' + m.phone + ' | Email: ' + email + ' | Saldo: Rp ' + m.saldo.toLocaleString('id-ID'));
+                            });
+                        }
+                    });
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            4)
+                echo -e "\n${C_CYAN}--- RIWAYAT TOPUP/TRANSAKSI MEMBER ---${C_RST}"
+                read -p "Cari Target (WA, Email, atau Username): " pencarian
+                if [ ! -z "$pencarian" ]; then
+                    node -e "
+                        const sqlite3 = require('sqlite3').verbose();
+                        const db = new sqlite3.Database('./admin_tendo/database.db');
+                        const get = (q, p) => new Promise((res, rej) => db.get(q, p, (e, r) => e ? rej(e) : res(r)));
+                        const all = (q, p) => new Promise((res, rej) => db.all(q, p, (e, r) => e ? rej(e) : res(r)));
+
+                        (async () => {
+                            let input = '$pencarian'.trim();
+                            let normPhone = input.replace(/[^0-9]/g, '');
+                            if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
+                            else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
+                            
+                            let u = await get('SELECT * FROM users WHERE phone=? OR LOWER(email)=? OR LOWER(username)=?', [normPhone, input.toLowerCase(), input.toLowerCase()]);
+                            
+                            if(u) {
+                                let topups = await all('SELECT * FROM history WHERE phone=? ORDER BY ts DESC LIMIT 10', [u.phone]);
+                                let targetSaldo = u.saldo || 0;
+                                let targetNama = u.username || 'Member';
+                                
+                                console.log('\n\x1b[36m=== 10 RIWAYAT TERBARU: ' + targetNama + ' (' + u.phone + ') ===\x1b[0m');
+                                console.log('\x1b[32m💰 Saldo Saat Saat Ini: Rp ' + targetSaldo.toLocaleString('id-ID') + '\x1b[0m');
+                                if(topups.length === 0) console.log('\x1b[33mBelum ada riwayat transaksi di akun ini.\x1b[0m');
+                                else {
+                                    topups.forEach(h => {
+                                        let str = '- \x1b[33m' + h.tanggal + '\x1b[0m | ' + h.nama + ' | \x1b[32mRp ' + (h.amount || 0).toLocaleString('id-ID') + '\x1b[0m | Status: ' + h.status;
+                                        if (h.saldo_sebelumnya !== null) str += '\n    └ Saldo Sblm: Rp ' + h.saldo_sebelumnya.toLocaleString('id-ID');
+                                        if (h.saldo_sesudah !== null) str += ' | Saldo Stlh: Rp ' + h.saldo_sesudah.toLocaleString('id-ID');
+                                        console.log(str);
+                                    });
+                                }
+                            } else {
+                                console.log('\x1b[31m❌ Akun tidak ditemukan berdasarkan pencarian Anda.\x1b[0m');
+                            }
+                        })();
+                    "
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
+menu_keuntungan() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             💰 MANAJEMEN KEUNTUNGAN 💰             ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        
+        node -e "
+            const fs = require('fs'); const file = './admin_tendo/config.json';
+            let c = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)).margin : {};
+            if(!c) c = {};
+            console.log('  \x1b[32m[1]\x1b[0m  Modal Rp 0 - 100               : Rp ' + (c.t1||50));
+            console.log('  \x1b[32m[2]\x1b[0m  Modal Rp 100 - 500             : Rp ' + (c.t2||100));
+            console.log('  \x1b[32m[3]\x1b[0m  Modal Rp 500 - 1.000           : Rp ' + (c.t3||250));
+            console.log('  \x1b[32m[4]\x1b[0m  Modal Rp 1.000 - 2.000         : Rp ' + (c.t4||500));
+            console.log('  \x1b[32m[5]\x1b[0m  Modal Rp 2.000 - 3.000         : Rp ' + (c.t5||1000));
+            console.log('  \x1b[32m[6]\x1b[0m  Modal Rp 3.000 - 4.000         : Rp ' + (c.t6||1500));
+            console.log('  \x1b[32m[7]\x1b[0m  Modal Rp 4.000 - 5.000         : Rp ' + (c.t7||2000));
+            console.log('  \x1b[32m[8]\x1b[0m  Modal Rp 5.000 - 10.000        : Rp ' + (c.t8||2500));
+            console.log('  \x1b[32m[9]\x1b[0m  Modal Rp 10.000 - 25.000       : Rp ' + (c.t9||3000));
+            console.log('  \x1b[32m[10]\x1b[0m Modal Rp 25.000 - 50.000      : Rp ' + (c.t10||4000));
+            console.log('  \x1b[32m[11]\x1b[0m Modal Rp 50.000 - 75.000      : Rp ' + (c.t11||5000));
+            console.log('  \x1b[32m[12]\x1b[0m Modal Rp 75.000 - 100.000     : Rp ' + (c.t12||7500));
+            console.log('  \x1b[32m[13]\x1b[0m Modal Rp 100.000 - Seterusnya : Rp ' + (c.t13||10000));
+        "
+        
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST}  Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih nomor rentang yang ingin diubah [0-13]: ${C_RST}"
+        read k_choice
+
+        if [ "$k_choice" == "0" ]; then
+            break
+        elif [[ "$k_choice" -ge 1 && "$k_choice" -le 13 ]]; then
+            read -p "Masukkan Keuntungan Baru (Rp) untuk Pilihan $k_choice: " nominal_baru
+            
+            if [ -z "$nominal_baru" ]; then
+                echo -e "${C_RED}❌ Dibatalkan, nominal tidak boleh kosong.${C_RST}"
+                sleep 1
+                continue
+            fi
+            
+            node -e "
+                const fs = require('fs'); const file = './admin_tendo/config.json';
+                let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                if(!config.margin) config.margin = { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
+                let tier = 't' + $k_choice;
+                config.margin[tier] = parseInt('$nominal_baru');
+                fs.writeFileSync(file, JSON.stringify(config, null, 2));
+            "
+            echo -e "${C_GREEN}✅ Keuntungan tier $k_choice berhasil diubah! Me-refresh Katalog Website...${C_RST}"
+            curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
+            sleep 1
+        else
+            echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"
+            sleep 1
+        fi
+    done
+}
+
+menu_sinkron() {
+    clear
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}          🔄 SINKRONISASI PRODUK DIGIFLAZZ 🔄         ${C_RST}"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_MAG}Sistem akan menarik seluruh data produk dari API Digiflazz,"
+    echo -e "menyesuaikan kategori otomatis, dan menata harga berdasarkan"
+    echo -e "Manajemen Keuntungan yang sudah kamu atur sebelumnya.${C_RST}\n"
+    
+    echo -e "${C_YELLOW}⏳ Memulai sinkronisasi... Harap tunggu beberapa detik.${C_RST}"
+    
+    curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
+    
+    echo -e "\n${C_GREEN}✅ Sinkronisasi Selesai! Katalog Website dan Harga sudah terupdate secara realtime.${C_RST}"
+    read -p "Tekan Enter untuk kembali..."
+}
+
+menu_telegram() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             ⚙️ AUTO-BACKUP KE TELEGRAM ⚙️            ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Aktifkan/Matikan Notifikasi Backup Otomatis"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-1]: ${C_RST}"
+        read telechoice
+
+        case $telechoice in
+            1)
+                echo -e "\n${C_MAG}--- SET AUTO BACKUP ---${C_RST}"
+                read -p "Aktifkan Auto-Backup ke Telegram? (y/n): " set_auto
+                if [ "$set_auto" == "y" ] || [ "$set_auto" == "Y" ]; then
+                    status="true"
+                    read -p "Berapa MENIT sekali bot harus backup? (Contoh: 60): " menit
+                    if ! [[ "$menit" =~ ^[0-9]+$ ]]; then
+                        menit=720
+                    fi
+                    echo -e "\n${C_GREEN}✅ Auto-Backup DIAKTIFKAN setiap $menit menit!${C_RST}"
+                else
+                    status="false"
+                    menit=720
+                    echo -e "\n${C_RED}❌ Auto-Backup DIMATIKAN!${C_RST}"
+                fi
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/config.json';
+                    let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                    config.autoBackup = $status;
+                    config.backupInterval = parseInt('$menit');
+                    fs.writeFileSync(file, JSON.stringify(config, null, 2));
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
+menu_backup() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}               💾 BACKUP & RESTORE 💾               ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Backup Data (Kirim ke Telegram Admin)"
+        echo -e "  ${C_GREEN}[2]${C_RST} Restore Database & Bot dari Link"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-2]: ${C_RST}"
+        read backchoice
+
+        case $backchoice in
+            1)
+                echo -e "\n${C_MAG}⏳ Sedang memproses arsip backup...${C_RST}"
+                if ! command -v zip &> /dev/null; then sudo apt install zip -y > /dev/null 2>&1; fi
+                rm -f backup.zip
+                if [ -d "/etc/letsencrypt" ]; then
+                    sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null
+                fi
+                zip -r backup.zip admin_tendo ssl_backup.tar.gz 2>/dev/null
+                echo -e "${C_GREEN}✅ File backup.zip (SQLite3 + Config) berhasil dikompresi!${C_RST}"
+                node -e "
+                    const fs = require('fs'); const { exec } = require('child_process');
+                    let config = JSON.parse(fs.readFileSync('./admin_tendo/config.json', 'utf8'));
+                    if(config.teleToken && config.teleChatId) {
+                        console.log('\x1b[36m⏳ Sedang mengirim ke Telegram Admin...\x1b[0m');
+                        let cmd = \`curl -s -F chat_id=\"\${config.teleChatId}\" -F document=@\"backup.zip\" -F caption=\"📦 Manual Backup Data + SSL\" https://api.telegram.org/bot\${config.teleToken}/sendDocument\`;
+                        exec(cmd, (err) => {
+                            if(err) console.log('\x1b[31m❌ Gagal mengirim ke Telegram.\x1b[0m');
+                            else console.log('\x1b[32m✅ File Backup berhasil mendarat di Telegram Admin!\x1b[0m');
+                        });
+                    } else {
+                        console.log('\x1b[33m⚠️ Token Telegram Admin belum diisi di menu setup notifikasi.\x1b[0m');
+                    }
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo -e "\n${C_RED}${C_BOLD}⚠️ PERHATIAN: Restore akan MENIMPA seluruh file bot Anda!${C_RST}"
+                read -p "Apakah Anda yakin ingin melanjutkan? (y/n): " yakin
+                if [ "$yakin" == "y" ] || [ "$yakin" == "Y" ]; then
+                    read -p "🔗 Masukkan Direct Link file ZIP Backup Anda: " linkzip
+                    if [ ! -z "$linkzip" ]; then
+                        wget -qO restore.zip "$linkzip"
+                        if [ -f "restore.zip" ]; then
+                            if ! command -v unzip &> /dev/null; then sudo apt install unzip -y > /dev/null 2>&1; fi
+                            pm2 stop tendo-bot >/dev/null 2>&1
+                            unzip -o restore.zip > /dev/null 2>&1
+                            if [ -f "ssl_backup.tar.gz" ]; then
+                                sudo tar -xzf ssl_backup.tar.gz -C / 2>/dev/null
+                                echo -e "${C_GREEN}✅ Sertifikat SSL berhasil direstore!${C_RST}"
+                            fi
+                            rm restore.zip
+                            npm install > /dev/null 2>&1
+                            pm2 restart tendo-bot >/dev/null 2>&1
+                            echo -e "\n${C_GREEN}${C_BOLD}✅ RESTORE BERHASIL SEPENUHNYA!${C_RST}"
+                        else
+                            echo -e "${C_RED}❌ Gagal mendownload file.${C_RST}"
+                        fi
+                    fi
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
+menu_manajemen_produk_instan() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}          📦 MANAJEMEN PRODUK INSTAN 📦             ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk Instan Otomatis (Digiflazz)"
+        echo -e "  ${C_GREEN}[2]${C_RST} Daftar Produk Instan"
+        echo -e "  ${C_GREEN}[3]${C_RST} Edit Produk Instan"
+        echo -e "  ${C_GREEN}[4]${C_RST} Hapus Produk Instan"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-4]: ${C_RST}"
+        read mp_choice
+
+        case $mp_choice in
+            1)
+                clear
+                echo -e "${C_MAG}--- TAMBAH PRODUK INSTAN ---${C_RST}"
+                echo -e "Kategori Tersedia:"
+                echo -e "1. Pulsa\n2. Data\n3. Game\n4. Voucher\n5. E-Money\n6. PLN\n7. Paket SMS & Telpon\n8. Masa Aktif\n9. Aktivasi Perdana"
+                read -p "Pilih kategori [1-9]: " kat_idx
+                kat_nama=""
+                case $kat_idx in
+                    1) kat_nama="Pulsa" ;;
+                    2) kat_nama="Data" ;;
+                    3) kat_nama="Game" ;;
+                    4) kat_nama="Voucher" ;;
+                    5) kat_nama="E-Money" ;;
+                    6) kat_nama="PLN" ;;
+                    7) kat_nama="Paket SMS & Telpon" ;;
+                    8) kat_nama="Masa Aktif" ;;
+                    9) kat_nama="Aktivasi Perdana" ;;
+                    *) echo -e "${C_RED}❌ Kategori tidak valid.${C_RST}"; sleep 1; continue ;;
+                esac
+                
+                read -p "Masukkan Kode SKU Digiflazz: " sku_digi
+                if [ -z "$sku_digi" ]; then echo -e "${C_RED}❌ SKU wajib diisi!${C_RST}"; sleep 1; continue; fi
+                read -p "Nama Produk: " custom_nama
+                read -p "Nama Brand / Provider: " custom_brand
+                read -p "Nama Paket (Otomatis tampil paling atas di web): " custom_tipe
+                read -p "Deskripsi Singkat: " custom_desc
+                
+                node -e "
+                    const sqlite3 = require('sqlite3').verbose();
+                    const db = new sqlite3.Database('./admin_tendo/database.db');
+                    const run = (q, p) => new Promise((res, rej) => db.run(q, p, function(e){ e ? rej(e) : res(this) }));
+                    const get = (q, p) => new Promise((res, rej) => db.get(q, p, (e, r) => e ? rej(e) : res(r)));
+
+                    (async () => {
+                        let uniqueSku = '$sku_digi' + '_custom_' + Date.now();
+                        let existingPrice = 0;
+                        
+                        let p = await get('SELECT harga FROM products WHERE LOWER(sku_asli) = ? AND is_manual_cat = 0', ['$sku_digi'.toLowerCase()]);
+                        if(p) existingPrice = p.harga;
+
+                        await run(\`INSERT INTO products (sku, sku_asli, nama, harga, harga_asli, margin_keuntungan, kategori, brand, sub_kategori, deskripsi, status_produk, is_manual_cat, is_pasca) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\`,
+                            [uniqueSku, '$sku_digi', '$custom_nama', existingPrice, 0, 0, '$kat_nama', '$custom_brand', '\u200B' + '$custom_tipe', '$custom_desc', 1, 1, 0]);
+                        
+                        console.log('\x1b[32m✅ Produk Instan berhasil ditambahkan!\x1b[0m');
+                        if(existingPrice === 0) {
+                            console.log('\x1b[33mInfo: Harga saat ini 0, sistem akan menarik harga baru dari pusat otomatis.\x1b[0m');
+                        } else {
+                            console.log('\x1b[32mInfo: Harga otomatis ditarik dari data produk: Rp ' + existingPrice + '\x1b[0m');
+                        }
+                    })();
+                "
+                curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo -e "\n${C_CYAN}--- DAFTAR PRODUK INSTAN ---${C_RST}"
+                node -e "
+                    const sqlite3 = require('sqlite3').verbose();
+                    const db = new sqlite3.Database('./admin_tendo/database.db');
+                    
+                    db.all('SELECT * FROM products WHERE is_manual_cat = 1', [], (err, rows) => {
+                        if(err || rows.length === 0) {
+                            console.log('\x1b[33mBelum ada produk instan yang ditambahkan.\x1b[0m');
+                        } else {
+                            rows.forEach((p, i) => {
+                                console.log('[' + (i+1) + '] SKU Digiflazz: ' + p.sku_asli + ' | Nama: ' + p.nama + ' | Harga Jual: Rp ' + p.harga + ' | Nama Paket: ' + p.sub_kategori.replace('\u200B', ''));
+                            });
+                        }
+                    });
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            3)
+                echo -e "\n${C_MAG}--- EDIT PRODUK INSTAN ---${C_RST}"
+                node -e "
+                    const sqlite3 = require('sqlite3').verbose();
+                    const db = new sqlite3.Database('./admin_tendo/database.db');
+                    
+                    db.all('SELECT sku, nama, sku_asli FROM products WHERE is_manual_cat = 1', [], (err, rows) => {
+                        if(err || rows.length === 0) {
+                            console.log('\x1b[33mBelum ada produk instan.\x1b[0m'); process.exit(0);
+                        } else {
+                            rows.forEach((p, i) => { console.log('[' + (i+1) + '] ' + p.nama + ' (SKU: ' + p.sku_asli + ')'); });
+                        }
+                    });
+                "
+                echo ""
+                read -p "Pilih nomor urut produk yang ingin diedit: " edit_idx
+                if [[ "$edit_idx" =~ ^[0-9]+$ ]]; then
+                    read -p "Nama Produk Baru (Kosongkan jika tidak diubah): " e_nama
+                    read -p "Deskripsi Baru (Kosongkan jika tidak diubah): " e_desc
+                    read -p "Nama Paket Baru (Kosongkan jika tidak diubah): " e_paket
+                    
+                    node -e "
+                        const sqlite3 = require('sqlite3').verbose();
+                        const db = new sqlite3.Database('./admin_tendo/database.db');
+                        const run = (q, p) => new Promise((res, rej) => db.run(q, p, function(e){ e ? rej(e) : res(this) }));
+                        const all = (q, p) => new Promise((res, rej) => db.all(q, p, (e, r) => e ? rej(e) : res(r)));
+
+                        (async () => {
+                            let rows = await all('SELECT * FROM products WHERE is_manual_cat = 1');
+                            let idx = parseInt('$edit_idx') - 1;
+                            if(rows[idx]) {
+                                let p = rows[idx];
+                                let nName = '$e_nama' !== '' ? '$e_nama' : p.nama;
+                                let nDesc = '$e_desc' !== '' ? '$e_desc' : p.deskripsi;
+                                let nPaket = '$e_paket' !== '' ? '\u200B' + '$e_paket' : p.sub_kategori;
+                                
+                                await run('UPDATE products SET nama=?, deskripsi=?, sub_kategori=? WHERE sku=?', [nName, nDesc, nPaket, p.sku]);
+                                console.log('\x1b[32m✅ Produk instan berhasil diupdate!\x1b[0m');
+                            } else {
+                                console.log('\x1b[31m❌ Nomor urut tidak valid.\x1b[0m');
+                            }
+                        })();
+                    "
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            4)
+                echo -e "\n${C_MAG}--- HAPUS PRODUK INSTAN ---${C_RST}"
+                node -e "
+                    const sqlite3 = require('sqlite3').verbose();
+                    const db = new sqlite3.Database('./admin_tendo/database.db');
+                    
+                    db.all('SELECT sku, nama, sku_asli FROM products WHERE is_manual_cat = 1', [], (err, rows) => {
+                        if(err || rows.length === 0) {
+                            console.log('\x1b[33mBelum ada produk instan.\x1b[0m'); process.exit(0);
+                        } else {
+                            rows.forEach((p, i) => { console.log('[' + (i+1) + '] ' + p.nama + ' (SKU: ' + p.sku_asli + ')'); });
+                        }
+                    });
+                "
+                echo ""
+                read -p "Pilih nomor urut produk yang ingin dihapus: " del_idx
+                if [[ "$del_idx" =~ ^[0-9]+$ ]]; then
+                    node -e "
+                        const sqlite3 = require('sqlite3').verbose();
+                        const db = new sqlite3.Database('./admin_tendo/database.db');
+                        const run = (q, p) => new Promise((res, rej) => db.run(q, p, function(e){ e ? rej(e) : res(this) }));
+                        const all = (q, p) => new Promise((res, rej) => db.all(q, p, (e, r) => e ? rej(e) : res(r)));
+
+                        (async () => {
+                            let rows = await all('SELECT sku FROM products WHERE is_manual_cat = 1');
+                            let idx = parseInt('$del_idx') - 1;
+                            if(rows[idx]) {
+                                await run('DELETE FROM products WHERE sku=?', [rows[idx].sku]);
+                                console.log('\x1b[32m✅ Produk instan berhasil dihapus dari website!\x1b[0m');
+                            } else {
+                                console.log('\x1b[31m❌ Nomor urut tidak valid.\x1b[0m');
+                            }
+                        })();
+                    "
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
+menu_notifikasi() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}        📢 SETUP INTEGRASI NOTIFIKASI BROADCAST       ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Setup Telegram ADMIN (Laporan Transaksi & Komplain)"
+        echo -e "  ${C_GREEN}[2]${C_RST} Setup Telegram PELANGGAN (Kirim Info Web & Saluran)"
+        echo -e "  ${C_GREEN}[3]${C_RST} Setup Grup / Saluran WA (Broadcast Sukses)"
+        echo -e "  ${C_GREEN}[4]${C_RST} Hapus / Bersihkan Notifikasi di Website"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-4]: ${C_RST}"
+        read notif_choice
+
+        case $notif_choice in
+            1)
+                echo -e "\n${C_MAG}--- SETUP TELEGRAM ADMIN ---${C_RST}"
+                echo -e "Notifikasi pesanan masuk, komplain, topup & backup akan dikirim kesini."
+                read -p "Masukkan Token Bot Telegram Admin: " token
+                read -p "Masukkan Chat ID Admin Anda: " chatid
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/config.json';
+                    let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                    if('$token' !== '') config.teleToken = '$token'.trim();
+                    if('$chatid' !== '') config.teleChatId = '$chatid'.trim();
+                    fs.writeFileSync(file, JSON.stringify(config, null, 2));
+                    console.log('\x1b[32m\n✅ Konfigurasi Telegram Admin berhasil disimpan!\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo -e "\n${C_MAG}--- SETUP TELEGRAM PELANGGAN (INFO/SALURAN) ---${C_RST}"
+                echo -e "Notifikasi untuk broadcast Global Transaksi Sukses dan Update Info di Web."
+                read -p "Masukkan Token Bot Telegram (Boleh bot yang sama/berbeda dari Admin): " token_info
+                read -p "Masukkan ID Channel/Saluran Pelanggan (Contoh: -100123456789): " chanid
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/config.json';
+                    let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                    if('$token_info' !== '') config.teleTokenInfo = '$token_info'.trim();
+                    if('$chanid' !== '') config.teleChannelId = '$chanid'.trim();
+                    fs.writeFileSync(file, JSON.stringify(config, null, 2));
+                    console.log('\x1b[32m\n✅ Konfigurasi Telegram Pelanggan & Channel berhasil disimpan!\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            3)
+                echo -e "\n${C_MAG}--- SETUP GRUP / SALURAN WHATSAPP ---${C_RST}"
+                echo -e "Masukkan ID Grup (contoh: 12345678@g.us) atau Saluran (contoh: 120363xxx@newsletter)."
+                echo -e "Bot WA Anda akan mengirim broadcast notifikasi beli sukses kesini."
+                read -p "Masukkan ID WA: " waid
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/config.json';
+                    let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                    if('$waid' !== '') config.waBroadcastId = '$waid'.trim();
+                    fs.writeFileSync(file, JSON.stringify(config, null, 2));
+                    console.log('\x1b[32m\n✅ ID WA Broadcast berhasil disimpan!\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            4)
+                echo -e "\n${C_MAG}--- HAPUS PEMBERITAHUAN WEBSITE ---${C_RST}"
+                read -p "Yakin ingin MENGHAPUS semua pemberitahuan di Web? (y/n): " hapus_notif
+                if [ "$hapus_notif" == "y" ] || [ "$hapus_notif" == "Y" ]; then
+                    node -e "
+                        const fs = require('fs');
+                        fs.writeFileSync('./admin_tendo/web_notif.json', '[]');
+                        console.log('\x1b[32m\n✅ Semua pemberitahuan website berhasil dibersihkan!\x1b[0m');
+                    "
+                else
+                    echo -e "${C_YELLOW}Penghapusan dibatalkan.${C_RST}"
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
+submenu_server_vpn() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             🌍 MANAJEMEN SERVER VPN 🌍             ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah / Edit Koneksi Server"
+        echo -e "  ${C_GREEN}[2]${C_RST} List Daftar Server"
+        echo -e "  ${C_GREEN}[3]${C_RST} Hapus Koneksi Server"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-3]: ${C_RST}"
+        read srv_choice
+
+        case $srv_choice in
+            1)
+                echo -e "\n${C_MAG}--- TAMBAH / EDIT KONEKSI SERVER ---${C_RST}"
+                read -p "Buat ID Server (Unik, misal: srv1 atau SG-VIP): " srv_id
+                if [ -z "$srv_id" ]; then echo "Batal."; sleep 1; continue; fi
+                
+                read -p "Masukkan Nama Server (Misal: VIP Singapura): " srv_name
+                read -p "Masukkan Hostname / IP Server: " srv_host
+                read -p "Masukkan Port Server (Biarkan kosong jika default): " srv_port
+                read -p "Masukkan Username VPS: " srv_user
+                read -p "Masukkan Password VPS: " srv_pass
+                read -p "Masukkan API Key VPN Panel: " srv_api
+                read -p "Masukkan Nama ISP Server: " srv_isp
+                read -p "Masukkan Nama Kota/City: " srv_city
+                
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/vpn_config.json';
+                    let vpnDb = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {servers:{}, products:{}};
+                    if(!vpnDb.servers) vpnDb.servers = {};
+                    vpnDb.servers['$srv_id'] = {
+                        server_name: '$srv_name', host: '$srv_host', port: '$srv_port',
+                        user: '$srv_user', pass: '$srv_pass', api_key: '$srv_api',
+                        isp: '$srv_isp', city: '$srv_city'
+                    };
+                    fs.writeFileSync(file, JSON.stringify(vpnDb, null, 2));
+                    console.log('\x1b[32m\n✅ Konfigurasi Server ($srv_id) berhasil disimpan!\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo -e "\n${C_CYAN}--- DAFTAR SERVER VPN ---${C_RST}"
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/vpn_config.json';
+                    let vpnDb = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                    let servers = vpnDb.servers || {};
+                    let count = 0;
+                    for(let id in servers) {
+                        count++;
+                        let s = servers[id];
+                        console.log('- ID: \x1b[33m' + id + '\x1b[0m | Nama: ' + s.server_name + ' | Host: ' + s.host);
+                    }
+                    if(count === 0) console.log('\x1b[31mBelum ada server VPN yang ditambahkan.\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            3)
+                echo -e "\n${C_MAG}--- HAPUS KONEKSI SERVER ---${C_RST}"
+                read -p "Masukkan ID Server yang ingin dihapus: " del_id
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/vpn_config.json';
+                    let vpnDb = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                    if(vpnDb.servers && vpnDb.servers['$del_id']) {
+                        delete vpnDb.servers['$del_id'];
+                        fs.writeFileSync(file, JSON.stringify(vpnDb, null, 2));
+                        console.log('\x1b[32m\n✅ Server dengan ID ($del_id) berhasil dihapus!\x1b[0m');
+                    } else {
+                        console.log('\x1b[31m\n❌ Server dengan ID ($del_id) tidak ditemukan.\x1b[0m');
+                    }
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
+submenu_produk_vpn() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}             📦 MANAJEMEN PRODUK VPN 📦             ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Tambah Produk VPN Baru (ID Otomatis Unik)"
+        echo -e "  ${C_GREEN}[2]${C_RST} Edit Produk VPN Yang Sudah Ada"
+        echo -e "  ${C_GREEN}[3]${C_RST} List Daftar Produk"
+        echo -e "  ${C_GREEN}[4]${C_RST} Atur Ulang Stok Produk"
+        echo -e "  ${C_GREEN}[5]${C_RST} Hapus Produk"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-5]: ${C_RST}"
+        read prod_choice
+
+        case $prod_choice in
+            1)
+                echo -e "\n${C_MAG}--- TAMBAH PRODUK VPN BARU ---${C_RST}"
+                prod_id="VPN-$(date +%s)"
+                echo -e "${C_GREEN}Membuat ID Produk Unik: $prod_id${C_RST}"
+
+                echo -e "\nPilih Protokol:"
+                echo -e "  [1] SSH\n  [2] Vmess\n  [3] Vless\n  [4] Trojan\n  [5] ZIVPN"
+                read -p "Pilihan [1-5]: " proto_opt
+                target_proto=""
+                case $proto_opt in
+                    1) target_proto="SSH" ;;
+                    2) target_proto="Vmess" ;;
+                    3) target_proto="Vless" ;;
+                    4) target_proto="Trojan" ;;
+                    5) target_proto="ZIVPN" ;;
+                    *) target_proto="SSH" ;;
+                esac
+
+                echo -e "\nServer Tersedia:"
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/vpn_config.json';
+                    let vpnDb = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                    let servers = vpnDb.servers || {};
+                    for(let id in servers) console.log('  - ' + id + ' (' + servers[id].server_name + ')');
+                "
+                read -p "Ketik ID Server target: " srv_id_target
+                read -p "Nama Layanan (Misal: SSH Premium SG VIP): " p_nama
+                read -p "Harga Patokan 30 Hari (Rp): " p_harga
+                read -p "Limit IP (contoh: 2): " p_limitip
+                read -p "Limit Bandwidth Kuota GB (contoh: 200, Kosongkan utk SSH): " p_kuota
+                read -p "Jumlah Stok Awal: " p_stok
+                read -p "Deskripsi / Fitur Singkat: " p_desc
+                
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/vpn_config.json';
+                    let vpnDb = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {servers:{}, products:{}};
+                    if(!vpnDb.products) vpnDb.products = {};
+                    
+                    vpnDb.products['$prod_id'] = {
+                        protocol: '$target_proto',
+                        server_id: '$srv_id_target',
+                        name: '$p_nama' !== '' ? '$p_nama' : 'VPN Premium',
+                        price: '$p_harga' !== '' ? parseInt('$p_harga') : 0,
+                        desc: '$p_desc' !== '' ? '$p_desc' : 'Proses Otomatis',
+                        limit_ip: '$p_limitip' !== '' ? parseInt('$p_limitip') : 2,
+                        kuota: '$p_kuota' !== '' ? parseInt('$p_kuota') : 200,
+                        stok: '$p_stok' !== '' ? parseInt('$p_stok') : 0
+                    };
+                    
+                    fs.writeFileSync(file, JSON.stringify(vpnDb, null, 2));
+                    console.log('\x1b[32m\n✅ Produk VPN Baru ($prod_id) berhasil ditambahkan ke Server!\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo -e "\n${C_MAG}--- EDIT PRODUK VPN ---${C_RST}"
+                read -p "Masukkan ID Produk yang ingin diedit: " edit_prod_id
+                if [ -z "$edit_prod_id" ]; then echo "Batal."; sleep 1; continue; fi
+
+                echo -e "\nPilih Protokol (KOSONGKAN jika tidak ingin diubah):"
+                echo -e "  [1] SSH\n  [2] Vmess\n  [3] Vless\n  [4] Trojan\n  [5] ZIVPN"
+                read -p "Pilihan [1-5]: " proto_opt
+                target_proto=""
+                case $proto_opt in
+                    1) target_proto="SSH" ;;
+                    2) target_proto="Vmess" ;;
+                    3) target_proto="Vless" ;;
+                    4) target_proto="Trojan" ;;
+                    5) target_proto="ZIVPN" ;;
+                    *) target_proto="" ;;
+                esac
+
+                echo -e "\nServer Tersedia:"
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/vpn_config.json';
+                    let vpnDb = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                    let servers = vpnDb.servers || {};
+                    for(let id in servers) console.log('  - ' + id + ' (' + servers[id].server_name + ')');
+                "
+                read -p "Ketik ID Server target (Kosongkan jika tidak ingin diubah): " srv_id_target
+                
+                echo -e "\n${C_MAG}*Catatan: KOSONGKAN isian jika tidak ingin mengubah data lama.${C_RST}"
+                read -p "Nama Layanan: " p_nama
+                read -p "Harga Patokan 30 Hari (Rp): " p_harga
+                read -p "Limit IP: " p_limitip
+                read -p "Limit Bandwidth Kuota GB: " p_kuota
+                read -p "Deskripsi / Fitur Singkat: " p_desc
+                
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/vpn_config.json';
+                    let vpnDb = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                    if(!vpnDb.products || !vpnDb.products['$edit_prod_id']) {
+                        console.log('\x1b[31m❌ ID Produk tidak ditemukan!\x1b[0m');
+                        process.exit(0);
+                    }
+                    
+                    let existing = vpnDb.products['$edit_prod_id'];
+                    
+                    vpnDb.products['$edit_prod_id'] = {
+                        protocol: '$target_proto' !== '' ? '$target_proto' : existing.protocol,
+                        server_id: '$srv_id_target' !== '' ? '$srv_id_target' : existing.server_id,
+                        name: '$p_nama' !== '' ? '$p_nama' : existing.name,
+                        price: '$p_harga' !== '' ? parseInt('$p_harga') : existing.price,
+                        desc: '$p_desc' !== '' ? '$p_desc' : existing.desc,
+                        limit_ip: '$p_limitip' !== '' ? parseInt('$p_limitip') : existing.limit_ip,
+                        kuota: '$p_kuota' !== '' ? parseInt('$p_kuota') : existing.kuota,
+                        stok: existing.stok
+                    };
+                    
+                    fs.writeFileSync(file, JSON.stringify(vpnDb, null, 2));
+                    console.log('\x1b[32m\n✅ Produk VPN ($edit_prod_id) berhasil diupdate!\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            3)
+                echo -e "\n${C_CYAN}--- DAFTAR PRODUK VPN ---${C_RST}"
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/vpn_config.json';
+                    let vpnDb = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                    let products = vpnDb.products || {};
+                    let count = 0;
+                    for(let id in products) {
+                        count++;
+                        let p = products[id];
+                        console.log('- ID: \x1b[33m' + id + '\x1b[0m | Nama: ' + p.name + ' | Proto: ' + p.protocol + ' | Server: ' + p.server_id + ' | Stok: ' + p.stok + ' | Harga: Rp ' + p.price);
+                    }
+                    if(count === 0) console.log('\x1b[31mBelum ada produk VPN yang ditambahkan.\x1b[0m');
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            4)
+                echo -e "\n${C_MAG}--- ATUR ULANG STOK PRODUK ---${C_RST}"
+                read -p "Masukkan ID Produk: " stok_id
+                read -p "Masukkan Jumlah Stok Baru: " stok_baru
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/vpn_config.json';
+                    let vpnDb = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                    if(vpnDb.products && vpnDb.products['$stok_id']) {
+                        vpnDb.products['$stok_id'].stok = parseInt('$stok_baru') || 0;
+                        fs.writeFileSync(file, JSON.stringify(vpnDb, null, 2));
+                        console.log('\x1b[32m\n✅ Stok Produk ($stok_id) berhasil diupdate menjadi ' + vpnDb.products['$stok_id'].stok + '!\x1b[0m');
+                    } else {
+                        console.log('\x1b[31m\n❌ ID Produk tidak ditemukan.\x1b[0m');
+                    }
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            5)
+                echo -e "\n${C_MAG}--- HAPUS PRODUK ---${C_RST}"
+                read -p "Masukkan ID Produk yang ingin dihapus: " del_id
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/vpn_config.json';
+                    let vpnDb = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                    if(vpnDb.products && vpnDb.products['$del_id']) {
+                        delete vpnDb.products['$del_id'];
+                        fs.writeFileSync(file, JSON.stringify(vpnDb, null, 2));
+                        console.log('\x1b[32m\n✅ Produk ($del_id) berhasil dihapus!\x1b[0m');
+                    } else {
+                        console.log('\x1b[31m\n❌ ID Produk tidak ditemukan.\x1b[0m');
+                    }
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
+menu_etalase_custom() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}          🌟 MANAJEMEN ETALASE CUSTOM 🌟            ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Buat Etalase Baru (Cth: Best Seller)"
+        echo -e "  ${C_GREEN}[2]${C_RST} Tambah Produk (SKU) ke Etalase"
+        echo -e "  ${C_GREEN}[3]${C_RST} Hapus Produk dari Etalase"
+        echo -e "  ${C_GREEN}[4]${C_RST} Hapus Etalase"
+        echo -e "  ${C_GREEN}[5]${C_RST} Lihat Daftar Etalase & Produk"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-5]: ${C_RST}"
+        read etalase_choice
+
+        case $etalase_choice in
+            1)
+                echo -e "\n${C_MAG}--- BUAT ETALASE BARU ---${C_RST}"
+                read -p "Masukkan Judul Etalase (Cth: Best Seller): " judul_etalase
+                if [ ! -z "$judul_etalase" ]; then
+                    node -e "
+                        const fs = require('fs'); const file = './admin_tendo/custom_layout.json';
+                        let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {sections:[]};
+                        if(!db.sections) db.sections = [];
+                        db.sections.push({title: '$judul_etalase', skus: []});
+                        fs.writeFileSync(file, JSON.stringify(db, null, 2));
+                        console.log('\x1b[32m✅ Etalase \'$judul_etalase\' berhasil dibuat!\x1b[0m');
+                    "
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            2)
+                echo -e "\n${C_MAG}--- TAMBAH PRODUK KE ETALASE ---${C_RST}"
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/custom_layout.json';
+                    let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {sections:[]};
+                    if(!db.sections || db.sections.length === 0) { console.log('\x1b[31mBelum ada etalase. Buat dulu!\x1b[0m'); process.exit(0); }
+                    db.sections.forEach((sec, idx) => console.log('[' + (idx+1) + '] ' + sec.title));
+                "
+                echo -e ""
+                read -p "Pilih nomor Etalase: " nomor_etalase
+                if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
+                    read -p "Masukkan KODE SKU Produk: " sku_tambah
+                    if [ ! -z "$sku_tambah" ]; then
+                        node -e "
+                            const fs = require('fs'); const file = './admin_tendo/custom_layout.json';
+                            let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {sections:[]};
+                            let idx = parseInt('$nomor_etalase') - 1;
+                            if(db.sections[idx]) {
+                                if(!db.sections[idx].skus.includes('$sku_tambah')) {
+                                    db.sections[idx].skus.push('$sku_tambah');
+                                    fs.writeFileSync(file, JSON.stringify(db, null, 2));
+                                    console.log('\x1b[32m✅ SKU \'$sku_tambah\' berhasil ditambahkan ke ' + db.sections[idx].title + '!\x1b[0m');
+                                } else {
+                                    console.log('\x1b[33mSKU sudah ada di etalase ini.\x1b[0m');
+                                }
+                            } else {
+                                console.log('\x1b[31m❌ Nomor etalase tidak valid.\x1b[0m');
+                            }
+                        "
+                    fi
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            3)
+                echo -e "\n${C_MAG}--- HAPUS PRODUK DARI ETALASE ---${C_RST}"
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/custom_layout.json';
+                    let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {sections:[]};
+                    if(!db.sections || db.sections.length === 0) { console.log('\x1b[31mBelum ada etalase.\x1b[0m'); process.exit(0); }
+                    db.sections.forEach((sec, idx) => console.log('[' + (idx+1) + '] ' + sec.title));
+                "
+                echo -e ""
+                read -p "Pilih nomor Etalase: " nomor_etalase
+                if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
+                    read -p "Masukkan KODE SKU Produk yg ingin dihapus: " sku_hapus
+                    if [ ! -z "$sku_hapus" ]; then
+                        node -e "
+                            const fs = require('fs'); const file = './admin_tendo/custom_layout.json';
+                            let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {sections:[]};
+                            let idx = parseInt('$nomor_etalase') - 1;
+                            if(db.sections[idx]) {
+                                let oldLen = db.sections[idx].skus.length;
+                                db.sections[idx].skus = db.sections[idx].skus.filter(s => s !== '$sku_hapus');
+                                if(db.sections[idx].skus.length < oldLen) {
+                                    fs.writeFileSync(file, JSON.stringify(db, null, 2));
+                                    console.log('\x1b[32m✅ SKU \'$sku_hapus\' berhasil dihapus dari ' + db.sections[idx].title + '!\x1b[0m');
+                                } else {
+                                    console.log('\x1b[31mSKU tidak ditemukan di etalase ini.\x1b[0m');
+                                }
+                            } else {
+                                console.log('\x1b[31m❌ Nomor etalase tidak valid.\x1b[0m');
+                            }
+                        "
+                    fi
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            4)
+                echo -e "\n${C_MAG}--- HAPUS ETALASE ---${C_RST}"
+                node -e "
+                    const fs = require('fs'); const file = './admin_tendo/custom_layout.json';
+                    let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {sections:[]};
+                    if(!db.sections || db.sections.length === 0) { console.log('\x1b[31mBelum ada etalase.\x1b[0m'); process.exit(0); }
+                    db.sections.forEach((sec, idx) => console.log('[' + (idx+1) + '] ' + sec.title));
+                "
+                echo -e ""
+                read -p "Pilih nomor Etalase yg ingin dihapus: " nomor_etalase
+                if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
+                    node -e "
+                        const fs = require('fs'); const file = './admin_tendo/custom_layout.json';
+                        let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {sections:[]};
+                        let idx = parseInt('$nomor_etalase') - 1;
+                        if(db.sections[idx]) {
+                            let title = db.sections[idx].title;
+                            db.sections.splice(idx, 1);
+                            fs.writeFileSync(file, JSON.stringify(db, null, 2));
+                            console.log('\x1b[32m✅ Etalase \'' + title + '\' berhasil dihapus!\x1b[0m');
+                        } else {
+                            console.log('\x1b[31m❌ Nomor etalase tidak valid.\x1b[0m');
+                        }
+                    "
+                fi
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            5)
+                echo -e "\n${C_CYAN}--- DAFTAR ETALASE & PRODUK ---${C_RST}"
+                node -e "
+                    const fs = require('fs'); const sqlite3 = require('sqlite3').verbose();
+                    let dbLayout = fs.existsSync('./admin_tendo/custom_layout.json') ? JSON.parse(fs.readFileSync('./admin_tendo/custom_layout.json')) : {sections:[]};
+                    
+                    const db = new sqlite3.Database('./admin_tendo/database.db');
+                    const all = (q, p) => new Promise((res, rej) => db.all(q, p, (e, r) => e ? rej(e) : res(r)));
+
+                    (async () => {
+                        if(!dbLayout.sections || dbLayout.sections.length === 0) {
+                            console.log('\x1b[33mBelum ada etalase yang dibuat.\x1b[0m');
+                        } else {
+                            let prods = await all('SELECT * FROM products');
+                            let prodMap = {};
+                            prods.forEach(p => prodMap[p.sku] = p);
+
+                            dbLayout.sections.forEach((sec, idx) => {
+                                console.log('\n\x1b[36m[' + (idx+1) + '] ' + sec.title + '\x1b[0m');
+                                if(sec.skus.length === 0) console.log('   (Kosong)');
+                                else {
+                                    sec.skus.forEach(sku => {
+                                        let pName = prodMap[sku] ? prodMap[sku].nama : 'Produk Tidak Ditemukan/Dihapus';
+                                        console.log('   - ' + sku + ' : ' + pName);
+                                    });
+                                }
+                            });
+                        }
+                    })();
+                "
+                read -p "Tekan Enter untuk kembali..."
+                ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
+while true; do
+    clear
+    
+    SALDO_DIGI="Rp 0 (Memuat...)"
+    if [ -f "cek_saldo.js" ]; then
+        SALDO_DIGI=$(node cek_saldo.js 2>/dev/null)
+    fi
+
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}        🤖 PANEL ADMIN DIGITAL TENDO STORE 🤖         ${C_RST}"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_GREEN}${C_BOLD} 💰 Sisa Saldo Digiflazz : ${C_YELLOW}${SALDO_DIGI}${C_RST}"
+    echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+    echo -e "${C_MAG}▶ 🟢 SISTEM UTAMA${C_RST}"
+    echo -e "  ${C_GREEN}[1]${C_RST}  Install & Perbarui Sistem (Wajib Jalankan Dulu)"
+    echo -e "  ${C_GREEN}[2]${C_RST}  Mulai Sistem (Terminal / Scan QR)"
+    echo -e "  ${C_GREEN}[3]${C_RST}  Jalankan Sistem di Latar Belakang (PM2)"
+    echo -e "  ${C_GREEN}[4]${C_RST}  Hentikan Sistem (PM2)"
+    echo -e "  ${C_GREEN}[5]${C_RST}  Lihat Log / Error"
+    echo ""
+    echo -e "${C_MAG}▶ 📦 MANAJEMEN PRODUK & KATEGORI${C_RST}"
+    echo -e "  ${C_GREEN}[6]${C_RST}  🔄 Sinkronisasi Produk Digiflazz"
+    echo -e "  ${C_GREEN}[7]${C_RST}  💰 Manajemen Keuntungan Harga (13 Tingkat)"
+    echo -e "  ${C_GREEN}[8]${C_RST}  📦 Manajemen Produk Instan (Paket Custom)"
+    echo -e "  ${C_GREEN}[9]${C_RST}  🛡️ Manajemen VPN Premium"
+    echo -e "  ${C_GREEN}[10]${C_RST} 🌟 Manajemen Etalase Custom (Best Seller)"
+    echo -e "  ${C_GREEN}[11]${C_RST} 🎬 Manajemen Tutorial"
+    echo ""
+    echo -e "${C_MAG}▶ 👥 MANAJEMEN PENGGUNA${C_RST}"
+    echo -e "  ${C_GREEN}[12]${C_RST} 👥 Manajemen Saldo & Member"
+    echo ""
+    echo -e "${C_MAG}▶ ⚙️ PENGATURAN & INTEGRASI${C_RST}"
+    echo -e "  ${C_GREEN}[13]${C_RST} 🔌 Ganti API Digiflazz"
+    echo -e "  ${C_GREEN}[14]${C_RST} 💳 Setup GoPay Merchant API"
+    echo -e "  ${C_GREEN}[15]${C_RST} 📢 Setup Integrasi Notifikasi (Tele/Web)"
+    echo -e "  ${C_GREEN}[16]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
+    echo -e "  ${C_GREEN}[17]${C_RST} 🔄 Ganti Akun WA Web OTP (Reset Sesi)"
+    echo ""
+    echo -e "${C_MAG}▶ 💾 BACKUP & RESTORE${C_RST}"
+    echo -e "  ${C_GREEN}[18]${C_RST} 💾 Backup & Restore Database"
+    echo -e "  ${C_GREEN}[19]${C_RST} ⚙️ Pengaturan Auto-Backup Telegram"
+    echo -e "${C_CYAN}======================================================${C_RST}"
+    echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
+    echo -e "${C_CYAN}======================================================${C_RST}"
+    echo -ne "${C_YELLOW}Pilih menu [0-19]: ${C_RST}"
+    read choice
+
+    case $choice in
+        1) install_dependencies ;;
+        2) 
+            if [ ! -f "index.js" ]; then echo -e "${C_RED}❌ Jalankan Menu 1 (Install) dulu!${C_RST}"; sleep 2; continue; fi
+            if [ ! -d "sesi_bot" ] || [ -z "$(ls -A sesi_bot 2>/dev/null)" ]; then
+                read -p "📲 Masukkan Nomor WA Bot (Awali 628...): " nomor_bot
+                if [ ! -z "$nomor_bot" ]; then
+                    node -e "
+                        const fs = require('fs'); const file = './admin_tendo/config.json';
+                        let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                        config.botNumber = '$nomor_bot';
+                        config.botName = config.botName || 'Digital Tendo Store';
+                        fs.writeFileSync(file, JSON.stringify(config, null, 2));
+                    "
+                fi
+            fi
+            echo -e "\n${C_MAG}⏳ Membersihkan proses lama agar tidak bentrok...${C_RST}"
+            pm2 stop tendo-bot >/dev/null 2>&1
+            pm2 delete tendo-bot >/dev/null 2>&1
+            echo -e "\n${C_MAG}⏳ Menjalankan bot... (Tekan CTRL+C untuk mematikan dan kembali ke menu)${C_RST}"
+            export IP_ADDRESS=$(curl -s ifconfig.me)
+            node index.js
+            echo -e "\n${C_YELLOW}⚠️ Proses bot terhenti.${C_RST}"
+            read -p "Tekan Enter untuk kembali ke panel utama..."
+            ;;
+        3) 
+            echo -e "\n${C_MAG}⏳ Membersihkan proses lama agar tidak bentrok...${C_RST}"
+            pm2 stop tendo-bot >/dev/null 2>&1
+            pm2 delete tendo-bot >/dev/null 2>&1
+            export IP_ADDRESS=$(curl -s ifconfig.me)
+            pm2 start index.js --name "tendo-bot" >/dev/null 2>&1
+            pm2 save >/dev/null 2>&1
+            pm2 startup >/dev/null 2>&1
+            echo -e "\n${C_GREEN}✅ Sistem berjalan di latar belakang!${C_RST}"
+            sleep 2 ;;
+        4) 
+            pm2 stop tendo-bot >/dev/null 2>&1
+            pm2 delete tendo-bot >/dev/null 2>&1
+            echo -e "\n${C_GREEN}✅ Sistem dihentikan dan dibersihkan dari latar belakang.${C_RST}"
+            sleep 2 ;;
+        5) pm2 logs tendo-bot ;;
+        6) menu_sinkron ;;
+        7) menu_keuntungan ;;
+        8) menu_manajemen_produk_instan ;;
+        9) submenu_produk_vpn ;;
+        10) menu_etalase_custom ;;
+        11) menu_tutorial ;;
+        12) menu_member ;;
+        13)
+            echo -e "\n${C_MAG}--- GANTI API DIGIFLAZZ ---${C_RST}"
+            read -p "Username Digiflazz Baru: " user_api
+            read -p "API Key Digiflazz Baru: " key_api
+            node -e "
+                const fs = require('fs'); const file = './admin_tendo/config.json';
+                let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                if('$user_api' !== '') config.digiflazzUsername = '$user_api'.trim();
+                if('$key_api' !== '') config.digiflazzApiKey = '$key_api'.trim();
+                fs.writeFileSync(file, JSON.stringify(config, null, 2));
+                console.log('\x1b[32m\n✅ Konfigurasi Digiflazz berhasil disimpan!\x1b[0m');
+            "
+            read -p "Tekan Enter untuk kembali..."
+            ;;
+        14)
+            echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT (BHM BIZ API) ---${C_RST}"
+            echo -e "${C_YELLOW}Fitur ini akan menghubungkan merchant GoPay Anda dan mengatur QRIS Dinamis!${C_RST}"
+            read -p "Masukkan API Token BHM Biz Anda: " gopay_token
+            read -p "Masukkan Merchant ID (Angka, contoh: 123): " gopay_mid
+            read -p "Masukkan Nomor HP GoPay (08...): " gopay_phone
+
+            if [ ! -z "$gopay_token" ] && [ ! -z "$gopay_phone" ] && [ ! -z "$gopay_mid" ]; then
+                echo -e "\n${C_CYAN}>> Mengirim Request OTP ke nomor $gopay_phone...${C_RST}"
+                req_otp=$(curl -sS -X POST http://gopay.bhm.biz.id/v1/gopay/merchants/connect/request-otp \
+                  -H 'Content-Type: application/json' \
+                  -d "{\"phone\":\"$gopay_phone\"}")
+                
+                echo -e "${C_YELLOW}Respon Server: $req_otp${C_RST}"
+                
+                read -p "Masukkan 4 Digit OTP dari WA/SMS Gojek: " gopay_otp
+                
+                if [ ! -z "$gopay_otp" ]; then
+                    echo -e "\n${C_CYAN}>> Memverifikasi OTP...${C_RST}"
+                    ver_otp=$(curl -sS -X POST http://gopay.bhm.biz.id/v1/gopay/merchants/$gopay_mid/connect/verify-otp \
+                      -H "Authorization: Bearer $gopay_token" \
+                      -H 'Content-Type: application/json' \
+                      -d "{\"otp\":\"$gopay_otp\"}")
+                    
+                    echo -e "${C_YELLOW}Respon Server: $ver_otp${C_RST}"
+                fi
+            fi
+
+            echo -e "\n${C_CYAN}Siapkan TEKS STRING dari QRIS Statis Anda.${C_RST}"
+            echo -e "Teks QRIS berawalan '000201010211...' dan diakhiri dengan kombinasi 4 huruf/angka (CRC)."
+            read -p "Paste TEKS STRING QRIS Anda di sini: " qris_text
+            node -e "
+                const fs = require('fs'); const file = './admin_tendo/config.json';
+                let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                if ('$gopay_token' !== '') config.gopayToken = '$gopay_token'.trim();
+                if ('$gopay_mid' !== '') config.gopayMerchantId = '$gopay_mid'.trim();
+                if ('$qris_text' !== '') config.qrisText = '$qris_text'.trim();
+                fs.writeFileSync(file, JSON.stringify(config, null, 2));
+                console.log('\x1b[32m\n✅ Konfigurasi GoPay BHM Biz & QRIS Dinamis berhasil disimpan!\x1b[0m');
+            "
+            read -p "Tekan Enter untuk kembali..."
+            ;;
+        15) menu_notifikasi ;;
+        16)
+            echo -e "\n${C_MAG}--- SETUP DOMAIN & HTTPS ---${C_RST}"
+            read -p "Masukkan Nama Domain Anda (contoh: digitaltendostore.com): " domain_name
+            read -p "Masukkan Email Aktif (untuk SSL Let's Encrypt): " ssl_email
+            if [ ! -z "$domain_name" ] && [ ! -z "$ssl_email" ]; then
+                echo -e "${C_CYAN}>> Menginstal Nginx dan Certbot...${C_RST}"
+                sudo apt install -y nginx certbot python3-certbot-nginx > /dev/null 2>&1
+                
+                cat <<EOF | sudo tee /etc/nginx/sites-available/$domain_name
+server {
+    listen 80; server_name $domain_name;
+    add_header X-Frame-Options "SAMEORIGIN"; add_header X-XSS-Protection "1; mode=block"; add_header X-Content-Type-Options "nosniff";
+    client_max_body_size 200M;
+    location / {
+        proxy_pass http://localhost:3000; proxy_http_version 1.1; proxy_set_header Upgrade \$http_upgrade; proxy_set_header Connection 'upgrade'; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; proxy_read_timeout 90; proxy_connect_timeout 90; proxy_send_timeout 90; proxy_cache_bypass \$http_upgrade;
+    }
+}
+EOF
+                sudo ln -sf /etc/nginx/sites-available/$domain_name /etc/nginx/sites-enabled/
+                sudo rm -f /etc/nginx/sites-enabled/default
+                sudo nginx -t && sudo systemctl restart nginx
+                echo -e "${C_CYAN}>> Meminta Sertifikat SSL HTTPS ke Let's Encrypt...${C_RST}"
+                sudo certbot --nginx -d $domain_name --non-interactive --agree-tos -m $ssl_email --redirect --keep-until-expiring
+                echo -e "\n${C_GREEN}✅ Berhasil diamankan di: https://$domain_name ${C_RST}"
+            else
+                echo -e "${C_RED}❌ Domain atau Email tidak boleh kosong!${C_RST}"
+            fi
+            read -p "Tekan Enter untuk kembali..."
+            ;;
+        17)
+            echo -e "\n${C_RED}⚠️ Reset Sesi akan mengeluarkan sistem dari WhatsApp saat ini.${C_RST}"
+            read -p "Yakin ingin mereset sesi? (y/n): " reset_sesi
+            if [ "$reset_sesi" == "y" ]; then
+                pm2 stop tendo-bot >/dev/null 2>&1
+                rm -rf sesi_bot
+                echo -e "${C_GREEN}✅ Sesi berhasil dihapus. Silakan jalankan sistem kembali untuk menautkan nomor baru.${C_RST}"
+            fi
+            read -p "Tekan Enter untuk kembali..."
+            ;;
+        18) menu_backup ;;
+        19) menu_telegram ;;
+        0) echo -e "${C_GREEN}Sampai jumpa!${C_RST}"; exit 0 ;;
+        *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+    esac
+done
+SELESAI
