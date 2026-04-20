@@ -3022,7 +3022,7 @@ EOF
 </html>
 EOF
 }
-SELESAI
+
 # ==========================================
 # 3. FUNGSI MEMBUAT TAMPILAN PANEL ADMIN RAHASIA
 # ==========================================
@@ -4162,7 +4162,12 @@ app.use((req, res, next) => {
 
 app.use(bodyParser.json({limit: '200mb'}));
 app.use(bodyParser.urlencoded({extended: true, limit: '200mb'}));
-app.use(express.static('public')); 
+app.use(express.static(__dirname + '/public')); 
+
+// Memaksa request '/' untuk merender index.html (Anti Cannot GET /)
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/public/index.html');
+});
 
 // Setup SQLite3
 const dbPath = `${ADMIN_DIR}/database.db`;
@@ -5812,6 +5817,7 @@ async function migrate() {
 migrate();
 EOF
 }
+
 generate_cek_saldo_script() {
     cat << 'EOF' > cek_saldo.js
 const crypto = require('crypto');
@@ -6253,9 +6259,6 @@ install_dependencies() {
     rm -rf node_modules package-lock.json tendo_crypt.js
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    # ----------------------------------------------------
-    # PERBAIKAN LOGGING: Menyimpan log error ke install.log
-    # ----------------------------------------------------
     echo -ne "${C_MAG}>> Mengunduh modul utama (termasuk sqlite3, dotenv & multer)...${C_RST}"
     npm install dotenv @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api multer sqlite3 >> install.log 2>&1 &
     spin $!
