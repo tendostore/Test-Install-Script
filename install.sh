@@ -28,13 +28,16 @@ sed -i '/if \[ -t 1 \] && \[ -x \/usr\/bin\/menu \]/d' ~/.bashrc
 sed -i '/\/usr\/bin\/bot/d' ~/.bashrc
 sed -i '/\/usr\/bin\/menu/d' ~/.bashrc
 
+ABS_PATH=$(realpath "$0")
+ABS_DIR=$(dirname "$ABS_PATH")
+
 if [ ! -f "/usr/bin/bot" ]; then
-    echo -e '#!/bin/bash\ncd "'$(pwd)'"\n./install.sh' | sudo tee /usr/bin/bot > /dev/null
+    echo -e "#!/bin/bash\ncd \"$ABS_DIR\"\n./install.sh" | sudo tee /usr/bin/bot > /dev/null
     sudo chmod +x /usr/bin/bot
 fi
 
 if [ ! -f "/usr/bin/menu" ]; then
-    echo -e '#!/bin/bash\ncd "'$(pwd)'"\n./install.sh' | sudo tee /usr/bin/menu > /dev/null
+    echo -e "#!/bin/bash\ncd \"$ABS_DIR\"\n./install.sh" | sudo tee /usr/bin/menu > /dev/null
     sudo chmod +x /usr/bin/menu
 fi
 
@@ -3019,7 +3022,7 @@ EOF
 </html>
 EOF
 }
-
+SELESAI
 # ==========================================
 # 3. FUNGSI MEMBUAT TAMPILAN PANEL ADMIN RAHASIA
 # ==========================================
@@ -5687,7 +5690,7 @@ if (require.main === module) {
 }
 EOF
 }
-SELESAI
+
 # ==========================================
 # 5. SCRIPT MIGRASI JSON -> SQLITE
 # ==========================================
@@ -5809,7 +5812,6 @@ async function migrate() {
 migrate();
 EOF
 }
-
 generate_cek_saldo_script() {
     cat << 'EOF' > cek_saldo.js
 const crypto = require('crypto');
@@ -6251,8 +6253,11 @@ install_dependencies() {
     rm -rf node_modules package-lock.json tendo_crypt.js
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
+    # ----------------------------------------------------
+    # PERBAIKAN LOGGING: Menyimpan log error ke install.log
+    # ----------------------------------------------------
     echo -ne "${C_MAG}>> Mengunduh modul utama (termasuk sqlite3, dotenv & multer)...${C_RST}"
-    npm install dotenv @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api multer sqlite3 > /dev/null 2>&1 &
+    npm install dotenv @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api multer sqlite3 >> install.log 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
@@ -6643,8 +6648,16 @@ menu_keuntungan() {
                 config.margin[tier] = parseInt('$nominal_baru');
                 fs.writeFileSync(file, JSON.stringify(config, null, 2));
             "
+            
+            # ----------------------------------------------------------------------
+            # PERBAIKAN ANTI 502 BAD GATEWAY: Memastikan PM2 Tendo-Bot Sedang Online
+            # ----------------------------------------------------------------------
             echo -e "${C_GREEN}✅ Keuntungan tier $k_choice berhasil diubah! Me-refresh Katalog Website...${C_RST}"
-            curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
+            if pm2 jlist 2>/dev/null | grep -q '"name":"tendo-bot"'; then
+                curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
+            else
+                echo -e "${C_RED}⚠️ Peringatan: Bot OFFLINE! Sinkronisasi otomatis ditunda. Hindari 502 Bad Gateway dengan menyalakan bot terlebih dahulu.${C_RST}"
+            fi
             sleep 1
         else
             echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"
@@ -6664,9 +6677,16 @@ menu_sinkron() {
     
     echo -e "${C_YELLOW}⏳ Memulai sinkronisasi... Harap tunggu beberapa detik.${C_RST}"
     
-    curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
+    # ----------------------------------------------------------------------
+    # PERBAIKAN ANTI 502 BAD GATEWAY: Memastikan PM2 Tendo-Bot Sedang Online
+    # ----------------------------------------------------------------------
+    if pm2 jlist 2>/dev/null | grep -q '"name":"tendo-bot"'; then
+        curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
+        echo -e "\n${C_GREEN}✅ Sinkronisasi Selesai! Katalog Website dan Harga sudah terupdate secara realtime.${C_RST}"
+    else
+        echo -e "\n${C_RED}❌ Sinkronisasi Gagal! Bot (tendo-bot) sedang OFFLINE. Pastikan bot berjalan (Menu 2/3) untuk menghindari 502 Bad Gateway.${C_RST}"
+    fi
     
-    echo -e "\n${C_GREEN}✅ Sinkronisasi Selesai! Katalog Website dan Harga sudah terupdate secara realtime.${C_RST}"
     read -p "Tekan Enter untuk kembali..."
 }
 
@@ -6770,7 +6790,8 @@ menu_backup() {
                                 echo -e "${C_GREEN}✅ Sertifikat SSL berhasil direstore!${C_RST}"
                             fi
                             rm restore.zip
-                            npm install > /dev/null 2>&1
+                            # Perbaikan Logging Restore NPM Install
+                            npm install >> install.log 2>&1
                             pm2 restart tendo-bot >/dev/null 2>&1
                             echo -e "\n${C_GREEN}${C_BOLD}✅ RESTORE BERHASIL SEPENUHNYA!${C_RST}"
                         else
@@ -6854,7 +6875,15 @@ menu_manajemen_produk_instan() {
                         }
                     })();
                 "
-                curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
+                
+                # ----------------------------------------------------------------------
+                # PERBAIKAN ANTI 502 BAD GATEWAY: Memastikan PM2 Tendo-Bot Sedang Online
+                # ----------------------------------------------------------------------
+                if pm2 jlist 2>/dev/null | grep -q '"name":"tendo-bot"'; then
+                    curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
+                else
+                    echo -e "${C_RED}⚠️ Peringatan: Bot OFFLINE! Sinkronisasi otomatis ke Digiflazz ditunda.${C_RST}"
+                fi
                 read -p "Tekan Enter untuk kembali..."
                 ;;
             2)
@@ -7487,10 +7516,19 @@ while true; do
         SALDO_DIGI=$(node cek_saldo.js 2>/dev/null)
     fi
 
+    # ----------------------------------------------------
+    # PERBAIKAN FITUR SELF-HEALING: Pengecekan Status PM2
+    # ----------------------------------------------------
+    BOT_STATUS="${C_RED}OFFLINE 🔴${C_RST}"
+    if pm2 jlist 2>/dev/null | grep -q '"name":"tendo-bot"'; then
+        BOT_STATUS="${C_GREEN}ONLINE 🟢${C_RST}"
+    fi
+
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     echo -e "${C_YELLOW}${C_BOLD}        🤖 PANEL ADMIN DIGITAL TENDO STORE 🤖         ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     echo -e "${C_GREEN}${C_BOLD} 💰 Sisa Saldo Digiflazz : ${C_YELLOW}${SALDO_DIGI}${C_RST}"
+    echo -e "${C_GREEN}${C_BOLD} 🤖 Status Sistem Bot    : ${BOT_STATUS}"
     echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
     echo -e "${C_MAG}▶ 🟢 SISTEM UTAMA${C_RST}"
     echo -e "  ${C_GREEN}[1]${C_RST}  Install & Perbarui Sistem (Wajib Jalankan Dulu)"
