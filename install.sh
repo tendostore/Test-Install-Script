@@ -1316,11 +1316,15 @@ EOF
             let id = s.screen;
             let navId = s.navId;
             
+            let actualDomId = id;
+            if(id === 'etalase-screen' || id === 'produk-vpn') actualDomId = 'produk-screen';
+            if(id === 'brand-vpn') actualDomId = 'brand-screen';
+
             // Hide all, show targeted
             ['login-screen', 'login-otp-screen', 'register-screen', 'otp-screen', 'forgot-screen', 'dashboard-screen', 'brand-screen', 'produk-screen', 'history-screen', 'profile-screen', 'notif-screen', 'global-trx-screen', 'tutorial-screen'].forEach(sid => {
                 document.getElementById(sid).classList.add('hidden');
             });
-            document.getElementById(id).classList.remove('hidden');
+            document.getElementById(actualDomId).classList.remove('hidden');
             
             // Specific restores
             if(id === 'dashboard-screen') {
@@ -2338,7 +2342,7 @@ EOF
             if(!phone) return showCustomAlert('Perhatian', 'Masukkan Nomor WA di kolom Email/WA/Username terlebih dahulu!', 'error');
             
             let btn = document.getElementById('btn-login');
-            let ori = btn.innerText; btn.innerText = "Mengirim OTP..."; btn.disabled = true;
+            let ori = btn.innerText; btn.innerText = "Mengirim..."; btn.disabled = true;
             
             try {
                 let data = await apiCall('/api/req-login-otp', {phone});
@@ -2748,7 +2752,7 @@ EOF
                 </div>`;
             }
             document.getElementById('product-list').innerHTML = listHTML || '<div style="text-align:center; padding:30px; font-weight:bold; color:var(--text-muted);">KOSONG</div>';
-            showScreen('produk-screen', 'nav-home');
+            showScreen('produk-screen', 'nav-home', false);
         }
         function loadProducts(cat, brand, subCat = null) { 
             currentState = {screen: 'produk-screen', cat: cat, brand: brand, subcat: subCat}; history.pushState(currentState, "", "#produk-screen");
@@ -4837,7 +4841,7 @@ app.get('/api/admin/system-stats', authAdmin, (req, res) => {
 
 app.get('/api/admin/stats', authAdmin, async (req, res) => {
     try {
-        let sumRes = await getQuery('SELECT SUM(saldo) as tSaldo, COUNT(*) as tUser FROM users');
+        let sumRes = await getQuery('SELECT COALESCE(SUM(saldo), 0) as tSaldo, COUNT(*) as tUser FROM users');
         let gTrx = loadJSON(globalTrxFile, []);
         let profitMonthly = 0;
         let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
@@ -5847,14 +5851,17 @@ async function prosesAutoOrderVPN(phone, vpnDataRaw, refIdAsal) {
     if(!hist) return;
 
     if(!result.success) {
-        await runQuery('BEGIN TRANSACTION');
-        try {
-            await runQuery('UPDATE users SET saldo = saldo + ? WHERE phone=?', [parseInt(vpnData.harga_asli), phone]);
-            let newU = await getQuery('SELECT saldo FROM users WHERE phone=?', [phone]);
-            await runQuery(`UPDATE history SET status='Refund', nama=?, type='Refund', amount=?, saldo_sebelumnya=?, saldo_sesudah=? WHERE sn=?`,
-                ['Refund: ' + vpnData.nama_produk, vpnData.harga_asli, u.saldo, newU.saldo, refIdAsal]);
-            await runQuery('COMMIT');
-        } catch(e) { await runQuery('ROLLBACK'); }
+        let histCheck = await getQuery('SELECT * FROM history WHERE sn=?', [refIdAsal]);
+        if (histCheck && histCheck.status !== 'Refund' && !histCheck.status.includes('Gagal')) {
+            await runQuery('BEGIN TRANSACTION');
+            try {
+                await runQuery('UPDATE users SET saldo = saldo + ? WHERE phone=?', [parseInt(vpnData.harga_asli), phone]);
+                let newU = await getQuery('SELECT saldo FROM users WHERE phone=?', [phone]);
+                await runQuery(`UPDATE history SET status='Refund', nama=?, type='Refund', amount=?, saldo_sebelumnya=?, saldo_sesudah=? WHERE sn=?`,
+                    ['Refund: ' + vpnData.nama_produk, vpnData.harga_asli, u.saldo, newU.saldo, refIdAsal]);
+                await runQuery('COMMIT');
+            } catch(e) { await runQuery('ROLLBACK'); }
+        }
         
         let failMsg = result.message || "GAGAL VPS"; let emailUser = u.email || '-'; let namaUser = u.username || phone;
         let teleMsg = `⚠️ <b>INFO ORDER VPN QRIS: GAGAL VPS</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Alasan: ${failMsg}\n💰 Saldo Rp ${vpnData.harga_asli.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
@@ -5904,10 +5911,11 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         let saldoTerkini = parseInt(newU.saldo);
 
         if (statusOrder === 'Gagal') {
-            await runQuery('UPDATE users SET saldo = saldo + ? WHERE phone=?', [hargaFix, phone]);
             let histCheck = await getQuery('SELECT * FROM history WHERE sn=? AND type=?', [refIdAsal, 'Order QRIS']);
-            if(histCheck) {
-                let sStlh = saldoTerkini + hargaFix;
+            if(histCheck && histCheck.status !== 'Refund' && !histCheck.status.includes('Gagal')) {
+                await runQuery('UPDATE users SET saldo = saldo + ? WHERE phone=?', [hargaFix, phone]);
+                let newU2 = await getQuery('SELECT saldo FROM users WHERE phone=?', [phone]);
+                let sStlh = parseInt(newU2.saldo);
                 await runQuery(`UPDATE history SET status='Refund', nama=?, type='Refund', amount=?, ref_id=?, sn='-', saldo_sebelumnya=?, saldo_sesudah=? WHERE sn=?`,
                     ['Refund: ' + nama_produk, hargaFix, refId, saldoTerkini, sStlh, refIdAsal]);
             }
@@ -6074,17 +6082,13 @@ async function startBot() {
                                     writeLog("Order", `Pesanan Pending akhirnya Sukses. Ref: ${ref}`);
                                 }
                             } else {
-                                let sSblm = parseInt(u.saldo); let sStlh = sSblm + parseInt(trx.harga);
-                                await runQuery('UPDATE users SET saldo=? WHERE phone=?', [sStlh, trx.phone]);
-                                
                                 let hist = await getQuery('SELECT * FROM history WHERE ref_id=?', [ref]);
-                                if (hist) { await runQuery(`UPDATE history SET status='Refund', nama=?, saldo_sebelumnya=?, saldo_sesudah=? WHERE ref_id=?`, ['Refund: ' + hist.nama, sSblm, sStlh, ref]); } 
-                                else { 
-                                    let dateStr = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
-                                    await runQuery(`INSERT INTO history (phone, ts, tanggal, type, nama, tujuan, status, sn, amount, ref_id, saldo_sebelumnya, saldo_sesudah) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                                        [trx.phone, Date.now(), dateStr, 'Refund', 'Refund: ' + trx.nama, trx.tujuan, 'Refund', '-', parseInt(trx.harga), ref, sSblm, sStlh]);
+                                if (hist && hist.status !== 'Refund' && !hist.status.includes('Gagal')) { 
+                                    let sSblm = parseInt(u.saldo); let sStlh = sSblm + parseInt(trx.harga);
+                                    await runQuery('UPDATE users SET saldo=? WHERE phone=?', [sStlh, trx.phone]);
+                                    await runQuery(`UPDATE history SET status='Refund', nama=?, saldo_sebelumnya=?, saldo_sesudah=? WHERE ref_id=?`, ['Refund: ' + hist.nama, sSblm, sStlh, ref]); 
+                                    writeLog("Order", `Pesanan Pending akhirnya Gagal & Direfund. Ref: ${ref}`);
                                 }
-                                writeLog("Order", `Pesanan Pending akhirnya Gagal & Direfund. Ref: ${ref}`);
                             }
                         }
                         await runQuery('DELETE FROM transactions WHERE ref_id=?', [ref]);
@@ -6162,7 +6166,7 @@ if (require.main === module) {
 }
 EOF
 }
-
+SELESAI
 # ==========================================
 # 5. SCRIPT MIGRASI JSON -> SQLITE
 # ==========================================
@@ -6680,6 +6684,17 @@ EOF
     echo "Instalasi file tendo_vpn_panel.php selesai!"
 }
 
+# Fungsi Helper (Wait for Port) untuk menghindari 502 Bad Gateway
+wait_for_port_3000() {
+    echo -e "${C_YELLOW}⏳ Menunggu API bot siap (Maks 15 detik)...${C_RST}"
+    for i in {1..15}; do
+        if curl -s http://localhost:3000 >/dev/null; then
+            break
+        fi
+        sleep 1
+    done
+}
+
 install_dependencies() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
@@ -7158,6 +7173,7 @@ menu_keuntungan() {
             
             echo -e "${C_GREEN}✅ Keuntungan tier $k_choice berhasil diubah! Me-refresh Katalog Website...${C_RST}"
             if pm2 jlist 2>/dev/null | grep -q '"name":"tendo-bot"'; then
+                wait_for_port_3000
                 curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
             else
                 echo -e "${C_RED}⚠️ Peringatan: Bot OFFLINE! Sinkronisasi otomatis ditunda.${C_RST}"
@@ -7182,6 +7198,7 @@ menu_sinkron() {
     echo -e "${C_YELLOW}⏳ Memulai sinkronisasi... Harap tunggu beberapa detik.${C_RST}"
     
     if pm2 jlist 2>/dev/null | grep -q '"name":"tendo-bot"'; then
+        wait_for_port_3000
         curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
         echo -e "\n${C_GREEN}✅ Sinkronisasi Selesai! Katalog Website dan Harga sudah terupdate secara realtime.${C_RST}"
     else
@@ -7377,6 +7394,7 @@ menu_manajemen_produk_instan() {
                 "
                 
                 if pm2 jlist 2>/dev/null | grep -q '"name":"tendo-bot"'; then
+                    wait_for_port_3000
                     curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
                 else
                     echo -e "${C_RED}⚠️ Peringatan: Bot OFFLINE! Sinkronisasi otomatis ditunda.${C_RST}"
@@ -8162,6 +8180,13 @@ server {
     listen 80; server_name $domain_name;
     add_header X-Frame-Options "SAMEORIGIN"; add_header X-XSS-Protection "1; mode=block"; add_header X-Content-Type-Options "nosniff";
     client_max_body_size 200M;
+
+    # Memblokir akses langsung ke file konfigurasi sensitif
+    location ~ \.(env|db|sqlite|json)$ {
+        deny all;
+        return 404;
+    }
+
     location / {
         proxy_pass http://localhost:3000; proxy_http_version 1.1; proxy_set_header Upgrade \$http_upgrade; proxy_set_header Connection 'upgrade'; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; proxy_read_timeout 90; proxy_connect_timeout 90; proxy_send_timeout 90; proxy_cache_bypass \$http_upgrade;
     }
