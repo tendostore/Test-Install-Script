@@ -2785,8 +2785,8 @@ EOF
             await syncUserData();
             showHistory('Order');
             if(userData.history && userData.history.length > 0) {
-                let latest = userData.history[0];
-                openHistoryDetail(latest);
+                let latest = userData.history?.[0];
+                if (latest) openHistoryDetail(latest);
             }
         }
 
@@ -4484,7 +4484,7 @@ generate_admin_app() {
 </html>
 EOF
 }
-
+SELESAI
 # ==========================================
 # 4. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND DENGAN SQLITE3)
 # ==========================================
@@ -4837,7 +4837,7 @@ app.get('/api/admin/system-stats', authAdmin, (req, res) => {
 
 app.get('/api/admin/stats', authAdmin, async (req, res) => {
     try {
-        let sumRes = await getQuery('SELECT SUM(saldo) as tSaldo, COUNT(phone) as tUser FROM users');
+        let sumRes = await getQuery('SELECT SUM(saldo) as tSaldo, COUNT(*) as tUser FROM users');
         let gTrx = loadJSON(globalTrxFile, []);
         let profitMonthly = 0;
         let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
@@ -5223,7 +5223,7 @@ app.get('/api/banners', (req, res) => {
 
 app.get('/api/stats', async (req, res) => {
     try {
-        let sumRes = await getQuery('SELECT COUNT(phone) as tUser FROM users');
+        let sumRes = await getQuery('SELECT COUNT(*) as tUser FROM users');
         let gTrx = loadJSON(globalTrxFile, []); let cfg = loadJSON(configFile, {});
         let daily = 0, weekly = 0, monthly = 0, total = 0;
         let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
@@ -5592,7 +5592,6 @@ app.post('/api/order', async (req, res) => {
             let saldoSebelum = parseInt(u.saldo);
             if (saldoSebelum < hargaFix) { await runQuery('ROLLBACK'); return res.json({success: false, message: `Saldo tidak cukup. Tagihan Anda: Rp ${hargaFix.toLocaleString('id-ID')}`}); }
             
-            // Re-check Saldo dengan kondisi Race
             let resUpdate = await runQuery('UPDATE users SET saldo = saldo - ? WHERE phone=? AND saldo >= ?', [hargaFix, targetKey, hargaFix]);
             if (resUpdate.changes === 0) { await runQuery('ROLLBACK'); return res.json({success: false, message: 'Saldo tidak cukup saat diproses.'}); }
 
@@ -5627,7 +5626,6 @@ app.post('/api/order', async (req, res) => {
         let saldoSebelum = parseInt(u.saldo);
         if (saldoSebelum < hargaFix) { await runQuery('ROLLBACK'); return res.json({success: false, message: 'Saldo tidak cukup.'}); }
 
-        // Mencegah Race condition saat validasi saldo terakhir
         let resUpdate = await runQuery('UPDATE users SET saldo = saldo - ? WHERE phone=? AND saldo >= ?', [hargaFix, targetKey, hargaFix]);
         if (resUpdate.changes === 0) { await runQuery('ROLLBACK'); return res.json({success: false, message: 'Saldo tidak cukup saat diproses.'}); }
 
@@ -5685,6 +5683,9 @@ app.post('/api/order', async (req, res) => {
 async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vpnPassword, expiredDays, refIdAsal = null, paymentMethod = 'Saldo Akun') {
     let targetKey = normalizePhone(phone);
     
+    if (mode === 'reguler' && (!/^[a-zA-Z0-9]+$/.test(vpnUsername))) return { success: false, message: "Username VPN hanya boleh huruf dan angka!" };
+    if (mode === 'reguler' && vpnPassword && (!/^[a-zA-Z0-9]+$/.test(vpnPassword))) return { success: false, message: "Password VPN hanya boleh huruf dan angka!" };
+
     let u = await getQuery('SELECT * FROM users WHERE phone=?', [targetKey]);
     if(!u || u.banned) return { success: false, message: "Sesi tidak valid / Diblokir." };
 
@@ -6161,7 +6162,7 @@ if (require.main === module) {
 }
 EOF
 }
-SELESAI
+
 # ==========================================
 # 5. SCRIPT MIGRASI JSON -> SQLITE
 # ==========================================
@@ -6725,8 +6726,8 @@ install_dependencies() {
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
-    echo -ne "${C_MAG}>> Menginstall dependensi (curl, zip, unzip, sqlite3)...${C_RST}"
-    sudo -E apt-get install -y curl git wget nano zip unzip sqlite3 > /dev/null 2>&1 &
+    echo -ne "${C_MAG}>> Menginstall dependensi (curl, zip, unzip, sqlite3, build-essential, ffmpeg)...${C_RST}"
+    sudo -E apt-get install -y curl git wget nano zip unzip sqlite3 build-essential ffmpeg > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
@@ -6833,15 +6834,15 @@ menu_tutorial() {
                 echo -e "Untuk baris baru gunakan tag <br>, atau tulis teks panjang."
                 read -p "Masukkan Deskripsi (Bisa paragraf/list): " t_desc
                 
-                node -e "
+                T_JUDUL="$t_judul" T_DESC="$t_desc" T_VIDEO="$t_video_name" node -e "
                     require('dotenv').config({ path: './admin_tendo/.env' });
                     const fs = require('fs'); const file = './admin_tendo/tutorial.json';
                     let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : [];
                     db.push({
                         id: 'TUT-' + Date.now(),
-                        title: '$t_judul',
-                        video: '$t_video_name',
-                        desc: '$t_desc'
+                        title: process.env.T_JUDUL,
+                        video: process.env.T_VIDEO,
+                        desc: process.env.T_DESC
                     });
                     fs.writeFileSync(file, JSON.stringify(db, null, 2));
                     console.log('\x1b[32m✅ Data tutorial berhasil disimpan!\x1b[0m');
@@ -6863,14 +6864,14 @@ menu_tutorial() {
                     read -p "Nama File Video Baru (Kosongkan jika tidak diubah, isi '-' untuk hapus video): " t_video
                     read -p "Deskripsi Baru (Kosongkan jika tidak diubah): " t_desc
                     
-                    node -e "
+                    T_NUM="$t_num" T_JUDUL="$t_judul" T_VIDEO="$t_video" T_DESC="$t_desc" node -e "
                         const fs = require('fs'); const file = './admin_tendo/tutorial.json';
                         let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : [];
-                        let idx = parseInt('$t_num') - 1;
+                        let idx = parseInt(process.env.T_NUM) - 1;
                         if(db[idx]) {
-                            if('$t_judul' !== '') db[idx].title = '$t_judul';
-                            if('$t_video' !== '') db[idx].video = '$t_video';
-                            if('$t_desc' !== '') db[idx].desc = '$t_desc';
+                            if(process.env.T_JUDUL !== '') db[idx].title = process.env.T_JUDUL;
+                            if(process.env.T_VIDEO !== '') db[idx].video = process.env.T_VIDEO;
+                            if(process.env.T_DESC !== '') db[idx].desc = process.env.T_DESC;
                             fs.writeFileSync(file, JSON.stringify(db, null, 2));
                             console.log('\x1b[32m✅ Tutorial berhasil diupdate!\x1b[0m');
                         } else {
@@ -6891,10 +6892,10 @@ menu_tutorial() {
                 echo ""
                 read -p "Pilih nomor tutorial yang ingin dihapus: " t_num
                 if [[ "$t_num" =~ ^[0-9]+$ ]]; then
-                    node -e "
+                    T_NUM="$t_num" node -e "
                         const fs = require('fs'); const file = './admin_tendo/tutorial.json';
                         let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : [];
-                        let idx = parseInt('$t_num') - 1;
+                        let idx = parseInt(process.env.T_NUM) - 1;
                         if(db[idx]) {
                             let videoName = db[idx].video;
                             let filepath = 'public/tutorials/' + videoName;
@@ -6955,14 +6956,14 @@ menu_member() {
                 echo -e "\n${C_MAG}--- TAMBAH SALDO ---${C_RST}"
                 read -p "Cari Target (WA, Email, atau Username): " pencarian
                 read -p "Masukkan Jumlah Saldo: " jumlah
-                node -e "
+                PENCARIAN="$pencarian" JUMLAH="$jumlah" node -e "
                     const sqlite3 = require('sqlite3').verbose();
                     const db = new sqlite3.Database('./admin_tendo/database.db');
                     const run = (q, p) => new Promise((res, rej) => db.run(q, p, function(e){ e ? rej(e) : res(this) }));
                     const get = (q, p) => new Promise((res, rej) => db.get(q, p, (e, r) => e ? rej(e) : res(r)));
                     
                     (async () => {
-                        let input = '$pencarian'.trim();
+                        let input = process.env.PENCARIAN.trim();
                         let normPhone = input.replace(/[^0-9]/g, '');
                         if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
                         else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
@@ -6978,7 +6979,7 @@ menu_member() {
                         
                         let namaUser = u.username || u.phone;
                         let saldoSebelum = parseInt(u.saldo || 0);
-                        let nominalTambah = parseInt('$jumlah');
+                        let nominalTambah = parseInt(process.env.JUMLAH);
                         let sStlh = saldoSebelum + nominalTambah;
                         
                         await run('UPDATE users SET saldo = ? WHERE phone = ?', [sStlh, u.phone]);
@@ -6998,14 +6999,14 @@ menu_member() {
                 echo -e "\n${C_MAG}--- KURANGI SALDO ---${C_RST}"
                 read -p "Cari Target (WA, Email, atau Username): " pencarian
                 read -p "Masukkan Jumlah Saldo yg dikurangi: " jumlah
-                node -e "
+                PENCARIAN="$pencarian" JUMLAH="$jumlah" node -e "
                     const sqlite3 = require('sqlite3').verbose();
                     const db = new sqlite3.Database('./admin_tendo/database.db');
                     const run = (q, p) => new Promise((res, rej) => db.run(q, p, function(e){ e ? rej(e) : res(this) }));
                     const get = (q, p) => new Promise((res, rej) => db.get(q, p, (e, r) => e ? rej(e) : res(r)));
 
                     (async () => {
-                        let input = '$pencarian'.trim();
+                        let input = process.env.PENCARIAN.trim();
                         let normPhone = input.replace(/[^0-9]/g, '');
                         if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
                         else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
@@ -7017,7 +7018,7 @@ menu_member() {
                         } else {
                             let namaUser = u.username || u.phone;
                             let saldoSebelum = parseInt(u.saldo || 0);
-                            let nominalKurang = parseInt('$jumlah');
+                            let nominalKurang = parseInt(process.env.JUMLAH);
                             let sStlh = saldoSebelum - nominalKurang;
                             if(sStlh < 0) sStlh = 0;
                             
@@ -7059,14 +7060,14 @@ menu_member() {
                 echo -e "\n${C_CYAN}--- RIWAYAT TOPUP/TRANSAKSI MEMBER ---${C_RST}"
                 read -p "Cari Target (WA, Email, atau Username): " pencarian
                 if [ ! -z "$pencarian" ]; then
-                    node -e "
+                    PENCARIAN="$pencarian" node -e "
                         const sqlite3 = require('sqlite3').verbose();
                         const db = new sqlite3.Database('./admin_tendo/database.db');
                         const get = (q, p) => new Promise((res, rej) => db.get(q, p, (e, r) => e ? rej(e) : res(r)));
                         const all = (q, p) => new Promise((res, rej) => db.all(q, p, (e, r) => e ? rej(e) : res(r)));
 
                         (async () => {
-                            let input = '$pencarian'.trim();
+                            let input = process.env.PENCARIAN.trim();
                             let normPhone = input.replace(/[^0-9]/g, '');
                             if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
                             else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
@@ -7146,12 +7147,12 @@ menu_keuntungan() {
                 continue
             fi
             
-            node -e "
+            K_CHOICE="$k_choice" NOMINAL_BARU="$nominal_baru" node -e "
                 const fs = require('fs'); const file = './admin_tendo/config.json';
                 let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
                 if(!config.margin) config.margin = { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
-                let tier = 't' + $k_choice;
-                config.margin[tier] = parseInt('$nominal_baru');
+                let tier = 't' + process.env.K_CHOICE;
+                config.margin[tier] = parseInt(process.env.NOMINAL_BARU);
                 fs.writeFileSync(file, JSON.stringify(config, null, 2));
             "
             
@@ -7283,7 +7284,7 @@ menu_backup() {
                         wget -qO restore.zip "$linkzip"
                         if [ -f "restore.zip" ]; then
                             if ! command -v unzip &> /dev/null; then sudo apt install unzip -y > /dev/null 2>&1; fi
-                            pm2 stop tendo-bot >/dev/null 2>&1
+                            pm2 stop tendo-bot >/dev/null 2>&1 || true
                             unzip -o restore.zip > /dev/null 2>&1
                             if [ -f "ssl_backup.tar.gz" ]; then
                                 sudo tar -xzf ssl_backup.tar.gz -C / 2>/dev/null
@@ -7291,7 +7292,7 @@ menu_backup() {
                             fi
                             rm restore.zip
                             npm install >> install.log 2>&1
-                            pm2 restart tendo-bot >/dev/null 2>&1
+                            pm2 restart tendo-bot >/dev/null 2>&1 || true
                             echo -e "\n${C_GREEN}${C_BOLD}✅ RESTORE BERHASIL SEPENUHNYA!${C_RST}"
                         else
                             echo -e "${C_RED}❌ Gagal mendownload file.${C_RST}"
@@ -7904,16 +7905,16 @@ menu_etalase_custom() {
                 if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
                     read -p "Masukkan KODE SKU Produk yg ingin dihapus: " sku_hapus
                     if [ ! -z "$sku_hapus" ]; then
-                        node -e "
+                        NOMOR_ETALASE="$nomor_etalase" SKU_HAPUS="$sku_hapus" node -e "
                             const fs = require('fs'); const file = './admin_tendo/custom_layout.json';
                             let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {sections:[]};
-                            let idx = parseInt('$nomor_etalase') - 1;
+                            let idx = parseInt(process.env.NOMOR_ETALASE) - 1;
                             if(db.sections[idx]) {
                                 let oldLen = db.sections[idx].skus.length;
-                                db.sections[idx].skus = db.sections[idx].skus.filter(s => s !== '$sku_hapus');
+                                db.sections[idx].skus = db.sections[idx].skus.filter(s => s !== process.env.SKU_HAPUS);
                                 if(db.sections[idx].skus.length < oldLen) {
                                     fs.writeFileSync(file, JSON.stringify(db, null, 2));
-                                    console.log('\x1b[32m✅ SKU \'$sku_hapus\' berhasil dihapus dari ' + db.sections[idx].title + '!\x1b[0m');
+                                    console.log('\x1b[32m✅ SKU \'' + process.env.SKU_HAPUS + '\' berhasil dihapus dari ' + db.sections[idx].title + '!\x1b[0m');
                                 } else {
                                     console.log('\x1b[31mSKU tidak ditemukan di etalase ini.\x1b[0m');
                                 }
@@ -7936,10 +7937,10 @@ menu_etalase_custom() {
                 echo -e ""
                 read -p "Pilih nomor Etalase yg ingin dihapus: " nomor_etalase
                 if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
-                    node -e "
+                    NOMOR_ETALASE="$nomor_etalase" node -e "
                         const fs = require('fs'); const file = './admin_tendo/custom_layout.json';
                         let db = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {sections:[]};
-                        let idx = parseInt('$nomor_etalase') - 1;
+                        let idx = parseInt(process.env.NOMOR_ETALASE) - 1;
                         if(db.sections[idx]) {
                             let title = db.sections[idx].title;
                             db.sections.splice(idx, 1);
@@ -8050,18 +8051,18 @@ while true; do
             if [ ! -d "sesi_bot" ] || [ -z "$(ls -A sesi_bot 2>/dev/null)" ]; then
                 read -p "📲 Masukkan Nomor WA Bot (Awali 628...): " nomor_bot
                 if [ ! -z "$nomor_bot" ]; then
-                    node -e "
+                    NOMOR_BOT="$nomor_bot" node -e "
                         const fs = require('fs'); const file = './admin_tendo/config.json';
                         let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
-                        config.botNumber = '$nomor_bot';
+                        config.botNumber = process.env.NOMOR_BOT;
                         config.botName = config.botName || 'Digital Tendo Store';
                         fs.writeFileSync(file, JSON.stringify(config, null, 2));
                     "
                 fi
             fi
             echo -e "\n${C_MAG}⏳ Membersihkan proses lama agar tidak bentrok...${C_RST}"
-            pm2 stop tendo-bot >/dev/null 2>&1
-            pm2 delete tendo-bot >/dev/null 2>&1
+            pm2 stop tendo-bot >/dev/null 2>&1 || true
+            pm2 delete tendo-bot >/dev/null 2>&1 || true
             echo -e "\n${C_MAG}⏳ Menjalankan bot... (Tekan CTRL+C untuk mematikan dan kembali ke menu)${C_RST}"
             export IP_ADDRESS=$(curl -s ifconfig.me)
             node index.js
@@ -8070,8 +8071,8 @@ while true; do
             ;;
         3) 
             echo -e "\n${C_MAG}⏳ Membersihkan proses lama agar tidak bentrok...${C_RST}"
-            pm2 stop tendo-bot >/dev/null 2>&1
-            pm2 delete tendo-bot >/dev/null 2>&1
+            pm2 stop tendo-bot >/dev/null 2>&1 || true
+            pm2 delete tendo-bot >/dev/null 2>&1 || true
             export IP_ADDRESS=$(curl -s ifconfig.me)
             pm2 start index.js --name "tendo-bot" >/dev/null 2>&1
             pm2 save >/dev/null 2>&1
@@ -8079,8 +8080,8 @@ while true; do
             echo -e "\n${C_GREEN}✅ Sistem berjalan di latar belakang!${C_RST}"
             sleep 2 ;;
         4) 
-            pm2 stop tendo-bot >/dev/null 2>&1
-            pm2 delete tendo-bot >/dev/null 2>&1
+            pm2 stop tendo-bot >/dev/null 2>&1 || true
+            pm2 delete tendo-bot >/dev/null 2>&1 || true
             echo -e "\n${C_GREEN}✅ Sistem dihentikan dan dibersihkan dari latar belakang.${C_RST}"
             sleep 2 ;;
         5) pm2 logs tendo-bot ;;
@@ -8095,11 +8096,11 @@ while true; do
             echo -e "\n${C_MAG}--- GANTI API DIGIFLAZZ ---${C_RST}"
             read -p "Username Digiflazz Baru: " user_api
             read -p "API Key Digiflazz Baru: " key_api
-            node -e "
+            USER_API="$user_api" KEY_API="$key_api" node -e "
                 const fs = require('fs'); const file = './admin_tendo/config.json';
                 let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
-                if('$user_api' !== '') config.digiflazzUsername = '$user_api'.trim();
-                if('$key_api' !== '') config.digiflazzApiKey = '$key_api'.trim();
+                if(process.env.USER_API !== '') config.digiflazzUsername = process.env.USER_API.trim();
+                if(process.env.KEY_API !== '') config.digiflazzApiKey = process.env.KEY_API.trim();
                 fs.writeFileSync(file, JSON.stringify(config, null, 2));
                 console.log('\x1b[32m\n✅ Konfigurasi Digiflazz berhasil disimpan!\x1b[0m');
             "
@@ -8136,12 +8137,12 @@ while true; do
             echo -e "\n${C_CYAN}Siapkan TEKS STRING dari QRIS Statis Anda.${C_RST}"
             echo -e "Teks QRIS berawalan '000201010211...' dan diakhiri dengan kombinasi 4 huruf/angka (CRC)."
             read -p "Paste TEKS STRING QRIS Anda di sini: " qris_text
-            node -e "
+            GOPAY_TOKEN="$gopay_token" GOPAY_MID="$gopay_mid" QRIS_TEXT="$qris_text" node -e "
                 const fs = require('fs'); const file = './admin_tendo/config.json';
                 let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
-                if ('$gopay_token' !== '') config.gopayToken = '$gopay_token'.trim();
-                if ('$gopay_mid' !== '') config.gopayMerchantId = '$gopay_mid'.trim();
-                if ('$qris_text' !== '') config.qrisText = '$qris_text'.trim();
+                if (process.env.GOPAY_TOKEN !== '') config.gopayToken = process.env.GOPAY_TOKEN.trim();
+                if (process.env.GOPAY_MID !== '') config.gopayMerchantId = process.env.GOPAY_MID.trim();
+                if (process.env.QRIS_TEXT !== '') config.qrisText = process.env.QRIS_TEXT.trim();
                 fs.writeFileSync(file, JSON.stringify(config, null, 2));
                 console.log('\x1b[32m\n✅ Konfigurasi GoPay BHM Biz & QRIS Dinamis berhasil disimpan!\x1b[0m');
             "
@@ -8181,7 +8182,7 @@ EOF
             echo -e "\n${C_RED}⚠️ Reset Sesi akan mengeluarkan sistem dari WhatsApp saat ini.${C_RST}"
             read -p "Yakin ingin mereset sesi? (y/n): " reset_sesi
             if [ "$reset_sesi" == "y" ]; then
-                pm2 stop tendo-bot >/dev/null 2>&1
+                pm2 stop tendo-bot >/dev/null 2>&1 || true
                 rm -rf sesi_bot
                 echo -e "${C_GREEN}✅ Sesi berhasil dihapus. Silakan jalankan sistem kembali untuk menautkan nomor baru.${C_RST}"
             fi
