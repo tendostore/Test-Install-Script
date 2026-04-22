@@ -1536,7 +1536,7 @@ EOF
 
         async function fetchGlobalStats() {
             try {
-                let res = await apiCall('/api/stats');
+                let res = await apiCall('/api/stats?t=' + Date.now());
                 if(res && res.success) {
                     document.getElementById('stat-daily').innerText = res.daily;
                     document.getElementById('stat-weekly').innerText = res.weekly;
@@ -1552,7 +1552,7 @@ EOF
 
         async function fetchVPNConfig() {
             try {
-                let res = await apiCall('/api/vpn-config');
+                let res = await apiCall('/api/vpn-config?t=' + Date.now());
                 if(res && res.success) {
                     vpnConfigData = res.data;
                     renderVpnGrid();
@@ -1562,7 +1562,7 @@ EOF
         
         async function fetchCustomLayout() {
             try {
-                let res = await apiCall('/api/custom-layout');
+                let res = await apiCall('/api/custom-layout?t=' + Date.now());
                 if(res && res.success && res.data && res.data.sections) {
                     window.etalaseData = res.data.sections;
                     let container = document.getElementById('custom-layout-container');
@@ -1789,7 +1789,7 @@ EOF
 
         async function loadBanners() {
             try {
-                let data = await apiCall('/api/banners');
+                let data = await apiCall('/api/banners?t=' + Date.now());
                 let container = document.getElementById('banner-slider-container');
                 let slider = document.getElementById('banner-slider');
                 
@@ -1879,7 +1879,7 @@ EOF
         async function showTutorialsInternal() {
             showScreen('tutorial-screen', 'nav-home');
             try {
-                let data = await apiCall('/api/tutorials');
+                let data = await apiCall('/api/tutorials?t=' + Date.now());
                 let html = '';
                 if(data && Array.isArray(data) && data.length > 0) {
                     data.forEach(t => {
@@ -1971,7 +1971,7 @@ EOF
         async function showGlobalTrxInternal() {
             showScreen('global-trx-screen', 'nav-global-trx');
             try {
-                let data = await apiCall('/api/global-trx');
+                let data = await apiCall('/api/global-trx?t=' + Date.now()); // FIX: Menambahkan cache-busting
                 let html = '';
                 if(data && Array.isArray(data) && data.length > 0) {
                     data.forEach(n => {
@@ -2002,7 +2002,7 @@ EOF
         async function showNotifInternal() { 
             showScreen('notif-screen', 'nav-notif'); 
             try {
-                let data = await apiCall('/api/notif');
+                let data = await apiCall('/api/notif?t=' + Date.now()); // FIX: Menambahkan cache-busting
                 let html = '';
                 if(data && Array.isArray(data) && data.length > 0) {
                     data.forEach(n => {
@@ -2140,7 +2140,7 @@ EOF
         async function syncUserData() {
             if(!currentUser) return;
             try {
-                let data = await apiCall('/api/user/' + currentUser);
+                let data = await apiCall('/api/user/' + currentUser + '?t=' + Date.now()); // FIX: Cache busting untuk profile
                 if(data && data.success) {
                     userData = data.data; let u = userData;
                     
@@ -2761,7 +2761,7 @@ EOF
 
         async function fetchAllProducts() {
             try {
-                let data = await apiCall('/api/produk');
+                let data = await apiCall('/api/produk?t=' + Date.now()); // FIX: Menambahkan cache-busting
                 if(data) { allProducts = data; }
             } catch(e){}
         }
@@ -3812,7 +3812,7 @@ generate_admin_app() {
         }
 
         async function loadDashboard() {
-            const data = await fetchAdmin('/api/admin/stats');
+            const data = await fetchAdmin('/api/admin/stats?t=' + Date.now()); // FIX: Menambahkan cache-busting
             if(data && data.success) {
                 document.getElementById('dash-saldo').innerHTML = '<i data-lucide="coins" style="color:var(--primary)"></i> Rp ' + data.total_saldo.toLocaleString('id-ID');
                 document.getElementById('dash-users').innerHTML = '<i data-lucide="users-round" style="color:var(--success)"></i> ' + data.total_user;
@@ -3824,7 +3824,7 @@ generate_admin_app() {
 
         async function fetchSystemStats() {
             if(!localStorage.getItem('tendo_admin_token')) return;
-            const sys = await fetchAdmin('/api/admin/system-stats');
+            const sys = await fetchAdmin('/api/admin/system-stats?t=' + Date.now()); // FIX: Menambahkan cache-busting
             if(sys && sys.success) {
                 document.getElementById('mon-cpu-text').innerText = sys.cpu + "%";
                 let rawRam = sys.ram.split(' / ')[0].replace(' GB', '');
@@ -3842,7 +3842,7 @@ generate_admin_app() {
 
         async function loadGlobalHistory() {
             const filter = document.getElementById('trx-filter').value;
-            const data = await fetchAdmin('/api/admin/history?filter=' + filter);
+            const data = await fetchAdmin('/api/admin/history?filter=' + filter + '&t=' + Date.now()); // FIX: Menambahkan cache-busting
             if(data && data.success) {
                 document.getElementById('profit-daily').innerText = 'Rp ' + (data.profit_daily || 0).toLocaleString('id-ID');
                 document.getElementById('profit-monthly').innerText = 'Rp ' + (data.profit_monthly || 0).toLocaleString('id-ID');
@@ -3868,7 +3868,7 @@ generate_admin_app() {
 
         async function loadUsers() {
             const search = document.getElementById('search-user').value;
-            const data = await fetchAdmin('/api/admin/users?search=' + encodeURIComponent(search));
+            const data = await fetchAdmin('/api/admin/users?search=' + encodeURIComponent(search) + '&t=' + Date.now()); // FIX: Menambahkan cache-busting
             if(data && data.success) {
                 let html = '';
                 data.users.forEach(u => {
@@ -3933,7 +3933,7 @@ generate_admin_app() {
         }
 
         async function loadMarginForm() {
-            const data = await fetchAdmin('/api/admin/settings');
+            const data = await fetchAdmin('/api/admin/settings?t=' + Date.now()); // FIX: Menambahkan cache-busting
             if(data && data.success) {
                 let margin = data.settings.margin || {};
                 let html = '';
@@ -3964,7 +3964,7 @@ generate_admin_app() {
         }
 
         async function loadEtalaseList() {
-            const data = await fetchAdmin('/api/admin/etalase');
+            const data = await fetchAdmin('/api/admin/etalase?t=' + Date.now()); // FIX: Menambahkan cache-busting
             if(data && data.success) {
                 let html = '';
                 data.sections.forEach((sec, idx) => {
@@ -4082,7 +4082,7 @@ generate_admin_app() {
         /* MANAJEMEN VPN SERVERS & PRODUCTS CRUD */
         let globalServers = [];
         async function loadVpnServers() {
-            const data = await fetchAdmin('/api/admin/vpn-servers');
+            const data = await fetchAdmin('/api/admin/vpn-servers?t=' + Date.now()); // FIX: Menambahkan cache-busting
             if(data && data.success) {
                 globalServers = data.servers;
                 let html = '';
@@ -4171,7 +4171,7 @@ generate_admin_app() {
         }
 
         async function loadVpnProducts() {
-            const data = await fetchAdmin('/api/admin/vpn-products');
+            const data = await fetchAdmin('/api/admin/vpn-products?t=' + Date.now()); // FIX: Menambahkan cache-busting
             if(data && data.success) {
                 let html = '';
                 data.products.forEach(p => {
@@ -4318,7 +4318,7 @@ generate_admin_app() {
         }
 
         async function loadSettings() {
-            const data = await fetchAdmin('/api/admin/settings');
+            const data = await fetchAdmin('/api/admin/settings?t=' + Date.now()); // FIX: Menambahkan cache-busting
             if(data && data.success) {
                 let set = data.settings;
                 document.getElementById('maint-status').value = set.maintType || 'off';
@@ -4439,14 +4439,14 @@ generate_admin_app() {
 
         async function testNotifConnection() {
             showToast("Mengecek koneksi...");
-            const data = await fetchAdmin('/api/admin/test-notif');
+            const data = await fetchAdmin('/api/admin/test-notif?t=' + Date.now()); // FIX: Menambahkan cache-busting
             if(data && data.success) showToast("Koneksi berhasil! Cek WA/Tele Anda.", 'success');
             else showToast(data.message || "Gagal tes koneksi", true);
         }
 
         window.allSystemLogs = [];
         async function loadSystemLogs() {
-            const data = await fetchAdmin('/api/admin/system-logs');
+            const data = await fetchAdmin('/api/admin/system-logs?t=' + Date.now()); // FIX: Menambahkan cache-busting
             if(data && data.success) {
                 let statusEl = document.getElementById('wa-monitor-status');
                 statusEl.innerText = data.wa_status;
@@ -4841,7 +4841,8 @@ app.get('/api/admin/system-stats', authAdmin, (req, res) => {
 
 app.get('/api/admin/stats', authAdmin, async (req, res) => {
     try {
-        let sumRes = await getQuery('SELECT COALESCE(SUM(saldo), 0) as tSaldo, COUNT(*) as tUser FROM users');
+        // FIX: Menggunakan COUNT(phone) agar lebih aman dan spesifik
+        let sumRes = await getQuery('SELECT COALESCE(SUM(saldo), 0) as tSaldo, COUNT(phone) as tUser FROM users');
         let gTrx = loadJSON(globalTrxFile, []);
         let profitMonthly = 0;
         let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
@@ -4855,7 +4856,7 @@ app.get('/api/admin/stats', authAdmin, async (req, res) => {
         });
 
         res.json({success: true, total_saldo: sumRes.tSaldo || 0, total_user: sumRes.tUser || 0, profit_monthly: profitMonthly});
-    } catch(e) { res.json({success: false}); }
+    } catch(e) { res.json({success: false, message: e.message}); }
 });
 
 app.get('/api/admin/history', authAdmin, async (req, res) => {
@@ -4899,11 +4900,12 @@ app.get('/api/admin/history', authAdmin, async (req, res) => {
 app.get('/api/admin/users', authAdmin, async (req, res) => {
     try {
         let search = `%${(req.query.search || '').toLowerCase()}%`;
-        let queryStr = `SELECT phone, username, email, level, saldo, banned FROM users WHERE LOWER(phone) LIKE ? OR LOWER(username) LIKE ? OR LOWER(email) LIKE ? ORDER BY saldo DESC LIMIT 50`;
+        // FIX: Menggunakan IFNULL() untuk mengatasi error pencarian saat kolom bernilai NULL
+        let queryStr = `SELECT phone, username, email, level, saldo, banned FROM users WHERE LOWER(phone) LIKE ? OR LOWER(IFNULL(username, '')) LIKE ? OR LOWER(IFNULL(email, '')) LIKE ? ORDER BY saldo DESC LIMIT 50`;
         let users = await allQuery(queryStr, [search, search, search]);
         users = users.map(u => ({ ...u, banned: u.banned === 1 }));
         res.json({success: true, users: users});
-    } catch(e) { res.json({success: false}); }
+    } catch(e) { res.json({success: false, message: e.message}); }
 });
 
 app.post('/api/admin/user/level', authAdmin, async (req, res) => {
@@ -5227,7 +5229,8 @@ app.get('/api/banners', (req, res) => {
 
 app.get('/api/stats', async (req, res) => {
     try {
-        let sumRes = await getQuery('SELECT COUNT(*) as tUser FROM users');
+        // FIX: Menggunakan COUNT(phone) agar lebih aman jika ada migrasi dengan NULL ID 
+        let sumRes = await getQuery('SELECT COUNT(phone) as tUser FROM users');
         let gTrx = loadJSON(globalTrxFile, []); let cfg = loadJSON(configFile, {});
         let daily = 0, weekly = 0, monthly = 0, total = 0;
         let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
