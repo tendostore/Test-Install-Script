@@ -335,7 +335,7 @@ EOF
         
         .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;}
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
+        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: margin-top: 10px;}
         .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
 
         .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
@@ -4488,7 +4488,7 @@ generate_admin_app() {
 </html>
 EOF
 }
-SELESAI
+#SELESAI
 # ==========================================
 # 4. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND DENGAN SQLITE3)
 # ==========================================
@@ -6168,7 +6168,7 @@ if (require.main === module) {
 }
 EOF
 }
-SELESAI
+
 # ==========================================
 # 5. SCRIPT MIGRASI JSON -> SQLITE
 # ==========================================
@@ -8088,111 +8088,112 @@ while true; do
             echo -e "\n${C_MAG}⏳ Menjalankan bot... (Tekan CTRL+C untuk mematikan dan kembali ke menu)${C_RST}"
             export IP_ADDRESS=$(curl -s ifconfig.me)
             node index.js
-            echo -e "\n${C_YELLOW}⚠️ Proses bot terhenti.${C_RST}"
-            read -p "Tekan Enter untuk kembali ke panel utama..."
+            echo -e "\n${C_YELLOW}Sistem dihentikan manual.${C_RST}"
+            read -p "Tekan Enter untuk kembali..."
             ;;
-        3) 
-            echo -e "\n${C_MAG}⏳ Membersihkan proses lama agar tidak bentrok...${C_RST}"
-            pm2 stop tendo-bot >/dev/null 2>&1 || true
-            pm2 delete tendo-bot >/dev/null 2>&1 || true
-            export IP_ADDRESS=$(curl -s ifconfig.me)
-            pm2 start index.js --name "tendo-bot" >/dev/null 2>&1
-            pm2 save >/dev/null 2>&1
-            pm2 startup >/dev/null 2>&1
-            echo -e "\n${C_GREEN}✅ Sistem berjalan di latar belakang!${C_RST}"
-            sleep 2 ;;
-        4) 
-            pm2 stop tendo-bot >/dev/null 2>&1 || true
-            pm2 delete tendo-bot >/dev/null 2>&1 || true
-            echo -e "\n${C_GREEN}✅ Sistem dihentikan dan dibersihkan dari latar belakang.${C_RST}"
-            sleep 2 ;;
-        5) pm2 logs tendo-bot ;;
+        3)
+            if [ ! -f "index.js" ]; then echo -e "${C_RED}❌ Jalankan Menu 1 (Install) dulu!${C_RST}"; sleep 2; continue; fi
+            echo -e "\n${C_MAG}⏳ Menjalankan bot di Latar Belakang (PM2)...${C_RST}"
+            pm2 start index.js --name tendo-bot
+            pm2 save
+            echo -e "${C_GREEN}✅ Bot berjalan di latar belakang! Akses web di http://$IP_ADDRESS:3000${C_RST}"
+            read -p "Tekan Enter untuk kembali..."
+            ;;
+        4)
+            echo -e "\n${C_MAG}⏳ Menghentikan bot...${C_RST}"
+            pm2 stop tendo-bot
+            echo -e "${C_GREEN}✅ Bot dihentikan!${C_RST}"
+            read -p "Tekan Enter untuk kembali..."
+            ;;
+        5)
+            echo -e "\n${C_MAG}⏳ Menampilkan log (Tekan CTRL+C untuk keluar)...${C_RST}"
+            pm2 logs tendo-bot
+            read -p "Tekan Enter untuk kembali..."
+            ;;
         6) menu_sinkron ;;
         7) menu_keuntungan ;;
         8) menu_manajemen_produk_instan ;;
-        9) submenu_produk_vpn ;;
+        9)
+            while true; do
+                clear
+                echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+                echo -e "${C_YELLOW}${C_BOLD}             🛡️ MANAJEMEN VPN PREMIUM 🛡️            ${C_RST}"
+                echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+                echo -e "  ${C_GREEN}[1]${C_RST} Manajemen Server VPN"
+                echo -e "  ${C_GREEN}[2]${C_RST} Manajemen Produk VPN"
+                echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+                echo -e "  ${C_RED}[0]${C_RST} Kembali"
+                echo -e "${C_CYAN}======================================================${C_RST}"
+                echo -ne "${C_YELLOW}Pilih menu [0-2]: ${C_RST}"
+                read vpn_menu
+                case $vpn_menu in
+                    1) submenu_server_vpn ;;
+                    2) submenu_produk_vpn ;;
+                    0) break ;;
+                    *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+                esac
+            done
+            ;;
         10) menu_etalase_custom ;;
         11) menu_tutorial ;;
         12) menu_member ;;
         13)
             echo -e "\n${C_MAG}--- GANTI API DIGIFLAZZ ---${C_RST}"
-            read -p "Username Digiflazz Baru: " user_api
-            read -p "API Key Digiflazz Baru: " key_api
-            USER_API="$user_api" KEY_API="$key_api" node -e "
-                const fs = require('fs'); const file = './admin_tendo/config.json';
-                let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
-                if(process.env.USER_API !== '') config.digiflazzUsername = process.env.USER_API.trim();
-                if(process.env.KEY_API !== '') config.digiflazzApiKey = process.env.KEY_API.trim();
-                fs.writeFileSync(file, JSON.stringify(config, null, 2));
-                console.log('\x1b[32m\n✅ Konfigurasi Digiflazz berhasil disimpan!\x1b[0m');
-            "
+            read -p "Masukkan Username Digiflazz Baru: " user_digi
+            read -p "Masukkan API Key Production Baru: " key_digi
+            if [ ! -z "$user_digi" ] && [ ! -z "$key_digi" ]; then
+                USER_DIGI="$user_digi" KEY_DIGI="$key_digi" node -e "
+                    const fs = require('fs'); const file = './admin_tendo/config.json';
+                    let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                    config.digiflazzUsername = process.env.USER_DIGI;
+                    config.digiflazzApiKey = process.env.KEY_DIGI;
+                    fs.writeFileSync(file, JSON.stringify(config, null, 2));
+                    console.log('\x1b[32m✅ API Digiflazz berhasil diperbarui!\x1b[0m');
+                "
+            else
+                echo -e "${C_RED}Batal: Username dan API Key tidak boleh kosong.${C_RST}"
+            fi
             read -p "Tekan Enter untuk kembali..."
             ;;
         14)
-            echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT (BHM BIZ API) ---${C_RST}"
-            echo -e "${C_YELLOW}Fitur ini akan menghubungkan merchant GoPay Anda dan mengatur QRIS Dinamis!${C_RST}"
-            read -p "Masukkan API Token BHM Biz Anda: " gopay_token
-            read -p "Masukkan Merchant ID (Angka, contoh: 123): " gopay_mid
-            read -p "Masukkan Nomor HP GoPay (08...): " gopay_phone
-
-            if [ ! -z "$gopay_token" ] && [ ! -z "$gopay_phone" ] && [ ! -z "$gopay_mid" ]; then
-                echo -e "\n${C_CYAN}>> Mengirim Request OTP ke nomor $gopay_phone...${C_RST}"
-                req_otp=$(curl -sS -X POST http://gopay.bhm.biz.id/v1/gopay/merchants/connect/request-otp \
-                  -H 'Content-Type: application/json' \
-                  -d "{\"phone\":\"$gopay_phone\"}")
-                
-                echo -e "${C_YELLOW}Respon Server: $req_otp${C_RST}"
-                
-                read -p "Masukkan 4 Digit OTP dari WA/SMS Gojek: " gopay_otp
-                
-                if [ ! -z "$gopay_otp" ]; then
-                    echo -e "\n${C_CYAN}>> Memverifikasi OTP...${C_RST}"
-                    ver_otp=$(curl -sS -X POST http://gopay.bhm.biz.id/v1/gopay/merchants/$gopay_mid/connect/verify-otp \
-                      -H "Authorization: Bearer $gopay_token" \
-                      -H 'Content-Type: application/json' \
-                      -d "{\"otp\":\"$gopay_otp\"}")
-                    
-                    echo -e "${C_YELLOW}Respon Server: $ver_otp${C_RST}"
-                fi
+            echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT API ---${C_RST}"
+            read -p "Masukkan Merchant ID GoPay: " mid
+            read -p "Masukkan Bearer Token API: " mtoken
+            if [ ! -z "$mid" ] && [ ! -z "$mtoken" ]; then
+                MID="$mid" MTOKEN="$mtoken" node -e "
+                    const fs = require('fs'); const file = './admin_tendo/config.json';
+                    let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                    config.gopayMerchantId = process.env.MID;
+                    config.gopayToken = process.env.MTOKEN;
+                    fs.writeFileSync(file, JSON.stringify(config, null, 2));
+                    console.log('\x1b[32m✅ GoPay API berhasil diperbarui!\x1b[0m');
+                "
+            else
+                echo -e "${C_RED}Batal: Input tidak boleh kosong.${C_RST}"
             fi
-
-            echo -e "\n${C_CYAN}Siapkan TEKS STRING dari QRIS Statis Anda.${C_RST}"
-            echo -e "Teks QRIS berawalan '000201010211...' dan diakhiri dengan kombinasi 4 huruf/angka (CRC)."
-            read -p "Paste TEKS STRING QRIS Anda di sini: " qris_text
-            GOPAY_TOKEN="$gopay_token" GOPAY_MID="$gopay_mid" QRIS_TEXT="$qris_text" node -e "
-                const fs = require('fs'); const file = './admin_tendo/config.json';
-                let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
-                if (process.env.GOPAY_TOKEN !== '') config.gopayToken = process.env.GOPAY_TOKEN.trim();
-                if (process.env.GOPAY_MID !== '') config.gopayMerchantId = process.env.GOPAY_MID.trim();
-                if (process.env.QRIS_TEXT !== '') config.qrisText = process.env.QRIS_TEXT.trim();
-                fs.writeFileSync(file, JSON.stringify(config, null, 2));
-                console.log('\x1b[32m\n✅ Konfigurasi GoPay BHM Biz & QRIS Dinamis berhasil disimpan!\x1b[0m');
-            "
             read -p "Tekan Enter untuk kembali..."
             ;;
         15) menu_notifikasi ;;
         16)
             echo -e "\n${C_MAG}--- SETUP DOMAIN & HTTPS ---${C_RST}"
-            read -p "Masukkan Nama Domain Anda (contoh: digitaltendostore.com): " domain_name
-            read -p "Masukkan Email Aktif (untuk SSL Let's Encrypt): " ssl_email
+            read -p "Masukkan Nama Domain (Contoh: tendo.com): " domain_name
+            read -p "Masukkan Email Anda (Untuk SSL Let's Encrypt): " ssl_email
             if [ ! -z "$domain_name" ] && [ ! -z "$ssl_email" ]; then
-                echo -e "${C_CYAN}>> Menginstal Nginx dan Certbot...${C_RST}"
-                sudo apt install -y nginx certbot python3-certbot-nginx > /dev/null 2>&1
-                
-                cat <<EOF | sudo tee /etc/nginx/sites-available/$domain_name
+                echo -e "${C_CYAN}>> Menginstall Nginx & Certbot...${C_RST}"
+                sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx
+                echo -e "${C_CYAN}>> Mengatur konfigurasi Nginx untuk Proxy ke Port 3000...${C_RST}"
+                cat << EOF | sudo tee /etc/nginx/sites-available/$domain_name
 server {
-    listen 80; server_name $domain_name;
-    add_header X-Frame-Options "SAMEORIGIN"; add_header X-XSS-Protection "1; mode=block"; add_header X-Content-Type-Options "nosniff";
-    client_max_body_size 200M;
-
-    # Memblokir akses langsung ke file konfigurasi sensitif
-    location ~ \.(env|db|sqlite|json)$ {
-        deny all;
-        return 404;
-    }
+    listen 80;
+    server_name $domain_name;
 
     location / {
-        proxy_pass http://localhost:3000; proxy_http_version 1.1; proxy_set_header Upgrade \$http_upgrade; proxy_set_header Connection 'upgrade'; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; proxy_read_timeout 90; proxy_connect_timeout 90; proxy_send_timeout 90; proxy_cache_bypass \$http_upgrade;
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
     }
 }
 EOF
@@ -8219,8 +8220,11 @@ EOF
             ;;
         18) menu_backup ;;
         19) menu_telegram ;;
-        0) echo -e "${C_GREEN}Sampai jumpa!${C_RST}"; exit 0 ;;
+        0) 
+            echo -e "${C_GREEN}Terima kasih telah menggunakan Panel Digital Tendo Store!${C_RST}"
+            exit 0 
+            ;;
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
 done
-SELESAI
+#SELESAI
