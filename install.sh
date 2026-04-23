@@ -3033,6 +3033,7 @@ EOF
 EOF
 }
 #SELESAI
+
 # ==========================================
 # 3. FUNGSI MEMBUAT TAMPILAN PANEL ADMIN RAHASIA
 # ==========================================
@@ -6789,6 +6790,10 @@ install_dependencies() {
     fi
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
+    echo -ne "${C_MAG}>> Memperbaiki Permission Folder agar dapat dibaca PM2...${C_RST}"
+    chmod -R 777 admin_tendo public
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     echo -e "${C_GREEN}${C_BOLD}                 ✅ INSTALASI SELESAI!                ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
