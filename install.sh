@@ -4537,11 +4537,18 @@ app.get('/', (req, res) => {
 const dbPath = path.join(ADMIN_DIR, 'database.db');
 const db = new sqlite3.Database(dbPath);
 
+// PERBAIKAN SQLITE_BUSY: Mengaktifkan mode WAL dan Timeout agar database bisa ditulis & dibaca bersamaan
+db.configure("busyTimeout", 10000);
+
 const runQuery = (query, params = []) => new Promise((resolve, reject) => db.run(query, params, function(err) { if(err) reject(err); else resolve(this); }));
 const getQuery = (query, params = []) => new Promise((resolve, reject) => db.get(query, params, (err, row) => { if(err) reject(err); else resolve(row); }));
 const allQuery = (query, params = []) => new Promise((resolve, reject) => db.all(query, params, (err, rows) => { if(err) reject(err); else resolve(rows); }));
 
 db.serialize(() => {
+    // Terapkan PRAGMA untuk optimasi baca-tulis
+    db.run("PRAGMA journal_mode = WAL;");
+    db.run("PRAGMA synchronous = NORMAL;");
+
     db.run(`CREATE TABLE IF NOT EXISTS users (phone TEXT PRIMARY KEY, username TEXT, email TEXT, password TEXT, saldo INTEGER, level TEXT, poin INTEGER, referral_code TEXT, referrer TEXT, banned INTEGER, id_pelanggan TEXT, total_pengeluaran INTEGER, tanggal_daftar TEXT, jid TEXT, trx_count INTEGER, trial_claims TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS products (sku TEXT PRIMARY KEY, sku_asli TEXT, nama TEXT, harga INTEGER, harga_asli INTEGER, margin_keuntungan INTEGER, kategori TEXT, brand TEXT, sub_kategori TEXT, deskripsi TEXT, status_produk INTEGER, is_manual_cat INTEGER, is_pasca INTEGER)`);
     db.run(`CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY AUTOINCREMENT, phone TEXT, ts INTEGER, tanggal TEXT, type TEXT, nama TEXT, tujuan TEXT, status TEXT, sn TEXT, amount INTEGER, ref_id TEXT, saldo_sebelumnya INTEGER, saldo_sesudah INTEGER, harga_asli INTEGER, margin INTEGER, vpn_details TEXT, qris_url TEXT, expired_at INTEGER)`);
@@ -4576,8 +4583,25 @@ const writeLog = (category, message) => {
     } catch(e) {}
 };
 
+// PERBAIKAN ERROR LOGGING: Menangkap error global agar bot tidak silent crash dan mencatatnya ke Web Panel
+process.on('uncaughtException', (err) => {
+    writeLog("Keamanan", `System Crash: ${err.message}`);
+    console.error("Uncaught Exception:", err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+    writeLog("Keamanan", `Unhandled Rejection: ${reason}`);
+    console.error("Unhandled Rejection:", reason);
+});
+
 const SUPERADMIN_PHONE = "6282224460678";
-const ADMIN_TOKEN_SECRET = "TendoTokenSecure829103" + Date.now();
+
+// PERBAIKAN SESI ADMIN: Simpan token secara permanen di config agar restart bot tidak membuat sesi browser kadaluarsa
+let adminSecConfig = loadJSON(configFile, {});
+if(!adminSecConfig.adminTokenSecret) {
+    adminSecConfig.adminTokenSecret = "TendoTokenSecure829103" + Date.now();
+    saveJSON(configFile, adminSecConfig);
+}
+const ADMIN_TOKEN_SECRET = adminSecConfig.adminTokenSecret;
 let tempAdminOtp = "";
 
 function maskStringTarget(str) {
@@ -4616,6 +4640,7 @@ async function updateLevelAndPoints(phone, hargaFix, marginAsli) {
         await runQuery('COMMIT');
     } catch(e) {
         await runQuery('ROLLBACK').catch(()=>{});
+        writeLog("Sistem", `Gagal update level/poin untuk ${phone}: ${e.message}`);
     }
 }
 
@@ -4856,7 +4881,10 @@ app.get('/api/admin/stats', authAdmin, async (req, res) => {
         });
 
         res.json({success: true, total_saldo: sumRes.tSaldo || 0, total_user: sumRes.tUser || 0, profit_monthly: profitMonthly});
-    } catch(e) { res.json({success: false, total_saldo: 0, total_user: 0}); }
+    } catch(e) { 
+        writeLog("Sistem", `Error fetch stats admin: ${e.message}`);
+        res.json({success: false, total_saldo: 0, total_user: 0}); 
+    }
 });
 
 app.get('/api/admin/history', authAdmin, async (req, res) => {
