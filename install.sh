@@ -4509,6 +4509,9 @@ const crypto = require('crypto');
 const TelegramBot = require('node-telegram-bot-api');
 const sqlite3 = require('sqlite3').verbose();
 
+// FIX: Memaksa Node.js menggunakan folder saat ini sebagai root agar PM2 tidak salah membaca database lama
+process.chdir(__dirname);
+
 const app = express();
 app.disable('x-powered-by');
 
@@ -4841,7 +4844,6 @@ app.get('/api/admin/system-stats', authAdmin, (req, res) => {
 
 app.get('/api/admin/stats', authAdmin, async (req, res) => {
     try {
-        // PERBAIKAN: Memaksa CAST ke INTEGER agar saldo string dari SQLite ikut terjumlah dengan benar
         let sumRes = await getQuery('SELECT COALESCE(SUM(CAST(saldo AS INTEGER)), 0) as tSaldo, COUNT(*) as tUser FROM users');
         let gTrx = loadJSON(globalTrxFile, []);
         let profitMonthly = 0;
@@ -8053,15 +8055,13 @@ while true; do
     echo -e "${C_MAG}▶ ⚙️ PENGATURAN & INTEGRASI${C_RST}"
     echo -e "  ${C_GREEN}[13]${C_RST} 🔌 Ganti API Digiflazz"
     echo -e "  ${C_GREEN}[14]${C_RST} 💳 Setup GoPay Merchant API"
-    echo -e "  ${C_GREEN}[15]${C_RST} 📢 Setup Integrasi Notifikasi (Tele/Web)"
-    echo -e "  ${C_GREEN}[16]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
-    echo -e "  ${C_GREEN}[17]${C_RST} 🔄 Ganti Akun WA Web OTP (Reset Sesi)"
-    echo ""
-    echo -e "${C_MAG}▶ 💾 BACKUP & RESTORE${C_RST}"
-    echo -e "  ${C_GREEN}[18]${C_RST} 💾 Backup & Restore Database"
-    echo -e "  ${C_GREEN}[19]${C_RST} ⚙️ Pengaturan Auto-Backup Telegram"
-    echo -e "${C_CYAN}======================================================${C_RST}"
-    echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
+    echo -e "  ${C_GREEN}[15]${C_RST} 🔗 Setup Webhook / Callback"
+    echo -e "  ${C_GREEN}[16]${C_RST} 🌐 Konfigurasi Domain & SSL HTTPS"
+    echo -e "  ${C_GREEN}[17]${C_RST} 🔄 Reset Sesi WhatsApp Bot"
+    echo -e "  ${C_GREEN}[18]${C_RST} 💾 Backup & Restore Data"
+    echo -e "  ${C_GREEN}[19]${C_RST} ⚙️ Setup Auto-Backup Telegram"
+    echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+    echo -e "  ${C_RED}[0]${C_RST}  Keluar (Exit)"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -ne "${C_YELLOW}Pilih menu [0-19]: ${C_RST}"
     read choice
@@ -8069,64 +8069,50 @@ while true; do
     case $choice in
         1) install_dependencies ;;
         2) 
-            if [ ! -f "index.js" ]; then echo -e "${C_RED}❌ Jalankan Menu 1 (Install) dulu!${C_RST}"; sleep 2; continue; fi
-            if [ ! -d "sesi_bot" ] || [ -z "$(ls -A sesi_bot 2>/dev/null)" ]; then
-                read -p "📲 Masukkan Nomor WA Bot (Awali 628...): " nomor_bot
-                if [ ! -z "$nomor_bot" ]; then
-                    NOMOR_BOT="$nomor_bot" node -e "
-                        const fs = require('fs'); const file = './admin_tendo/config.json';
-                        let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
-                        config.botNumber = process.env.NOMOR_BOT;
-                        config.botName = config.botName || 'Digital Tendo Store';
-                        fs.writeFileSync(file, JSON.stringify(config, null, 2));
-                    "
-                fi
+            if [ ! -d "node_modules" ]; then
+                echo -e "${C_RED}❌ Sistem belum diinstall. Silakan pilih menu nomor 1 dulu.${C_RST}"
+                read -p "Tekan Enter untuk kembali..."
+                continue
             fi
-            echo -e "\n${C_MAG}⏳ Membersihkan proses lama agar tidak bentrok...${C_RST}"
-            pm2 stop tendo-bot >/dev/null 2>&1 || true
-            pm2 delete tendo-bot >/dev/null 2>&1 || true
-            echo -e "\n${C_MAG}⏳ Menjalankan bot... (Tekan CTRL+C untuk mematikan dan kembali ke menu)${C_RST}"
-            export IP_ADDRESS=$(curl -s ifconfig.me)
+            echo -e "${C_CYAN}>> Menjalankan sistem di terminal...${C_RST}"
             node index.js
-            echo -e "\n${C_YELLOW}Sistem dihentikan manual.${C_RST}"
-            read -p "Tekan Enter untuk kembali..."
             ;;
         3)
-            if [ ! -f "index.js" ]; then echo -e "${C_RED}❌ Jalankan Menu 1 (Install) dulu!${C_RST}"; sleep 2; continue; fi
-            echo -e "\n${C_MAG}⏳ Menjalankan bot di Latar Belakang (PM2)...${C_RST}"
-            pm2 start index.js --name tendo-bot
+            if [ ! -d "node_modules" ]; then
+                echo -e "${C_RED}❌ Sistem belum diinstall. Silakan pilih menu nomor 1 dulu.${C_RST}"
+                read -p "Tekan Enter untuk kembali..."
+                continue
+            fi
+            echo -e "${C_CYAN}>> Menjalankan sistem di background (PM2)...${C_RST}"
+            pm2 start "$(pwd)/index.js" --name "tendo-bot"
             pm2 save
-            echo -e "${C_GREEN}✅ Bot berjalan di latar belakang! Akses web di http://$IP_ADDRESS:3000${C_RST}"
+            echo -e "${C_GREEN}✅ Sistem berhasil berjalan di background.${C_RST}"
             read -p "Tekan Enter untuk kembali..."
             ;;
         4)
-            echo -e "\n${C_MAG}⏳ Menghentikan bot...${C_RST}"
+            echo -e "${C_CYAN}>> Menghentikan sistem...${C_RST}"
             pm2 stop tendo-bot
-            echo -e "${C_GREEN}✅ Bot dihentikan!${C_RST}"
+            echo -e "${C_GREEN}✅ Sistem dihentikan.${C_RST}"
             read -p "Tekan Enter untuk kembali..."
             ;;
-        5)
-            echo -e "\n${C_MAG}⏳ Menampilkan log (Tekan CTRL+C untuk keluar)...${C_RST}"
-            pm2 logs tendo-bot
-            read -p "Tekan Enter untuk kembali..."
-            ;;
+        5) pm2 logs tendo-bot ;;
         6) menu_sinkron ;;
         7) menu_keuntungan ;;
         8) menu_manajemen_produk_instan ;;
-        9)
+        9) 
             while true; do
                 clear
                 echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-                echo -e "${C_YELLOW}${C_BOLD}             🛡️ MANAJEMEN VPN PREMIUM 🛡️            ${C_RST}"
+                echo -e "${C_YELLOW}${C_BOLD}               🛡️ MANAJEMEN VPN 🛡️                  ${C_RST}"
                 echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
                 echo -e "  ${C_GREEN}[1]${C_RST} Manajemen Server VPN"
                 echo -e "  ${C_GREEN}[2]${C_RST} Manajemen Produk VPN"
                 echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
-                echo -e "  ${C_RED}[0]${C_RST} Kembali"
+                echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
                 echo -e "${C_CYAN}======================================================${C_RST}"
                 echo -ne "${C_YELLOW}Pilih menu [0-2]: ${C_RST}"
-                read vpn_menu
-                case $vpn_menu in
+                read vpn_menu_opt
+                case $vpn_menu_opt in
                     1) submenu_server_vpn ;;
                     2) submenu_produk_vpn ;;
                     0) break ;;
@@ -8139,54 +8125,51 @@ while true; do
         12) menu_member ;;
         13)
             echo -e "\n${C_MAG}--- GANTI API DIGIFLAZZ ---${C_RST}"
-            read -p "Masukkan Username Digiflazz Baru: " user_digi
-            read -p "Masukkan API Key Production Baru: " key_digi
-            if [ ! -z "$user_digi" ] && [ ! -z "$key_digi" ]; then
-                USER_DIGI="$user_digi" KEY_DIGI="$key_digi" node -e "
-                    const fs = require('fs'); const file = './admin_tendo/config.json';
-                    let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
-                    config.digiflazzUsername = process.env.USER_DIGI;
-                    config.digiflazzApiKey = process.env.KEY_DIGI;
-                    fs.writeFileSync(file, JSON.stringify(config, null, 2));
-                    console.log('\x1b[32m✅ API Digiflazz berhasil diperbarui!\x1b[0m');
-                "
-            else
-                echo -e "${C_RED}Batal: Username dan API Key tidak boleh kosong.${C_RST}"
-            fi
+            read -p "Masukkan Username Digiflazz: " digi_user
+            read -p "Masukkan API Key Digiflazz (Production): " digi_key
+            DIGI_USER="$digi_user" DIGI_KEY="$digi_key" node -e "
+                const fs = require('fs'); const file = './admin_tendo/config.json';
+                let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                if(process.env.DIGI_USER !== '') config.digiflazzUsername = process.env.DIGI_USER;
+                if(process.env.DIGI_KEY !== '') config.digiflazzApiKey = process.env.DIGI_KEY;
+                fs.writeFileSync(file, JSON.stringify(config, null, 2));
+                console.log('\x1b[32m✅ API Digiflazz berhasil diperbarui!\x1b[0m');
+            "
             read -p "Tekan Enter untuk kembali..."
             ;;
         14)
-            echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT API ---${C_RST}"
-            read -p "Masukkan Merchant ID GoPay: " mid
-            read -p "Masukkan Bearer Token API: " mtoken
-            if [ ! -z "$mid" ] && [ ! -z "$mtoken" ]; then
-                MID="$mid" MTOKEN="$mtoken" node -e "
-                    const fs = require('fs'); const file = './admin_tendo/config.json';
-                    let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
-                    config.gopayMerchantId = process.env.MID;
-                    config.gopayToken = process.env.MTOKEN;
-                    fs.writeFileSync(file, JSON.stringify(config, null, 2));
-                    console.log('\x1b[32m✅ GoPay API berhasil diperbarui!\x1b[0m');
-                "
-            else
-                echo -e "${C_RED}Batal: Input tidak boleh kosong.${C_RST}"
-            fi
+            echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT ---${C_RST}"
+            read -p "Masukkan GoPay Merchant ID (BHM Biz): " gopay_mid
+            read -p "Masukkan GoPay Bearer Token: " gopay_token
+            read -p "Masukkan Teks QRIS Statis Panjang (Opsional, untuk generate QR Dinamis): " qris_text
+            GOPAY_MID="$gopay_mid" GOPAY_TOKEN="$gopay_token" QRIS_TEXT="$qris_text" node -e "
+                const fs = require('fs'); const file = './admin_tendo/config.json';
+                let config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : {};
+                if(process.env.GOPAY_MID !== '') config.gopayMerchantId = process.env.GOPAY_MID;
+                if(process.env.GOPAY_TOKEN !== '') config.gopayToken = process.env.GOPAY_TOKEN;
+                if(process.env.QRIS_TEXT !== '') config.qrisText = process.env.QRIS_TEXT;
+                fs.writeFileSync(file, JSON.stringify(config, null, 2));
+                console.log('\x1b[32m✅ Setup GoPay & QRIS berhasil disimpan!\x1b[0m');
+            "
             read -p "Tekan Enter untuk kembali..."
             ;;
-        15) menu_notifikasi ;;
+        15)
+            echo -e "\n${C_MAG}--- SETUP WEBHOOK DIGIFLAZZ ---${C_RST}"
+            echo -e "Silakan masuk ke dashboard Digiflazz Anda."
+            echo -e "Atur Webhook URL ke: ${C_YELLOW}http://IP_VPS_ANDA:3000/api/webhook${C_RST}"
+            echo -e "(Fitur ini aktif otomatis jika server berjalan)."
+            read -p "Tekan Enter untuk kembali..."
+            ;;
         16)
-            echo -e "\n${C_MAG}--- SETUP DOMAIN & HTTPS ---${C_RST}"
-            read -p "Masukkan Nama Domain (Contoh: tendo.com): " domain_name
-            read -p "Masukkan Email Anda (Untuk SSL Let's Encrypt): " ssl_email
+            echo -e "\n${C_MAG}--- KONFIGURASI DOMAIN & SSL ---${C_RST}"
+            read -p "Masukkan nama domain (contoh: tendo-store.com): " domain_name
+            read -p "Masukkan email (untuk notif perpanjangan SSL): " ssl_email
             if [ ! -z "$domain_name" ] && [ ! -z "$ssl_email" ]; then
-                echo -e "${C_CYAN}>> Menginstall Nginx & Certbot...${C_RST}"
-                sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx
-                echo -e "${C_CYAN}>> Mengatur konfigurasi Nginx untuk Proxy ke Port 3000...${C_RST}"
+                sudo apt install nginx certbot python3-certbot-nginx -y
                 cat << EOF | sudo tee /etc/nginx/sites-available/$domain_name
 server {
     listen 80;
     server_name $domain_name;
-
     location / {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
@@ -8224,7 +8207,9 @@ EOF
             echo -e "${C_GREEN}Terima kasih telah menggunakan Panel Digital Tendo Store!${C_RST}"
             exit 0 
             ;;
-        *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        *) 
+            echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"
+            sleep 1 
+            ;;
     esac
 done
-#SELESAI
