@@ -5966,8 +5966,8 @@ async function startBot() {
                 let formattedNumber = config.botNumber.replace(/[^0-9]/g, '');
                 const code = await sock.requestPairingCode(formattedNumber);
                 console.log(`\n\x1b[36m==================================================\x1b[0m`);
-                console.log(`\x1b[32m📱 NOMOR BOT WA  : \x1b[33m+\${formattedNumber}\x1b[0m`);
-                console.log(`\x1b[32m🔑 KODE PAIRING  : \x1b[1m\x1b[37m\${code}\x1b[0m`);
+                console.log(`\x1b[32m📱 NOMOR BOT WA  : \x1b[33m+${formattedNumber}\x1b[0m`);
+                console.log(`\x1b[32m🔑 KODE PAIRING  : \x1b[1m\x1b[37m${code}\x1b[0m`);
                 console.log(`\x1b[36m==================================================\x1b[0m`);
                 console.log(`\x1b[33m📌 TATA CARA TAUTAN:\x1b[0m`);
                 console.log(`\x1b[37m1. Buka aplikasi WhatsApp di HP bot Anda.\x1b[0m`);
