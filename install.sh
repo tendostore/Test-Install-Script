@@ -1536,7 +1536,7 @@ EOF
 
         async function fetchGlobalStats() {
             try {
-                let res = await apiCall('/api/stats?t=' + Date.now());
+                let res = await apiCall('/api/stats');
                 if(res && res.success) {
                     document.getElementById('stat-daily').innerText = res.daily;
                     document.getElementById('stat-weekly').innerText = res.weekly;
@@ -1552,7 +1552,7 @@ EOF
 
         async function fetchVPNConfig() {
             try {
-                let res = await apiCall('/api/vpn-config?t=' + Date.now());
+                let res = await apiCall('/api/vpn-config');
                 if(res && res.success) {
                     vpnConfigData = res.data;
                     renderVpnGrid();
@@ -1562,7 +1562,7 @@ EOF
         
         async function fetchCustomLayout() {
             try {
-                let res = await apiCall('/api/custom-layout?t=' + Date.now());
+                let res = await apiCall('/api/custom-layout');
                 if(res && res.success && res.data && res.data.sections) {
                     window.etalaseData = res.data.sections;
                     let container = document.getElementById('custom-layout-container');
@@ -1616,7 +1616,7 @@ EOF
                         <div class="prod-info">
                             <div class="prod-name">${p.nama} ${statusBadge}</div>
                             <div class="prod-desc">${p.deskripsi ? p.deskripsi.substring(0,40)+'...' : 'Proses Cepat'}</div>
-                            <div class="prod-price">Rp ${p.harga.toLocaleString('id-ID')}</div>
+                            <div class="prod-price">Rp ${Number(p.harga || 0).toLocaleString('id-ID')}</div>
                         </div>
                     </div>`;
                 }
@@ -1766,7 +1766,7 @@ EOF
                                 <div class="prod-info">
                                     <div class="prod-name">${customName} ${statusBadge}</div>
                                     <div class="prod-desc">${desc.substring(0,40)}...</div>
-                                    <div class="prod-price" style="margin-bottom:8px;">Rp ${price.toLocaleString('id-ID')}</div>
+                                    <div class="prod-price" style="margin-bottom:8px;">Rp ${Number(price || 0).toLocaleString('id-ID')}</div>
                                 </div>
                             </div>
                             <div style="display:flex; gap:10px; margin-top:12px; width:100%;">
@@ -1789,7 +1789,7 @@ EOF
 
         async function loadBanners() {
             try {
-                let data = await apiCall('/api/banners?t=' + Date.now());
+                let data = await apiCall('/api/banners');
                 let container = document.getElementById('banner-slider-container');
                 let slider = document.getElementById('banner-slider');
                 
@@ -1879,7 +1879,7 @@ EOF
         async function showTutorialsInternal() {
             showScreen('tutorial-screen', 'nav-home');
             try {
-                let data = await apiCall('/api/tutorials?t=' + Date.now());
+                let data = await apiCall('/api/tutorials');
                 let html = '';
                 if(data && Array.isArray(data) && data.length > 0) {
                     data.forEach(t => {
@@ -1971,7 +1971,7 @@ EOF
         async function showGlobalTrxInternal() {
             showScreen('global-trx-screen', 'nav-global-trx');
             try {
-                let data = await apiCall('/api/global-trx?t=' + Date.now()); // FIX: Menambahkan cache-busting
+                let data = await apiCall('/api/global-trx');
                 let html = '';
                 if(data && Array.isArray(data) && data.length > 0) {
                     data.forEach(n => {
@@ -1984,7 +1984,7 @@ EOF
                             <div style="font-weight:900; font-size:14px; margin-bottom:4px; color:var(--text-main);">${n.product}</div>
                             <div style="font-size:12px; font-weight:600; color:var(--text-muted);">Akun: ${n.user}</div>
                             <div style="font-size:12px; font-weight:600; color:var(--text-muted);">Tujuan: ${n.target}</div>
-                            <div style="font-size:12px; font-weight:600; color:var(--text-muted);">Harga: Rp ${n.price ? n.price.toLocaleString('id-ID') : '0'}</div>
+                            <div style="font-size:12px; font-weight:600; color:var(--text-muted);">Harga: Rp ${n.price ? Number(n.price).toLocaleString('id-ID') : '0'}</div>
                             <div style="font-size:12px; font-weight:600; color:var(--text-muted);">Metode: ${n.method || 'Saldo Akun'}</div>
                         </div>`;
                     });
@@ -2002,7 +2002,7 @@ EOF
         async function showNotifInternal() { 
             showScreen('notif-screen', 'nav-notif'); 
             try {
-                let data = await apiCall('/api/notif?t=' + Date.now()); // FIX: Menambahkan cache-busting
+                let data = await apiCall('/api/notif');
                 let html = '';
                 if(data && Array.isArray(data) && data.length > 0) {
                     data.forEach(n => {
@@ -2140,13 +2140,13 @@ EOF
         async function syncUserData() {
             if(!currentUser) return;
             try {
-                let data = await apiCall('/api/user/' + currentUser + '?t=' + Date.now()); // FIX: Cache busting untuk profile
+                let data = await apiCall('/api/user/' + currentUser);
                 if(data && data.success) {
                     userData = data.data; let u = userData;
                     
                     let elSaldo = document.getElementById('user-saldo');
                     elSaldo.setAttribute('data-saldo', u.saldo);
-                    elSaldo.innerText = 'Rp ' + u.saldo.toLocaleString('id-ID');
+                    elSaldo.innerText = 'Rp ' + Number(u.saldo || 0).toLocaleString('id-ID');
 
                     document.getElementById('top-trx-badge').innerText = (u.trx_count || 0) + ' Trx';
                     
@@ -2206,7 +2206,7 @@ EOF
                                     <div class="hist-top"><span>${h.tanggal}</span> <span class="stat-badge ${statClass}">${h.status}</span></div>
                                     <div class="hist-title" style="display:flex; justify-content:space-between; align-items:center;">
                                         <span style="max-width:65%;">${h.nama}</span>
-                                        <span style="color:#0ea5e9; font-size:13px;">Rp ${h.amount ? h.amount.toLocaleString('id-ID') : '0'}</span>
+                                        <span style="color:#0ea5e9; font-size:13px;">Rp ${h.amount ? Number(h.amount).toLocaleString('id-ID') : '0'}</span>
                                     </div>
                                     <div class="hist-target">Tujuan: ${displayTujuan}</div>
                                 </div>
@@ -2246,7 +2246,7 @@ EOF
             document.getElementById('hd-time').innerText = h.tanggal;
             document.getElementById('hd-status').innerText = h.status;
             document.getElementById('hd-name').innerText = h.nama;
-            document.getElementById('hd-amount').innerText = h.amount ? 'Rp ' + h.amount.toLocaleString('id-ID') : '-';
+            document.getElementById('hd-amount').innerText = h.amount ? 'Rp ' + Number(h.amount).toLocaleString('id-ID') : '-';
             
             let displayTujuan = h.tujuan; 
             document.getElementById('hd-target').innerText = displayTujuan;
@@ -2265,8 +2265,8 @@ EOF
 
             if(h.saldo_sebelumnya !== undefined) {
                 document.querySelectorAll('.hd-saldo-row').forEach(el => el.classList.remove('hidden'));
-                document.getElementById('hd-saldo-sebelum').innerText = 'Rp ' + h.saldo_sebelumnya.toLocaleString('id-ID');
-                document.getElementById('hd-saldo-sesudah').innerText = 'Rp ' + h.saldo_sesudah.toLocaleString('id-ID');
+                document.getElementById('hd-saldo-sebelum').innerText = 'Rp ' + Number(h.saldo_sebelumnya || 0).toLocaleString('id-ID');
+                document.getElementById('hd-saldo-sesudah').innerText = 'Rp ' + Number(h.saldo_sesudah || 0).toLocaleString('id-ID');
             } else {
                 document.querySelectorAll('.hd-saldo-row').forEach(el => el.classList.add('hidden'));
             }
@@ -2275,7 +2275,7 @@ EOF
             if((h.type === 'Topup' || h.type === 'Order QRIS' || h.type === 'Order VPN QRIS') && h.status === 'Pending') {
                 if(Date.now() < h.expired_at) {
                     document.getElementById('hd-qris-img').src = h.qris_url;
-                    document.getElementById('hd-qris-amount').innerText = 'Rp ' + h.amount.toLocaleString('id-ID');
+                    document.getElementById('hd-qris-amount').innerText = 'Rp ' + Number(h.amount || 0).toLocaleString('id-ID');
                     qrisBox.classList.remove('hidden');
                     startQrisCountdown(h.expired_at);
                 } else {
@@ -2333,7 +2333,7 @@ EOF
             let email = userData.email || "-";
             let phone = currentUser || "-";
             let currentSaldo = userData.saldo || 0;
-            let pesan = `Halo Admin Digital Tendo Store,%0A%0ASaya ingin komplain/tanya transaksi ini:%0A%0A📧 Email: *${email}*%0A📱 Nomor WA: *${phone}*%0A💰 Saldo Saat Ini: *Rp ${currentSaldo.toLocaleString('id-ID')}*%0A💸 Nominal Transaksi: *Rp ${h.amount ? h.amount.toLocaleString('id-ID') : '0'}*%0A📦 Layanan: *${h.nama}*%0A📱 Tujuan: *${h.tujuan}*%0A🕒 Waktu: *${h.tanggal}*%0A⚙️ Status: *${h.status}*%0A🔑 SN/Ref: *${h.sn || '-'}*%0A%0AMohon bantuannya dicek.%0A%0A_*(Note: Jika komplain topup/pembayaran belum masuk, mohon kirimkan juga foto/bukti transfernya)*_ Terima kasih.`;
+            let pesan = `Halo Admin Digital Tendo Store,%0A%0ASaya ingin komplain/tanya transaksi ini:%0A%0A📧 Email: *${email}*%0A📱 Nomor WA: *${phone}*%0A💰 Saldo Saat Ini: *Rp ${Number(currentSaldo || 0).toLocaleString('id-ID')}*%0A💸 Nominal Transaksi: *Rp ${h.amount ? Number(h.amount).toLocaleString('id-ID') : '0'}*%0A📦 Layanan: *${h.nama}*%0A📱 Tujuan: *${h.tujuan}*%0A🕒 Waktu: *${h.tanggal}*%0A⚙️ Status: *${h.status}*%0A🔑 SN/Ref: *${h.sn || '-'}*%0A%0AMohon bantuannya dicek.%0A%0A_*(Note: Jika komplain topup/pembayaran belum masuk, mohon kirimkan juga foto/bukti transfernya)*_ Terima kasih.`;
             window.open(`https://wa.me/6282224460678?text=${pesan}`, '_blank');
         }
 
@@ -2747,7 +2747,7 @@ EOF
                     <div class="prod-info">
                         <div class="prod-name">${p.nama} ${statusBadge}</div>
                         <div class="prod-desc">${p.deskripsi ? p.deskripsi.substring(0,40)+'...' : 'Proses Cepat'}</div>
-                        <div class="prod-price">Rp ${p.harga.toLocaleString('id-ID')}</div>
+                        <div class="prod-price">Rp ${Number(p.harga || 0).toLocaleString('id-ID')}</div>
                     </div>
                 </div>`;
             }
@@ -2761,7 +2761,7 @@ EOF
 
         async function fetchAllProducts() {
             try {
-                let data = await apiCall('/api/produk?t=' + Date.now()); // FIX: Menambahkan cache-busting
+                let data = await apiCall('/api/produk');
                 if(data) { allProducts = data; }
             } catch(e){}
         }
@@ -2775,7 +2775,7 @@ EOF
             }
             selectedSKU = sku;
             document.getElementById('m-name').innerText = nama;
-            document.getElementById('m-price').innerText = 'Rp ' + harga.toLocaleString('id-ID');
+            document.getElementById('m-price').innerText = 'Rp ' + Number(harga || 0).toLocaleString('id-ID');
             document.getElementById('m-desc').innerText = desc || 'Proses Otomatis';
             document.getElementById('m-target').value = '';
             document.getElementById('m-payment-method').value = 'saldo';
@@ -2835,7 +2835,7 @@ EOF
             if(days < 1) { days = 1; document.getElementById('m-vpn-expired').value = 1; }
             
             let finalPrice = Math.ceil((currentVpnBasePrice / 30) * days);
-            document.getElementById('m-vpn-price').innerText = 'Rp ' + finalPrice.toLocaleString('id-ID');
+            document.getElementById('m-vpn-price').innerText = 'Rp ' + Number(finalPrice || 0).toLocaleString('id-ID');
         }
 
         function openVPNServerSelection(protocol) {
@@ -2867,7 +2867,7 @@ EOF
                                     <div class="vpn-server-name">${flag} ${customName}</div>
                                     <div style="font-size:11.5px; color:var(--text-muted); margin-top:3px; font-weight:bold;">Server: ${srvName}</div>
                                     <div class="vpn-server-price" style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
-                                        <span>Rp ${price.toLocaleString('id-ID')} / 30 Hari</span>
+                                        <span>Rp ${Number(price || 0).toLocaleString('id-ID')} / 30 Hari</span>
                                         ${stokBadge}
                                     </div>
                                 </div>
@@ -3032,7 +3032,7 @@ EOF
 </html>
 EOF
 }
-SELESAI
+
 # ==========================================
 # 3. FUNGSI MEMBUAT TAMPILAN PANEL ADMIN RAHASIA
 # ==========================================
@@ -3812,11 +3812,11 @@ generate_admin_app() {
         }
 
         async function loadDashboard() {
-            const data = await fetchAdmin('/api/admin/stats?t=' + Date.now()); // FIX: Menambahkan cache-busting
+            const data = await fetchAdmin('/api/admin/stats');
             if(data && data.success) {
-                document.getElementById('dash-saldo').innerHTML = '<i data-lucide="coins" style="color:var(--primary)"></i> Rp ' + data.total_saldo.toLocaleString('id-ID');
-                document.getElementById('dash-users').innerHTML = '<i data-lucide="users-round" style="color:var(--success)"></i> ' + data.total_user;
-                document.getElementById('dash-profit').innerHTML = '<i data-lucide="trending-up"></i> Rp ' + (data.profit_monthly || 0).toLocaleString('id-ID');
+                document.getElementById('dash-saldo').innerHTML = '<i data-lucide="coins" style="color:var(--primary)"></i> Rp ' + Number(data.total_saldo || 0).toLocaleString('id-ID');
+                document.getElementById('dash-users').innerHTML = '<i data-lucide="users-round" style="color:var(--success)"></i> ' + Number(data.total_user || 0);
+                document.getElementById('dash-profit').innerHTML = '<i data-lucide="trending-up"></i> Rp ' + Number(data.profit_monthly || 0).toLocaleString('id-ID');
                 lucide.createIcons();
             }
             fetchSystemStats();
@@ -3824,7 +3824,7 @@ generate_admin_app() {
 
         async function fetchSystemStats() {
             if(!localStorage.getItem('tendo_admin_token')) return;
-            const sys = await fetchAdmin('/api/admin/system-stats?t=' + Date.now()); // FIX: Menambahkan cache-busting
+            const sys = await fetchAdmin('/api/admin/system-stats');
             if(sys && sys.success) {
                 document.getElementById('mon-cpu-text').innerText = sys.cpu + "%";
                 let rawRam = sys.ram.split(' / ')[0].replace(' GB', '');
@@ -3842,10 +3842,10 @@ generate_admin_app() {
 
         async function loadGlobalHistory() {
             const filter = document.getElementById('trx-filter').value;
-            const data = await fetchAdmin('/api/admin/history?filter=' + filter + '&t=' + Date.now()); // FIX: Menambahkan cache-busting
+            const data = await fetchAdmin('/api/admin/history?filter=' + filter);
             if(data && data.success) {
-                document.getElementById('profit-daily').innerText = 'Rp ' + (data.profit_daily || 0).toLocaleString('id-ID');
-                document.getElementById('profit-monthly').innerText = 'Rp ' + (data.profit_monthly || 0).toLocaleString('id-ID');
+                document.getElementById('profit-daily').innerText = 'Rp ' + Number(data.profit_daily || 0).toLocaleString('id-ID');
+                document.getElementById('profit-monthly').innerText = 'Rp ' + Number(data.profit_monthly || 0).toLocaleString('id-ID');
                 
                 let html = '';
                 data.history.forEach(h => {
@@ -3855,9 +3855,9 @@ generate_admin_app() {
                         <td>${h.pelanggan} (${h.phone})</td>
                         <td>${h.produk}</td>
                         <td>${h.tujuan}</td>
-                        <td style="color:var(--muted)">Rp ${(h.modal||0).toLocaleString('id-ID')}</td>
-                        <td style="color:var(--primary)">Rp ${(h.jual||0).toLocaleString('id-ID')}</td>
-                        <td style="color:var(--success)">+ Rp ${(h.laba||0).toLocaleString('id-ID')}</td>
+                        <td style="color:var(--muted)">Rp ${Number(h.modal||0).toLocaleString('id-ID')}</td>
+                        <td style="color:var(--primary)">Rp ${Number(h.jual||0).toLocaleString('id-ID')}</td>
+                        <td style="color:var(--success)">+ Rp ${Number(h.laba||0).toLocaleString('id-ID')}</td>
                         <td><span class="badge ${badgeClass}">${h.status}</span></td>
                     </tr>`;
                 });
@@ -3868,7 +3868,7 @@ generate_admin_app() {
 
         async function loadUsers() {
             const search = document.getElementById('search-user').value;
-            const data = await fetchAdmin('/api/admin/users?search=' + encodeURIComponent(search) + '&t=' + Date.now()); // FIX: Menambahkan cache-busting
+            const data = await fetchAdmin('/api/admin/users?search=' + encodeURIComponent(search));
             if(data && data.success) {
                 let html = '';
                 data.users.forEach(u => {
@@ -3881,7 +3881,7 @@ generate_admin_app() {
                     html += `<tr>
                         <td>${u.phone}</td>
                         <td>${u.username}<br><span style="font-size:11px;color:var(--muted)">${u.email}</span></td>
-                        <td style="font-weight:bold;color:var(--primary)">Rp ${u.saldo.toLocaleString('id-ID')}</td>
+                        <td style="font-weight:bold;color:var(--primary)">Rp ${Number(u.saldo || 0).toLocaleString('id-ID')}</td>
                         <td><select style="padding:6px;margin:0;font-size:12px;width:auto;" onchange="changeLevel('${u.phone}', this.value)">${lvlOpts}</select></td>
                         <td>${statusStr}</td>
                         <td>${banBtn}</td>
@@ -3933,7 +3933,7 @@ generate_admin_app() {
         }
 
         async function loadMarginForm() {
-            const data = await fetchAdmin('/api/admin/settings?t=' + Date.now()); // FIX: Menambahkan cache-busting
+            const data = await fetchAdmin('/api/admin/settings');
             if(data && data.success) {
                 let margin = data.settings.margin || {};
                 let html = '';
@@ -3964,7 +3964,7 @@ generate_admin_app() {
         }
 
         async function loadEtalaseList() {
-            const data = await fetchAdmin('/api/admin/etalase?t=' + Date.now()); // FIX: Menambahkan cache-busting
+            const data = await fetchAdmin('/api/admin/etalase');
             if(data && data.success) {
                 let html = '';
                 data.sections.forEach((sec, idx) => {
@@ -4036,7 +4036,7 @@ generate_admin_app() {
                         <td>${p.product_name}</td>
                         <td>${p.category}</td>
                         <td>${p.brand}</td>
-                        <td>Rp ${(p.price || p.admin || 0).toLocaleString('id-ID')}</td>
+                        <td>Rp ${Number(p.price || p.admin || 0).toLocaleString('id-ID')}</td>
                     </tr>`;
                 });
                 document.getElementById('digi-pull-body').innerHTML = html;
@@ -4082,7 +4082,7 @@ generate_admin_app() {
         /* MANAJEMEN VPN SERVERS & PRODUCTS CRUD */
         let globalServers = [];
         async function loadVpnServers() {
-            const data = await fetchAdmin('/api/admin/vpn-servers?t=' + Date.now()); // FIX: Menambahkan cache-busting
+            const data = await fetchAdmin('/api/admin/vpn-servers');
             if(data && data.success) {
                 globalServers = data.servers;
                 let html = '';
@@ -4171,7 +4171,7 @@ generate_admin_app() {
         }
 
         async function loadVpnProducts() {
-            const data = await fetchAdmin('/api/admin/vpn-products?t=' + Date.now()); // FIX: Menambahkan cache-busting
+            const data = await fetchAdmin('/api/admin/vpn-products');
             if(data && data.success) {
                 let html = '';
                 data.products.forEach(p => {
@@ -4181,7 +4181,7 @@ generate_admin_app() {
                         <td>${p.protocol}</td>
                         <td>${p.product_name}</td>
                         <td>${srvName}</td>
-                        <td>Rp ${p.price.toLocaleString('id-ID')}</td>
+                        <td>Rp ${Number(p.price || 0).toLocaleString('id-ID')}</td>
                         <td>${p.stok}</td>
                         <td>
                             <button class="btn btn-outline" style="padding:5px 8px; font-size:11px;" onclick='editVpnProduct(${JSON.stringify(p).replace(/'/g, "&apos;")})'>Edit</button>
@@ -4318,7 +4318,7 @@ generate_admin_app() {
         }
 
         async function loadSettings() {
-            const data = await fetchAdmin('/api/admin/settings?t=' + Date.now()); // FIX: Menambahkan cache-busting
+            const data = await fetchAdmin('/api/admin/settings');
             if(data && data.success) {
                 let set = data.settings;
                 document.getElementById('maint-status').value = set.maintType || 'off';
@@ -4439,14 +4439,14 @@ generate_admin_app() {
 
         async function testNotifConnection() {
             showToast("Mengecek koneksi...");
-            const data = await fetchAdmin('/api/admin/test-notif?t=' + Date.now()); // FIX: Menambahkan cache-busting
+            const data = await fetchAdmin('/api/admin/test-notif');
             if(data && data.success) showToast("Koneksi berhasil! Cek WA/Tele Anda.", 'success');
             else showToast(data.message || "Gagal tes koneksi", true);
         }
 
         window.allSystemLogs = [];
         async function loadSystemLogs() {
-            const data = await fetchAdmin('/api/admin/system-logs?t=' + Date.now()); // FIX: Menambahkan cache-busting
+            const data = await fetchAdmin('/api/admin/system-logs');
             if(data && data.success) {
                 let statusEl = document.getElementById('wa-monitor-status');
                 statusEl.innerText = data.wa_status;
@@ -4609,7 +4609,7 @@ async function updateLevelAndPoints(phone, hargaFix, marginAsli) {
             await runQuery('UPDATE users SET poin = ?, total_pengeluaran = ?, level = ? WHERE phone = ?', [newPoin, newPengeluaran, newLevel, phone]);
             
             if(u.referrer) {
-                await runQuery('UPDATE users SET saldo = saldo + 10 WHERE phone = ?', [u.referrer]);
+                await runQuery('UPDATE users SET saldo = CAST(saldo AS INTEGER) + 10 WHERE phone = ?', [u.referrer]);
             }
         }
         await runQuery('COMMIT');
@@ -4659,7 +4659,7 @@ function sendBroadcastSuccess(productName, rawUser, rawTarget, price, method) {
         let cfg = loadJSON(configFile, {});
         let maskTarget = maskStringTarget(rawTarget); 
         let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-        let priceStr = price ? `\n💰 Harga: Rp ${price.toLocaleString('id-ID')}` : '';
+        let priceStr = price ? `\n💰 Harga: Rp ${Number(price).toLocaleString('id-ID')}` : '';
         let methodStr = method ? `\n💳 Metode: ${method}` : '';
         
         let msgTele = `✅ <b>PEMBELIAN BERHASIL</b>\n\n👤 Pelanggan: ${rawUser}\n📦 Layanan: ${productName}\n🎯 Tujuan: ${maskTarget}${priceStr}${methodStr}\n🕒 Waktu: ${timeStr} WIB\n\n<i>🌐 Transaksi diproses otomatis oleh sistem.</i>`;
@@ -4841,8 +4841,8 @@ app.get('/api/admin/system-stats', authAdmin, (req, res) => {
 
 app.get('/api/admin/stats', authAdmin, async (req, res) => {
     try {
-        // FIX: Menggunakan COUNT(phone) agar lebih aman dan spesifik
-        let sumRes = await getQuery('SELECT COALESCE(SUM(saldo), 0) as tSaldo, COUNT(phone) as tUser FROM users');
+        // PERBAIKAN: Memaksa CAST ke INTEGER agar saldo string dari SQLite ikut terjumlah dengan benar
+        let sumRes = await getQuery('SELECT COALESCE(SUM(CAST(saldo AS INTEGER)), 0) as tSaldo, COUNT(*) as tUser FROM users');
         let gTrx = loadJSON(globalTrxFile, []);
         let profitMonthly = 0;
         let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
@@ -4856,7 +4856,7 @@ app.get('/api/admin/stats', authAdmin, async (req, res) => {
         });
 
         res.json({success: true, total_saldo: sumRes.tSaldo || 0, total_user: sumRes.tUser || 0, profit_monthly: profitMonthly});
-    } catch(e) { res.json({success: false, message: e.message}); }
+    } catch(e) { res.json({success: false, total_saldo: 0, total_user: 0}); }
 });
 
 app.get('/api/admin/history', authAdmin, async (req, res) => {
@@ -4900,12 +4900,11 @@ app.get('/api/admin/history', authAdmin, async (req, res) => {
 app.get('/api/admin/users', authAdmin, async (req, res) => {
     try {
         let search = `%${(req.query.search || '').toLowerCase()}%`;
-        // FIX: Menggunakan IFNULL() untuk mengatasi error pencarian saat kolom bernilai NULL
-        let queryStr = `SELECT phone, username, email, level, saldo, banned FROM users WHERE LOWER(phone) LIKE ? OR LOWER(IFNULL(username, '')) LIKE ? OR LOWER(IFNULL(email, '')) LIKE ? ORDER BY saldo DESC LIMIT 50`;
+        let queryStr = `SELECT phone, username, email, level, saldo, banned FROM users WHERE LOWER(phone) LIKE ? OR LOWER(username) LIKE ? OR LOWER(email) LIKE ? ORDER BY CAST(saldo AS INTEGER) DESC LIMIT 50`;
         let users = await allQuery(queryStr, [search, search, search]);
-        users = users.map(u => ({ ...u, banned: u.banned === 1 }));
+        users = users.map(u => ({ ...u, saldo: parseInt(u.saldo || 0), banned: u.banned === 1 }));
         res.json({success: true, users: users});
-    } catch(e) { res.json({success: false, message: e.message}); }
+    } catch(e) { res.json({success: false}); }
 });
 
 app.post('/api/admin/user/level', authAdmin, async (req, res) => {
@@ -4937,16 +4936,17 @@ app.post('/api/admin/balance', authAdmin, async (req, res) => {
         let u = await getQuery('SELECT * FROM users WHERE phone = ?', [normPhone]);
         if(!u) throw new Error('User tidak ditemukan.');
         
-        let saldoSebelum = u.saldo || 0;
+        let saldoSebelum = parseInt(u.saldo || 0);
         let newSaldo = saldoSebelum;
-        if(action === 'add') { newSaldo += amount; } 
-        else { newSaldo -= amount; if(newSaldo < 0) newSaldo = 0; }
+        let amtInt = parseInt(amount || 0);
+        if(action === 'add') { newSaldo += amtInt; } 
+        else { newSaldo -= amtInt; if(newSaldo < 0) newSaldo = 0; }
         
         await runQuery(`UPDATE users SET saldo = ? WHERE phone = ?`, [newSaldo, normPhone]);
         
         let dateStr = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
         await runQuery(`INSERT INTO history (phone, ts, tanggal, type, nama, tujuan, status, sn, amount, ref_id, saldo_sebelumnya, saldo_sesudah, harga_asli, margin, vpn_details, qris_url, expired_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [normPhone, Date.now(), dateStr, 'Topup', action==='add'?'Topup Manual (Admin)':'Penarikan (Admin)', 'Sistem', 'Sukses', '-', amount, null, saldoSebelum, newSaldo, 0, 0, null, null, null]
+            [normPhone, Date.now(), dateStr, 'Topup', action==='add'?'Topup Manual (Admin)':'Penarikan (Admin)', 'Sistem', 'Sukses', '-', amtInt, null, saldoSebelum, newSaldo, 0, 0, null, null, null]
         );
         
         await runQuery('COMMIT');
@@ -5229,8 +5229,7 @@ app.get('/api/banners', (req, res) => {
 
 app.get('/api/stats', async (req, res) => {
     try {
-        // FIX: Menggunakan COUNT(phone) agar lebih aman jika ada migrasi dengan NULL ID 
-        let sumRes = await getQuery('SELECT COUNT(phone) as tUser FROM users');
+        let sumRes = await getQuery('SELECT COUNT(*) as tUser FROM users');
         let gTrx = loadJSON(globalTrxFile, []); let cfg = loadJSON(configFile, {});
         let daily = 0, weekly = 0, monthly = 0, total = 0;
         let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
@@ -5262,7 +5261,7 @@ app.get('/api/produk', async (req, res) => {
         let margin = p.margin_keuntungan || 0;
         let modal = p.harga_asli || p.harga; 
         if (p.is_manual_cat) finalProds[p.sku] = p; 
-        else { p.harga = modal + Math.floor(margin * multiplier); finalProds[p.sku] = p; }
+        else { p.harga = parseInt(modal) + Math.floor(margin * multiplier); finalProds[p.sku] = p; }
     }
     res.json(finalProds); 
 });
@@ -5323,12 +5322,12 @@ app.post('/api/exchange-points', async (req, res) => {
         
         let poin = u.poin || 0; if(poin <= 0) throw new Error('Poin Anda masih kosong.');
 
-        let newSaldo = (u.saldo || 0) + poin;
+        let newSaldo = parseInt(u.saldo || 0) + poin;
         await runQuery('UPDATE users SET saldo = ?, poin = 0 WHERE phone = ?', [newSaldo, pNorm]);
         
         let dateStr = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
         await runQuery(`INSERT INTO history (phone, ts, tanggal, type, nama, tujuan, status, sn, amount, saldo_sebelumnya, saldo_sesudah) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [pNorm, Date.now(), dateStr, 'Topup', 'Penukaran Poin Loyalitas', 'Sistem', 'Sukses', '-', poin, u.saldo, newSaldo]);
+            [pNorm, Date.now(), dateStr, 'Topup', 'Penukaran Poin Loyalitas', 'Sistem', 'Sukses', '-', poin, parseInt(u.saldo || 0), newSaldo]);
         
         await runQuery('COMMIT'); res.json({success: true, message: `Berhasil menukar ${poin} Poin menjadi Rp ${poin}.`});
     } catch(e) { await runQuery('ROLLBACK'); res.json({success: false, message: e.message || 'Gagal menukar poin.'}); }
@@ -5524,7 +5523,7 @@ app.post('/api/topup', async (req, res) => {
         res.json({success: true});
         
         let emailUser = u.email || '-'; let namaUser = u.username || phone;
-        let teleMsg = `⏳ <b>TOPUP PENDING (QRIS)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+        let teleMsg = `⏳ <b>TOPUP PENDING (QRIS)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${Number(u.saldo || 0).toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
 });
@@ -5544,7 +5543,7 @@ app.post('/api/order-qris', async (req, res) => {
         
         let multiplier = getMarginMultiplier(u.level || 'Member');
         let margin = p.margin_keuntungan || 0; let modal = p.harga_asli || p.harga; 
-        let hargaFixLevel = p.is_manual_cat ? p.harga : (modal + Math.floor(margin * multiplier));
+        let hargaFixLevel = p.is_manual_cat ? p.harga : (parseInt(modal) + Math.floor(margin * multiplier));
 
         let nominalAsli = parseInt(hargaFixLevel); let uniqueCode = Math.floor(Math.random() * 50) + 1; let totalPay = nominalAsli + uniqueCode;
         let finalQrisUrl = config.qrisUrl;
@@ -5562,7 +5561,7 @@ app.post('/api/order-qris', async (req, res) => {
         res.json({success: true});
         
         let emailUser = u.email || '-'; let namaUser = u.username || targetKey;
-        let teleMsg = `🛒 <b>ORDER QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+        let teleMsg = `🛒 <b>ORDER QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${Number(u.saldo || 0).toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
 });
@@ -5583,7 +5582,7 @@ app.post('/api/order', async (req, res) => {
 
         let multiplier = getMarginMultiplier(u.level || 'Member');
         let margin = p.margin_keuntungan || 0; let modal = p.harga_asli || p.harga; 
-        let realMargin = Math.floor(margin * multiplier); let hargaFix = p.is_manual_cat ? parseInt(p.harga) : parseInt(modal + realMargin);
+        let realMargin = Math.floor(margin * multiplier); let hargaFix = p.is_manual_cat ? parseInt(p.harga) : parseInt(modal) + realMargin;
 
         let username = (config.digiflazzUsername || '').trim(); let apiKey = (config.digiflazzApiKey || '').trim(); let refId = 'WEB-' + Date.now();
 
@@ -5596,10 +5595,10 @@ app.post('/api/order', async (req, res) => {
             let tagihanAsli = parseInt(dataCek.price) || parseInt(dataCek.selling_price) || 0;
             hargaFix = tagihanAsli + realMargin; modal = tagihanAsli;
             
-            let saldoSebelum = parseInt(u.saldo);
+            let saldoSebelum = parseInt(u.saldo || 0);
             if (saldoSebelum < hargaFix) { await runQuery('ROLLBACK'); return res.json({success: false, message: `Saldo tidak cukup. Tagihan Anda: Rp ${hargaFix.toLocaleString('id-ID')}`}); }
             
-            let resUpdate = await runQuery('UPDATE users SET saldo = saldo - ? WHERE phone=? AND saldo >= ?', [hargaFix, targetKey, hargaFix]);
+            let resUpdate = await runQuery('UPDATE users SET saldo = CAST(saldo AS INTEGER) - ? WHERE phone=? AND CAST(saldo AS INTEGER) >= ?', [hargaFix, targetKey, hargaFix]);
             if (resUpdate.changes === 0) { await runQuery('ROLLBACK'); return res.json({success: false, message: 'Saldo tidak cukup saat diproses.'}); }
 
             let saldoSisa = saldoSebelum - hargaFix;
@@ -5630,10 +5629,10 @@ app.post('/api/order', async (req, res) => {
             return res.json({success: true, saldo: saldoSisa});
         }
         
-        let saldoSebelum = parseInt(u.saldo);
+        let saldoSebelum = parseInt(u.saldo || 0);
         if (saldoSebelum < hargaFix) { await runQuery('ROLLBACK'); return res.json({success: false, message: 'Saldo tidak cukup.'}); }
 
-        let resUpdate = await runQuery('UPDATE users SET saldo = saldo - ? WHERE phone=? AND saldo >= ?', [hargaFix, targetKey, hargaFix]);
+        let resUpdate = await runQuery('UPDATE users SET saldo = CAST(saldo AS INTEGER) - ? WHERE phone=? AND CAST(saldo AS INTEGER) >= ?', [hargaFix, targetKey, hargaFix]);
         if (resUpdate.changes === 0) { await runQuery('ROLLBACK'); return res.json({success: false, message: 'Saldo tidak cukup saat diproses.'}); }
 
         let saldoSisa = saldoSebelum - hargaFix;
@@ -5647,7 +5646,7 @@ app.post('/api/order', async (req, res) => {
         
         if (statusOrder === 'Gagal') {
             await runQuery('ROLLBACK'); writeLog("Order", `Order gagal Digiflazz: ${response.data.data.message} (${p.nama})`);
-            let teleMsgFail = `❌ <b>PESANAN GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${u.username||targetKey}\n📧 Email: ${u.email||'-'}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${u.saldo.toLocaleString('id-ID')}`;
+            let teleMsgFail = `❌ <b>PESANAN GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${u.username||targetKey}\n📧 Email: ${u.email||'-'}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${Number(u.saldo || 0).toLocaleString('id-ID')}`;
             sendTelegramAdmin(teleMsgFail);
             return res.json({success: false, message: response.data.data.message});
         }
@@ -5709,7 +5708,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
         if (Date.now() - lastClaim < 2 * 60 * 60 * 1000) return { success: false, message: "⚠️ Gagal: Anda sudah melakukan trial di Produk ini. Silakan coba 2 Jam lagi." };
     }
 
-    let hargaFix = 0; let realMargin = 0; let modalRaw = 0; let saldoSebelum = parseInt(u.saldo); let saldoSisa = saldoSebelum;
+    let hargaFix = 0; let realMargin = 0; let modalRaw = 0; let saldoSebelum = parseInt(u.saldo || 0); let saldoSisa = saldoSebelum;
     let multiplier = getMarginMultiplier(u.level || 'Member');
     
     if (mode === 'reguler') {
@@ -5722,7 +5721,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
         if (paymentMethod === 'Saldo Akun') {
             await runQuery('BEGIN TRANSACTION');
             try { 
-                let resUpdate = await runQuery('UPDATE users SET saldo = saldo - ? WHERE phone=? AND saldo >= ?', [hargaFix, targetKey, hargaFix]); 
+                let resUpdate = await runQuery('UPDATE users SET saldo = CAST(saldo AS INTEGER) - ? WHERE phone=? AND CAST(saldo AS INTEGER) >= ?', [hargaFix, targetKey, hargaFix]); 
                 if (resUpdate.changes === 0) throw new Error("Saldo tidak cukup saat diproses.");
                 saldoSisa = saldoSebelum - hargaFix; 
                 await runQuery('COMMIT'); 
@@ -5785,13 +5784,13 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
             sendTelegramAdmin(teleSuccess); writeLog("Order", `Order VPN sukses. Ref: ${refId}`); return { success: true };
         } else {
             let errMsg = "unknown error"; if (resApi.data && resApi.data.message) errMsg = resApi.data.message; else if (resApi.data && resApi.data.error) errMsg = resApi.data.error; else if (resApi.statusText) errMsg = resApi.statusText;
-            if (mode === 'reguler' && paymentMethod === 'Saldo Akun') { await runQuery('UPDATE users SET saldo = saldo + ? WHERE phone=?', [hargaFix, targetKey]); }
+            if (mode === 'reguler' && paymentMethod === 'Saldo Akun') { await runQuery('UPDATE users SET saldo = CAST(saldo AS INTEGER) + ? WHERE phone=?', [hargaFix, targetKey]); }
             writeLog("Order", `Order VPN Gagal: ${errMsg}`);
             if(errMsg.toLowerCase().includes('exist') || errMsg.toLowerCase().includes('already') || errMsg.toLowerCase().includes('sudah ada')) { return { success: false, message: "Username sudah ada/terpakai, silakan ganti username lain." }; }
             return { success: false, message: "Gagal membuat akun di Server VPN. Pesan: " + errMsg };
         }
     } catch(e) {
-        if (mode === 'reguler' && paymentMethod === 'Saldo Akun') { await runQuery('UPDATE users SET saldo = saldo + ? WHERE phone=?', [hargaFix, targetKey]); }
+        if (mode === 'reguler' && paymentMethod === 'Saldo Akun') { await runQuery('UPDATE users SET saldo = CAST(saldo AS INTEGER) + ? WHERE phone=?', [hargaFix, targetKey]); }
         writeLog("Order", `Koneksi Order VPN Gagal: ${e.message}`);
         return { success: false, message: "Koneksi ke Server VPN Gagal / Timeout." };
     }
@@ -5841,7 +5840,7 @@ app.post('/api/order-vpn-qris', async (req, res) => {
         res.json({success: true});
         
         let emailUser = u.email || '-'; let namaUser = u.username || pNorm;
-        let teleMsg = `🛒 <b>ORDER VPN QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${pNorm}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${username}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+        let teleMsg = `🛒 <b>ORDER VPN QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${pNorm}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${username}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${Number(u.saldo || 0).toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS VPN."}); }
 });
@@ -5858,7 +5857,7 @@ async function prosesAutoOrderVPN(phone, vpnDataRaw, refIdAsal) {
         if (histCheck && histCheck.status !== 'Refund' && !histCheck.status.includes('Gagal')) {
             await runQuery('BEGIN TRANSACTION');
             try {
-                await runQuery('UPDATE users SET saldo = saldo + ? WHERE phone=?', [parseInt(vpnData.harga_asli), phone]);
+                await runQuery('UPDATE users SET saldo = CAST(saldo AS INTEGER) + ? WHERE phone=?', [parseInt(vpnData.harga_asli), phone]);
                 let newU = await getQuery('SELECT saldo FROM users WHERE phone=?', [phone]);
                 await runQuery(`UPDATE history SET status='Refund', nama=?, type='Refund', amount=?, saldo_sebelumnya=?, saldo_sesudah=? WHERE sn=?`,
                     ['Refund: ' + vpnData.nama_produk, vpnData.harga_asli, u.saldo, newU.saldo, refIdAsal]);
@@ -5876,32 +5875,32 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
     try {
         let u = await getQuery('SELECT * FROM users WHERE phone=?', [phone]); let config = loadJSON(configFile, {}); let p = await getQuery('SELECT * FROM products WHERE sku=?', [sku]);
         if(!u || !p) return;
-        let hargaFix = parseInt(harga_asli); let realSku = p.sku_asli || sku; let saldoSebelum = parseInt(u.saldo);
+        let hargaFix = parseInt(harga_asli); let realSku = p.sku_asli || sku; let saldoSebelum = parseInt(u.saldo || 0);
         let emailUser = u.email || '-'; let namaUser = u.username || phone;
         
         if(p.is_pasca) {
             let refId = 'WEB-' + Date.now();
             let signCek = crypto.createHash('md5').update((config.digiflazzUsername || '') + (config.digiflazzApiKey || '') + refId).digest('hex');
             const resCek = await axios.post('https://api.digiflazz.com/v1/transaction', { commands: 'inq-pasca', username: (config.digiflazzUsername || ''), buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: signCek });
-            if(resCek.data.data.status === 'Gagal') { await runQuery('UPDATE users SET saldo = saldo + ? WHERE phone=?', [hargaFix, phone]); writeLog("Order", `Cek pascabayar gagal: ${resCek.data.data.message}`); return; }
+            if(resCek.data.data.status === 'Gagal') { await runQuery('UPDATE users SET saldo = CAST(saldo AS INTEGER) + ? WHERE phone=?', [hargaFix, phone]); writeLog("Order", `Cek pascabayar gagal: ${resCek.data.data.message}`); return; }
             
             let tagihan = parseInt(resCek.data.data.price) || parseInt(resCek.data.data.selling_price) || 0;
             let realHargaFix = tagihan + marginLaba;
-            if(saldoSebelum < realHargaFix) { await runQuery('UPDATE users SET saldo = saldo + ? WHERE phone=?', [hargaFix, phone]); writeLog("Order", "Saldo tidak mencukupi untuk bayar tagihan pascabayar."); return; }
+            if(saldoSebelum < realHargaFix) { await runQuery('UPDATE users SET saldo = CAST(saldo AS INTEGER) + ? WHERE phone=?', [hargaFix, phone]); writeLog("Order", "Saldo tidak mencukupi untuk bayar tagihan pascabayar."); return; }
             
-            let resUpdate = await runQuery('UPDATE users SET saldo = saldo - ? WHERE phone=? AND saldo >= ?', [realHargaFix, phone, realHargaFix]);
-            if (resUpdate.changes === 0) { await runQuery('UPDATE users SET saldo = saldo + ? WHERE phone=?', [hargaFix, phone]); writeLog("Order", "Race Condition saldo pascabayar terdeteksi."); return; }
+            let resUpdate = await runQuery('UPDATE users SET saldo = CAST(saldo AS INTEGER) - ? WHERE phone=? AND CAST(saldo AS INTEGER) >= ?', [realHargaFix, phone, realHargaFix]);
+            if (resUpdate.changes === 0) { await runQuery('UPDATE users SET saldo = CAST(saldo AS INTEGER) + ? WHERE phone=?', [hargaFix, phone]); writeLog("Order", "Race Condition saldo pascabayar terdeteksi."); return; }
 
             let signPay = crypto.createHash('md5').update((config.digiflazzUsername || '') + (config.digiflazzApiKey || '') + refId).digest('hex');
             const resPay = await axios.post('https://api.digiflazz.com/v1/transaction', { commands: 'pay-pasca', username: (config.digiflazzUsername || ''), buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: signPay });
             
-            if(resPay.data.data.status === 'Gagal') { await runQuery('UPDATE users SET saldo = saldo + ? WHERE phone=?', [realHargaFix, phone]); writeLog("Order", `Pascabayar gagal: ${resPay.data.data.message}`); return; }
+            if(resPay.data.data.status === 'Gagal') { await runQuery('UPDATE users SET saldo = CAST(saldo AS INTEGER) + ? WHERE phone=?', [realHargaFix, phone]); writeLog("Order", `Pascabayar gagal: ${resPay.data.data.message}`); return; }
             updateLevelAndPoints(phone, realHargaFix, marginLaba); writeLog("Order", `Pascabayar berhasil.`); return;
         }
 
         if (saldoSebelum < hargaFix) return; 
         
-        let resUpdate = await runQuery('UPDATE users SET saldo = saldo - ? WHERE phone=? AND saldo >= ?', [hargaFix, phone, hargaFix]);
+        let resUpdate = await runQuery('UPDATE users SET saldo = CAST(saldo AS INTEGER) - ? WHERE phone=? AND CAST(saldo AS INTEGER) >= ?', [hargaFix, phone, hargaFix]);
         if (resUpdate.changes === 0) return; // Mencegah race condition dari scan ganda
         
         let username = (config.digiflazzUsername || '').trim(); let apiKey = (config.digiflazzApiKey || '').trim(); let refId = 'WEB-' + Date.now();
@@ -5911,14 +5910,14 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         const statusOrder = response.data.data.status; 
         
         let newU = await getQuery('SELECT saldo FROM users WHERE phone=?', [phone]);
-        let saldoTerkini = parseInt(newU.saldo);
+        let saldoTerkini = parseInt(newU.saldo || 0);
 
         if (statusOrder === 'Gagal') {
             let histCheck = await getQuery('SELECT * FROM history WHERE sn=? AND type=?', [refIdAsal, 'Order QRIS']);
             if(histCheck && histCheck.status !== 'Refund' && !histCheck.status.includes('Gagal')) {
-                await runQuery('UPDATE users SET saldo = saldo + ? WHERE phone=?', [hargaFix, phone]);
+                await runQuery('UPDATE users SET saldo = CAST(saldo AS INTEGER) + ? WHERE phone=?', [hargaFix, phone]);
                 let newU2 = await getQuery('SELECT saldo FROM users WHERE phone=?', [phone]);
-                let sStlh = parseInt(newU2.saldo);
+                let sStlh = parseInt(newU2.saldo || 0);
                 await runQuery(`UPDATE history SET status='Refund', nama=?, type='Refund', amount=?, ref_id=?, sn='-', saldo_sebelumnya=?, saldo_sesudah=? WHERE sn=?`,
                     ['Refund: ' + nama_produk, hargaFix, refId, saldoTerkini, sStlh, refIdAsal]);
             }
@@ -6032,7 +6031,7 @@ async function startBot() {
                         
                         let u = await getQuery('SELECT saldo FROM users WHERE phone=?', [req.phone]);
                         if(u) {
-                            let saldoSebelumnya = parseInt(u.saldo); let sStlh = saldoSebelumnya + parseInt(req.saldo_to_add);
+                            let saldoSebelumnya = parseInt(u.saldo || 0); let sStlh = saldoSebelumnya + parseInt(req.saldo_to_add);
                             await runQuery('UPDATE users SET saldo=? WHERE phone=?', [sStlh, req.phone]);
                             
                             if (req.is_order === 0) await runQuery(`UPDATE history SET status='Sukses', saldo_sebelumnya=?, saldo_sesudah=? WHERE sn=?`, [saldoSebelumnya, sStlh, req.trx_id]);
@@ -6087,7 +6086,7 @@ async function startBot() {
                             } else {
                                 let hist = await getQuery('SELECT * FROM history WHERE ref_id=?', [ref]);
                                 if (hist && hist.status !== 'Refund' && !hist.status.includes('Gagal')) { 
-                                    let sSblm = parseInt(u.saldo); let sStlh = sSblm + parseInt(trx.harga);
+                                    let sSblm = parseInt(u.saldo || 0); let sStlh = sSblm + parseInt(trx.harga);
                                     await runQuery('UPDATE users SET saldo=? WHERE phone=?', [sStlh, trx.phone]);
                                     await runQuery(`UPDATE history SET status='Refund', nama=?, saldo_sebelumnya=?, saldo_sesudah=? WHERE ref_id=?`, ['Refund: ' + hist.nama, sSblm, sStlh, ref]); 
                                     writeLog("Order", `Pesanan Pending akhirnya Gagal & Direfund. Ref: ${ref}`);
@@ -6997,7 +6996,7 @@ menu_member() {
                         
                         let namaUser = u.username || u.phone;
                         let saldoSebelum = parseInt(u.saldo || 0);
-                        let nominalTambah = parseInt(process.env.JUMLAH);
+                        let nominalTambah = parseInt(process.env.JUMLAH || 0);
                         let sStlh = saldoSebelum + nominalTambah;
                         
                         await run('UPDATE users SET saldo = ? WHERE phone = ?', [sStlh, u.phone]);
@@ -7036,7 +7035,7 @@ menu_member() {
                         } else {
                             let namaUser = u.username || u.phone;
                             let saldoSebelum = parseInt(u.saldo || 0);
-                            let nominalKurang = parseInt(process.env.JUMLAH);
+                            let nominalKurang = parseInt(process.env.JUMLAH || 0);
                             let sStlh = saldoSebelum - nominalKurang;
                             if(sStlh < 0) sStlh = 0;
                             
@@ -7060,14 +7059,15 @@ menu_member() {
                     const sqlite3 = require('sqlite3').verbose();
                     const db = new sqlite3.Database('./admin_tendo/database.db');
                     
-                    db.all('SELECT * FROM users WHERE email IS NOT NULL AND email != \"-\" AND email != \"\" ORDER BY saldo DESC', [], (err, rows) => {
+                    db.all('SELECT * FROM users WHERE email IS NOT NULL AND email != \"-\" AND email != \"\" ORDER BY CAST(saldo AS INTEGER) DESC', [], (err, rows) => {
                         if(err || rows.length === 0) {
                             console.log('\x1b[33mBelum ada member aktif (yang terdaftar email).\x1b[0m');
                         } else {
                             rows.forEach((m, i) => {
                                 let nama = m.username || 'Member';
                                 let email = m.email || '-';
-                                console.log((i + 1) + '. Nama: ' + nama + ' | WA: ' + m.phone + ' | Email: ' + email + ' | Saldo: Rp ' + m.saldo.toLocaleString('id-ID'));
+                                let saldo = parseInt(m.saldo || 0);
+                                console.log((i + 1) + '. Nama: ' + nama + ' | WA: ' + m.phone + ' | Email: ' + email + ' | Saldo: Rp ' + saldo.toLocaleString('id-ID'));
                             });
                         }
                     });
@@ -7094,7 +7094,7 @@ menu_member() {
                             
                             if(u) {
                                 let topups = await all('SELECT * FROM history WHERE phone=? ORDER BY ts DESC LIMIT 10', [u.phone]);
-                                let targetSaldo = u.saldo || 0;
+                                let targetSaldo = parseInt(u.saldo || 0);
                                 let targetNama = u.username || 'Member';
                                 
                                 console.log('\n\x1b[36m=== 10 RIWAYAT TERBARU: ' + targetNama + ' (' + u.phone + ') ===\x1b[0m');
@@ -7102,9 +7102,10 @@ menu_member() {
                                 if(topups.length === 0) console.log('\x1b[33mBelum ada riwayat transaksi di akun ini.\x1b[0m');
                                 else {
                                     topups.forEach(h => {
-                                        let str = '- \x1b[33m' + h.tanggal + '\x1b[0m | ' + h.nama + ' | \x1b[32mRp ' + (h.amount || 0).toLocaleString('id-ID') + '\x1b[0m | Status: ' + h.status;
-                                        if (h.saldo_sebelumnya !== null) str += '\n    └ Saldo Sblm: Rp ' + h.saldo_sebelumnya.toLocaleString('id-ID');
-                                        if (h.saldo_sesudah !== null) str += ' | Saldo Stlh: Rp ' + h.saldo_sesudah.toLocaleString('id-ID');
+                                        let hAmt = parseInt(h.amount || 0);
+                                        let str = '- \x1b[33m' + h.tanggal + '\x1b[0m | ' + h.nama + ' | \x1b[32mRp ' + hAmt.toLocaleString('id-ID') + '\x1b[0m | Status: ' + h.status;
+                                        if (h.saldo_sebelumnya !== null) str += '\n    └ Saldo Sblm: Rp ' + parseInt(h.saldo_sebelumnya || 0).toLocaleString('id-ID');
+                                        if (h.saldo_sesudah !== null) str += ' | Saldo Stlh: Rp ' + parseInt(h.saldo_sesudah || 0).toLocaleString('id-ID');
                                         console.log(str);
                                     });
                                 }
