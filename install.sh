@@ -6822,6 +6822,11 @@ install_dependencies() {
     chmod -R 777 admin_tendo public
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
+    # PERBAIKAN: Restart PM2 secara paksa agar mesin Node.js (index.js) memakai database SQLite baru.
+    echo -ne "${C_MAG}>> Merefresh proses background (PM2)...${C_RST}"
+    pm2 restart tendo-bot > /dev/null 2>&1 || true
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     echo -e "${C_GREEN}${C_BOLD}                 ✅ INSTALASI SELESAI!                ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
