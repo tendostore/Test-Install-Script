@@ -2793,9 +2793,14 @@ app.use(bodyParser.json());
 app.use(express.static('public')); 
 
 // ==============================================================
-// INIT SQLITE DATABASE & AUTO-MIGRASI
+// INIT SQLITE DATABASE & OPTIMASI PRAGMA
 // ==============================================================
-const dbSqlite = new Database('tendo_database.db', { wal: true });
+const dbSqlite = new Database('tendo_database.db');
+
+// Eksekusi PRAGMA untuk optimasi performa SQLite
+dbSqlite.pragma('journal_mode = WAL');
+dbSqlite.pragma('busy_timeout = 5000');
+dbSqlite.pragma('synchronous = NORMAL');
 
 dbSqlite.exec(`
     CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, data TEXT);
@@ -2810,54 +2815,6 @@ dbSqlite.exec(`
     CREATE TABLE IF NOT EXISTS vpn_config (id TEXT PRIMARY KEY, data TEXT);
     CREATE TABLE IF NOT EXISTS custom_layout (id TEXT PRIMARY KEY, data TEXT);
 `);
-
-function migrateOldJson() {
-    const fileMap = {
-        'database.json': { table: 'users', type: 'dict' },
-        'config.json': { table: 'config', type: 'single', key: 'main' },
-        'produk.json': { table: 'produk', type: 'dict' },
-        'trx.json': { table: 'trx', type: 'dict' },
-        'topup.json': { table: 'topup', type: 'dict' },
-        'web_notif.json': { table: 'web_notif', type: 'array' },
-        'global_trx.json': { table: 'global_trx', type: 'array' },
-        'global_stats.json': { table: 'global_stats', type: 'dict' },
-        'tutorial.json': { table: 'tutorial', type: 'array_id' },
-        'vpn_config.json': { table: 'vpn_config', type: 'single', key: 'main' },
-        'custom_layout.json': { table: 'custom_layout', type: 'single', key: 'main' }
-    };
-
-    for (let file in fileMap) {
-        if (fs.existsSync('./' + file)) {
-            console.log(`Migrasi file ${file} ke SQLite...`);
-            try {
-                let parsed = JSON.parse(fs.readFileSync('./' + file, 'utf8'));
-                let map = fileMap[file];
-                
-                dbSqlite.transaction(() => {
-                    if (map.type === 'dict') {
-                        const stmt = dbSqlite.prepare(`INSERT OR IGNORE INTO ${map.table} (id, data) VALUES (?, ?)`);
-                        for (let k in parsed) stmt.run(k, JSON.stringify(parsed[k]));
-                    } else if (map.type === 'single') {
-                        const stmt = dbSqlite.prepare(`INSERT OR IGNORE INTO ${map.table} (id, data) VALUES (?, ?)`);
-                        stmt.run(map.key, JSON.stringify(parsed));
-                    } else if (map.type === 'array') {
-                        const stmt = dbSqlite.prepare(`INSERT INTO ${map.table} (data) VALUES (?)`);
-                        for (let i = parsed.length - 1; i >= 0; i--) stmt.run(JSON.stringify(parsed[i]));
-                    } else if (map.type === 'array_id') {
-                        const stmt = dbSqlite.prepare(`INSERT OR IGNORE INTO ${map.table} (id, data) VALUES (?, ?)`);
-                        for (let item of parsed) stmt.run(item.id, JSON.stringify(item));
-                    }
-                })();
-                
-                fs.renameSync('./' + file, './' + file + '.bak');
-                console.log(`Berhasil migrasi ${file}. Backup disimpan sebagai .bak`);
-            } catch(e) {
-                console.error(`Gagal migrasi ${file}:`, e.message);
-            }
-        }
-    }
-}
-migrateOldJson();
 
 // ==============================================================
 // SQLITE CRUD HELPERS (Mencegah Race Condition Secara Sinkron)
@@ -3367,357 +3324,357 @@ app.post('/api/cancel-topup', (req, res) => {
         res.json({success: false, message: 'Topup tidak ditemukan atau sudah diproses.'});
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
-
+#SELESAI
 app.post('/api/login', (req, res) => {
-    try {
-        let { id, password } = req.body;
-        let hashedInput = hashPassword(password);
-        let users = getAllRecords('users');
-        
-        let userPhone = Object.keys(users).find(k => {
-            if (!users[k]) return false;
-            let normInput = normalizePhone(id);
-            let matchId = (k === id) || (k === normInput) ||
-                          (users[k].email && users[k].email.toLowerCase() === id.toLowerCase()) || 
-                          (users[k].username && users[k].username.toLowerCase() === id.toLowerCase());
-                          
-            if (!matchId) return false;
+        try {
+            let { id, password } = req.body;
+            let hashedInput = hashPassword(password);
+            let users = getAllRecords('users');
             
-            if (users[k].password === password) {
-                users[k].password = hashedInput; 
-                saveRecord('users', k, users[k]); 
-                return true;
-            }
-            if (users[k].password === hashedInput) return true;
-            return false;
-        });
-
-        if (userPhone) {
-            let safeData = { ...users[userPhone] }; delete safeData.password;
-            res.json({success: true, phone: userPhone, data: safeData});
-        }
-        else res.json({success: false, message: 'Data Akun (Email/WA/Username) atau Password salah!'});
-    } catch(e) { res.json({success: false, message: 'Server error'}); }
-});
-
-app.post('/api/register', (req, res) => {
-    try {
-        let { username, email, password } = req.body;
-        let phone = normalizePhone(req.body.phone); 
-        if(!phone || phone.length < 9) return res.json({success: false, message: 'Nomor WA tidak valid!'});
-        
-        if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
-        otpCooldown[phone] = Date.now();
-        
-        let users = getAllRecords('users');
-        
-        let isEmailExist = Object.values(users).some(u => u && u.email && u.email.toLowerCase() === email.toLowerCase());
-        if (isEmailExist) return res.json({success: false, message: 'Email terdaftar!'});
-        
-        let isUsernameExist = Object.values(users).some(u => u && u.username && u.username.toLowerCase() === username.toLowerCase());
-        if (isUsernameExist) return res.json({success: false, message: 'Username sudah digunakan, silakan ganti yang lain!'});
-
-        let otp = Math.floor(1000 + Math.random() * 9000).toString();
-        tempOtpDB[phone] = { username, email, password: hashPassword(password), otp };
-
-        res.json({success: true});
-
-        setTimeout(() => {
-            try {
-                if (globalSock) {
-                    let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
-                    globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
+            let userPhone = Object.keys(users).find(k => {
+                if (!users[k]) return false;
+                let normInput = normalizePhone(id);
+                let matchId = (k === id) || (k === normInput) ||
+                              (users[k].email && users[k].email.toLowerCase() === id.toLowerCase()) || 
+                              (users[k].username && users[k].username.toLowerCase() === id.toLowerCase());
+                              
+                if (!matchId) return false;
+                
+                if (users[k].password === password) {
+                    users[k].password = hashedInput; 
+                    saveRecord('users', k, users[k]); 
+                    return true;
                 }
-            } catch(err) {}
-        }, 100);
+                if (users[k].password === hashedInput) return true;
+                return false;
+            });
 
-    } catch(e) { if (!res.headersSent) res.json({success: false, message: 'Gagal memproses pendaftaran.'}); }
-});
-
-app.post('/api/verify-otp', (req, res) => {
-    try {
-        let otp = req.body.otp; let phone = normalizePhone(req.body.phone);
-        if(tempOtpDB[phone] && tempOtpDB[phone].otp === otp) {
-            let idPelanggan = 'TD-' + Math.floor(100000 + Math.random() * 900000); 
-            let u = getRecord('users', phone) || { 
-                id_pelanggan: idPelanggan, saldo: 0, 
-                tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), 
-                jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [] 
-            };
-            
-            u.username = tempOtpDB[phone].username; 
-            u.email = tempOtpDB[phone].email; 
-            u.password = tempOtpDB[phone].password;
-            if(!u.id_pelanggan) u.id_pelanggan = idPelanggan;
-            
-            saveRecord('users', phone, u); 
-            delete tempOtpDB[phone]; 
-            res.json({success: true});
-        } else res.json({success: false, message: 'Kode OTP Salah!'});
-    } catch(e) { res.json({success: false, message: 'Server error'}); }
-});
-
-app.post('/api/req-edit-otp', (req, res) => {
-    try {
-        let { phone, type, newValue } = req.body; 
-        let u = getRecord('users', phone);
-        if(!u) return res.json({success: false, message: 'User tidak ditemukan.'});
-        if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
-        otpCooldown[phone] = Date.now();
-
-        let otp = Math.floor(1000 + Math.random() * 9000).toString();
-        if (type === 'password') newValue = hashPassword(newValue);
-        tempOtpDB[phone + '_edit'] = { type, newValue, otp };
-        res.json({success: true});
-
-        setTimeout(() => {
-            if (globalSock) globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nKode OTP perubahan data: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
-        }, 100);
-    } catch(e) { if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); }
-});
-
-app.post('/api/verify-edit-otp', (req, res) => {
-    try {
-        let { phone, otp } = req.body; let session = tempOtpDB[phone + '_edit'];
-        if(session && session.otp === otp) {
-            let u = getRecord('users', phone);
-            if(session.type === 'email') u.email = session.newValue;
-            if(session.type === 'password') u.password = session.newValue;
-            if(session.type === 'phone') {
-                let newPhone = normalizePhone(session.newValue);
-                let existU = getRecord('users', newPhone);
-                if(existU) return res.json({success: false, message: 'Nomor sudah dipakai akun lain.'});
-                u.jid = newPhone + '@s.whatsapp.net';
-                saveRecord('users', newPhone, u);
-                deleteRecord('users', phone);
-            } else {
-                saveRecord('users', phone, u);
+            if (userPhone) {
+                let safeData = { ...users[userPhone] }; delete safeData.password;
+                res.json({success: true, phone: userPhone, data: safeData});
             }
-            delete tempOtpDB[phone + '_edit']; res.json({success: true});
-        } else res.json({success: false, message: 'OTP Salah!'});
-    } catch(e) { res.json({success: false, message: 'Server error'}); }
-});
+            else res.json({success: false, message: 'Data Akun (Email/WA/Username) atau Password salah!'});
+        } catch(e) { res.json({success: false, message: 'Server error'}); }
+    });
 
-app.post('/api/req-forgot-otp', (req, res) => {
-    try {
-        let phone = normalizePhone(req.body.phone);
-        let u = getRecord('users', phone);
-        if(!u) return res.json({success: false, message: 'Nomor WA tidak terdaftar!'});
-        if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
-        otpCooldown[phone] = Date.now();
+    app.post('/api/register', (req, res) => {
+        try {
+            let { username, email, password } = req.body;
+            let phone = normalizePhone(req.body.phone); 
+            if(!phone || phone.length < 9) return res.json({success: false, message: 'Nomor WA tidak valid!'});
+            
+            if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
+            otpCooldown[phone] = Date.now();
+            
+            let users = getAllRecords('users');
+            
+            let isEmailExist = Object.values(users).some(u => u && u.email && u.email.toLowerCase() === email.toLowerCase());
+            if (isEmailExist) return res.json({success: false, message: 'Email terdaftar!'});
+            
+            let isUsernameExist = Object.values(users).some(u => u && u.username && u.username.toLowerCase() === username.toLowerCase());
+            if (isUsernameExist) return res.json({success: false, message: 'Username sudah digunakan, silakan ganti yang lain!'});
 
-        let otp = Math.floor(1000 + Math.random() * 9000).toString();
-        tempOtpDB[phone + '_forgot'] = { otp };
-        res.json({success: true});
+            let otp = Math.floor(1000 + Math.random() * 9000).toString();
+            tempOtpDB[phone] = { username, email, password: hashPassword(password), otp };
 
-        setTimeout(() => {
-            if (globalSock) globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nPermintaan Reset Password.\nKode OTP: *${otp}*\n\n_⚠️ Abaikan jika bukan Anda!_` }).catch(e=>{});
-        }, 100);
-    } catch(e) { if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); }
-});
+            res.json({success: true});
 
-app.post('/api/verify-forgot-otp', (req, res) => {
-    try {
-        let phone = normalizePhone(req.body.phone); let { otp, newPass } = req.body;
-        let session = tempOtpDB[phone + '_forgot'];
-        if(session && session.otp === otp) {
+            setTimeout(() => {
+                try {
+                    if (globalSock) {
+                        let msg = `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nHai ${username},\nKode OTP Pendaftaran: *${otp}*\n\n_⚠️ Jangan bagikan kode ini!_`;
+                        globalSock.sendMessage(phone + '@s.whatsapp.net', { text: msg }).catch(e=>{});
+                    }
+                } catch(err) {}
+            }, 100);
+
+        } catch(e) { if (!res.headersSent) res.json({success: false, message: 'Gagal memproses pendaftaran.'}); }
+    });
+
+    app.post('/api/verify-otp', (req, res) => {
+        try {
+            let otp = req.body.otp; let phone = normalizePhone(req.body.phone);
+            if(tempOtpDB[phone] && tempOtpDB[phone].otp === otp) {
+                let idPelanggan = 'TD-' + Math.floor(100000 + Math.random() * 900000); 
+                let u = getRecord('users', phone) || { 
+                    id_pelanggan: idPelanggan, saldo: 0, 
+                    tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), 
+                    jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [] 
+                };
+                
+                u.username = tempOtpDB[phone].username; 
+                u.email = tempOtpDB[phone].email; 
+                u.password = tempOtpDB[phone].password;
+                if(!u.id_pelanggan) u.id_pelanggan = idPelanggan;
+                
+                saveRecord('users', phone, u); 
+                delete tempOtpDB[phone]; 
+                res.json({success: true});
+            } else res.json({success: false, message: 'Kode OTP Salah!'});
+        } catch(e) { res.json({success: false, message: 'Server error'}); }
+    });
+
+    app.post('/api/req-edit-otp', (req, res) => {
+        try {
+            let { phone, type, newValue } = req.body; 
             let u = getRecord('users', phone);
-            if(u) { u.password = hashPassword(newPass); saveRecord('users', phone, u); }
-            delete tempOtpDB[phone + '_forgot']; res.json({success: true});
-        } else res.json({success: false, message: 'Kode OTP Salah!'});
-    } catch(e) { res.json({success: false, message: 'Server error'}); }
-});
+            if(!u) return res.json({success: false, message: 'User tidak ditemukan.'});
+            if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
+            otpCooldown[phone] = Date.now();
 
-app.post('/api/topup', async (req, res) => {
-    try {
-        if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
-        let config = getRecord('config', 'main') || {};
-        if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
-        
-        let { phone, nominal } = req.body;
-        let u = getRecord('users', phone);
-        if(!u) return res.json({success: false, message: "User tidak ditemukan."});
-        
-        let nominalAsli = parseInt(nominal);
-        let uniqueCode = Math.floor(Math.random() * 99) + 1;
-        let totalPay = nominalAsli + uniqueCode;
+            let otp = Math.floor(1000 + Math.random() * 9000).toString();
+            if (type === 'password') newValue = hashPassword(newValue);
+            tempOtpDB[phone + '_edit'] = { type, newValue, otp };
+            res.json({success: true});
 
-        let finalQrisUrl = config.qrisUrl;
-        if (config.qrisText) {
-            let dynQris = convertToDynamicQris(config.qrisText, totalPay);
-            finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
-        }
+            setTimeout(() => {
+                if (globalSock) globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nKode OTP perubahan data: *${otp}*\n\n_⚠️ Jangan berikan ke siapapun!_` }).catch(e=>{});
+            }, 100);
+        } catch(e) { if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); }
+    });
 
-        let trxId = "TP-" + Date.now();
-        let expiredAt = Date.now() + 10 * 60 * 1000;
+    app.post('/api/verify-edit-otp', (req, res) => {
+        try {
+            let { phone, otp } = req.body; let session = tempOtpDB[phone + '_edit'];
+            if(session && session.otp === otp) {
+                let u = getRecord('users', phone);
+                if(session.type === 'email') u.email = session.newValue;
+                if(session.type === 'password') u.password = session.newValue;
+                if(session.type === 'phone') {
+                    let newPhone = normalizePhone(session.newValue);
+                    let existU = getRecord('users', newPhone);
+                    if(existU) return res.json({success: false, message: 'Nomor sudah dipakai akun lain.'});
+                    u.jid = newPhone + '@s.whatsapp.net';
+                    saveRecord('users', newPhone, u);
+                    deleteRecord('users', phone);
+                } else {
+                    saveRecord('users', phone, u);
+                }
+                delete tempOtpDB[phone + '_edit']; res.json({success: true});
+            } else res.json({success: false, message: 'OTP Salah!'});
+        } catch(e) { res.json({success: false, message: 'Server error'}); }
+    });
 
-        saveRecord('topup', trxId, { 
-            phone, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
-            status: 'pending', timestamp: Date.now(), expired_at: expiredAt, is_order: false 
-        });
+    app.post('/api/req-forgot-otp', (req, res) => {
+        try {
+            let phone = normalizePhone(req.body.phone);
+            let u = getRecord('users', phone);
+            if(!u) return res.json({success: false, message: 'Nomor WA tidak terdaftar!'});
+            if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
+            otpCooldown[phone] = Date.now();
 
-        u.history = u.history || [];
-        u.history.unshift({ 
-            ts: Date.now(), 
-            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-            type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
-        });
-        if(u.history.length > 50) u.history.pop();
-        saveRecord('users', phone, u);
+            let otp = Math.floor(1000 + Math.random() * 9000).toString();
+            tempOtpDB[phone + '_forgot'] = { otp };
+            res.json({success: true});
 
-        res.json({success: true});
-        
-        let emailUser = u.email || '-';
-        let namaUser = u.username || phone;
-        let teleMsg = `⏳ <b>TOPUP PENDING (QRIS)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${u.saldo.toLocaleString('id-ID')}`;
-        sendTelegramAdmin(teleMsg);
-    } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
-});
+            setTimeout(() => {
+                if (globalSock) globalSock.sendMessage(phone + '@s.whatsapp.net', { text: `*🛡️ DIGITAL TENDO STORE 🛡️*\n\nPermintaan Reset Password.\nKode OTP: *${otp}*\n\n_⚠️ Abaikan jika bukan Anda!_` }).catch(e=>{});
+            }, 100);
+        } catch(e) { if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); }
+    });
 
-app.post('/api/order-qris', async (req, res) => {
-    try {
-        if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
-        
-        let config = getRecord('config', 'main') || {};
-        if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
-        
-        let { phone, sku, tujuan } = req.body; let pNorm = normalizePhone(phone);
-        let uNorm = getRecord('users', pNorm);
-        let uOri = getRecord('users', phone);
-        let targetKey = uNorm ? pNorm : (uOri ? phone : null);
-        if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid.'});
-        let u = uNorm || uOri;
-        
-        let p = getRecord('produk', sku);
-        if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
-        
-        let nominalAsli = parseInt(p.harga);
-        let uniqueCode = Math.floor(Math.random() * 50) + 1; 
-        let totalPay = nominalAsli + uniqueCode;
+    app.post('/api/verify-forgot-otp', (req, res) => {
+        try {
+            let phone = normalizePhone(req.body.phone); let { otp, newPass } = req.body;
+            let session = tempOtpDB[phone + '_forgot'];
+            if(session && session.otp === otp) {
+                let u = getRecord('users', phone);
+                if(u) { u.password = hashPassword(newPass); saveRecord('users', phone, u); }
+                delete tempOtpDB[phone + '_forgot']; res.json({success: true});
+            } else res.json({success: false, message: 'Kode OTP Salah!'});
+        } catch(e) { res.json({success: false, message: 'Server error'}); }
+    });
 
-        let finalQrisUrl = config.qrisUrl;
-        if (config.qrisText) {
-            let dynQris = convertToDynamicQris(config.qrisText, totalPay);
-            finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
-        }
+    app.post('/api/topup', async (req, res) => {
+        try {
+            if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
+            let config = getRecord('config', 'main') || {};
+            if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
+            
+            let { phone, nominal } = req.body;
+            let u = getRecord('users', phone);
+            if(!u) return res.json({success: false, message: "User tidak ditemukan."});
+            
+            let nominalAsli = parseInt(nominal);
+            let uniqueCode = Math.floor(Math.random() * 99) + 1;
+            let totalPay = nominalAsli + uniqueCode;
 
-        let trxId = "OQ-" + Date.now();
-        let expiredAt = Date.now() + 10 * 60 * 1000;
+            let finalQrisUrl = config.qrisUrl;
+            if (config.qrisText) {
+                let dynQris = convertToDynamicQris(config.qrisText, totalPay);
+                finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
+            }
 
-        saveRecord('topup', trxId, { 
-            phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
-            status: 'pending', timestamp: Date.now(), expired_at: expiredAt, 
-            is_order: true, sku: sku, tujuan: tujuan, nama_produk: p.nama, harga_asli: nominalAsli 
-        });
+            let trxId = "TP-" + Date.now();
+            let expiredAt = Date.now() + 10 * 60 * 1000;
 
-        u.history = u.history || [];
-        u.history.unshift({ 
-            ts: Date.now(), 
-            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-            type: 'Order QRIS', nama: p.nama + ' (QRIS)', tujuan: tujuan, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
-        });
-        if(u.history.length > 50) u.history.pop();
-        saveRecord('users', targetKey, u);
+            saveRecord('topup', trxId, { 
+                phone, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
+                status: 'pending', timestamp: Date.now(), expired_at: expiredAt, is_order: false 
+            });
 
-        res.json({success: true});
-        
-        let emailUser = u.email || '-';
-        let namaUser = u.username || targetKey;
-        let teleMsg = `🛒 <b>ORDER QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${u.saldo.toLocaleString('id-ID')}`;
-        sendTelegramAdmin(teleMsg);
-    } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
-});
+            u.history = u.history || [];
+            u.history.unshift({ 
+                ts: Date.now(), 
+                tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+                type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
+            });
+            if(u.history.length > 50) u.history.pop();
+            saveRecord('users', phone, u);
 
-app.post('/api/order', async (req, res) => {
-    try {
-        if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
-        
-        let { phone, sku, tujuan } = req.body; let pNorm = normalizePhone(phone);
-        let uNorm = getRecord('users', pNorm);
-        let uOri = getRecord('users', phone);
-        
-        let targetKey = uNorm ? pNorm : (uOri ? phone : null);
-        if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid. Silakan Logout dan Login kembali.'});
-        let u = uNorm || uOri;
-        
-        let p = getRecord('produk', sku);
-        if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
-        let config = getRecord('config', 'main') || {};
-        let realSku = p.sku_asli || sku;
-        
-        let hargaFix = parseInt(p.harga);
-        let saldoSebelum = parseInt(u.saldo);
-        if (saldoSebelum < hargaFix) return res.json({success: false, message: 'Saldo tidak cukup.'});
+            res.json({success: true});
+            
+            let emailUser = u.email || '-';
+            let namaUser = u.username || phone;
+            let teleMsg = `⏳ <b>TOPUP PENDING (QRIS)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+            sendTelegramAdmin(teleMsg);
+        } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
+    });
 
-        // Potong Saldo (Atomic & Sync)
-        u.saldo = saldoSebelum - hargaFix;
-        saveRecord('users', targetKey, u);
+    app.post('/api/order-qris', async (req, res) => {
+        try {
+            if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
+            
+            let config = getRecord('config', 'main') || {};
+            if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
+            
+            let { phone, sku, tujuan } = req.body; let pNorm = normalizePhone(phone);
+            let uNorm = getRecord('users', pNorm);
+            let uOri = getRecord('users', phone);
+            let targetKey = uNorm ? pNorm : (uOri ? phone : null);
+            if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid.'});
+            let u = uNorm || uOri;
+            
+            let p = getRecord('produk', sku);
+            if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
+            
+            let nominalAsli = parseInt(p.harga);
+            let uniqueCode = Math.floor(Math.random() * 50) + 1; 
+            let totalPay = nominalAsli + uniqueCode;
 
-        let username = (config.digiflazzUsername || '').trim();
-        let apiKey = (config.digiflazzApiKey || '').trim();
-        let refId = 'WEB-' + Date.now();
-        let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
+            let finalQrisUrl = config.qrisUrl;
+            if (config.qrisText) {
+                let dynQris = convertToDynamicQris(config.qrisText, totalPay);
+                finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
+            }
 
-        const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
-            username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
-        });
-        
-        const statusOrder = response.data.data.status; 
-        
-        // Re-fetch user in case state changed during await
-        u = getRecord('users', targetKey);
-        let saldoTerkini = parseInt(u.saldo);
-        let emailUser = u.email || '-';
-        let namaUser = u.username || targetKey;
-        
-        if (statusOrder === 'Gagal') {
-            u.saldo = saldoTerkini + hargaFix;
+            let trxId = "OQ-" + Date.now();
+            let expiredAt = Date.now() + 10 * 60 * 1000;
+
+            saveRecord('topup', trxId, { 
+                phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
+                status: 'pending', timestamp: Date.now(), expired_at: expiredAt, 
+                is_order: true, sku: sku, tujuan: tujuan, nama_produk: p.nama, harga_asli: nominalAsli 
+            });
+
+            u.history = u.history || [];
+            u.history.unshift({ 
+                ts: Date.now(), 
+                tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+                type: 'Order QRIS', nama: p.nama + ' (QRIS)', tujuan: tujuan, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
+            });
+            if(u.history.length > 50) u.history.pop();
+            saveRecord('users', targetKey, u);
+
+            res.json({success: true});
+            
+            let emailUser = u.email || '-';
+            let namaUser = u.username || targetKey;
+            let teleMsg = `🛒 <b>ORDER QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+            sendTelegramAdmin(teleMsg);
+        } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
+    });
+
+    app.post('/api/order', async (req, res) => {
+        try {
+            if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
+            
+            let { phone, sku, tujuan } = req.body; let pNorm = normalizePhone(phone);
+            let uNorm = getRecord('users', pNorm);
+            let uOri = getRecord('users', phone);
+            
+            let targetKey = uNorm ? pNorm : (uOri ? phone : null);
+            if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid. Silakan Logout dan Login kembali.'});
+            let u = uNorm || uOri;
+            
+            let p = getRecord('produk', sku);
+            if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
+            let config = getRecord('config', 'main') || {};
+            let realSku = p.sku_asli || sku;
+            
+            let hargaFix = parseInt(p.harga);
+            let saldoSebelum = parseInt(u.saldo);
+            if (saldoSebelum < hargaFix) return res.json({success: false, message: 'Saldo tidak cukup.'});
+
+            // Potong Saldo (Atomic & Sync)
+            u.saldo = saldoSebelum - hargaFix;
+            saveRecord('users', targetKey, u);
+
+            let username = (config.digiflazzUsername || '').trim();
+            let apiKey = (config.digiflazzApiKey || '').trim();
+            let refId = 'WEB-' + Date.now();
+            let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
+
+            const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
+                username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
+            });
+            
+            const statusOrder = response.data.data.status; 
+            
+            // Re-fetch user in case state changed during await
+            u = getRecord('users', targetKey);
+            let saldoTerkini = parseInt(u.saldo);
+            let emailUser = u.email || '-';
+            let namaUser = u.username || targetKey;
+            
+            if (statusOrder === 'Gagal') {
+                u.saldo = saldoTerkini + hargaFix;
+                saveRecord('users', targetKey, u);
+                
+                let teleMsgFail = `❌ <b>PESANAN GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                sendTelegramAdmin(teleMsgFail);
+                
+                return res.json({success: false, message: response.data.data.message});
+            }
+            
+            u.trx_count = (u.trx_count || 0) + 1;
+            u.history = u.history || [];
+            u.history.unshift({ 
+                ts: Date.now(), 
+                tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+                type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId,
+                saldo_sebelumnya: saldoSebelum, saldo_sesudah: u.saldo
+            });
+            if(u.history.length > 50) u.history.pop();
             saveRecord('users', targetKey, u);
             
-            let teleMsgFail = `❌ <b>PESANAN GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${u.saldo.toLocaleString('id-ID')}`;
-            sendTelegramAdmin(teleMsgFail);
-            
-            return res.json({success: false, message: response.data.data.message});
+            let targetJid = u.jid || targetKey + '@s.whatsapp.net';
+            saveRecord('trx', refId, { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: p.nama, tanggal: Date.now(), phone: targetKey });
+
+            if (statusOrder === 'Sukses') {
+                let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+                let gStats = getRecord('global_stats', dateKey) || 0;
+                saveRecord('global_stats', dateKey, gStats + 1);
+
+                let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+                unshiftRecordArray('global_trx', { time: timeStr, product: p.nama, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'Saldo Akun' });
+
+                sendBroadcastSuccess(p.nama, namaUser, tujuan, hargaFix, 'Saldo Akun');
+            }
+
+            res.json({success: true, saldo: u.saldo});
+
+            let teleMsg = `🔔 <b>PESANAN BARU MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${u.saldo.toLocaleString('id-ID')}`;
+            sendTelegramAdmin(teleMsg);
+
+        } catch (error) { 
+            if (!res.headersSent) {
+                let errInfo = error.response && error.response.data && error.response.data.data ? error.response.data.data.message : 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)';
+                return res.json({success: false, message: errInfo});
+            }
         }
-        
-        u.trx_count = (u.trx_count || 0) + 1;
-        u.history = u.history || [];
-        u.history.unshift({ 
-            ts: Date.now(), 
-            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-            type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId,
-            saldo_sebelumnya: saldoSebelum, saldo_sesudah: u.saldo
-        });
-        if(u.history.length > 50) u.history.pop();
-        saveRecord('users', targetKey, u);
-        
-        let targetJid = u.jid || targetKey + '@s.whatsapp.net';
-        saveRecord('trx', refId, { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: p.nama, tanggal: Date.now(), phone: targetKey });
-
-        if (statusOrder === 'Sukses') {
-            let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-            let gStats = getRecord('global_stats', dateKey) || 0;
-            saveRecord('global_stats', dateKey, gStats + 1);
-
-            let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-            unshiftRecordArray('global_trx', { time: timeStr, product: p.nama, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'Saldo Akun' });
-
-            sendBroadcastSuccess(p.nama, namaUser, tujuan, hargaFix, 'Saldo Akun');
-        }
-
-        res.json({success: true, saldo: u.saldo});
-
-        let teleMsg = `🔔 <b>PESANAN BARU MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${u.saldo.toLocaleString('id-ID')}`;
-        sendTelegramAdmin(teleMsg);
-
-    } catch (error) { 
-        if (!res.headersSent) {
-            let errInfo = error.response && error.response.data && error.response.data.data ? error.response.data.data.message : 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)';
-            return res.json({success: false, message: errInfo});
-        }
-    }
-});
-
+    });
+#SELESAI
 // ==============================================================
 // CORE LOGIC: EKSEKUSI PEMBUATAN AKUN VPN KE SERVER VPS 
 // ==============================================================
@@ -4082,7 +4039,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
 function doBackupAndSend() {
     let cfg = getRecord('config', 'main') || {};
     if (!cfg.teleToken || !cfg.teleChatId) return;
-    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json tendo_database.db ssl_backup.tar.gz 2>/dev/null`, (err) => {
+    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip tendo_database.db ssl_backup.tar.gz 2>/dev/null`, (err) => {
         if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store (SQLite)" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
     });
 }
@@ -4505,7 +4462,7 @@ if (require.main === module) {
 }
 EOF
 }
-#SELESAI
+
 generate_cek_saldo_script() {
     cat << 'EOF' > cek_saldo.js
 const crypto = require('crypto');
@@ -4958,7 +4915,7 @@ install_dependencies() {
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     read -p "Tekan Enter untuk kembali..."
 }
-
+#SELESAI
 menu_tutorial() {
     while true; do
         clear
