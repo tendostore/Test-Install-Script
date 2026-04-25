@@ -150,57 +150,21 @@ EOF
         .trx-badge { font-size: 11px; background: var(--bg-main); color: var(--text-main); padding: 5px 12px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.2s; z-index: 2;}
         .trx-badge:active { transform: scale(0.95); }
 
-        .banner-container { 
-            background: var(--topbar-bg); 
-            padding: 5px 20px 25px; 
-            border-bottom-left-radius: 30px; 
-            border-bottom-right-radius: 30px; 
-            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.25);
-            position: relative;
-            z-index: 10;
-            transition: background 0.3s;
-        }
+        .banner-container { background: var(--topbar-bg); padding: 5px 20px 25px; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.25); position: relative; z-index: 10; transition: background 0.3s;}
 
-        .saldo-card-modern {
-            background: var(--bg-card);
-            border-radius: 16px;
-            padding: 16px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: var(--shadow-outer), var(--shadow-inner);
-            border: 1px solid var(--border-color);
-            position: relative;
-            z-index: 2;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
+        .saldo-card-modern { background: var(--bg-card); border-radius: 16px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow-outer), var(--shadow-inner); border: 1px solid var(--border-color); position: relative; z-index: 2; flex-wrap: wrap; gap: 10px;}
         .sc-left { display: flex; align-items: center; gap: 14px; }
-        .sc-icon { 
-            width: 44px; height: 44px; background: rgba(56, 189, 248, 0.15); 
-            border-radius: 12px; display: flex; justify-content: center; align-items: center; color: #38bdf8; 
-        }
+        .sc-icon { width: 44px; height: 44px; background: rgba(56, 189, 248, 0.15); border-radius: 12px; display: flex; justify-content: center; align-items: center; color: #38bdf8; }
         .sc-info { display: flex; flex-direction: column; justify-content: center;}
         .sc-title { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;}
         .sc-amount { font-size: 18px; font-weight: 900; color: var(--text-main); letter-spacing: 0.5px;}
 
         .sc-actions { display: flex; gap: 8px; align-items: center; }
-        .sc-btn-action {
-            background: var(--bg-main);
-            color: var(--text-main);
-            border: 1px solid var(--border-color);
-            width: 38px; height: 38px;
-            border-radius: 12px; display: flex; justify-content: center; align-items: center;
-            cursor: pointer; transition: transform 0.2s;
-        }
+        .sc-btn-action { background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border-color); width: 38px; height: 38px; border-radius: 12px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: transform 0.2s;}
         .sc-btn-action:active { transform: scale(0.95); }
         .sc-btn-action svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 
-        .sc-btn-topup { 
-            background: var(--nav-active); color: #ffffff; border: none; 
-            padding: 0 16px; height: 38px; border-radius: 12px; font-weight: 800; font-size: 13px; cursor: pointer;
-            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25); transition: transform 0.2s;
-        }
+        .sc-btn-topup { background: var(--nav-active); color: #ffffff; border: none; padding: 0 16px; height: 38px; border-radius: 12px; font-weight: 800; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25); transition: transform 0.2s;}
         .sc-btn-topup:active { transform: scale(0.95); }
 
         .banner-slider-container { margin: 20px 20px 0px; border-radius: 16px; overflow: hidden; position: relative; background: var(--bg-card); box-shadow: 0 15px 35px rgba(0,0,0,0.3);}
@@ -211,18 +175,10 @@ EOF
 
         .grid-title { margin: 25px 20px 15px; font-weight: 900; color: var(--text-main); font-size: 15px;}
         .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 0 20px;}
-        .grid-box { 
-            background: var(--grid-bg); border-radius: 18px; padding: 18px 5px; 
-            text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-            box-shadow: var(--shadow-outer), var(--shadow-inner); border: 1px solid var(--border-color);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
+        .grid-box { background: var(--grid-bg); border-radius: 18px; padding: 18px 5px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; box-shadow: var(--shadow-outer), var(--shadow-inner); border: 1px solid var(--border-color); transition: transform 0.2s, box-shadow 0.2s;}
         .grid-box:active { transform: scale(0.95); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         
-        .grid-icon-wrap { 
-            width: 50px; height: 50px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center; 
-            border-radius: 14px; transition: background 0.3s;
-        }
+        .grid-icon-wrap { width: 50px; height: 50px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center; border-radius: 14px; transition: background 0.3s;}
         .ic-pulsa { background: rgba(56, 189, 248, 0.15); color: #0284c7; }
         .ic-data { background: rgba(52, 211, 153, 0.15); color: #059669; }
         .ic-game { background: rgba(248, 113, 113, 0.15); color: #dc2626; }
@@ -260,23 +216,7 @@ EOF
         .b-logo { width: 45px; height: 45px; background: var(--bg-main); color: var(--text-main); border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border-color); flex-shrink: 0; text-transform: uppercase;}
         .b-name { font-size: 14px; font-weight: 800; flex: 1;}
 
-        .bottom-nav { 
-            position: fixed; 
-            bottom: 20px; 
-            left: 50%;
-            transform: translateX(-50%);
-            width: calc(100% - 40px); 
-            max-width: 400px; 
-            background: var(--nav-bg); 
-            display: flex; 
-            justify-content: space-around; 
-            padding: 10px 5px; 
-            border-radius: 50px; 
-            box-shadow: var(--shadow-outer), var(--shadow-inner); 
-            z-index: 900; 
-            transition: background 0.3s;
-            border: 1px solid var(--border-color);
-        }
+        .bottom-nav { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: calc(100% - 40px); max-width: 400px; background: var(--nav-bg); display: flex; justify-content: space-around; padding: 10px 5px; border-radius: 50px; box-shadow: var(--shadow-outer), var(--shadow-inner); z-index: 900; transition: background 0.3s; border: 1px solid var(--border-color);}
         .nav-item { text-align: center; color: var(--nav-text); font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700; transition: color 0.3s;}
         .nav-icon { margin-bottom: 2px; display: flex; justify-content: center; align-items: center;}
         .nav-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
@@ -331,34 +271,15 @@ EOF
 
         .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
         
-        .prof-avatar-wrap {
-            width: 86px; height: 86px;
-            background: transparent;
-            border-radius: 50%;
-            padding: 0;
-            margin: 0 auto 15px auto;
-            box-shadow: none;
-        }
-        .prof-avatar {
-            width: 100%; height: 100%;
-            background: #ffffff; color: #0f172a;
-            border-radius: 50%; font-size: 38px; display: flex; justify-content: center; align-items: center; font-weight: 900; text-transform: uppercase;
-        }
+        .prof-avatar-wrap { width: 86px; height: 86px; background: transparent; border-radius: 50%; padding: 0; margin: 0 auto 15px auto; box-shadow: none; }
+        .prof-avatar { width: 100%; height: 100%; background: #ffffff; color: #0f172a; border-radius: 50%; font-size: 38px; display: flex; justify-content: center; align-items: center; font-weight: 900; text-transform: uppercase; }
 
         .prof-box { background: var(--bg-card); color: var(--text-main); margin: -20px 20px 20px; border-radius: 16px; padding: 20px; position: relative; z-index: 10; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.03);}
         .prof-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed var(--border-color); font-size: 13px;}
         .prof-label { color: var(--text-muted); font-weight: 600;}
         .prof-val { font-weight: 900; text-align: right;}
         
-        .prof-actions-container {
-            padding: 0 20px;
-            margin-bottom: 150px; 
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            position: relative;
-            z-index: 10;
-        }
+        .prof-actions-container { padding: 0 20px; margin-bottom: 150px; display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 10; }
         
         .prof-action-btn { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px; transition: transform 0.2s; box-shadow: var(--shadow-outer), var(--shadow-inner); }
         .prof-action-btn:active { transform: scale(0.98); }
@@ -383,48 +304,10 @@ EOF
         .hidden { display: none !important; }
         .back-icon { cursor: pointer; fill: none; stroke: var(--text-main); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
 
-        .provider-toast {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #0f172a;
-            color: #ffffff;
-            padding: 8px 18px;
-            border-radius: 30px;
-            font-size: 12px;
-            font-weight: 800;
-            z-index: 3000;
-            opacity: 0;
-            transition: opacity 0.3s, top 0.3s;
-            pointer-events: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
+        .provider-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #ffffff; padding: 8px 18px; border-radius: 30px; font-size: 12px; font-weight: 800; z-index: 3000; opacity: 0; transition: opacity 0.3s, top 0.3s; pointer-events: none; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); }
         .provider-toast.show { opacity: 1; top: 40px; }
 
-        .custom-toast {
-            position: fixed;
-            top: -100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--toast-bg);
-            color: var(--toast-text);
-            padding: 12px 24px;
-            border-radius: 30px;
-            font-size: 13px;
-            font-weight: 800;
-            z-index: 9999;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            transition: top 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-            text-align: center;
-            width: max-content;
-            max-width: 90%;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
+        .custom-toast { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background: var(--toast-bg); color: var(--toast-text); padding: 12px 24px; border-radius: 30px; font-size: 13px; font-weight: 800; z-index: 9999; box-shadow: 0 10px 25px rgba(0,0,0,0.2); transition: top 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55); text-align: center; width: max-content; max-width: 90%; display: flex; align-items: center; gap: 10px; border: 1px solid rgba(255,255,255,0.1); }
         .custom-toast.show { top: 40px; }
         .custom-toast.error { background: #ef4444; color: #fff; }
         .custom-toast.success { background: #10b981; color: #fff; }
@@ -3556,20 +3439,20 @@ app.post('/api/login', (req, res) => {
                 finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
             }
 
-            let trxId = "OQ-" + Date.now();
+            let trxId = "VQ-" + Date.now();
             let expiredAt = Date.now() + 10 * 60 * 1000;
+            let prodName = prod.name;
 
             saveRecord('topup', trxId, { 
                 phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
                 status: 'pending', timestamp: Date.now(), expired_at: expiredAt, 
-                is_order: true, sku: sku, tujuan: tujuan, nama_produk: p.nama, harga_asli: nominalAsli 
+                is_order: true, vpn_data: { protocol, product_id, mode, username, password, expired, nama_produk: prodName, harga_asli: nominalAsli }
             });
 
-            u.history = u.history || [];
             u.history.unshift({ 
                 ts: Date.now(), 
                 tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-                type: 'Order QRIS', nama: p.nama + ' (QRIS)', tujuan: tujuan, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
+                type: 'Order VPN QRIS', nama: prodName + ' (QRIS)', tujuan: username, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
             });
             if(u.history.length > 50) u.history.pop();
             saveRecord('users', targetKey, u);
@@ -3578,338 +3461,10 @@ app.post('/api/login', (req, res) => {
             
             let emailUser = u.email || '-';
             let namaUser = u.username || targetKey;
-            let teleMsg = `🛒 <b>ORDER QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+            let teleMsg = `🛒 <b>ORDER VPN QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${username}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
             sendTelegramAdmin(teleMsg);
-        } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
+        } catch(e) { res.json({success: false, message: "Gagal memproses QRIS VPN."}); }
     });
-
-    app.post('/api/order', async (req, res) => {
-        try {
-            if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
-            
-            let { phone, sku, tujuan } = req.body; let pNorm = normalizePhone(phone);
-            let uNorm = getRecord('users', pNorm);
-            let uOri = getRecord('users', phone);
-            
-            let targetKey = uNorm ? pNorm : (uOri ? phone : null);
-            if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid. Silakan Logout dan Login kembali.'});
-            let u = uNorm || uOri;
-            
-            let p = getRecord('produk', sku);
-            if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
-            let config = getRecord('config', 'main') || {};
-            let realSku = p.sku_asli || sku;
-            
-            let hargaFix = parseInt(p.harga);
-            let saldoSebelum = parseInt(u.saldo);
-            if (saldoSebelum < hargaFix) return res.json({success: false, message: 'Saldo tidak cukup.'});
-
-            // Potong Saldo (Atomic & Sync)
-            u.saldo = saldoSebelum - hargaFix;
-            saveRecord('users', targetKey, u);
-
-            let username = (config.digiflazzUsername || '').trim();
-            let apiKey = (config.digiflazzApiKey || '').trim();
-            let refId = 'WEB-' + Date.now();
-            let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
-
-            const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
-                username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
-            });
-            
-            const statusOrder = response.data.data.status; 
-            
-            // Re-fetch user in case state changed during await
-            u = getRecord('users', targetKey);
-            let saldoTerkini = parseInt(u.saldo);
-            let emailUser = u.email || '-';
-            let namaUser = u.username || targetKey;
-            
-            if (statusOrder === 'Gagal') {
-                u.saldo = saldoTerkini + hargaFix;
-                saveRecord('users', targetKey, u);
-                
-                let teleMsgFail = `❌ <b>PESANAN GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${u.saldo.toLocaleString('id-ID')}`;
-                sendTelegramAdmin(teleMsgFail);
-                
-                return res.json({success: false, message: response.data.data.message});
-            }
-            
-            u.trx_count = (u.trx_count || 0) + 1;
-            u.history = u.history || [];
-            u.history.unshift({ 
-                ts: Date.now(), 
-                tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-                type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId,
-                saldo_sebelumnya: saldoSebelum, saldo_sesudah: u.saldo
-            });
-            if(u.history.length > 50) u.history.pop();
-            saveRecord('users', targetKey, u);
-            
-            let targetJid = u.jid || targetKey + '@s.whatsapp.net';
-            saveRecord('trx', refId, { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: p.nama, tanggal: Date.now(), phone: targetKey });
-
-            if (statusOrder === 'Sukses') {
-                let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-                let gStats = getRecord('global_stats', dateKey) || 0;
-                saveRecord('global_stats', dateKey, gStats + 1);
-
-                let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-                unshiftRecordArray('global_trx', { time: timeStr, product: p.nama, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'Saldo Akun' });
-
-                sendBroadcastSuccess(p.nama, namaUser, tujuan, hargaFix, 'Saldo Akun');
-            }
-
-            res.json({success: true, saldo: u.saldo});
-
-            let teleMsg = `🔔 <b>PESANAN BARU MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${u.saldo.toLocaleString('id-ID')}`;
-            sendTelegramAdmin(teleMsg);
-
-        } catch (error) { 
-            if (!res.headersSent) {
-                let errInfo = error.response && error.response.data && error.response.data.data ? error.response.data.data.message : 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)';
-                return res.json({success: false, message: errInfo});
-            }
-        }
-    });
-// ==============================================================
-// CORE LOGIC: EKSEKUSI PEMBUATAN AKUN VPN KE SERVER VPS 
-// ==============================================================
-async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vpnPassword, expiredDays, refIdAsal = null, paymentMethod = 'Saldo Akun') {
-    let targetKey = normalizePhone(phone);
-    let u = getRecord('users', targetKey) || getRecord('users', phone);
-    if(!u) return { success: false, message: "Sesi tidak valid." };
-
-    let vpnConfig = getRecord('vpn_config', 'main') || {products:{}, servers:{}};
-    let prod = vpnConfig.products[productId];
-    if(!prod) return { success: false, message: "Produk VPN tidak ditemukan atau telah dihapus." };
-    if(mode === 'reguler' && parseInt(prod.stok) <= 0) return { success: false, message: "Stok untuk produk ini sedang habis." };
-
-    let serverKey = prod.server_id;
-    let srv = vpnConfig.servers[serverKey];
-    if(!srv || !srv.host || !srv.api_key) {
-        return { success: false, message: "Server VPN ini sedang gangguan / konfigurasi tidak valid." };
-    }
-
-    if (mode === 'trial') {
-        if (!u.trial_claims) u.trial_claims = {};
-        let lastClaim = u.trial_claims[productId] || 0;
-        if (Date.now() - lastClaim < 2 * 60 * 60 * 1000) { 
-            return { success: false, message: "⚠️ Gagal: Anda sudah melakukan trial di Produk ini. Silakan coba 2 Jam lagi." };
-        }
-    }
-
-    let hargaFix = 0;
-    let saldoSebelum = parseInt(u.saldo);
-    if (mode === 'reguler') {
-        let basePrice = parseInt(prod.price) || 0;
-        let hari = parseInt(expiredDays);
-        if (hari > 30) hari = 30;
-        if (hari < 1) hari = 1;
-        hargaFix = Math.ceil((basePrice / 30) * hari);
-        
-        if(saldoSebelum < hargaFix && paymentMethod === 'Saldo Akun') return { success: false, message: "Saldo tidak mencukupi." };
-    }
-
-    let protoLower = protocol.toLowerCase();
-    let endpoint = '';
-    
-    let vpnLimitIp = parseInt(prod.limit_ip) || 2;
-    let vpnKuota = parseInt(prod.kuota) || 200;
-    
-    let payload = {};
-    let cleanHost = srv.host.replace(/^https?:\/\//i, '');
-
-    if (mode === 'trial') {
-        payload = { timelimit: "30m", kuota: 2, limitip: 2 };
-        if(protoLower === 'ssh') endpoint = `http://${cleanHost}/vps/trialsshvpn`;
-        else endpoint = `http://${cleanHost}/vps/trial${protoLower}all`;
-    } else {
-        payload = { username: vpnUsername, expired: parseInt(expiredDays), limitip: vpnLimitIp, kuota: vpnKuota };
-        if(protoLower === 'ssh' || protoLower === 'zivpn') payload.password = vpnPassword;
-        else payload.uuidv2 = '';
-        
-        if(protoLower === 'ssh') endpoint = `http://${cleanHost}/vps/sshvpn`;
-        else endpoint = `http://${cleanHost}/vps/${protoLower}all`; 
-    }
-
-    try {
-        let resApi = await axios.post(endpoint, payload, {
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer ' + srv.api_key },
-            timeout: 120000,
-            validateStatus: () => true, 
-            httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
-        });
-
-        // Re-fetch user in case it changed
-        u = getRecord('users', targetKey) || getRecord('users', phone);
-        if (!u.trial_claims) u.trial_claims = {};
-
-        let isSuccessResponse = (resApi.status >= 200 && resApi.status < 300) && resApi.data && !resApi.data.error && resApi.data.status !== false;
-        let isErrorResponse = resApi.data && (resApi.data.status === false || resApi.data.error || resApi.status >= 400);
-
-        if(isSuccessResponse && !isErrorResponse) {
-            let apiData = resApi.data.data || resApi.data || {};
-            let domain = srv.host;
-            let expDate = apiData.expired || apiData.exp || apiData.to || (mode === 'trial' ? '30 Menit' : `${expiredDays} Hari`);
-            let vpnDetails = '';
-            
-            let fixCity = srv.city || apiData.city || '-';
-            let fixIsp = srv.isp || apiData.isp || '-';
-            let vpnUser = apiData.username || vpnUsername || "TrialUser";
-
-            if (protoLower === 'ssh') {
-                vpnDetails = `Account Created Successfully\n————————————————————————————————————\nDomain Host     : ${domain}\nCity            : ${fixCity}\nISP             : ${fixIsp}\nUsername        : ${vpnUser}\nPassword        : ${apiData.password || vpnPassword || '1'}\n————————————————————————————————————\nExpired         : ${expDate}\n————————————————————————————————————\nTLS             : ${apiData.port?.tls || '443,8443'}\nNone TLS        : ${apiData.port?.none || '80,8080'}\nAny             : 2082,2083,8880\nOpenSSH         : 444\nDropbear        : 90\n————————————————————————————————————\nSlowDNS         : 53,5300\nUDP-Custom      : 1-65535\nOHP + SSH       : 9080\nSquid Proxy     : 3128\nUDPGW           : 7100-7600\nOpenVPN TCP     : 80,1194\nOpenVPN SSL     : 443\nOpenVPN UDP     : 25000\nOpenVPN DNS     : 53\nOHP + OVPN      : 9088\n————————————————————————————————————`;
-            } else if (protoLower === 'vmess') {
-                vpnDetails = `————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : ${vpnUser}\nDomain Host    : ${domain}\nCity           : ${fixCity}\nISP            : ${fixIsp}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nalterId        : 0\nSecurity       : auto\nnetwork        : ws,grpc,upgrade\npath ws        : /vmess\nserviceName    : vmess\npath upgrade   : /upvmess\nExpired On     : ${expDate}\n————————————————————————————————————\n           VMESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VMESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VMESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
-            } else if (protoLower === 'vless') {
-                vpnDetails = `————————————————————————————————————\n               VLESS\n————————————————————————————————————\nRemarks        : ${vpnUser}\nDomain Host    : ${domain}\nCity           : ${fixCity}\nISP            : ${fixIsp}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nEncryption     : none\nNetwork        : ws,grpc,upgrade\nPath ws        : /vless\nserviceName    : vless\nPath upgrade   : /upvless\nExpired On     : ${expDate}\n————————————————————————————————————\n            VLESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VLESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VLESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
-            } else if (protoLower === 'trojan') {
-                vpnDetails = `————————————————————————————————————\n               TROJAN\n————————————————————————————————————\nRemarks      : ${vpnUser}\nDomain Host  : ${domain}\nCity         : ${fixCity}\nISP          : ${fixIsp}\nPort         : 443,8443\nPort any     : 2052,2053,8880\nKey          : ${apiData.uuid || apiData.id || '-'}\nNetwork      : ws,grpc,upgrade\nPath ws      : /trojan\nserviceName  : trojan\nPath upgrade : /uptrojan\nExpired On   : ${expDate}\n————————————————————————————————————\n           TROJAN WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n            TROJAN GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
-            } else {
-                vpnDetails = `Detail Akun ZIVPN:\nDomain Host: ${domain}\nCity: ${fixCity}\nISP: ${fixIsp}\nUsername: ${vpnUser}\nExp: ${expDate}\nLimit IP: ${vpnLimitIp}\n\nInfo selengkapnya cek di aplikasi.`;
-            }
-
-            let prodName = prod.name;
-            if (mode === 'trial') prodName += ' (TRIAL)';
-            
-            if (mode === 'reguler' && paymentMethod === 'Saldo Akun') {
-                u.saldo = saldoSebelum - hargaFix;
-                u.trx_count = (u.trx_count || 0) + 1;
-                
-                vpnConfig = getRecord('vpn_config', 'main');
-                vpnConfig.products[productId].stok -= 1;
-                saveRecord('vpn_config', 'main', vpnConfig);
-            } else if (mode === 'trial') {
-                u.trial_claims[productId] = Date.now();
-            }
-            
-            let refId = refIdAsal || ("VPN-" + Date.now());
-            
-            if (refIdAsal) {
-                let existingHist = u.history.find(h => h.sn === refIdAsal);
-                if (existingHist) {
-                    existingHist.status = 'Sukses';
-                    existingHist.vpn_details = vpnDetails;
-                    existingHist.nama = prodName;
-                    existingHist.type = 'Order VPN';
-                    existingHist.saldo_sebelumnya = saldoSebelum;
-                    existingHist.saldo_sesudah = u.saldo;
-                }
-            } else {
-                u.history.unshift({
-                    ts: Date.now(), 
-                    tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-                    type: 'Order VPN', nama: prodName, tujuan: (mode==='trial'?'Sistem':vpnUser), status: 'Sukses', sn: '-', amount: hargaFix, ref_id: refId,
-                    saldo_sebelumnya: saldoSebelum, saldo_sesudah: u.saldo,
-                    vpn_details: vpnDetails
-                });
-                if(u.history.length > 50) u.history.pop();
-            }
-            saveRecord('users', targetKey, u);
-
-            let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-            let gStats = getRecord('global_stats', dateKey) || 0;
-            saveRecord('global_stats', dateKey, gStats + 1);
-
-            let namaUser = u.username || targetKey;
-
-            if (mode !== 'trial') {
-                let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-                unshiftRecordArray('global_trx', { time: timeStr, product: prodName, user: namaUser, target: maskStringTarget(vpnUser), price: hargaFix, method: paymentMethod });
-                sendBroadcastSuccess(prodName, namaUser, vpnUser, hargaFix, paymentMethod);
-            }
-
-            let emailUser = u.email || '-';
-            let vpnConfNew = getRecord('vpn_config', 'main');
-            let teleSuccess = `🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${vpnUser}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: ${mode === 'trial' ? 'Gratis (Trial)' : paymentMethod}\n📦 Sisa Stok: ${mode === 'reguler' ? vpnConfNew.products[productId].stok : 'Trial'}\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
-            sendTelegramAdmin(teleSuccess);
-
-            return { success: true };
-        } else {
-            let errMsg = "unknown error";
-            if (resApi.data && resApi.data.message) errMsg = resApi.data.message;
-            else if (resApi.data && resApi.data.error) errMsg = resApi.data.error;
-            else if (resApi.statusText) errMsg = resApi.statusText;
-            
-            if(errMsg.toLowerCase().includes('exist') || errMsg.toLowerCase().includes('already') || errMsg.toLowerCase().includes('sudah ada')) {
-                return { success: false, message: "Username sudah ada/terpakai, silakan ganti username lain." };
-            }
-            return { success: false, message: "Gagal membuat akun di Server VPN. Pesan: " + errMsg };
-        }
-    } catch(e) {
-        return { success: false, message: "Koneksi ke Server VPN Gagal / Timeout. Pesan: " + e.message };
-    }
-}
-
-app.post('/api/order-vpn', async (req, res) => {
-    if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
-    let { phone, protocol, product_id, mode, username, password, expired } = req.body;
-    let result = await executeVpnOrder(phone, protocol, product_id, mode, username, password, expired, null, 'Saldo Akun');
-    res.json(result);
-});
-
-app.post('/api/order-vpn-qris', async (req, res) => {
-    try {
-        if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
-        
-        let config = getRecord('config', 'main') || {};
-        if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
-        
-        let { phone, protocol, product_id, mode, username, password, expired } = req.body;
-        
-        let pNorm = normalizePhone(phone);
-        let uNorm = getRecord('users', pNorm);
-        let uOri = getRecord('users', phone);
-        let targetKey = uNorm ? pNorm : (uOri ? phone : null);
-        if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid.'});
-        let u = uNorm || uOri;
-        
-        let vpnConfig = getRecord('vpn_config', 'main');
-        let prod = vpnConfig.products[product_id];
-        if(!prod) return res.json({success: false, message: 'Produk VPN tidak ditemukan.'});
-        if(mode === 'reguler' && parseInt(prod.stok) <= 0) return res.json({success: false, message: 'Stok habis.'});
-
-        let basePrice = parseInt(prod.price) || 0;
-        let hari = parseInt(expired);
-        if(hari > 30) hari = 30; if(hari < 1) hari = 1;
-        let nominalAsli = Math.ceil((basePrice / 30) * hari);
-        
-        let uniqueCode = Math.floor(Math.random() * 50) + 1; 
-        let totalPay = nominalAsli + uniqueCode;
-
-        let finalQrisUrl = config.qrisUrl;
-        if (config.qrisText) {
-            let dynQris = convertToDynamicQris(config.qrisText, totalPay);
-            finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
-        }
-
-        let trxId = "VQ-" + Date.now();
-        let expiredAt = Date.now() + 10 * 60 * 1000;
-        let prodName = prod.name;
-
-        saveRecord('topup', trxId, { 
-            phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
-            status: 'pending', timestamp: Date.now(), expired_at: expiredAt, 
-            is_order: true, vpn_data: { protocol, product_id, mode, username, password, expired, nama_produk: prodName, harga_asli: nominalAsli }
-        });
-
-        u.history.unshift({ 
-            ts: Date.now(), 
-            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-            type: 'Order VPN QRIS', nama: prodName + ' (QRIS)', tujuan: username, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
-        });
-        if(u.history.length > 50) u.history.pop();
-        saveRecord('users', targetKey, u);
-
-        res.json({success: true});
-        
-        let emailUser = u.email || '-';
-        let namaUser = u.username || targetKey;
-        let teleMsg = `🛒 <b>ORDER VPN QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${username}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
-        sendTelegramAdmin(teleMsg);
-    } catch(e) { res.json({success: false, message: "Gagal memproses QRIS VPN."}); }
-});
 
 async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
     let result = await executeVpnOrder(phone, vpnData.protocol, vpnData.product_id, vpnData.mode, vpnData.username, vpnData.password, vpnData.expired, refIdAsal, 'QRIS');
@@ -4036,7 +3591,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
 function doBackupAndSend() {
     let cfg = getRecord('config', 'main') || {};
     if (!cfg.teleToken || !cfg.teleChatId) return;
-    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip tendo_database.db ssl_backup.tar.gz 2>/dev/null`, (err) => {
+    exec(`[ -d "/etc/letsencrypt" ] && tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip tendo_database.db ssl_backup.tar.gz 2>/dev/null`, (err) => {
         if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store (SQLite)" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
     });
 }
@@ -4196,7 +3751,10 @@ async function startBot() {
                 } 
                 else {
                     let amountStr = req.amount_to_pay.toString();
-                    let isFound = responseStr.includes(`"${amountStr}"`) || responseStr.includes(`:${amountStr}`) || responseStr.includes(`"${amountStr}.00"`) || responseStr.includes(`:${amountStr}.00`);
+                    // PERBAIKAN BUG KEAMANAN GOPAY
+                    let regexMatch = new RegExp(`"amount"\\s*:\\s*"?${amountStr}(\\.00)?"?`, 'i');
+                    let isFound = regexMatch.test(responseStr);
+                    
                     if(isFound) {
                         req.status = 'sukses';
                         saveRecord('topup', key, req);
@@ -4434,8 +3992,15 @@ async function tarikDataLayananOtomatis() {
                 }
             });
 
+            // PERBAIKAN PERFORMA SQLITE (Transaction Batching)
             dbSqlite.prepare("DELETE FROM produk").run();
-            for(let k in daftarLokal) saveRecord('produk', k, daftarLokal[k]);
+            const insert = dbSqlite.prepare("INSERT OR REPLACE INTO produk (id, data) VALUES (?, ?)");
+            const insertMany = dbSqlite.transaction((dataObj) => {
+                for(let k in dataObj) {
+                    insert.run(k, JSON.stringify(dataObj[k]));
+                }
+            });
+            insertMany(daftarLokal);
 
             console.log('\x1b[32m✅ Data Produk Digiflazz Berhasil Tersinkronisasi ke SQLite!\x1b[0m');
         }
@@ -4912,6 +4477,7 @@ install_dependencies() {
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     read -p "Tekan Enter untuk kembali..."
 }
+
 menu_tutorial() {
     while true; do
         clear
