@@ -1087,7 +1087,7 @@ EOF
                     <input type="number" id="edit-otp-input" placeholder="----" style="letter-spacing:12px; text-align:center; font-size:24px; background:var(--bg-main);" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4);">
                     <div class="modal-btns">
                         <button class="btn-outline" style="margin-top:0;" onclick="closeEditModal()">Batal</button>
-                        <button class="btn" id="btn-verify-edit" onclick="Simpan">Simpan</button>
+                        <button class="btn" id="btn-verify-edit" onclick="verifyEditOTP()">Simpan</button>
                     </div>
                 </div>
             </div>
@@ -2760,7 +2760,7 @@ EOF
 </html>
 EOF
 }
-# SELESAI
+#SELESAI
 # ==========================================
 # 3. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND)
 # ==========================================
@@ -2776,13 +2776,14 @@ const axios = require('axios');
 const crypto = require('crypto'); 
 const TelegramBot = require('node-telegram-bot-api');
 const { pipeline } = require('stream/promises');
+const Database = require('better-sqlite3');
 
 const app = express();
 app.disable('x-powered-by');
 
-// SECURITY: Memblokir akses langsung file konfigurasi JSON lewat URL
+// SECURITY: Memblokir akses langsung file konfigurasi JSON/DB lewat URL
 app.use((req, res, next) => {
-    if (req.path.endsWith('.json') && !req.path.endsWith('manifest.json')) {
+    if ((req.path.endsWith('.json') && !req.path.endsWith('manifest.json')) || req.path.endsWith('.db') || req.path.endsWith('.bak')) {
         return res.status(403).json({success: false, message: 'Akses Ditolak (Sistem Keamanan Tendo)'});
     }
     next();
@@ -2791,33 +2792,109 @@ app.use((req, res, next) => {
 app.use(bodyParser.json());
 app.use(express.static('public')); 
 
-const configFile = './config.json';
-const dbFile = './database.json';
-const produkFile = './produk.json';
-const trxFile = './trx.json';
-const notifFile = './web_notif.json';
-const globalStatsFile = './global_stats.json';
-const topupFile = './topup.json';
-const globalTrxFile = './global_trx.json'; 
-const vpnConfigFile = './vpn_config.json'; 
-const customLayoutFile = './custom_layout.json'; 
-const tutorialFile = './tutorial.json'; 
+// ==============================================================
+// INIT SQLITE DATABASE & AUTO-MIGRASI
+// ==============================================================
+const dbSqlite = new Database('tendo_database.db', { wal: true });
 
-const loadJSON = (file) => {
-    let defaultData = (file === notifFile || file === globalTrxFile || file === tutorialFile) ? [] : (file === customLayoutFile ? {sections:[]} : {});
-    try {
-        if (!fs.existsSync(file)) return defaultData;
-        let raw = fs.readFileSync(file, 'utf8');
-        if (!raw) return defaultData;
-        return JSON.parse(raw);
-    } catch(e) {
-        return defaultData;
+dbSqlite.exec(`
+    CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, data TEXT);
+    CREATE TABLE IF NOT EXISTS config (id TEXT PRIMARY KEY, data TEXT);
+    CREATE TABLE IF NOT EXISTS produk (id TEXT PRIMARY KEY, data TEXT);
+    CREATE TABLE IF NOT EXISTS trx (id TEXT PRIMARY KEY, data TEXT);
+    CREATE TABLE IF NOT EXISTS topup (id TEXT PRIMARY KEY, data TEXT);
+    CREATE TABLE IF NOT EXISTS web_notif (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT);
+    CREATE TABLE IF NOT EXISTS global_trx (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT);
+    CREATE TABLE IF NOT EXISTS global_stats (id TEXT PRIMARY KEY, data TEXT);
+    CREATE TABLE IF NOT EXISTS tutorial (id TEXT PRIMARY KEY, data TEXT);
+    CREATE TABLE IF NOT EXISTS vpn_config (id TEXT PRIMARY KEY, data TEXT);
+    CREATE TABLE IF NOT EXISTS custom_layout (id TEXT PRIMARY KEY, data TEXT);
+`);
+
+function migrateOldJson() {
+    const fileMap = {
+        'database.json': { table: 'users', type: 'dict' },
+        'config.json': { table: 'config', type: 'single', key: 'main' },
+        'produk.json': { table: 'produk', type: 'dict' },
+        'trx.json': { table: 'trx', type: 'dict' },
+        'topup.json': { table: 'topup', type: 'dict' },
+        'web_notif.json': { table: 'web_notif', type: 'array' },
+        'global_trx.json': { table: 'global_trx', type: 'array' },
+        'global_stats.json': { table: 'global_stats', type: 'dict' },
+        'tutorial.json': { table: 'tutorial', type: 'array_id' },
+        'vpn_config.json': { table: 'vpn_config', type: 'single', key: 'main' },
+        'custom_layout.json': { table: 'custom_layout', type: 'single', key: 'main' }
+    };
+
+    for (let file in fileMap) {
+        if (fs.existsSync('./' + file)) {
+            console.log(`Migrasi file ${file} ke SQLite...`);
+            try {
+                let parsed = JSON.parse(fs.readFileSync('./' + file, 'utf8'));
+                let map = fileMap[file];
+                
+                dbSqlite.transaction(() => {
+                    if (map.type === 'dict') {
+                        const stmt = dbSqlite.prepare(`INSERT OR IGNORE INTO ${map.table} (id, data) VALUES (?, ?)`);
+                        for (let k in parsed) stmt.run(k, JSON.stringify(parsed[k]));
+                    } else if (map.type === 'single') {
+                        const stmt = dbSqlite.prepare(`INSERT OR IGNORE INTO ${map.table} (id, data) VALUES (?, ?)`);
+                        stmt.run(map.key, JSON.stringify(parsed));
+                    } else if (map.type === 'array') {
+                        const stmt = dbSqlite.prepare(`INSERT INTO ${map.table} (data) VALUES (?)`);
+                        for (let i = parsed.length - 1; i >= 0; i--) stmt.run(JSON.stringify(parsed[i]));
+                    } else if (map.type === 'array_id') {
+                        const stmt = dbSqlite.prepare(`INSERT OR IGNORE INTO ${map.table} (id, data) VALUES (?, ?)`);
+                        for (let item of parsed) stmt.run(item.id, JSON.stringify(item));
+                    }
+                })();
+                
+                fs.renameSync('./' + file, './' + file + '.bak');
+                console.log(`Berhasil migrasi ${file}. Backup disimpan sebagai .bak`);
+            } catch(e) {
+                console.error(`Gagal migrasi ${file}:`, e.message);
+            }
+        }
     }
-};
+}
+migrateOldJson();
 
-const saveJSON = (file, data) => {
-    fs.writeFileSync(file, JSON.stringify(data, null, 2));
-};
+// ==============================================================
+// SQLITE CRUD HELPERS (Mencegah Race Condition Secara Sinkron)
+// ==============================================================
+function getRecord(table, id) {
+    const row = dbSqlite.prepare(`SELECT data FROM ${table} WHERE id = ?`).get(id);
+    return row ? JSON.parse(row.data) : null;
+}
+
+function saveRecord(table, id, data) {
+    dbSqlite.prepare(`INSERT OR REPLACE INTO ${table} (id, data) VALUES (?, ?)`).run(id, JSON.stringify(data));
+}
+
+function deleteRecord(table, id) {
+    dbSqlite.prepare(`DELETE FROM ${table} WHERE id = ?`).run(id);
+}
+
+function getAllRecords(table) {
+    const rows = dbSqlite.prepare(`SELECT id, data FROM ${table}`).all();
+    let res = {};
+    for(let r of rows) res[r.id] = JSON.parse(r.data);
+    return res;
+}
+
+function getAllRecordsArray(table, limit = 100) {
+    if(table === 'tutorial') {
+        const rows = dbSqlite.prepare(`SELECT data FROM ${table}`).all();
+        return rows.map(r => JSON.parse(r.data));
+    }
+    const rows = dbSqlite.prepare(`SELECT data FROM ${table} ORDER BY id DESC LIMIT ?`).all(limit);
+    return rows.map(r => JSON.parse(r.data));
+}
+
+function unshiftRecordArray(table, data, maxLen = 100) {
+    dbSqlite.prepare(`INSERT INTO ${table} (data) VALUES (?)`).run(JSON.stringify(data));
+    dbSqlite.prepare(`DELETE FROM ${table} WHERE id NOT IN (SELECT id FROM ${table} ORDER BY id DESC LIMIT ?)`).run(maxLen);
+}
 
 const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
 
@@ -2829,7 +2906,7 @@ function maskStringTarget(str) {
 }
 
 function cekPemeliharaan() {
-    let cfg = loadJSON(configFile);
+    let cfg = getRecord('config', 'main') || {};
     let s = cfg.maintStart || "23:00";
     let e = cfg.maintEnd || "00:30";
     let d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
@@ -2843,29 +2920,31 @@ function cekPemeliharaan() {
     else return (curMins >= sMins || curMins < eMins);
 }
 
-// Fitur Otomatis Menghapus Riwayat > 30 Hari
 function cleanupOldHistory() {
     try {
-        let db = loadJSON(dbFile);
-        let changed = false;
+        let users = getAllRecords('users');
+        let changedCount = 0;
         let now = Date.now();
         let thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
         
-        for (let phone in db) {
-            if (db[phone] && db[phone].history && db[phone].history.length > 0) {
-                let origLen = db[phone].history.length;
-                db[phone].history = db[phone].history.filter(h => (now - h.ts) < thirtyDaysMs);
-                if (db[phone].history.length !== origLen) changed = true;
+        for (let phone in users) {
+            let u = users[phone];
+            if (u && u.history && u.history.length > 0) {
+                let origLen = u.history.length;
+                u.history = u.history.filter(h => (now - h.ts) < thirtyDaysMs);
+                if (u.history.length !== origLen) {
+                    saveRecord('users', phone, u);
+                    changedCount++;
+                }
             }
         }
-        if (changed) saveJSON(dbFile, db);
     } catch (e) {}
 }
 setInterval(cleanupOldHistory, 6 * 60 * 60 * 1000); 
 
 function sendTelegramAdmin(message) {
     try {
-        let cfg = loadJSON(configFile);
+        let cfg = getRecord('config', 'main') || {};
         if (cfg.teleToken && cfg.teleChatId) {
             let chatIdStr = cfg.teleChatId.toString();
             axios.post(`https://api.telegram.org/bot${cfg.teleToken}/sendMessage`, {
@@ -2879,7 +2958,7 @@ function sendTelegramAdmin(message) {
 
 function sendBroadcastSuccess(productName, rawUser, rawTarget, price, method) {
     try {
-        let cfg = loadJSON(configFile);
+        let cfg = getRecord('config', 'main') || {};
         let maskTarget = maskStringTarget(rawTarget); 
         let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
         let priceStr = price ? `\n💰 Harga: Rp ${price.toLocaleString('id-ID')}` : '';
@@ -2942,7 +3021,7 @@ function convertToDynamicQris(staticQris, amount) {
     } catch(e) { return staticQris; }
 }
 
-let configAwal = loadJSON(configFile);
+let configAwal = getRecord('config', 'main') || {};
 configAwal.botName = configAwal.botName || "Digital Tendo Store";
 configAwal.botNumber = configAwal.botNumber || "";
 configAwal.gopayToken = configAwal.gopayToken || "";
@@ -2951,20 +3030,18 @@ configAwal.qrisUrl = configAwal.qrisUrl || "https://upload.wikimedia.org/wikiped
 configAwal.qrisText = configAwal.qrisText || "";
 configAwal.teleTokenInfo = configAwal.teleTokenInfo || ""; 
 configAwal.margin = configAwal.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
-saveJSON(configFile, configAwal);
+saveRecord('config', 'main', configAwal);
 
-let vpnAwal = loadJSON(vpnConfigFile);
+let vpnAwal = getRecord('vpn_config', 'main') || {};
 if(!vpnAwal.servers) vpnAwal.servers = {};
 if(!vpnAwal.products) vpnAwal.products = {};
-saveJSON(vpnConfigFile, vpnAwal);
+saveRecord('vpn_config', 'main', vpnAwal);
 
-let customLayoutAwal = loadJSON(customLayoutFile);
+let customLayoutAwal = getRecord('custom_layout', 'main') || {};
 if(!customLayoutAwal.sections) customLayoutAwal.sections = [];
-saveJSON(customLayoutFile, customLayoutAwal);
+saveRecord('custom_layout', 'main', customLayoutAwal);
 
 if(!fs.existsSync('./public/maint_images')) fs.mkdirSync('./public/maint_images', { recursive: true });
-
-loadJSON(dbFile); loadJSON(produkFile); loadJSON(trxFile); loadJSON(globalStatsFile); loadJSON(topupFile); loadJSON(notifFile); loadJSON(globalTrxFile); loadJSON(tutorialFile);
 
 let globalSock = null;
 let tempOtpDB = {}; 
@@ -2972,7 +3049,7 @@ let otpCooldown = {};
 let isMaintenanceNow = cekPemeliharaan();
 
 let teleBotInfo = null;
-let teleState = {}; // State untuk bot interaktif
+let teleState = {}; 
 
 if (configAwal.teleTokenInfo) {
     try {
@@ -2985,10 +3062,8 @@ if (configAwal.teleTokenInfo) {
             console.log('Telegram Info Error:', error.message || error);
         });
 
-        // HANDLER TOMBOL INTERAKTIF (CALLBACK QUERY)
         teleBotInfo.on('callback_query', (callbackQuery) => {
             teleBotInfo.answerCallbackQuery(callbackQuery.id).catch(e => {});
-            
             const msg = callbackQuery.message;
             const data = callbackQuery.data;
             const chatId = msg.chat.id;
@@ -3017,9 +3092,8 @@ if (configAwal.teleTokenInfo) {
             }
         });
 
-        // HANDLER PESAN TEKS & GAMBAR
         teleBotInfo.on('message', async (msg) => {
-            let cfg = loadJSON(configFile);
+            let cfg = getRecord('config', 'main') || {};
             if (!cfg.teleChatId || msg.chat.id.toString() !== cfg.teleChatId.toString()) return;
             
             let text = msg.text || msg.caption || '';
@@ -3059,12 +3133,8 @@ if (configAwal.teleTokenInfo) {
                         } catch(e) { console.log("Download info image error:", e.message); }
                     }
                     
-                    let notifs = loadJSON(notifFile);
-                    if (!Array.isArray(notifs)) notifs = [];
                     let today = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'long', year:'numeric' });
-                    notifs.unshift({ date: today, text: text, image: imageFilename || '' });
-                    if(notifs.length > 20) notifs.pop();
-                    saveJSON(notifFile, notifs);
+                    unshiftRecordArray('web_notif', { date: today, text: text, image: imageFilename || '' }, 20);
 
                     if (cfg.teleChannelId) {
                         let chanIdStr = cfg.teleChannelId.toString();
@@ -3169,15 +3239,13 @@ if (configAwal.teleTokenInfo) {
                         return teleBotInfo.sendMessage(chatId, '❌ Kirim file Video, atau ketik `/lewati` jika hanya teks.', {parse_mode: "Markdown"});
                     }
 
-                    let dbTut = loadJSON(tutorialFile);
-                    if (!Array.isArray(dbTut)) dbTut = []; 
-                    dbTut.push({
-                        id: 'TUT-' + Date.now(),
+                    let newTutId = 'TUT-' + Date.now();
+                    saveRecord('tutorial', newTutId, {
+                        id: newTutId,
                         title: teleState[chatId].title,
                         video: vidFilename,
                         desc: teleState[chatId].desc
                     });
-                    saveJSON(tutorialFile, dbTut);
                     
                     teleBotInfo.sendMessage(chatId, '✅ *Berhasil!* Tutorial telah ditambahkan ke Website.', {parse_mode: "Markdown"});
                     delete teleState[chatId];
@@ -3212,8 +3280,8 @@ app.get('/api/banners', (req, res) => {
 
 app.get('/api/stats', (req, res) => {
     try {
-        let gStats = loadJSON(globalStatsFile);
-        let cfg = loadJSON(configFile);
+        let gStats = getAllRecords('global_stats');
+        let cfg = getRecord('config', 'main') || {};
         let daily = 0, weekly = 0, monthly = 0, total = 0;
         
         let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
@@ -3238,15 +3306,15 @@ app.get('/api/stats', (req, res) => {
     } catch(e) { res.json({ success: false, daily: 0, weekly: 0, monthly: 0, total: 0 }); }
 });
 
-app.get('/api/produk', (req, res) => { res.json(loadJSON(produkFile)); });
-app.get('/api/notif', (req, res) => { res.json(loadJSON(notifFile) || []); });
-app.get('/api/global-trx', (req, res) => { res.json(loadJSON(globalTrxFile) || []); });
-app.get('/api/custom-layout', (req, res) => { res.json({success: true, data: loadJSON(customLayoutFile)}); }); 
-app.get('/api/tutorials', (req, res) => { res.json(loadJSON(tutorialFile) || []); });
+app.get('/api/produk', (req, res) => { res.json(getAllRecords('produk')); });
+app.get('/api/notif', (req, res) => { res.json(getAllRecordsArray('web_notif')); });
+app.get('/api/global-trx', (req, res) => { res.json(getAllRecordsArray('global_trx')); });
+app.get('/api/custom-layout', (req, res) => { res.json({success: true, data: getRecord('custom_layout', 'main') || {sections:[]}}); }); 
+app.get('/api/tutorials', (req, res) => { res.json(getAllRecordsArray('tutorial')); });
 
 app.get('/api/vpn-config', (req, res) => {
     try {
-        let vpn = loadJSON(vpnConfigFile);
+        let vpn = getRecord('vpn_config', 'main') || {};
         let safeConfig = JSON.parse(JSON.stringify(vpn));
         if(safeConfig.servers) {
             for(let srv in safeConfig.servers) {
@@ -3262,9 +3330,10 @@ app.get('/api/vpn-config', (req, res) => {
 
 app.get('/api/user/:phone', (req, res) => {
     try {
-        let db = loadJSON(dbFile); let p = req.params.phone;
-        if(db[p]) {
-            let safeData = { ...db[p] }; delete safeData.password; 
+        let p = req.params.phone;
+        let u = getRecord('users', p);
+        if(u) {
+            let safeData = { ...u }; delete safeData.password; 
             res.json({success: true, data: safeData});
         } else res.json({success: false});
     } catch(e) { res.json({success: false}); }
@@ -3273,22 +3342,22 @@ app.get('/api/user/:phone', (req, res) => {
 app.post('/api/cancel-topup', (req, res) => {
     try {
         let { sn, phone } = req.body;
-        let db = loadJSON(dbFile);
-        let topups = loadJSON(topupFile);
+        let topup = getRecord('topup', sn);
         
-        if(topups[sn] && topups[sn].phone === phone) {
-            topups[sn].status = 'gagal';
-            saveJSON(topupFile, topups);
+        if(topup && topup.phone === phone) {
+            topup.status = 'gagal';
+            saveRecord('topup', sn, topup);
         }
         
-        if(db[phone]) {
-            let hist = db[phone].history.find(h => h.sn === sn);
+        let u = getRecord('users', phone);
+        if(u) {
+            let hist = u.history.find(h => h.sn === sn);
             if(hist && hist.status === 'Pending') {
                 hist.status = 'Gagal (Dibatalkan)';
-                saveJSON(dbFile, db);
+                saveRecord('users', phone, u);
                 
-                let emailUser = db[phone].email || '-';
-                let namaUser = db[phone].username || phone;
+                let emailUser = u.email || '-';
+                let namaUser = u.username || phone;
                 let teleMsg = `❌ <b>TOPUP DIBATALKAN PELANGGAN</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${sn}`;
                 sendTelegramAdmin(teleMsg);
                 
@@ -3301,27 +3370,30 @@ app.post('/api/cancel-topup', (req, res) => {
 
 app.post('/api/login', (req, res) => {
     try {
-        let { id, password } = req.body; let db = loadJSON(dbFile);
+        let { id, password } = req.body;
         let hashedInput = hashPassword(password);
+        let users = getAllRecords('users');
         
-        let userPhone = Object.keys(db).find(k => {
-            if (!db[k]) return false;
+        let userPhone = Object.keys(users).find(k => {
+            if (!users[k]) return false;
             let normInput = normalizePhone(id);
             let matchId = (k === id) || (k === normInput) ||
-                          (db[k].email && db[k].email.toLowerCase() === id.toLowerCase()) || 
-                          (db[k].username && db[k].username.toLowerCase() === id.toLowerCase());
+                          (users[k].email && users[k].email.toLowerCase() === id.toLowerCase()) || 
+                          (users[k].username && users[k].username.toLowerCase() === id.toLowerCase());
                           
             if (!matchId) return false;
             
-            if (db[k].password === password) {
-                db[k].password = hashedInput; saveJSON(dbFile, db); return true;
+            if (users[k].password === password) {
+                users[k].password = hashedInput; 
+                saveRecord('users', k, users[k]); 
+                return true;
             }
-            if (db[k].password === hashedInput) return true;
+            if (users[k].password === hashedInput) return true;
             return false;
         });
 
         if (userPhone) {
-            let safeData = { ...db[userPhone] }; delete safeData.password;
+            let safeData = { ...users[userPhone] }; delete safeData.password;
             res.json({success: true, phone: userPhone, data: safeData});
         }
         else res.json({success: false, message: 'Data Akun (Email/WA/Username) atau Password salah!'});
@@ -3337,12 +3409,12 @@ app.post('/api/register', (req, res) => {
         if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
         otpCooldown[phone] = Date.now();
         
-        let db = loadJSON(dbFile);
+        let users = getAllRecords('users');
         
-        let isEmailExist = Object.keys(db).some(k => db[k] && db[k].email && db[k].email.toLowerCase() === email.toLowerCase());
+        let isEmailExist = Object.values(users).some(u => u && u.email && u.email.toLowerCase() === email.toLowerCase());
         if (isEmailExist) return res.json({success: false, message: 'Email terdaftar!'});
         
-        let isUsernameExist = Object.keys(db).some(k => db[k] && db[k].username && db[k].username.toLowerCase() === username.toLowerCase());
+        let isUsernameExist = Object.values(users).some(u => u && u.username && u.username.toLowerCase() === username.toLowerCase());
         if (isUsernameExist) return res.json({success: false, message: 'Username sudah digunakan, silakan ganti yang lain!'});
 
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
@@ -3366,22 +3438,30 @@ app.post('/api/verify-otp', (req, res) => {
     try {
         let otp = req.body.otp; let phone = normalizePhone(req.body.phone);
         if(tempOtpDB[phone] && tempOtpDB[phone].otp === otp) {
-            let db = loadJSON(dbFile); let idPelanggan = 'TD-' + Math.floor(100000 + Math.random() * 900000); 
-            if(db[phone]) {
-                db[phone].username = tempOtpDB[phone].username; db[phone].email = tempOtpDB[phone].email; db[phone].password = tempOtpDB[phone].password;
-                if(!db[phone].id_pelanggan) db[phone].id_pelanggan = idPelanggan;
-            } else {
-                db[phone] = { id_pelanggan: idPelanggan, username: tempOtpDB[phone].username, email: tempOtpDB[phone].email, password: tempOtpDB[phone].password, saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [] };
-            }
-            saveJSON(dbFile, db); delete tempOtpDB[phone]; res.json({success: true});
+            let idPelanggan = 'TD-' + Math.floor(100000 + Math.random() * 900000); 
+            let u = getRecord('users', phone) || { 
+                id_pelanggan: idPelanggan, saldo: 0, 
+                tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), 
+                jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [] 
+            };
+            
+            u.username = tempOtpDB[phone].username; 
+            u.email = tempOtpDB[phone].email; 
+            u.password = tempOtpDB[phone].password;
+            if(!u.id_pelanggan) u.id_pelanggan = idPelanggan;
+            
+            saveRecord('users', phone, u); 
+            delete tempOtpDB[phone]; 
+            res.json({success: true});
         } else res.json({success: false, message: 'Kode OTP Salah!'});
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
 app.post('/api/req-edit-otp', (req, res) => {
     try {
-        let { phone, type, newValue } = req.body; let db = loadJSON(dbFile);
-        if(!db[phone]) return res.json({success: false, message: 'User tidak ditemukan.'});
+        let { phone, type, newValue } = req.body; 
+        let u = getRecord('users', phone);
+        if(!u) return res.json({success: false, message: 'User tidak ditemukan.'});
         if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
         otpCooldown[phone] = Date.now();
 
@@ -3398,24 +3478,31 @@ app.post('/api/req-edit-otp', (req, res) => {
 
 app.post('/api/verify-edit-otp', (req, res) => {
     try {
-        let { phone, otp } = req.body; let db = loadJSON(dbFile); let session = tempOtpDB[phone + '_edit'];
+        let { phone, otp } = req.body; let session = tempOtpDB[phone + '_edit'];
         if(session && session.otp === otp) {
-            if(session.type === 'email') db[phone].email = session.newValue;
-            if(session.type === 'password') db[phone].password = session.newValue;
+            let u = getRecord('users', phone);
+            if(session.type === 'email') u.email = session.newValue;
+            if(session.type === 'password') u.password = session.newValue;
             if(session.type === 'phone') {
                 let newPhone = normalizePhone(session.newValue);
-                if(db[newPhone]) return res.json({success: false, message: 'Nomor sudah dipakai akun lain.'});
-                db[newPhone] = db[phone]; db[newPhone].jid = newPhone + '@s.whatsapp.net'; delete db[phone];
+                let existU = getRecord('users', newPhone);
+                if(existU) return res.json({success: false, message: 'Nomor sudah dipakai akun lain.'});
+                u.jid = newPhone + '@s.whatsapp.net';
+                saveRecord('users', newPhone, u);
+                deleteRecord('users', phone);
+            } else {
+                saveRecord('users', phone, u);
             }
-            saveJSON(dbFile, db); delete tempOtpDB[phone + '_edit']; res.json({success: true});
+            delete tempOtpDB[phone + '_edit']; res.json({success: true});
         } else res.json({success: false, message: 'OTP Salah!'});
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
 app.post('/api/req-forgot-otp', (req, res) => {
     try {
-        let phone = normalizePhone(req.body.phone); let db = loadJSON(dbFile);
-        if(!db[phone]) return res.json({success: false, message: 'Nomor WA tidak terdaftar!'});
+        let phone = normalizePhone(req.body.phone);
+        let u = getRecord('users', phone);
+        if(!u) return res.json({success: false, message: 'Nomor WA tidak terdaftar!'});
         if(otpCooldown[phone] && Date.now() - otpCooldown[phone] < 60000) return res.json({success: false, message: 'Tunggu 1 menit untuk request OTP lagi!'});
         otpCooldown[phone] = Date.now();
 
@@ -3431,10 +3518,11 @@ app.post('/api/req-forgot-otp', (req, res) => {
 
 app.post('/api/verify-forgot-otp', (req, res) => {
     try {
-        let phone = normalizePhone(req.body.phone); let { otp, newPass } = req.body; let db = loadJSON(dbFile);
+        let phone = normalizePhone(req.body.phone); let { otp, newPass } = req.body;
         let session = tempOtpDB[phone + '_forgot'];
         if(session && session.otp === otp) {
-            if(db[phone]) { db[phone].password = hashPassword(newPass); saveJSON(dbFile, db); }
+            let u = getRecord('users', phone);
+            if(u) { u.password = hashPassword(newPass); saveRecord('users', phone, u); }
             delete tempOtpDB[phone + '_forgot']; res.json({success: true});
         } else res.json({success: false, message: 'Kode OTP Salah!'});
     } catch(e) { res.json({success: false, message: 'Server error'}); }
@@ -3443,11 +3531,12 @@ app.post('/api/verify-forgot-otp', (req, res) => {
 app.post('/api/topup', async (req, res) => {
     try {
         if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
-        let config = loadJSON(configFile);
+        let config = getRecord('config', 'main') || {};
         if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
         
-        let { phone, nominal } = req.body; let db = loadJSON(dbFile);
-        if(!db[phone]) return res.json({success: false, message: "User tidak ditemukan."});
+        let { phone, nominal } = req.body;
+        let u = getRecord('users', phone);
+        if(!u) return res.json({success: false, message: "User tidak ditemukan."});
         
         let nominalAsli = parseInt(nominal);
         let uniqueCode = Math.floor(Math.random() * 99) + 1;
@@ -3459,27 +3548,28 @@ app.post('/api/topup', async (req, res) => {
             finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
         }
 
-        let topups = loadJSON(topupFile);
         let trxId = "TP-" + Date.now();
         let expiredAt = Date.now() + 10 * 60 * 1000;
 
-        topups[trxId] = { phone, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, status: 'pending', timestamp: Date.now(), expired_at: expiredAt, is_order: false };
-        saveJSON(topupFile, topups);
+        saveRecord('topup', trxId, { 
+            phone, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
+            status: 'pending', timestamp: Date.now(), expired_at: expiredAt, is_order: false 
+        });
 
-        db[phone].history = db[phone].history || [];
-        db[phone].history.unshift({ 
+        u.history = u.history || [];
+        u.history.unshift({ 
             ts: Date.now(), 
             tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
             type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
         });
-        if(db[phone].history.length > 50) db[phone].history.pop();
-        saveJSON(dbFile, db);
+        if(u.history.length > 50) u.history.pop();
+        saveRecord('users', phone, u);
 
         res.json({success: true});
         
-        let emailUser = db[phone].email || '-';
-        let namaUser = db[phone].username || phone;
-        let teleMsg = `⏳ <b>TOPUP PENDING (QRIS)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${db[phone].saldo.toLocaleString('id-ID')}`;
+        let emailUser = u.email || '-';
+        let namaUser = u.username || phone;
+        let teleMsg = `⏳ <b>TOPUP PENDING (QRIS)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${u.saldo.toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
 });
@@ -3488,15 +3578,17 @@ app.post('/api/order-qris', async (req, res) => {
     try {
         if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
         
-        let config = loadJSON(configFile);
+        let config = getRecord('config', 'main') || {};
         if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
         
         let { phone, sku, tujuan } = req.body; let pNorm = normalizePhone(phone);
-        let db = loadJSON(dbFile); let produkDB = loadJSON(produkFile);
-        let targetKey = db[pNorm] ? pNorm : (db[phone] ? phone : null);
+        let uNorm = getRecord('users', pNorm);
+        let uOri = getRecord('users', phone);
+        let targetKey = uNorm ? pNorm : (uOri ? phone : null);
         if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid.'});
+        let u = uNorm || uOri;
         
-        let p = produkDB[sku];
+        let p = getRecord('produk', sku);
         if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
         
         let nominalAsli = parseInt(p.harga);
@@ -3509,27 +3601,29 @@ app.post('/api/order-qris', async (req, res) => {
             finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
         }
 
-        let topups = loadJSON(topupFile);
         let trxId = "OQ-" + Date.now();
         let expiredAt = Date.now() + 10 * 60 * 1000;
 
-        topups[trxId] = { phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, status: 'pending', timestamp: Date.now(), expired_at: expiredAt, is_order: true, sku: sku, tujuan: tujuan, nama_produk: p.nama, harga_asli: nominalAsli };
-        saveJSON(topupFile, topups);
+        saveRecord('topup', trxId, { 
+            phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
+            status: 'pending', timestamp: Date.now(), expired_at: expiredAt, 
+            is_order: true, sku: sku, tujuan: tujuan, nama_produk: p.nama, harga_asli: nominalAsli 
+        });
 
-        db[targetKey].history = db[targetKey].history || [];
-        db[targetKey].history.unshift({ 
+        u.history = u.history || [];
+        u.history.unshift({ 
             ts: Date.now(), 
             tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
             type: 'Order QRIS', nama: p.nama + ' (QRIS)', tujuan: tujuan, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
         });
-        if(db[targetKey].history.length > 50) db[targetKey].history.pop();
-        saveJSON(dbFile, db);
+        if(u.history.length > 50) u.history.pop();
+        saveRecord('users', targetKey, u);
 
         res.json({success: true});
         
-        let emailUser = db[targetKey].email || '-';
-        let namaUser = db[targetKey].username || targetKey;
-        let teleMsg = `🛒 <b>ORDER QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
+        let emailUser = u.email || '-';
+        let namaUser = u.username || targetKey;
+        let teleMsg = `🛒 <b>ORDER QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${u.saldo.toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
 });
@@ -3539,21 +3633,25 @@ app.post('/api/order', async (req, res) => {
         if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
         
         let { phone, sku, tujuan } = req.body; let pNorm = normalizePhone(phone);
-        let db = loadJSON(dbFile); let produkDB = loadJSON(produkFile); let config = loadJSON(configFile);
+        let uNorm = getRecord('users', pNorm);
+        let uOri = getRecord('users', phone);
         
-        let targetKey = db[pNorm] ? pNorm : (db[phone] ? phone : null);
+        let targetKey = uNorm ? pNorm : (uOri ? phone : null);
         if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid. Silakan Logout dan Login kembali.'});
+        let u = uNorm || uOri;
         
-        let p = produkDB[sku];
+        let p = getRecord('produk', sku);
         if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
+        let config = getRecord('config', 'main') || {};
         let realSku = p.sku_asli || sku;
         
         let hargaFix = parseInt(p.harga);
-        let saldoSebelum = parseInt(db[targetKey].saldo);
+        let saldoSebelum = parseInt(u.saldo);
         if (saldoSebelum < hargaFix) return res.json({success: false, message: 'Saldo tidak cukup.'});
 
-        db[targetKey].saldo = saldoSebelum - hargaFix;
-        saveJSON(dbFile, db);
+        // Potong Saldo (Atomic & Sync)
+        u.saldo = saldoSebelum - hargaFix;
+        saveRecord('users', targetKey, u);
 
         let username = (config.digiflazzUsername || '').trim();
         let apiKey = (config.digiflazzApiKey || '').trim();
@@ -3566,56 +3664,50 @@ app.post('/api/order', async (req, res) => {
         
         const statusOrder = response.data.data.status; 
         
-        db = loadJSON(dbFile);
-        let saldoTerkini = parseInt(db[targetKey].saldo);
-        let emailUser = db[targetKey].email || '-';
-        let namaUser = db[targetKey].username || targetKey;
+        // Re-fetch user in case state changed during await
+        u = getRecord('users', targetKey);
+        let saldoTerkini = parseInt(u.saldo);
+        let emailUser = u.email || '-';
+        let namaUser = u.username || targetKey;
         
         if (statusOrder === 'Gagal') {
-            db[targetKey].saldo = saldoTerkini + hargaFix;
-            saveJSON(dbFile, db);
+            u.saldo = saldoTerkini + hargaFix;
+            saveRecord('users', targetKey, u);
             
-            let teleMsgFail = `❌ <b>PESANAN GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
+            let teleMsgFail = `❌ <b>PESANAN GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${u.saldo.toLocaleString('id-ID')}`;
             sendTelegramAdmin(teleMsgFail);
             
             return res.json({success: false, message: response.data.data.message});
         }
         
-        db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
-        
-        db[targetKey].history = db[targetKey].history || [];
-        db[targetKey].history.unshift({ 
+        u.trx_count = (u.trx_count || 0) + 1;
+        u.history = u.history || [];
+        u.history.unshift({ 
             ts: Date.now(), 
             tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
             type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId,
-            saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[targetKey].saldo
+            saldo_sebelumnya: saldoSebelum, saldo_sesudah: u.saldo
         });
-        if(db[targetKey].history.length > 50) db[targetKey].history.pop();
-        saveJSON(dbFile, db);
+        if(u.history.length > 50) u.history.pop();
+        saveRecord('users', targetKey, u);
         
-        let trxs = loadJSON(trxFile);
-        let targetJid = db[targetKey].jid || targetKey + '@s.whatsapp.net';
-        trxs[refId] = { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: p.nama, tanggal: Date.now(), phone: targetKey };
-        saveJSON(trxFile, trxs);
+        let targetJid = u.jid || targetKey + '@s.whatsapp.net';
+        saveRecord('trx', refId, { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: p.nama, tanggal: Date.now(), phone: targetKey });
 
         if (statusOrder === 'Sukses') {
-            let gStats = loadJSON(globalStatsFile);
             let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-            gStats[dateKey] = (gStats[dateKey] || 0) + 1;
-            saveJSON(globalStatsFile, gStats);
+            let gStats = getRecord('global_stats', dateKey) || 0;
+            saveRecord('global_stats', dateKey, gStats + 1);
 
-            let globalTrx = loadJSON(globalTrxFile);
             let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-            globalTrx.unshift({ time: timeStr, product: p.nama, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'Saldo Akun' });
-            if(globalTrx.length > 100) globalTrx.pop();
-            saveJSON(globalTrxFile, globalTrx);
+            unshiftRecordArray('global_trx', { time: timeStr, product: p.nama, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'Saldo Akun' });
 
             sendBroadcastSuccess(p.nama, namaUser, tujuan, hargaFix, 'Saldo Akun');
         }
 
-        res.json({success: true, saldo: db[targetKey].saldo});
+        res.json({success: true, saldo: u.saldo});
 
-        let teleMsg = `🔔 <b>PESANAN BARU MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
+        let teleMsg = `🔔 <b>PESANAN BARU MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${u.saldo.toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
 
     } catch (error) { 
@@ -3630,11 +3722,11 @@ app.post('/api/order', async (req, res) => {
 // CORE LOGIC: EKSEKUSI PEMBUATAN AKUN VPN KE SERVER VPS 
 // ==============================================================
 async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vpnPassword, expiredDays, refIdAsal = null, paymentMethod = 'Saldo Akun') {
-    let db = loadJSON(dbFile);
-    let vpnConfig = loadJSON(vpnConfigFile);
-    let targetKey = db[normalizePhone(phone)] ? normalizePhone(phone) : (db[phone] ? phone : null);
-    if(!targetKey) return { success: false, message: "Sesi tidak valid." };
+    let targetKey = normalizePhone(phone);
+    let u = getRecord('users', targetKey) || getRecord('users', phone);
+    if(!u) return { success: false, message: "Sesi tidak valid." };
 
+    let vpnConfig = getRecord('vpn_config', 'main') || {products:{}, servers:{}};
     let prod = vpnConfig.products[productId];
     if(!prod) return { success: false, message: "Produk VPN tidak ditemukan atau telah dihapus." };
     if(mode === 'reguler' && parseInt(prod.stok) <= 0) return { success: false, message: "Stok untuk produk ini sedang habis." };
@@ -3646,14 +3738,15 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
     }
 
     if (mode === 'trial') {
-        if (!db[targetKey].trial_claims) db[targetKey].trial_claims = {};
-        let lastClaim = db[targetKey].trial_claims[productId] || 0;
+        if (!u.trial_claims) u.trial_claims = {};
+        let lastClaim = u.trial_claims[productId] || 0;
         if (Date.now() - lastClaim < 2 * 60 * 60 * 1000) { 
             return { success: false, message: "⚠️ Gagal: Anda sudah melakukan trial di Produk ini. Silakan coba 2 Jam lagi." };
         }
     }
 
     let hargaFix = 0;
+    let saldoSebelum = parseInt(u.saldo);
     if (mode === 'reguler') {
         let basePrice = parseInt(prod.price) || 0;
         let hari = parseInt(expiredDays);
@@ -3661,7 +3754,6 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
         if (hari < 1) hari = 1;
         hargaFix = Math.ceil((basePrice / 30) * hari);
         
-        let saldoSebelum = parseInt(db[targetKey].saldo);
         if(saldoSebelum < hargaFix && paymentMethod === 'Saldo Akun') return { success: false, message: "Saldo tidak mencukupi." };
     }
 
@@ -3675,20 +3767,11 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
     let cleanHost = srv.host.replace(/^https?:\/\//i, '');
 
     if (mode === 'trial') {
-        payload = { 
-            timelimit: "30m", 
-            kuota: 2, 
-            limitip: 2 
-        };
+        payload = { timelimit: "30m", kuota: 2, limitip: 2 };
         if(protoLower === 'ssh') endpoint = `http://${cleanHost}/vps/trialsshvpn`;
         else endpoint = `http://${cleanHost}/vps/trial${protoLower}all`;
     } else {
-        payload = { 
-            username: vpnUsername, 
-            expired: parseInt(expiredDays), 
-            limitip: vpnLimitIp, 
-            kuota: vpnKuota 
-        };
+        payload = { username: vpnUsername, expired: parseInt(expiredDays), limitip: vpnLimitIp, kuota: vpnKuota };
         if(protoLower === 'ssh' || protoLower === 'zivpn') payload.password = vpnPassword;
         else payload.uuidv2 = '';
         
@@ -3704,11 +3787,9 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
             httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
         });
 
-        db = loadJSON(dbFile);
-        
-        if (!db[targetKey].trial_claims) {
-            db[targetKey].trial_claims = {};
-        }
+        // Re-fetch user in case it changed
+        u = getRecord('users', targetKey) || getRecord('users', phone);
+        if (!u.trial_claims) u.trial_claims = {};
 
         let isSuccessResponse = (resApi.status >= 200 && resApi.status < 300) && resApi.data && !resApi.data.error && resApi.data.status !== false;
         let isErrorResponse = resApi.data && (resApi.data.status === false || resApi.data.error || resApi.status >= 400);
@@ -3738,73 +3819,64 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
             let prodName = prod.name;
             if (mode === 'trial') prodName += ' (TRIAL)';
             
-            let saldoSebelum = parseInt(db[targetKey].saldo);
             if (mode === 'reguler' && paymentMethod === 'Saldo Akun') {
-                db[targetKey].saldo = saldoSebelum - hargaFix;
-                db[targetKey].trx_count = (db[targetKey].trx_count || 0) + 1;
+                u.saldo = saldoSebelum - hargaFix;
+                u.trx_count = (u.trx_count || 0) + 1;
                 
-                vpnConfig = loadJSON(vpnConfigFile);
+                vpnConfig = getRecord('vpn_config', 'main');
                 vpnConfig.products[productId].stok -= 1;
-                saveJSON(vpnConfigFile, vpnConfig);
+                saveRecord('vpn_config', 'main', vpnConfig);
             } else if (mode === 'trial') {
-                db[targetKey].trial_claims[productId] = Date.now();
+                u.trial_claims[productId] = Date.now();
             }
             
             let refId = refIdAsal || ("VPN-" + Date.now());
             
             if (refIdAsal) {
-                let existingHist = db[targetKey].history.find(h => h.sn === refIdAsal);
+                let existingHist = u.history.find(h => h.sn === refIdAsal);
                 if (existingHist) {
                     existingHist.status = 'Sukses';
                     existingHist.vpn_details = vpnDetails;
                     existingHist.nama = prodName;
                     existingHist.type = 'Order VPN';
                     existingHist.saldo_sebelumnya = saldoSebelum;
-                    existingHist.saldo_sesudah = db[targetKey].saldo;
+                    existingHist.saldo_sesudah = u.saldo;
                 }
             } else {
-                db[targetKey].history.unshift({
+                u.history.unshift({
                     ts: Date.now(), 
                     tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
                     type: 'Order VPN', nama: prodName, tujuan: (mode==='trial'?'Sistem':vpnUser), status: 'Sukses', sn: '-', amount: hargaFix, ref_id: refId,
-                    saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[targetKey].saldo,
+                    saldo_sebelumnya: saldoSebelum, saldo_sesudah: u.saldo,
                     vpn_details: vpnDetails
                 });
-                if(db[targetKey].history.length > 50) db[targetKey].history.pop();
+                if(u.history.length > 50) u.history.pop();
             }
-            saveJSON(dbFile, db);
+            saveRecord('users', targetKey, u);
 
-            let gStats = loadJSON(globalStatsFile);
             let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-            gStats[dateKey] = (gStats[dateKey] || 0) + 1;
-            saveJSON(globalStatsFile, gStats);
+            let gStats = getRecord('global_stats', dateKey) || 0;
+            saveRecord('global_stats', dateKey, gStats + 1);
 
-            let namaUser = db[targetKey].username || targetKey;
+            let namaUser = u.username || targetKey;
 
             if (mode !== 'trial') {
-                let globalTrx = loadJSON(globalTrxFile);
                 let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-                globalTrx.unshift({ time: timeStr, product: prodName, user: namaUser, target: maskStringTarget(vpnUser), price: hargaFix, method: paymentMethod });
-                if(globalTrx.length > 100) globalTrx.pop();
-                saveJSON(globalTrxFile, globalTrx);
-
+                unshiftRecordArray('global_trx', { time: timeStr, product: prodName, user: namaUser, target: maskStringTarget(vpnUser), price: hargaFix, method: paymentMethod });
                 sendBroadcastSuccess(prodName, namaUser, vpnUser, hargaFix, paymentMethod);
             }
 
-            let emailUser = db[targetKey].email || '-';
-            let teleSuccess = `🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${vpnUser}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: ${mode === 'trial' ? 'Gratis (Trial)' : paymentMethod}\n📦 Sisa Stok: ${mode === 'reguler' ? vpnConfig.products[productId].stok : 'Trial'}\n💳 Saldo Terkini: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
+            let emailUser = u.email || '-';
+            let vpnConfNew = getRecord('vpn_config', 'main');
+            let teleSuccess = `🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${vpnUser}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: ${mode === 'trial' ? 'Gratis (Trial)' : paymentMethod}\n📦 Sisa Stok: ${mode === 'reguler' ? vpnConfNew.products[productId].stok : 'Trial'}\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
             sendTelegramAdmin(teleSuccess);
 
             return { success: true };
         } else {
             let errMsg = "unknown error";
-            if (resApi.data && resApi.data.message) {
-                errMsg = resApi.data.message;
-            } else if (resApi.data && resApi.data.error) {
-                errMsg = resApi.data.error;
-            } else if (resApi.statusText) {
-                errMsg = resApi.statusText;
-            }
+            if (resApi.data && resApi.data.message) errMsg = resApi.data.message;
+            else if (resApi.data && resApi.data.error) errMsg = resApi.data.error;
+            else if (resApi.statusText) errMsg = resApi.statusText;
             
             if(errMsg.toLowerCase().includes('exist') || errMsg.toLowerCase().includes('already') || errMsg.toLowerCase().includes('sudah ada')) {
                 return { success: false, message: "Username sudah ada/terpakai, silakan ganti username lain." };
@@ -3823,21 +3895,23 @@ app.post('/api/order-vpn', async (req, res) => {
     res.json(result);
 });
 
-// AUTO ORDER VPN VIA QRIS
 app.post('/api/order-vpn-qris', async (req, res) => {
     try {
         if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
         
-        let config = loadJSON(configFile);
+        let config = getRecord('config', 'main') || {};
         if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
         
         let { phone, protocol, product_id, mode, username, password, expired } = req.body;
         
-        let db = loadJSON(dbFile); let vpnConfig = loadJSON(vpnConfigFile);
         let pNorm = normalizePhone(phone);
-        let targetKey = db[pNorm] ? pNorm : (db[phone] ? phone : null);
+        let uNorm = getRecord('users', pNorm);
+        let uOri = getRecord('users', phone);
+        let targetKey = uNorm ? pNorm : (uOri ? phone : null);
         if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid.'});
+        let u = uNorm || uOri;
         
+        let vpnConfig = getRecord('vpn_config', 'main');
         let prod = vpnConfig.products[product_id];
         if(!prod) return res.json({success: false, message: 'Produk VPN tidak ditemukan.'});
         if(mode === 'reguler' && parseInt(prod.stok) <= 0) return res.json({success: false, message: 'Stok habis.'});
@@ -3856,56 +3930,54 @@ app.post('/api/order-vpn-qris', async (req, res) => {
             finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
         }
 
-        let topups = loadJSON(topupFile);
         let trxId = "VQ-" + Date.now();
         let expiredAt = Date.now() + 10 * 60 * 1000;
         let prodName = prod.name;
 
-        topups[trxId] = { 
+        saveRecord('topup', trxId, { 
             phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
             status: 'pending', timestamp: Date.now(), expired_at: expiredAt, 
             is_order: true, vpn_data: { protocol, product_id, mode, username, password, expired, nama_produk: prodName, harga_asli: nominalAsli }
-        };
-        saveJSON(topupFile, topups);
+        });
 
-        db[targetKey].history.unshift({ 
+        u.history.unshift({ 
             ts: Date.now(), 
             tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
             type: 'Order VPN QRIS', nama: prodName + ' (QRIS)', tujuan: username, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
         });
-        if(db[targetKey].history.length > 50) db[targetKey].history.pop();
-        saveJSON(dbFile, db);
+        if(u.history.length > 50) u.history.pop();
+        saveRecord('users', targetKey, u);
 
         res.json({success: true});
         
-        let emailUser = db[targetKey].email || '-';
-        let namaUser = db[targetKey].username || targetKey;
-        let teleMsg = `🛒 <b>ORDER VPN QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${username}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${db[targetKey].saldo.toLocaleString('id-ID')}`;
+        let emailUser = u.email || '-';
+        let namaUser = u.username || targetKey;
+        let teleMsg = `🛒 <b>ORDER VPN QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${username}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS VPN."}); }
 });
 
 async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
     let result = await executeVpnOrder(phone, vpnData.protocol, vpnData.product_id, vpnData.mode, vpnData.username, vpnData.password, vpnData.expired, refIdAsal, 'QRIS');
-    let db = loadJSON(dbFile);
+    let u = getRecord('users', phone);
     
-    let hist = db[phone].history.find(h => h.sn === refIdAsal);
+    let hist = u.history.find(h => h.sn === refIdAsal);
     if(!hist) return;
 
     if(!result.success) {
-        let saldoSblm = parseInt(db[phone].saldo);
-        db[phone].saldo = saldoSblm + parseInt(vpnData.harga_asli);
+        let saldoSblm = parseInt(u.saldo);
+        u.saldo = saldoSblm + parseInt(vpnData.harga_asli);
         hist.status = 'Refund';
         hist.nama = 'Refund: ' + vpnData.nama_produk;
         hist.type = 'Refund';
         hist.amount = vpnData.harga_asli;
         hist.saldo_sebelumnya = saldoSblm;
-        hist.saldo_sesudah = db[phone].saldo;
-        saveJSON(dbFile, db);
+        hist.saldo_sesudah = u.saldo;
+        saveRecord('users', phone, u);
         
         let failMsg = result.message || "GAGAL VPS";
-        let emailUser = db[phone].email || '-';
-        let namaUser = db[phone].username || phone;
+        let emailUser = u.email || '-';
+        let namaUser = u.username || phone;
         let teleMsg = `⚠️ <b>INFO ORDER VPN QRIS: GAGAL VPS</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Alasan: ${failMsg}\n💰 Saldo Rp ${vpnData.harga_asli.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
         sendTelegramAdmin(teleMsg);
     }
@@ -3913,19 +3985,22 @@ async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
 
 async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, refIdAsal) {
     try {
-        let db = loadJSON(dbFile); let config = loadJSON(configFile); let produkDB = loadJSON(produkFile);
-        let hargaFix = parseInt(harga_asli);
-        let p = produkDB[sku] || {};
-        let realSku = p.sku_asli || sku;
-        let saldoSebelum = parseInt(db[phone].saldo);
+        let u = getRecord('users', phone);
+        let config = getRecord('config', 'main') || {}; 
+        let p = getRecord('produk', sku) || {};
         
-        let emailUser = db[phone].email || '-';
-        let namaUser = db[phone].username || phone;
+        let hargaFix = parseInt(harga_asli);
+        let realSku = p.sku_asli || sku;
+        let saldoSebelum = parseInt(u.saldo);
+        
+        let emailUser = u.email || '-';
+        let namaUser = u.username || phone;
         
         if (saldoSebelum < hargaFix) return; 
         
-        db[phone].saldo = saldoSebelum - hargaFix; 
-        saveJSON(dbFile, db);
+        // Sync Deduction
+        u.saldo = saldoSebelum - hargaFix; 
+        saveRecord('users', phone, u);
 
         let username = (config.digiflazzUsername || '').trim();
         let apiKey = (config.digiflazzApiKey || '').trim();
@@ -3938,13 +4013,14 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         
         const statusOrder = response.data.data.status; 
         
-        db = loadJSON(dbFile);
-        let saldoTerkini = parseInt(db[phone].saldo);
+        // Re-fetch
+        u = getRecord('users', phone);
+        let saldoTerkini = parseInt(u.saldo);
 
         if (statusOrder === 'Gagal') {
-            db[phone].saldo = saldoTerkini + hargaFix;
+            u.saldo = saldoTerkini + hargaFix;
             
-            let hist = db[phone].history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
+            let hist = u.history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
             if(hist) {
                 hist.status = 'Refund';
                 hist.nama = 'Refund: ' + nama_produk;
@@ -3953,15 +4029,15 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
                 hist.ref_id = refId;
                 hist.sn = '-';
                 hist.saldo_sebelumnya = saldoTerkini;
-                hist.saldo_sesudah = db[phone].saldo;
+                hist.saldo_sesudah = u.saldo;
             } else {
-                db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoTerkini, saldo_sesudah: db[phone].saldo });
-                if(db[phone].history.length > 50) db[phone].history.pop();
+                u.history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoTerkini, saldo_sesudah: u.saldo });
+                if(u.history.length > 50) u.history.pop();
             }
-            saveJSON(dbFile, db);
+            saveRecord('users', phone, u);
             
             if(globalSock) {
-                globalSock.sendMessage(db[phone].jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf, pesanan ${nama_produk} tujuan ${tujuan} ditolak oleh sistem.\n\n💰 Saldo Anda sebesar Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan utuh ke akun Website.` }).catch(e=>{});
+                globalSock.sendMessage(u.jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf, pesanan ${nama_produk} tujuan ${tujuan} ditolak oleh sistem.\n\n💰 Saldo Anda sebesar Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan utuh ke akun Website.` }).catch(e=>{});
             }
 
             let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Status Digiflazz Gagal.\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
@@ -3969,9 +4045,9 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
             return;
         }
         
-        db[phone].trx_count = (db[phone].trx_count || 0) + 1;
+        u.trx_count = (u.trx_count || 0) + 1;
         
-        let hist = db[phone].history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
+        let hist = u.history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
         if(hist) {
             hist.status = statusOrder;
             hist.sn = response.data.data.sn || '-';
@@ -3980,42 +4056,38 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
             hist.amount = hargaFix;
             hist.ref_id = refId;
             hist.saldo_sebelumnya = saldoTerkini;
-            hist.saldo_sesudah = db[phone].saldo;
+            hist.saldo_sesudah = u.saldo;
         } else {
-            db[phone].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoTerkini, saldo_sesudah: db[phone].saldo });
-            if(db[phone].history.length > 50) db[phone].history.pop();
+            u.history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoTerkini, saldo_sesudah: u.saldo });
+            if(u.history.length > 50) u.history.pop();
         }
-        saveJSON(dbFile, db);
+        saveRecord('users', phone, u);
         
-        let trxs = loadJSON(trxFile);
-        let targetJid = db[phone].jid || phone + '@s.whatsapp.net';
-        trxs[refId] = { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: nama_produk, tanggal: Date.now(), phone: phone };
-        saveJSON(trxFile, trxs);
+        let targetJid = u.jid || phone + '@s.whatsapp.net';
+        saveRecord('trx', refId, { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: nama_produk, tanggal: Date.now(), phone: phone });
 
         if (statusOrder === 'Sukses') {
-            let globalTrx = loadJSON(globalTrxFile);
             let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-            globalTrx.unshift({ time: timeStr, product: nama_produk, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'QRIS' });
-            if(globalTrx.length > 100) globalTrx.pop();
-            saveJSON(globalTrxFile, globalTrx);
+            unshiftRecordArray('global_trx', { time: timeStr, product: nama_produk, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'QRIS' });
 
             sendBroadcastSuccess(nama_produk, namaUser, tujuan, hargaFix, 'QRIS');
         }
 
-        let teleMsg = `🚀 <b>AUTO ORDER QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${db[phone].saldo.toLocaleString('id-ID')}`;
+        let teleMsg = `🚀 <b>AUTO ORDER QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
 
     } catch(e) {}
 }
 
 function doBackupAndSend() {
-    let cfg = loadJSON(configFile);
+    let cfg = getRecord('config', 'main') || {};
     if (!cfg.teleToken || !cfg.teleChatId) return;
-    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json ssl_backup.tar.gz 2>/dev/null`, (err) => {
-        if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
+    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json tendo_database.db ssl_backup.tar.gz 2>/dev/null`, (err) => {
+        if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store (SQLite)" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
     });
 }
-if (configAwal.autoBackup) setInterval(doBackupAndSend, (configAwal.backupInterval || 720) * 60 * 1000); 
+let cfgBackupCheck = getRecord('config', 'main') || {};
+if (cfgBackupCheck.autoBackup) setInterval(doBackupAndSend, (cfgBackupCheck.backupInterval || 720) * 60 * 1000); 
 
 async function startBot() {
     const baileys = await import('@whiskeysockets/baileys');
@@ -4023,7 +4095,7 @@ async function startBot() {
     const { useMultiFileAuthState, DisconnectReason, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } = baileys;
 
     const { state, saveCreds } = await useMultiFileAuthState('sesi_bot');
-    let config = loadJSON(configFile);
+    let config = getRecord('config', 'main') || {};
     const { version } = await fetchLatestBaileysVersion();
     const sock = makeWASocket({ version, auth: state, logger: pino({ level: 'silent' }), browser: Browsers.ubuntu('Chrome'), printQRInTerminal: false, syncFullHistory: false });
     globalSock = sock; 
@@ -4049,7 +4121,6 @@ async function startBot() {
     sock.ev.on('creds.update', saveCreds);
     sock.ev.on('connection.update', (u) => { if(u.connection === 'close') setTimeout(startBot, 4000); });
 
-    // FITUR AUTO BLOKIR PANGGILAN SEMENTARA (15 DETIK)
     let callAttempts = {};
     sock.ev.on('call', async (calls) => {
         for (let call of calls) {
@@ -4075,7 +4146,7 @@ async function startBot() {
 
     setInterval(() => {
         let currentlyMaintenance = cekPemeliharaan();
-        let cfg = loadJSON(configFile);
+        let cfg = getRecord('config', 'main') || {};
         let sTime = cfg.maintStart || '23:00';
         let eTime = cfg.maintEnd || '00:30';
 
@@ -4101,11 +4172,8 @@ async function startBot() {
             let jsonMaint = maintImg ? (maintImg.startsWith('maint_') ? maintImg : 'maint_' + maintImg) : "";
             if (maintImg && !maintImg.startsWith('maint_')) { fs.renameSync('./public/maint_images/'+maintImg, './public/maint_images/'+jsonMaint); }
 
-            let notifs = loadJSON(notifFile);
             let today = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'long', year:'numeric' });
-            notifs.unshift({ date: today, text: `Sistem sedang memasuki jam pemeliharaan rutin (${sTime} - ${eTime} WIB). Transaksi sementara ditutup.`, image: jsonMaint });
-            if(notifs.length > 20) notifs.pop();
-            saveJSON(notifFile, notifs);
+            unshiftRecordArray('web_notif', { date: today, text: `Sistem sedang memasuki jam pemeliharaan rutin (${sTime} - ${eTime} WIB). Transaksi sementara ditutup.`, image: jsonMaint }, 20);
             
         } else if (!currentlyMaintenance && isMaintenanceNow) {
             isMaintenanceNow = false;
@@ -4129,11 +4197,8 @@ async function startBot() {
             let jsonDone = doneImg ? (doneImg.startsWith('maint_') ? doneImg : 'maint_' + doneImg) : "";
             if (doneImg && !doneImg.startsWith('maint_')) { fs.renameSync('./public/maint_images/'+doneImg, './public/maint_images/'+jsonDone); }
 
-            let notifs = loadJSON(notifFile);
             let today = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'long', year:'numeric' });
-            notifs.unshift({ date: today, text: "Pemeliharaan sistem telah selesai. Layanan transaksi kembali beroperasi secara normal.", image: jsonDone });
-            if(notifs.length > 20) notifs.pop();
-            saveJSON(notifFile, notifs);
+            unshiftRecordArray('web_notif', { date: today, text: "Pemeliharaan sistem telah selesai. Layanan transaksi kembali beroperasi secara normal.", image: jsonDone }, 20);
         }
     }, 60000); 
 
@@ -4142,7 +4207,8 @@ async function startBot() {
         if(isCheckingQris) return;
         isCheckingQris = true;
         try {
-            let cfg = loadJSON(configFile); let topups = loadJSON(topupFile);
+            let cfg = getRecord('config', 'main') || {};
+            let topups = getAllRecords('topup');
             let pendingKeys = Object.keys(topups).filter(k => topups[k].status === 'pending');
             if(pendingKeys.length === 0 || !cfg.gopayToken || !cfg.gopayMerchantId) {
                 isCheckingQris = false;
@@ -4154,22 +4220,22 @@ async function startBot() {
             );
             
             let responseStr = JSON.stringify(gopayRes.data);
-            let changedTp = false;
 
             for(let key of pendingKeys) {
                 let req = topups[key];
-                let db = loadJSON(dbFile); 
-                let changedDb = false;
 
                 if (Date.now() > req.expired_at) {
-                    req.status = 'gagal'; changedTp = true;
-                    if(db[req.phone]) {
-                        let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
-                        if(hist && hist.status === 'Pending') { hist.status = 'Gagal (Kedaluwarsa)'; changedDb = true; }
-                        let tipe = req.is_order ? (req.vpn_data ? 'ORDER VPN QRIS' : 'ORDER QRIS') : 'TOPUP';
+                    req.status = 'gagal';
+                    saveRecord('topup', key, req);
+                    
+                    let u = getRecord('users', req.phone);
+                    if(u) {
+                        let hist = u.history.find(h => h.sn === req.trx_id);
+                        if(hist && hist.status === 'Pending') { hist.status = 'Gagal (Kedaluwarsa)'; saveRecord('users', req.phone, u); }
                         
-                        let emailUser = db[req.phone].email || '-';
-                        let namaUser = db[req.phone].username || req.phone;
+                        let tipe = req.is_order ? (req.vpn_data ? 'ORDER VPN QRIS' : 'ORDER QRIS') : 'TOPUP';
+                        let emailUser = u.email || '-';
+                        let namaUser = u.username || req.phone;
                         let teleMsg = `❌ <b>${tipe} KEDALUWARSA</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${req.phone}\n💰 Tagihan: Rp ${req.amount_to_pay.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}`;
                         sendTelegramAdmin(teleMsg);
                     }
@@ -4178,27 +4244,29 @@ async function startBot() {
                     let amountStr = req.amount_to_pay.toString();
                     let isFound = responseStr.includes(`"${amountStr}"`) || responseStr.includes(`:${amountStr}`) || responseStr.includes(`"${amountStr}.00"`) || responseStr.includes(`:${amountStr}.00`);
                     if(isFound) {
-                        req.status = 'sukses'; changedTp = true;
-                        if(db[req.phone]) {
-                            let saldoSebelumnya = parseInt(db[req.phone].saldo);
-                            db[req.phone].saldo = saldoSebelumnya + parseInt(req.saldo_to_add); 
+                        req.status = 'sukses';
+                        saveRecord('topup', key, req);
+                        
+                        let u = getRecord('users', req.phone);
+                        if(u) {
+                            let saldoSebelumnya = parseInt(u.saldo);
+                            u.saldo = saldoSebelumnya + parseInt(req.saldo_to_add); 
                             
                             if (!req.is_order) {
-                                let hist = db[req.phone].history.find(h => h.sn === req.trx_id);
+                                let hist = u.history.find(h => h.sn === req.trx_id);
                                 if(hist) {
                                     hist.status = 'Sukses';
                                     hist.saldo_sebelumnya = saldoSebelumnya;
-                                    hist.saldo_sesudah = db[req.phone].saldo;
+                                    hist.saldo_sesudah = u.saldo;
                                 }
                                 
-                                let emailUser = db[req.phone].email || '-';
-                                let namaUser = db[req.phone].username || req.phone;
-                                let teleMsg = `✅ <b>TOPUP QRIS SUKSES MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${req.phone}\n💰 Saldo Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}\n💳 Saldo Terkini: Rp ${db[req.phone].saldo.toLocaleString('id-ID')}`;
+                                let emailUser = u.email || '-';
+                                let namaUser = u.username || req.phone;
+                                let teleMsg = `✅ <b>TOPUP QRIS SUKSES MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${req.phone}\n💰 Saldo Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
                                 sendTelegramAdmin(teleMsg);
                             }
                             
-                            saveJSON(dbFile, db);
-                            changedDb = false; 
+                            saveRecord('users', req.phone, u);
 
                             if (req.is_order) {
                                 if(req.vpn_data) {
@@ -4210,9 +4278,7 @@ async function startBot() {
                         }
                     }
                 }
-                if(changedDb) saveJSON(dbFile, db);
             }
-            if(changedTp) saveJSON(topupFile, topups);
         } catch(e) {}
         isCheckingQris = false;
     }, 30000); 
@@ -4222,75 +4288,82 @@ async function startBot() {
         if(isCheckingDigi) return;
         isCheckingDigi = true;
         try {
-            let trxs = loadJSON(trxFile); let keys = Object.keys(trxs); if (keys.length === 0) { isCheckingDigi = false; return; }
-            let cfg = loadJSON(configFile); let userAPI = (cfg.digiflazzUsername || '').trim(); let keyAPI = (cfg.digiflazzApiKey || '').trim();
+            let trxs = getAllRecords('trx'); 
+            let keys = Object.keys(trxs); 
+            if (keys.length === 0) { isCheckingDigi = false; return; }
+            
+            let cfg = getRecord('config', 'main') || {}; 
+            let userAPI = (cfg.digiflazzUsername || '').trim(); 
+            let keyAPI = (cfg.digiflazzApiKey || '').trim();
             if (!userAPI || !keyAPI) { isCheckingDigi = false; return; }
 
             for (let ref of keys) {
-                let trx = trxs[ref]; let signCheck = crypto.createHash('md5').update(userAPI + keyAPI + ref).digest('hex');
+                let trx = trxs[ref]; 
+                let signCheck = crypto.createHash('md5').update(userAPI + keyAPI + ref).digest('hex');
                 try {
                     const cekRes = await axios.post('https://api.digiflazz.com/v1/transaction', { username: userAPI, buyer_sku_code: trx.sku, customer_no: trx.tujuan, ref_id: ref, sign: signCheck });
                     const resData = cekRes.data.data;
                     if (resData.status === 'Sukses' || resData.status === 'Gagal') {
-                        let db = loadJSON(dbFile); let phoneKey = trx.phone || trx.jid.split('@')[0];
-                        let namaUser = db[phoneKey]?.username || phoneKey;
-                        let emailUser = db[phoneKey]?.email || '-';
+                        let phoneKey = trx.phone || trx.jid.split('@')[0];
+                        let u = getRecord('users', phoneKey);
+                        let namaUser = u?.username || phoneKey;
+                        let emailUser = u?.email || '-';
 
                         if(resData.status === 'Sukses') {
                             let wasNotSuccess = false;
-                            if (db[phoneKey] && db[phoneKey].history) {
-                                let hist = db[phoneKey].history.find(h => h.ref_id === ref);
+                            if (u && u.history) {
+                                let hist = u.history.find(h => h.ref_id === ref);
                                 if (hist && hist.status !== 'Sukses') { 
-                                    hist.status = 'Sukses'; hist.sn = resData.sn || '-'; saveJSON(dbFile, db); 
+                                    hist.status = 'Sukses'; hist.sn = resData.sn || '-'; 
+                                    saveRecord('users', phoneKey, u); 
                                     wasNotSuccess = true;
                                 }
                             }
                             
                             if(wasNotSuccess) {
-                                let gStats = loadJSON(globalStatsFile);
                                 let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-                                gStats[dateKey] = (gStats[dateKey] || 0) + 1; saveJSON(globalStatsFile, gStats);
+                                let gStats = getRecord('global_stats', dateKey) || 0;
+                                saveRecord('global_stats', dateKey, gStats + 1);
                                 
-                                let globalTrx = loadJSON(globalTrxFile);
                                 let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-                                globalTrx.unshift({ time: timeStr, product: trx.nama, user: namaUser, target: maskStringTarget(trx.tujuan), price: parseInt(trx.harga), method: 'Sistem Otomatis' });
-                                if(globalTrx.length > 100) globalTrx.pop();
-                                saveJSON(globalTrxFile, globalTrx);
+                                unshiftRecordArray('global_trx', { time: timeStr, product: trx.nama, user: namaUser, target: maskStringTarget(trx.tujuan), price: parseInt(trx.harga), method: 'Sistem Otomatis' });
 
                                 sendBroadcastSuccess(trx.nama, namaUser, trx.tujuan, parseInt(trx.harga), 'Sistem Otomatis');
 
-                                let teleSuccess = `✅ <b>PESANAN SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n🔑 SN: ${resData.sn || '-'}\n💳 Saldo Terkini: Rp ${db[phoneKey].saldo.toLocaleString('id-ID')}`;
+                                let teleSuccess = `✅ <b>PESANAN SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n🔑 SN: ${resData.sn || '-'}\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
                                 sendTelegramAdmin(teleSuccess);
                             }
                             
                         } else {
-                            if (db[phoneKey]) { 
-                                let saldoSebelum = parseInt(db[phoneKey].saldo);
-                                db[phoneKey].saldo = saldoSebelum + parseInt(trx.harga); 
-                                if(db[phoneKey].history) {
-                                    let hist = db[phoneKey].history.find(h => h.ref_id === ref);
+                            if (u) { 
+                                let saldoSebelum = parseInt(u.saldo);
+                                u.saldo = saldoSebelum + parseInt(trx.harga); 
+                                if(u.history) {
+                                    let hist = u.history.find(h => h.ref_id === ref);
                                     if (hist) {
                                         hist.status = 'Refund';
                                         hist.nama = 'Refund: ' + hist.nama;
                                         hist.saldo_sebelumnya = saldoSebelum;
-                                        hist.saldo_sesudah = db[phoneKey].saldo;
+                                        hist.saldo_sesudah = u.saldo;
                                     } else {
-                                        db[phoneKey].history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + trx.nama, tujuan: trx.tujuan, status: 'Refund', sn: '-', amount: parseInt(trx.harga), ref_id: ref, saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[phoneKey].saldo });
+                                        u.history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + trx.nama, tujuan: trx.tujuan, status: 'Refund', sn: '-', amount: parseInt(trx.harga), ref_id: ref, saldo_sebelumnya: saldoSebelum, saldo_sesudah: u.saldo });
                                     }
-                                    if(db[phoneKey].history.length > 50) db[phoneKey].history.pop();
+                                    if(u.history.length > 50) u.history.pop();
                                 }
-                                saveJSON(dbFile, db); 
+                                saveRecord('users', phoneKey, u); 
                                 
                                 if (globalSock) {
                                     globalSock.sendMessage(trx.jid, { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf pesanan ${trx.nama} tujuan ${trx.tujuan} gagal diproses pusat.\n\n💰 Saldo Rp ${parseInt(trx.harga).toLocaleString('id-ID')} telah dikembalikan utuh ke akun Anda.` }).catch(e=>{});
                                 }
                             }
                             
-                            let teleFail = `❌ <b>PESANAN GAGAL & REFUND</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n📝 Alasan: ${resData.message}\n\n💰 Saldo telah otomatis dikembalikan ke pengguna.\n💳 Saldo Terkini: Rp ${db[phoneKey].saldo.toLocaleString('id-ID')}`;
+                            let teleFail = `❌ <b>PESANAN GAGAL & REFUND</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n📝 Alasan: ${resData.message}\n\n💰 Saldo telah otomatis dikembalikan ke pengguna.\n💳 Saldo Terkini: Rp ${u ? u.saldo.toLocaleString('id-ID') : 0}`;
                             sendTelegramAdmin(teleFail);
                         }
-                        delete trxs[ref]; saveJSON(trxFile, trxs);
-                    } else if (Date.now() - trx.tanggal > 24 * 60 * 60 * 1000) { delete trxs[ref]; saveJSON(trxFile, trxs); }
+                        deleteRecord('trx', ref);
+                    } else if (Date.now() - trx.tanggal > 24 * 60 * 60 * 1000) { 
+                        deleteRecord('trx', ref);
+                    }
                 } catch (err) {}
                 await new Promise(r => setTimeout(r, 2000)); 
             }
@@ -4305,21 +4378,25 @@ async function startBot() {
             const sender = senderJid.split('@')[0]; const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
             if (!body) return;
 
-            let db = loadJSON(dbFile); 
-            if (!db[sender]) { db[sender] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: senderJid, step: 'idle', trx_count:0, history:[]}; saveJSON(dbFile, db); }
+            let u = getRecord('users', sender);
+            if (!u) { 
+                u = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: senderJid, step: 'idle', trx_count:0, history:[]}; 
+                saveRecord('users', sender, u); 
+            }
             let rawCommand = body.trim().toLowerCase().split(' ')[0];
+            let cfg = getRecord('config', 'main') || {};
             if (['bot', 'menu', 'p'].includes(rawCommand)) {
-                let menuText = `👋 *${config.botName || "Digital Tendo Store"}*\n\nSilakan belanja lebih mudah di Aplikasi:\n🌐 http://${process.env.IP_ADDRESS || 'IP_VPS_ANDA'}:3000\n\n_(Atau balas 1 untuk Cek Saldo)_`;
+                let menuText = `👋 *${cfg.botName || "Digital Tendo Store"}*\n\nSilakan belanja lebih mudah di Aplikasi:\n🌐 http://${process.env.IP_ADDRESS || 'IP_VPS_ANDA'}:3000\n\n_(Atau balas 1 untuk Cek Saldo)_`;
                 return await sock.sendMessage(from, { text: menuText });
             }
-            if (['1', 'saldo'].includes(rawCommand)) return await sock.sendMessage(from, { text: `💰 Saldo Anda: *Rp ${db[sender].saldo.toLocaleString('id-ID')}*` });
+            if (['1', 'saldo'].includes(rawCommand)) return await sock.sendMessage(from, { text: `💰 Saldo Anda: *Rp ${u.saldo.toLocaleString('id-ID')}*` });
         } catch (err) {}
     });
 }
 
 async function tarikDataLayananOtomatis() {
     try {
-        let config = loadJSON(configFile);
+        let config = getRecord('config', 'main') || {};
         let namaPengguna = (config.digiflazzUsername || '').trim();
         let kunciAkses = (config.digiflazzApiKey || '').trim();
         if (!namaPengguna || !kunciAkses) return;
@@ -4336,7 +4413,7 @@ async function tarikDataLayananOtomatis() {
             let daftarPusat = balasan.data.data;
             if (!Array.isArray(daftarPusat)) { console.log("\x1b[31m❌ Sinkronisasi Gagal. Cek IP Whitelist atau API Key Digiflazz Anda.\x1b[0m"); return; }
             
-            let produkLama = loadJSON(produkFile);
+            let produkLama = getAllRecords('produk');
             let daftarLokal = {};
             let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
             
@@ -4403,8 +4480,10 @@ async function tarikDataLayananOtomatis() {
                 }
             });
 
-            saveJSON(produkFile, daftarLokal);
-            console.log('\x1b[32m✅ Data Produk Digiflazz Berhasil Tersinkronisasi!\x1b[0m');
+            dbSqlite.prepare("DELETE FROM produk").run();
+            for(let k in daftarLokal) saveRecord('produk', k, daftarLokal[k]);
+
+            console.log('\x1b[32m✅ Data Produk Digiflazz Berhasil Tersinkronisasi ke SQLite!\x1b[0m');
         }
     } catch(err) {
         let errorMsg = err.response && err.response.data && err.response.data.data ? err.response.data.data.message : err.message;
@@ -4426,7 +4505,7 @@ if (require.main === module) {
 }
 EOF
 }
-
+#SELESAI
 generate_cek_saldo_script() {
     cat << 'EOF' > cek_saldo.js
 const crypto = require('crypto');
@@ -4436,8 +4515,11 @@ const fs = require('fs');
 async function getSaldo() {
     try {
         let config = {};
-        if (fs.existsSync('config.json')) {
-            config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
+        if (fs.existsSync('tendo_database.db')) {
+            const Database = require('better-sqlite3');
+            const db = new Database('tendo_database.db', { readonly: true });
+            let row = db.prepare("SELECT data FROM config WHERE id = 'main'").get();
+            if (row) config = JSON.parse(row.data);
         }
         let user = config.digiflazzUsername || '';
         let key = config.digiflazzApiKey || '';
@@ -4797,7 +4879,7 @@ EOF
     sudo chmod 644 /var/www/html/tendo_vpn_panel.php 2>/dev/null || true
     echo "Instalasi file tendo_vpn_panel.php selesai!"
 }
-#SELESAI
+
 install_dependencies() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
@@ -4830,10 +4912,22 @@ install_dependencies() {
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
-    echo -ne "${C_MAG}>> Menginstall dependensi (curl, zip, unzip)...${C_RST}"
-    sudo -E apt-get install -y curl git wget nano zip unzip > /dev/null 2>&1 &
+    echo -ne "${C_MAG}>> Menginstall dependensi (curl, zip, unzip, build-essential, python3)...${C_RST}"
+    sudo -E apt-get install -y curl git wget nano zip unzip build-essential python3 > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
+
+    echo -ne "${C_MAG}>> Memeriksa dan membuat Swap RAM 2GB...${C_RST}"
+    if [ $(swapon --show | wc -l) -eq 0 ]; then
+        sudo fallocate -l 2G /swapfile
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile > /dev/null 2>&1
+        sudo swapon /swapfile
+        echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab > /dev/null
+        echo -e "${C_GREEN}[Dibuat]${C_RST}"
+    else
+        echo -e "${C_GREEN}[Sudah Ada]${C_RST}"
+    fi
     
     echo -ne "${C_MAG}>> Menginstall Node.js...${C_RST}"
     (curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - > /dev/null 2>&1 && sudo -E apt-get install -y nodejs > /dev/null 2>&1) &
@@ -4854,8 +4948,8 @@ install_dependencies() {
     rm -rf node_modules package-lock.json
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    echo -ne "${C_MAG}>> Mengunduh modul utama...${C_RST}"
-    npm install @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api > /dev/null 2>&1 &
+    echo -ne "${C_MAG}>> Mengunduh modul utama (termasuk SQLite)...${C_RST}"
+    npm install @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api better-sqlite3 > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
@@ -4921,17 +5015,11 @@ menu_tutorial() {
                 read -p "Masukkan Deskripsi (Bisa paragraf/list): " t_desc
                 
                 node -e "
-                    const fs = require('fs');
-                    let db = [];
-                    try { db = JSON.parse(fs.readFileSync('tutorial.json', 'utf8')); } catch(e) {}
-                    if (!Array.isArray(db)) db = [];
-                    db.push({
-                        id: 'TUT-' + Date.now(),
-                        title: '$t_judul',
-                        video: '$t_video_name',
-                        desc: '$t_desc'
-                    });
-                    fs.writeFileSync('tutorial.json', JSON.stringify(db, null, 2));
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let newId = 'TUT-' + Date.now();
+                    let data = { id: newId, title: '$t_judul', video: '$t_video_name', desc: '$t_desc' };
+                    db.prepare('INSERT OR REPLACE INTO tutorial (id, data) VALUES (?, ?)').run(newId, JSON.stringify(data));
                     console.log('\x1b[32m✅ Data tutorial berhasil disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -4939,12 +5027,11 @@ menu_tutorial() {
             2)
                 echo -e "\n${C_MAG}--- EDIT TUTORIAL ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let db = [];
-                    try { db = JSON.parse(fs.readFileSync('tutorial.json', 'utf8')); } catch(e) {}
-                    if(!Array.isArray(db)) db = [];
-                    if(db.length === 0) { console.log('\x1b[31mBelum ada tutorial.\x1b[0m'); process.exit(0); }
-                    db.forEach((t, i) => console.log('[' + (i+1) + '] ' + t.title + ' (' + t.video + ')'));
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let rows = db.prepare('SELECT id, data FROM tutorial').all();
+                    if(rows.length === 0) { console.log('\x1b[31mBelum ada tutorial.\x1b[0m'); process.exit(0); }
+                    rows.forEach((r, i) => { let t = JSON.parse(r.data); console.log('[' + (i+1) + '] ' + t.title + ' (' + t.video + ')'); });
                 "
                 echo ""
                 read -p "Pilih nomor tutorial yang ingin diedit: " t_num
@@ -4954,16 +5041,16 @@ menu_tutorial() {
                     read -p "Deskripsi Baru (Kosongkan jika tidak diubah): " t_desc
                     
                     node -e "
-                        const fs = require('fs');
-                        let db = [];
-                        try { db = JSON.parse(fs.readFileSync('tutorial.json', 'utf8')); } catch(e) {}
-                        if(!Array.isArray(db)) db = [];
+                        const Database = require('better-sqlite3');
+                        const db = new Database('tendo_database.db');
+                        let rows = db.prepare('SELECT id, data FROM tutorial').all();
                         let idx = parseInt('$t_num') - 1;
-                        if(db[idx]) {
-                            if('$t_judul' !== '') db[idx].title = '$t_judul';
-                            if('$t_video' !== '') db[idx].video = '$t_video';
-                            if('$t_desc' !== '') db[idx].desc = '$t_desc';
-                            fs.writeFileSync('tutorial.json', JSON.stringify(db, null, 2));
+                        if(rows[idx]) {
+                            let t = JSON.parse(rows[idx].data);
+                            if('$t_judul' !== '') t.title = '$t_judul';
+                            if('$t_video' !== '') t.video = '$t_video';
+                            if('$t_desc' !== '') t.desc = '$t_desc';
+                            db.prepare('UPDATE tutorial SET data = ? WHERE id = ?').run(JSON.stringify(t), t.id);
                             console.log('\x1b[32m✅ Tutorial berhasil diupdate!\x1b[0m');
                         } else {
                             console.log('\x1b[31m❌ Nomor tidak valid.\x1b[0m');
@@ -4975,31 +5062,30 @@ menu_tutorial() {
             3)
                 echo -e "\n${C_MAG}--- HAPUS TUTORIAL ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let db = [];
-                    try { db = JSON.parse(fs.readFileSync('tutorial.json', 'utf8')); } catch(e) {}
-                    if(!Array.isArray(db)) db = [];
-                    if(db.length === 0) { console.log('\x1b[31mBelum ada tutorial.\x1b[0m'); process.exit(0); }
-                    db.forEach((t, i) => console.log('[' + (i+1) + '] ' + t.title));
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let rows = db.prepare('SELECT id, data FROM tutorial').all();
+                    if(rows.length === 0) { console.log('\x1b[31mBelum ada tutorial.\x1b[0m'); process.exit(0); }
+                    rows.forEach((r, i) => { let t = JSON.parse(r.data); console.log('[' + (i+1) + '] ' + t.title); });
                 "
                 echo ""
                 read -p "Pilih nomor tutorial yang ingin dihapus: " t_num
                 if [[ "$t_num" =~ ^[0-9]+$ ]]; then
                     node -e "
                         const fs = require('fs');
-                        let db = [];
-                        try { db = JSON.parse(fs.readFileSync('tutorial.json', 'utf8')); } catch(e) {}
-                        if(!Array.isArray(db)) db = [];
+                        const Database = require('better-sqlite3');
+                        const db = new Database('tendo_database.db');
+                        let rows = db.prepare('SELECT id, data FROM tutorial').all();
                         let idx = parseInt('$t_num') - 1;
-                        if(db[idx]) {
-                            let videoName = db[idx].video;
+                        if(rows[idx]) {
+                            let t = JSON.parse(rows[idx].data);
+                            let videoName = t.video;
                             let filepath = 'public/tutorials/' + videoName;
                             if(videoName !== '-' && fs.existsSync(filepath)) {
                                 fs.unlinkSync(filepath);
                                 console.log('\x1b[33mFile video ' + videoName + ' dihapus.\x1b[0m');
                             }
-                            db.splice(idx, 1);
-                            fs.writeFileSync('tutorial.json', JSON.stringify(db, null, 2));
+                            db.prepare('DELETE FROM tutorial WHERE id = ?').run(t.id);
                             console.log('\x1b[32m✅ Tutorial berhasil dihapus!\x1b[0m');
                         } else {
                             console.log('\x1b[31m❌ Nomor tidak valid.\x1b[0m');
@@ -5011,13 +5097,13 @@ menu_tutorial() {
             4)
                 echo -e "\n${C_CYAN}--- DAFTAR TUTORIAL ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let db = [];
-                    try { db = JSON.parse(fs.readFileSync('tutorial.json', 'utf8')); } catch(e) {}
-                    if(!Array.isArray(db)) db = [];
-                    if(db.length === 0) { console.log('\x1b[33mBelum ada tutorial.\x1b[0m'); }
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let rows = db.prepare('SELECT id, data FROM tutorial').all();
+                    if(rows.length === 0) { console.log('\x1b[33mBelum ada tutorial.\x1b[0m'); }
                     else {
-                        db.forEach((t, i) => {
+                        rows.forEach((r, i) => {
+                            let t = JSON.parse(r.data);
                             console.log('\n\x1b[36m[' + (i+1) + '] ' + t.title + '\x1b[0m');
                             console.log('   Video: ' + t.video);
                             console.log('   Deskripsi: ' + t.desc);
@@ -5054,19 +5140,22 @@ menu_member() {
                 read -p "Cari Target (Bisa Nomor WA, Email, ATAU Nama Akun): " pencarian
                 read -p "Masukkan Jumlah Saldo: " jumlah
                 node -e "
-                    const fs = require('fs');
-                    let db = {};
-                    try { db = JSON.parse(fs.readFileSync('database.json', 'utf8')); } catch(e) {}
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
                     let input = '$pencarian'.trim();
                     let normPhone = input.replace(/[^0-9]/g, '');
                     if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
                     else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
                     
-                    let target = Object.keys(db).find(k => 
-                        k === normPhone || 
-                        (db[k].email && db[k].email.toLowerCase() === input.toLowerCase()) || 
-                        (db[k].username && db[k].username.toLowerCase() === input.toLowerCase())
-                    );
+                    let rows = db.prepare('SELECT id, data FROM users').all();
+                    let target = null;
+                    let targetData = null;
+                    for(let r of rows) {
+                        let u = JSON.parse(r.data);
+                        if(r.id === normPhone || (u.email && u.email.toLowerCase() === input.toLowerCase()) || (u.username && u.username.toLowerCase() === input.toLowerCase())) {
+                            target = r.id; targetData = u; break;
+                        }
+                    }
                     
                     if(!target) {
                         if(normPhone === '') {
@@ -5074,27 +5163,27 @@ menu_member() {
                             process.exit(0);
                         }
                         target = normPhone;
-                        db[target] = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: target + '@s.whatsapp.net', trx_count: 0, history: [] };
+                        targetData = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: target + '@s.whatsapp.net', trx_count: 0, history: [] };
                     }
                     
-                    let namaUser = db[target].username || target;
-                    let saldoSebelum = parseInt(db[target].saldo || 0);
+                    let namaUser = targetData.username || target;
+                    let saldoSebelum = parseInt(targetData.saldo || 0);
                     let nominalTambah = parseInt('$jumlah');
-                    db[target].saldo = saldoSebelum + nominalTambah;
+                    targetData.saldo = saldoSebelum + nominalTambah;
                     
-                    db[target].history = db[target].history || [];
-                    db[target].history.unshift({ 
+                    targetData.history = targetData.history || [];
+                    targetData.history.unshift({ 
                         ts: Date.now(), 
                         tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
                         type: 'Topup', nama: 'Topup Manual (Admin)', tujuan: 'Sistem', status: 'Sukses', sn: '-', amount: nominalTambah, 
-                        saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[target].saldo 
+                        saldo_sebelumnya: saldoSebelum, saldo_sesudah: targetData.saldo 
                     });
-                    if(db[target].history.length > 50) db[target].history.pop();
+                    if(targetData.history.length > 50) targetData.history.pop();
                     
-                    fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
+                    db.prepare('INSERT OR REPLACE INTO users (id, data) VALUES (?, ?)').run(target, JSON.stringify(targetData));
                     console.log('\x1b[32m\n✅ Saldo Rp ' + nominalTambah.toLocaleString('id-ID') + ' berhasil ditambahkan ke ' + namaUser + ' (' + target + ')!\x1b[0m');
                     console.log('\x1b[33mSaldo Sebelumnya: Rp ' + saldoSebelum.toLocaleString('id-ID') + '\x1b[0m');
-                    console.log('\x1b[36mSaldo Sekarang  : Rp ' + db[target].saldo.toLocaleString('id-ID') + '\x1b[0m');
+                    console.log('\x1b[36mSaldo Sekarang  : Rp ' + targetData.saldo.toLocaleString('id-ID') + '\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
@@ -5103,43 +5192,46 @@ menu_member() {
                 read -p "Cari Target (Bisa Nomor WA, Email, ATAU Nama Akun): " pencarian
                 read -p "Masukkan Jumlah Saldo yg dikurangi: " jumlah
                 node -e "
-                    const fs = require('fs');
-                    let db = {};
-                    try { db = JSON.parse(fs.readFileSync('database.json', 'utf8')); } catch(e) {}
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
                     let input = '$pencarian'.trim();
                     let normPhone = input.replace(/[^0-9]/g, '');
                     if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
                     else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
                     
-                    let target = Object.keys(db).find(k => 
-                        k === normPhone || 
-                        (db[k].email && db[k].email.toLowerCase() === input.toLowerCase()) || 
-                        (db[k].username && db[k].username.toLowerCase() === input.toLowerCase())
-                    );
+                    let rows = db.prepare('SELECT id, data FROM users').all();
+                    let target = null;
+                    let targetData = null;
+                    for(let r of rows) {
+                        let u = JSON.parse(r.data);
+                        if(r.id === normPhone || (u.email && u.email.toLowerCase() === input.toLowerCase()) || (u.username && u.username.toLowerCase() === input.toLowerCase())) {
+                            target = r.id; targetData = u; break;
+                        }
+                    }
                     
                     if(!target) { 
                         console.log('\x1b[31m\n❌ Akun tidak ditemukan di database.\x1b[0m'); 
                     } else {
-                        let namaUser = db[target].username || target;
-                        let saldoSebelum = parseInt(db[target].saldo || 0);
+                        let namaUser = targetData.username || target;
+                        let saldoSebelum = parseInt(targetData.saldo || 0);
                         let nominalKurang = parseInt('$jumlah');
                         
-                        db[target].saldo = saldoSebelum - nominalKurang;
-                        if(db[target].saldo < 0) db[target].saldo = 0;
+                        targetData.saldo = saldoSebelum - nominalKurang;
+                        if(targetData.saldo < 0) targetData.saldo = 0;
                         
-                        db[target].history = db[target].history || [];
-                        db[target].history.unshift({ 
+                        targetData.history = targetData.history || [];
+                        targetData.history.unshift({ 
                             ts: Date.now(), 
                             tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
                             type: 'Topup', nama: 'Pengurangan Saldo (Admin)', tujuan: 'Sistem', status: 'Sukses', sn: '-', amount: nominalKurang, 
-                            saldo_sebelumnya: saldoSebelum, saldo_sesudah: db[target].saldo 
+                            saldo_sebelumnya: saldoSebelum, saldo_sesudah: targetData.saldo 
                         });
-                        if(db[target].history.length > 50) db[target].history.pop();
+                        if(targetData.history.length > 50) targetData.history.pop();
                         
-                        fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
+                        db.prepare('INSERT OR REPLACE INTO users (id, data) VALUES (?, ?)').run(target, JSON.stringify(targetData));
                         console.log('\x1b[32m\n✅ Saldo ' + namaUser + ' (' + target + ') berhasil dikurangi!\x1b[0m');
                         console.log('\x1b[33mSaldo Sebelumnya: Rp ' + saldoSebelum.toLocaleString('id-ID') + '\x1b[0m');
-                        console.log('\x1b[36mSaldo Sekarang  : Rp ' + db[target].saldo.toLocaleString('id-ID') + '\x1b[0m');
+                        console.log('\x1b[36mSaldo Sekarang  : Rp ' + targetData.saldo.toLocaleString('id-ID') + '\x1b[0m');
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -5147,29 +5239,30 @@ menu_member() {
             3)
                 echo -e "\n${C_CYAN}--- DAFTAR MEMBER AKTIF ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let db = {};
-                    try { db = JSON.parse(fs.readFileSync('database.json', 'utf8')); } catch(e) {}
-                    let members = Object.keys(db);
-                    let deletedCount = 0;
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let rows = db.prepare('SELECT id, data FROM users').all();
                     
-                    members.forEach(m => {
-                        if (!db[m].email || db[m].email.trim() === '-' || db[m].email.trim() === '') {
-                            delete db[m];
-                            deletedCount++;
+                    let usersArr = [];
+                    db.transaction(() => {
+                        for(let r of rows) {
+                            let u = JSON.parse(r.data);
+                            if (!u.email || u.email.trim() === '-' || u.email.trim() === '') {
+                                db.prepare('DELETE FROM users WHERE id = ?').run(r.id);
+                            } else {
+                                usersArr.push({id: r.id, data: u});
+                            }
                         }
-                    });
-                    if (deletedCount > 0) fs.writeFileSync('database.json', JSON.stringify(db, null, 2));
+                    })();
                     
-                    members = Object.keys(db); 
-                    members.sort((a, b) => (db[b].saldo || 0) - (db[a].saldo || 0)); 
+                    usersArr.sort((a, b) => (b.data.saldo || 0) - (a.data.saldo || 0)); 
                     
-                    if(members.length === 0) console.log('\x1b[33mBelum ada member aktif (yang terdaftar email).\x1b[0m');
+                    if(usersArr.length === 0) console.log('\x1b[33mBelum ada member aktif (yang terdaftar email).\x1b[0m');
                     else {
-                        members.forEach((m, i) => {
-                            let nama = db[m].username || 'Member';
-                            let email = db[m].email || '-';
-                            console.log((i + 1) + '. Nama: ' + nama + ' | WA: ' + m + ' | Email: ' + email + ' | Saldo: Rp ' + db[m].saldo.toLocaleString('id-ID'));
+                        usersArr.forEach((m, i) => {
+                            let nama = m.data.username || 'Member';
+                            let email = m.data.email || '-';
+                            console.log((i + 1) + '. Nama: ' + nama + ' | WA: ' + m.id + ' | Email: ' + email + ' | Saldo: Rp ' + m.data.saldo.toLocaleString('id-ID'));
                         });
                     }
                 "
@@ -5180,27 +5273,30 @@ menu_member() {
                 read -p "Cari Target (Bisa Nomor WA, Email, ATAU Nama Akun): " pencarian
                 if [ ! -z "$pencarian" ]; then
                     node -e "
-                        const fs = require('fs');
-                        let db = {};
-                        try { db = JSON.parse(fs.readFileSync('database.json', 'utf8')); } catch(e) {}
+                        const Database = require('better-sqlite3');
+                        const db = new Database('tendo_database.db');
                         let input = '$pencarian'.trim();
                         let normPhone = input.replace(/[^0-9]/g, '');
                         if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
                         else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
                         
-                        let target = Object.keys(db).find(k => 
-                            k === normPhone || 
-                            (db[k].email && db[k].email.toLowerCase() === input.toLowerCase()) || 
-                            (db[k].username && db[k].username.toLowerCase() === input.toLowerCase())
-                        );
+                        let rows = db.prepare('SELECT id, data FROM users').all();
+                        let targetData = null;
+                        let targetId = null;
+                        for(let r of rows) {
+                            let u = JSON.parse(r.data);
+                            if(r.id === normPhone || (u.email && u.email.toLowerCase() === input.toLowerCase()) || (u.username && u.username.toLowerCase() === input.toLowerCase())) {
+                                targetData = u; targetId = r.id; break;
+                            }
+                        }
                         
-                        if(target) {
-                            let history = db[target].history || [];
-                            let targetSaldo = db[target].saldo || 0;
-                            let targetNama = db[target].username || 'Member';
+                        if(targetData) {
+                            let history = targetData.history || [];
+                            let targetSaldo = targetData.saldo || 0;
+                            let targetNama = targetData.username || 'Member';
                             let topups = history.filter(h => h.type === 'Topup' || h.type === 'Order QRIS' || h.type === 'Refund' || h.type === 'Order' || h.type === 'Order VPN' || h.type === 'Order VPN QRIS').slice(0, 10);
                             
-                            console.log('\n\x1b[36m=== 10 RIWAYAT TERBARU: ' + targetNama + ' (' + target + ') ===\x1b[0m');
+                            console.log('\n\x1b[36m=== 10 RIWAYAT TERBARU: ' + targetNama + ' (' + targetId + ') ===\x1b[0m');
                             console.log('\x1b[32m💰 Saldo Saat Saat Ini: Rp ' + targetSaldo.toLocaleString('id-ID') + '\x1b[0m');
                             if(topups.length === 0) console.log('\x1b[33mBelum ada riwayat topup di akun ini.\x1b[0m');
                             else {
@@ -5232,9 +5328,10 @@ menu_keuntungan() {
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         
         node -e "
-            const fs = require('fs');
-            let c = {};
-            try { c = JSON.parse(fs.readFileSync('config.json', 'utf8')).margin || {}; } catch(e) {}
+            const Database = require('better-sqlite3');
+            const db = new Database('tendo_database.db', { readonly: true });
+            let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+            let c = row ? JSON.parse(row.data).margin || {} : {};
             console.log('  \x1b[32m[1]\x1b[0m  Modal Rp 0 - 100               : Rp ' + (c.t1||50));
             console.log('  \x1b[32m[2]\x1b[0m  Modal Rp 100 - 500             : Rp ' + (c.t2||100));
             console.log('  \x1b[32m[3]\x1b[0m  Modal Rp 500 - 1.000           : Rp ' + (c.t3||250));
@@ -5268,13 +5365,14 @@ menu_keuntungan() {
             fi
             
             node -e "
-                const fs = require('fs');
-                let config = {};
-                try { config = JSON.parse(fs.readFileSync('config.json', 'utf8')); } catch(e) {}
+                const Database = require('better-sqlite3');
+                const db = new Database('tendo_database.db');
+                let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+                let config = row ? JSON.parse(row.data) : {};
                 if(!config.margin) config.margin = { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
                 let tier = 't' + $k_choice;
                 config.margin[tier] = parseInt('$nominal_baru');
-                fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
             "
             echo -e "${C_GREEN}✅ Keuntungan tier $k_choice berhasil diubah! Me-refresh Katalog Website...${C_RST}"
             curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
@@ -5333,12 +5431,13 @@ menu_telegram() {
                     echo -e "\n${C_RED}❌ Auto-Backup DIMATIKAN!${C_RST}"
                 fi
                 node -e "
-                    const fs = require('fs');
-                    let config = {};
-                    try { config = JSON.parse(fs.readFileSync('config.json', 'utf8')); } catch(e) {}
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+                    let config = row ? JSON.parse(row.data) : {};
                     config.autoBackup = $status;
                     config.backupInterval = parseInt('$menit');
-                    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                    db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
@@ -5364,22 +5463,24 @@ menu_backup() {
 
         case $backchoice in
             1)
-                echo -e "\n${C_MAG}⏳ Sedang memproses arsip backup...${C_RST}"
+                echo -e "\n${C_MAG}⏳ Sedang memproses arsip backup SQLite...${C_RST}"
                 if ! command -v zip &> /dev/null; then sudo apt install zip -y > /dev/null 2>&1; fi
                 rm -f backup.zip
                 if [ -d "/etc/letsencrypt" ]; then
                     sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null
                 fi
-                zip backup.zip config.json database.json trx.json produk.json global_stats.json topup.json web_notif.json global_trx.json custom_layout.json vpn_config.json tutorial.json ssl_backup.tar.gz 2>/dev/null
-                echo -e "${C_GREEN}✅ File backup.zip (termasuk config API/ID) berhasil dikompresi!${C_RST}"
+                zip backup.zip tendo_database.db ssl_backup.tar.gz 2>/dev/null
+                echo -e "${C_GREEN}✅ File backup.zip berhasil dikompresi!${C_RST}"
                 node -e "
-                    const fs = require('fs');
                     const { exec } = require('child_process');
-                    let config = {};
-                    try { config = JSON.parse(fs.readFileSync('config.json', 'utf8')); } catch(e) {}
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db', { readonly: true });
+                    let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+                    let config = row ? JSON.parse(row.data) : {};
+                    
                     if(config.teleToken && config.teleChatId) {
                         console.log('\x1b[36m⏳ Sedang mengirim ke Telegram Admin...\x1b[0m');
-                        let cmd = \`curl -s -F chat_id=\"\${config.teleChatId}\" -F document=@\"backup.zip\" -F caption=\"📦 Manual Backup Data + SSL\" https://api.telegram.org/bot\${config.teleToken}/sendDocument\`;
+                        let cmd = \`curl -s -F chat_id=\"\${config.teleChatId}\" -F document=@\"backup.zip\" -F caption=\"📦 Manual Backup Data SQLite + SSL\" https://api.telegram.org/bot\${config.teleToken}/sendDocument\`;
                         exec(cmd, (err) => {
                             if(err) console.log('\x1b[31m❌ Gagal mengirim ke Telegram.\x1b[0m');
                             else console.log('\x1b[32m✅ File Backup berhasil mendarat di Telegram Admin!\x1b[0m');
@@ -5465,31 +5566,28 @@ menu_manajemen_produk_instan() {
                 read -p "Deskripsi Singkat: " custom_desc
                 
                 node -e "
-                    const fs = require('fs');
-                    let dbProd = {};
-                    try { dbProd = JSON.parse(fs.readFileSync('produk.json', 'utf8')); } catch(e) {}
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
                     let uniqueSku = '$sku_digi' + '_custom_' + Date.now();
                     
                     let existingPrice = 0;
-                    for(let key in dbProd) {
-                        if(String(dbProd[key].sku_asli).toUpperCase() === String('$sku_digi').toUpperCase() && !dbProd[key].is_manual_cat) {
-                            existingPrice = dbProd[key].harga;
+                    let rows = db.prepare('SELECT data FROM produk').all();
+                    for(let r of rows) {
+                        let p = JSON.parse(r.data);
+                        if(String(p.sku_asli).toUpperCase() === String('$sku_digi').toUpperCase() && !p.is_manual_cat) {
+                            existingPrice = p.harga;
                             break;
                         }
                     }
 
-                    dbProd[uniqueSku] = {
-                        sku_asli: '$sku_digi',
-                        nama: '$custom_nama',
-                        harga: existingPrice,
-                        kategori: '$kat_nama',
-                        brand: '$custom_brand',
-                        sub_kategori: '\u200B' + '$custom_tipe',
-                        deskripsi: '$custom_desc',
-                        status_produk: true,
-                        is_manual_cat: true
+                    let newProd = {
+                        sku_asli: '$sku_digi', nama: '$custom_nama', harga: existingPrice,
+                        kategori: '$kat_nama', brand: '$custom_brand', sub_kategori: '\u200B' + '$custom_tipe',
+                        deskripsi: '$custom_desc', status_produk: true, is_manual_cat: true
                     };
-                    fs.writeFileSync('produk.json', JSON.stringify(dbProd, null, 2));
+                    
+                    db.prepare('INSERT OR REPLACE INTO produk (id, data) VALUES (?, ?)').run(uniqueSku, JSON.stringify(newProd));
+                    
                     console.log('\x1b[32m✅ Produk Instan berhasil ditambahkan!\x1b[0m');
                     if(existingPrice === 0) {
                         console.log('\x1b[33mInfo: Harga saat ini 0, sistem akan menarik harga baru dari pusat otomatis.\x1b[0m');
@@ -5503,14 +5601,15 @@ menu_manajemen_produk_instan() {
             2)
                 echo -e "\n${C_CYAN}--- DAFTAR PRODUK INSTAN ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let dbProd = {};
-                    try { dbProd = JSON.parse(fs.readFileSync('produk.json', 'utf8')); } catch(e) {}
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let rows = db.prepare('SELECT data FROM produk').all();
                     let count = 0;
-                    for(let key in dbProd) {
-                        if(dbProd[key].is_manual_cat) {
+                    for(let r of rows) {
+                        let p = JSON.parse(r.data);
+                        if(p.is_manual_cat) {
                             count++;
-                            console.log('[' + count + '] SKU Digiflazz: ' + dbProd[key].sku_asli + ' | Nama: ' + dbProd[key].nama + ' | Harga Jual: Rp ' + dbProd[key].harga + ' | Nama Paket: ' + dbProd[key].sub_kategori.replace('\u200B', ''));
+                            console.log('[' + count + '] SKU Digiflazz: ' + p.sku_asli + ' | Nama: ' + p.nama + ' | Harga Jual: Rp ' + p.harga + ' | Nama Paket: ' + p.sub_kategori.replace('\u200B', ''));
                         }
                     }
                     if(count === 0) console.log('\x1b[33mBelum ada produk instan yang ditambahkan.\x1b[0m');
@@ -5520,13 +5619,17 @@ menu_manajemen_produk_instan() {
             3)
                 echo -e "\n${C_MAG}--- EDIT PRODUK INSTAN ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let dbProd = {};
-                    try { dbProd = JSON.parse(fs.readFileSync('produk.json', 'utf8')); } catch(e) {}
-                    let manualKeys = Object.keys(dbProd).filter(k => dbProd[k].is_manual_cat);
-                    if(manualKeys.length === 0) { console.log('\x1b[33mBelum ada produk instan.\x1b[0m'); process.exit(0); }
-                    manualKeys.forEach((k, i) => {
-                        console.log('[' + (i+1) + '] ' + dbProd[k].nama + ' (SKU: ' + dbProd[k].sku_asli + ')');
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let rows = db.prepare('SELECT id, data FROM produk').all();
+                    let manualProds = [];
+                    for(let r of rows) {
+                        let p = JSON.parse(r.data);
+                        if(p.is_manual_cat) manualProds.push({id: r.id, data: p});
+                    }
+                    if(manualProds.length === 0) { console.log('\x1b[33mBelum ada produk instan.\x1b[0m'); process.exit(0); }
+                    manualProds.forEach((p, i) => {
+                        console.log('[' + (i+1) + '] ' + p.data.nama + ' (SKU: ' + p.data.sku_asli + ')');
                     });
                 "
                 echo ""
@@ -5537,17 +5640,24 @@ menu_manajemen_produk_instan() {
                     read -p "Nama Paket Baru (Kosongkan jika tidak diubah): " e_paket
                     
                     node -e "
-                        const fs = require('fs');
-                        let dbProd = {};
-                        try { dbProd = JSON.parse(fs.readFileSync('produk.json', 'utf8')); } catch(e) {}
-                        let manualKeys = Object.keys(dbProd).filter(k => dbProd[k].is_manual_cat);
+                        const Database = require('better-sqlite3');
+                        const db = new Database('tendo_database.db');
+                        let rows = db.prepare('SELECT id, data FROM produk').all();
+                        let manualProds = [];
+                        for(let r of rows) {
+                            let p = JSON.parse(r.data);
+                            if(p.is_manual_cat) manualProds.push({id: r.id, data: p});
+                        }
+                        
                         let idx = parseInt('$edit_idx') - 1;
-                        if(manualKeys[idx]) {
-                            let key = manualKeys[idx];
-                            if('$e_nama' !== '') dbProd[key].nama = '$e_nama';
-                            if('$e_desc' !== '') dbProd[key].deskripsi = '$e_desc';
-                            if('$e_paket' !== '') dbProd[key].sub_kategori = '\u200B' + '$e_paket';
-                            fs.writeFileSync('produk.json', JSON.stringify(dbProd, null, 2));
+                        if(manualProds[idx]) {
+                            let key = manualProds[idx].id;
+                            let pData = manualProds[idx].data;
+                            if('$e_nama' !== '') pData.nama = '$e_nama';
+                            if('$e_desc' !== '') pData.deskripsi = '$e_desc';
+                            if('$e_paket' !== '') pData.sub_kategori = '\u200B' + '$e_paket';
+                            
+                            db.prepare('UPDATE produk SET data = ? WHERE id = ?').run(JSON.stringify(pData), key);
                             console.log('\x1b[32m✅ Produk instan berhasil diupdate!\x1b[0m');
                         } else {
                             console.log('\x1b[31m❌ Nomor urut tidak valid.\x1b[0m');
@@ -5559,27 +5669,35 @@ menu_manajemen_produk_instan() {
             4)
                 echo -e "\n${C_MAG}--- HAPUS PRODUK INSTAN ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let dbProd = {};
-                    try { dbProd = JSON.parse(fs.readFileSync('produk.json', 'utf8')); } catch(e) {}
-                    let manualKeys = Object.keys(dbProd).filter(k => dbProd[k].is_manual_cat);
-                    if(manualKeys.length === 0) { console.log('\x1b[33mBelum ada produk instan.\x1b[0m'); process.exit(0); }
-                    manualKeys.forEach((k, i) => {
-                        console.log('[' + (i+1) + '] ' + dbProd[k].nama + ' (SKU: ' + dbProd[k].sku_asli + ')');
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let rows = db.prepare('SELECT id, data FROM produk').all();
+                    let manualProds = [];
+                    for(let r of rows) {
+                        let p = JSON.parse(r.data);
+                        if(p.is_manual_cat) manualProds.push({id: r.id, data: p});
+                    }
+                    if(manualProds.length === 0) { console.log('\x1b[33mBelum ada produk instan.\x1b[0m'); process.exit(0); }
+                    manualProds.forEach((p, i) => {
+                        console.log('[' + (i+1) + '] ' + p.data.nama + ' (SKU: ' + p.data.sku_asli + ')');
                     });
                 "
                 echo ""
                 read -p "Pilih nomor urut produk yang ingin dihapus: " del_idx
                 if [[ "$del_idx" =~ ^[0-9]+$ ]]; then
                     node -e "
-                        const fs = require('fs');
-                        let dbProd = {};
-                        try { dbProd = JSON.parse(fs.readFileSync('produk.json', 'utf8')); } catch(e) {}
-                        let manualKeys = Object.keys(dbProd).filter(k => dbProd[k].is_manual_cat);
+                        const Database = require('better-sqlite3');
+                        const db = new Database('tendo_database.db');
+                        let rows = db.prepare('SELECT id, data FROM produk').all();
+                        let manualProds = [];
+                        for(let r of rows) {
+                            let p = JSON.parse(r.data);
+                            if(p.is_manual_cat) manualProds.push({id: r.id});
+                        }
+                        
                         let idx = parseInt('$del_idx') - 1;
-                        if(manualKeys[idx]) {
-                            delete dbProd[manualKeys[idx]];
-                            fs.writeFileSync('produk.json', JSON.stringify(dbProd, null, 2));
+                        if(manualProds[idx]) {
+                            db.prepare('DELETE FROM produk WHERE id = ?').run(manualProds[idx].id);
                             console.log('\x1b[32m✅ Produk instan berhasil dihapus dari website!\x1b[0m');
                         } else {
                             console.log('\x1b[31m❌ Nomor urut tidak valid.\x1b[0m');
@@ -5617,12 +5735,13 @@ menu_notifikasi() {
                 read -p "Masukkan Token Bot Telegram Admin: " token
                 read -p "Masukkan Chat ID Admin Anda: " chatid
                 node -e "
-                    const fs = require('fs');
-                    let config = {};
-                    try { config = JSON.parse(fs.readFileSync('config.json', 'utf8')); } catch(e) {}
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+                    let config = row ? JSON.parse(row.data) : {};
                     if('$token' !== '') config.teleToken = '$token'.trim();
                     if('$chatid' !== '') config.teleChatId = '$chatid'.trim();
-                    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                    db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                     console.log('\x1b[32m\n✅ Konfigurasi Telegram Admin berhasil disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -5633,12 +5752,13 @@ menu_notifikasi() {
                 read -p "Masukkan Token Bot Telegram (Boleh bot yang sama/berbeda dari Admin): " token_info
                 read -p "Masukkan ID Channel/Saluran Pelanggan (Contoh: -100123456789): " chanid
                 node -e "
-                    const fs = require('fs');
-                    let config = {};
-                    try { config = JSON.parse(fs.readFileSync('config.json', 'utf8')); } catch(e) {}
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+                    let config = row ? JSON.parse(row.data) : {};
                     if('$token_info' !== '') config.teleTokenInfo = '$token_info'.trim();
                     if('$chanid' !== '') config.teleChannelId = '$chanid'.trim();
-                    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                    db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                     console.log('\x1b[32m\n✅ Konfigurasi Telegram Pelanggan & Channel berhasil disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -5649,11 +5769,12 @@ menu_notifikasi() {
                 echo -e "Bot WA Anda akan mengirim broadcast notifikasi beli sukses kesini."
                 read -p "Masukkan ID WA: " waid
                 node -e "
-                    const fs = require('fs');
-                    let config = {};
-                    try { config = JSON.parse(fs.readFileSync('config.json', 'utf8')); } catch(e) {}
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+                    let config = row ? JSON.parse(row.data) : {};
                     if('$waid' !== '') config.waBroadcastId = '$waid'.trim();
-                    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                    db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                     console.log('\x1b[32m\n✅ ID WA Broadcast berhasil disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -5663,8 +5784,9 @@ menu_notifikasi() {
                 read -p "Yakin ingin MENGHAPUS semua pemberitahuan di Web? (y/n): " hapus_notif
                 if [ "$hapus_notif" == "y" ] || [ "$hapus_notif" == "Y" ]; then
                     node -e "
-                        const fs = require('fs');
-                        fs.writeFileSync('web_notif.json', JSON.stringify([], null, 2));
+                        const Database = require('better-sqlite3');
+                        const db = new Database('tendo_database.db');
+                        db.prepare('DELETE FROM web_notif').run();
                         console.log('\x1b[32m\n✅ Semua pemberitahuan website berhasil dibersihkan!\x1b[0m');
                     "
                 else
@@ -5709,16 +5831,17 @@ submenu_server_vpn() {
                 read -p "Masukkan Nama Kota/City: " srv_city
                 
                 node -e "
-                    const fs = require('fs');
-                    let vpnDb = {};
-                    try { vpnDb = JSON.parse(fs.readFileSync('vpn_config.json', 'utf8')); } catch(e) {}
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
+                    let vpnDb = row ? JSON.parse(row.data) : {servers:{}, products:{}};
                     if(!vpnDb.servers) vpnDb.servers = {};
                     vpnDb.servers['$srv_id'] = {
                         server_name: '$srv_name', host: '$srv_host', port: '$srv_port',
                         user: '$srv_user', pass: '$srv_pass', api_key: '$srv_api',
                         isp: '$srv_isp', city: '$srv_city'
                     };
-                    fs.writeFileSync('vpn_config.json', JSON.stringify(vpnDb, null, 2));
+                    db.prepare(\"INSERT OR REPLACE INTO vpn_config (id, data) VALUES ('main', ?)\").run(JSON.stringify(vpnDb));
                     console.log('\x1b[32m\n✅ Konfigurasi Server ($srv_id) berhasil disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -5726,9 +5849,10 @@ submenu_server_vpn() {
             2)
                 echo -e "\n${C_CYAN}--- DAFTAR SERVER VPN ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let vpnDb = {};
-                    try { vpnDb = JSON.parse(fs.readFileSync('vpn_config.json', 'utf8')); } catch(e) {}
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
+                    let vpnDb = row ? JSON.parse(row.data) : {servers:{}, products:{}};
                     let servers = vpnDb.servers || {};
                     let count = 0;
                     for(let id in servers) {
@@ -5744,12 +5868,13 @@ submenu_server_vpn() {
                 echo -e "\n${C_MAG}--- HAPUS KONEKSI SERVER ---${C_RST}"
                 read -p "Masukkan ID Server yang ingin dihapus: " del_id
                 node -e "
-                    const fs = require('fs');
-                    let vpnDb = {};
-                    try { vpnDb = JSON.parse(fs.readFileSync('vpn_config.json', 'utf8')); } catch(e) {}
-                    if(vpnDb.servers && vpnDb.servers['$del_id']) {
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
+                    let vpnDb = row ? JSON.parse(row.data) : null;
+                    if(vpnDb && vpnDb.servers && vpnDb.servers['$del_id']) {
                         delete vpnDb.servers['$del_id'];
-                        fs.writeFileSync('vpn_config.json', JSON.stringify(vpnDb, null, 2));
+                        db.prepare(\"UPDATE vpn_config SET data = ? WHERE id = 'main'\").run(JSON.stringify(vpnDb));
                         console.log('\x1b[32m\n✅ Server dengan ID ($del_id) berhasil dihapus!\x1b[0m');
                     } else {
                         console.log('\x1b[31m\n❌ Server dengan ID ($del_id) tidak ditemukan.\x1b[0m');
@@ -5801,9 +5926,10 @@ submenu_produk_vpn() {
 
                 echo -e "\nServer Tersedia:"
                 node -e "
-                    const fs = require('fs');
-                    let vpnDb = {};
-                    try { vpnDb = JSON.parse(fs.readFileSync('vpn_config.json', 'utf8')); } catch(e) {}
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
+                    let vpnDb = row ? JSON.parse(row.data) : {servers:{}};
                     let servers = vpnDb.servers || {};
                     for(let id in servers) console.log('  - ' + id + ' (' + servers[id].server_name + ')');
                 "
@@ -5816,9 +5942,10 @@ submenu_produk_vpn() {
                 read -p "Deskripsi / Fitur Singkat: " p_desc
                 
                 node -e "
-                    const fs = require('fs');
-                    let vpnDb = {};
-                    try { vpnDb = JSON.parse(fs.readFileSync('vpn_config.json', 'utf8')); } catch(e) {}
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
+                    let vpnDb = row ? JSON.parse(row.data) : {servers:{}, products:{}};
                     if(!vpnDb.products) vpnDb.products = {};
                     
                     vpnDb.products['$prod_id'] = {
@@ -5832,7 +5959,7 @@ submenu_produk_vpn() {
                         stok: '$p_stok' !== '' ? parseInt('$p_stok') : 0
                     };
                     
-                    fs.writeFileSync('vpn_config.json', JSON.stringify(vpnDb, null, 2));
+                    db.prepare(\"INSERT OR REPLACE INTO vpn_config (id, data) VALUES ('main', ?)\").run(JSON.stringify(vpnDb));
                     console.log('\x1b[32m\n✅ Produk VPN Baru ($prod_id) berhasil ditambahkan ke Server!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -5857,9 +5984,10 @@ submenu_produk_vpn() {
 
                 echo -e "\nServer Tersedia:"
                 node -e "
-                    const fs = require('fs');
-                    let vpnDb = {};
-                    try { vpnDb = JSON.parse(fs.readFileSync('vpn_config.json', 'utf8')); } catch(e) {}
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
+                    let vpnDb = row ? JSON.parse(row.data) : {servers:{}};
                     let servers = vpnDb.servers || {};
                     for(let id in servers) console.log('  - ' + id + ' (' + servers[id].server_name + ')');
                 "
@@ -5873,10 +6001,11 @@ submenu_produk_vpn() {
                 read -p "Deskripsi / Fitur Singkat: " p_desc
                 
                 node -e "
-                    const fs = require('fs');
-                    let vpnDb = {};
-                    try { vpnDb = JSON.parse(fs.readFileSync('vpn_config.json', 'utf8')); } catch(e) {}
-                    if(!vpnDb.products || !vpnDb.products['$edit_prod_id']) {
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
+                    let vpnDb = row ? JSON.parse(row.data) : null;
+                    if(!vpnDb || !vpnDb.products || !vpnDb.products['$edit_prod_id']) {
                         console.log('\x1b[31m❌ ID Produk tidak ditemukan!\x1b[0m');
                         process.exit(0);
                     }
@@ -5894,7 +6023,7 @@ submenu_produk_vpn() {
                         stok: existing.stok
                     };
                     
-                    fs.writeFileSync('vpn_config.json', JSON.stringify(vpnDb, null, 2));
+                    db.prepare(\"UPDATE vpn_config SET data = ? WHERE id = 'main'\").run(JSON.stringify(vpnDb));
                     console.log('\x1b[32m\n✅ Produk VPN ($edit_prod_id) berhasil diupdate!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -5902,9 +6031,10 @@ submenu_produk_vpn() {
             3)
                 echo -e "\n${C_CYAN}--- DAFTAR PRODUK VPN ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let vpnDb = {};
-                    try { vpnDb = JSON.parse(fs.readFileSync('vpn_config.json', 'utf8')); } catch(e) {}
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
+                    let vpnDb = row ? JSON.parse(row.data) : {products:{}};
                     let products = vpnDb.products || {};
                     let count = 0;
                     for(let id in products) {
@@ -5921,12 +6051,13 @@ submenu_produk_vpn() {
                 read -p "Masukkan ID Produk: " stok_id
                 read -p "Masukkan Jumlah Stok Baru: " stok_baru
                 node -e "
-                    const fs = require('fs');
-                    let vpnDb = {};
-                    try { vpnDb = JSON.parse(fs.readFileSync('vpn_config.json', 'utf8')); } catch(e) {}
-                    if(vpnDb.products && vpnDb.products['$stok_id']) {
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
+                    let vpnDb = row ? JSON.parse(row.data) : null;
+                    if(vpnDb && vpnDb.products && vpnDb.products['$stok_id']) {
                         vpnDb.products['$stok_id'].stok = parseInt('$stok_baru') || 0;
-                        fs.writeFileSync('vpn_config.json', JSON.stringify(vpnDb, null, 2));
+                        db.prepare(\"UPDATE vpn_config SET data = ? WHERE id = 'main'\").run(JSON.stringify(vpnDb));
                         console.log('\x1b[32m\n✅ Stok Produk ($stok_id) berhasil diupdate menjadi ' + vpnDb.products['$stok_id'].stok + '!\x1b[0m');
                     } else {
                         console.log('\x1b[31m\n❌ ID Produk tidak ditemukan.\x1b[0m');
@@ -5938,12 +6069,13 @@ submenu_produk_vpn() {
                 echo -e "\n${C_MAG}--- HAPUS PRODUK ---${C_RST}"
                 read -p "Masukkan ID Produk yang ingin dihapus: " del_id
                 node -e "
-                    const fs = require('fs');
-                    let vpnDb = {};
-                    try { vpnDb = JSON.parse(fs.readFileSync('vpn_config.json', 'utf8')); } catch(e) {}
-                    if(vpnDb.products && vpnDb.products['$del_id']) {
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
+                    let vpnDb = row ? JSON.parse(row.data) : null;
+                    if(vpnDb && vpnDb.products && vpnDb.products['$del_id']) {
                         delete vpnDb.products['$del_id'];
-                        fs.writeFileSync('vpn_config.json', JSON.stringify(vpnDb, null, 2));
+                        db.prepare(\"UPDATE vpn_config SET data = ? WHERE id = 'main'\").run(JSON.stringify(vpnDb));
                         console.log('\x1b[32m\n✅ Produk ($del_id) berhasil dihapus!\x1b[0m');
                     } else {
                         console.log('\x1b[31m\n❌ ID Produk tidak ditemukan.\x1b[0m');
@@ -5951,6 +6083,29 @@ submenu_produk_vpn() {
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
+            0) break ;;
+            *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        esac
+    done
+}
+
+menu_manajemen_vpn() {
+    while true; do
+        clear
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "${C_YELLOW}${C_BOLD}              🛡️ MANAJEMEN VPN PREMIUM 🛡️           ${C_RST}"
+        echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+        echo -e "  ${C_GREEN}[1]${C_RST} Manajemen Server VPN"
+        echo -e "  ${C_GREEN}[2]${C_RST} Manajemen Produk VPN"
+        echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
+        echo -e "  ${C_RED}[0]${C_RST} Kembali ke Panel Utama"
+        echo -e "${C_CYAN}======================================================${C_RST}"
+        echo -ne "${C_YELLOW}Pilih menu [0-2]: ${C_RST}"
+        read vpn_choice
+
+        case $vpn_choice in
+            1) submenu_server_vpn ;;
+            2) submenu_produk_vpn ;;
             0) break ;;
             *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
         esac
@@ -5980,12 +6135,13 @@ menu_etalase_custom() {
                 read -p "Masukkan Judul Etalase (Cth: Best Seller): " judul_etalase
                 if [ ! -z "$judul_etalase" ]; then
                     node -e "
-                        const fs = require('fs');
-                        let db = {sections: []};
-                        try { db = JSON.parse(fs.readFileSync('custom_layout.json', 'utf8')); } catch(e) {}
-                        if(!db.sections) db.sections = [];
-                        db.sections.push({title: '$judul_etalase', skus: []});
-                        fs.writeFileSync('custom_layout.json', JSON.stringify(db, null, 2));
+                        const Database = require('better-sqlite3');
+                        const db = new Database('tendo_database.db');
+                        let row = db.prepare(\"SELECT data FROM custom_layout WHERE id = 'main'\").get();
+                        let layoutDb = row ? JSON.parse(row.data) : {sections: []};
+                        if(!layoutDb.sections) layoutDb.sections = [];
+                        layoutDb.sections.push({title: '$judul_etalase', skus: []});
+                        db.prepare(\"INSERT OR REPLACE INTO custom_layout (id, data) VALUES ('main', ?)\").run(JSON.stringify(layoutDb));
                         console.log('\x1b[32m✅ Etalase \'$judul_etalase\' berhasil dibuat!\x1b[0m');
                     "
                 fi
@@ -5994,11 +6150,12 @@ menu_etalase_custom() {
             2)
                 echo -e "\n${C_MAG}--- TAMBAH PRODUK KE ETALASE ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let db = {sections: []};
-                    try { db = JSON.parse(fs.readFileSync('custom_layout.json', 'utf8')); } catch(e) {}
-                    if(!db.sections || db.sections.length === 0) { console.log('\x1b[31mBelum ada etalase. Buat dulu!\x1b[0m'); process.exit(0); }
-                    db.sections.forEach((sec, idx) => console.log('[' + (idx+1) + '] ' + sec.title));
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM custom_layout WHERE id = 'main'\").get();
+                    let layoutDb = row ? JSON.parse(row.data) : {sections: []};
+                    if(!layoutDb.sections || layoutDb.sections.length === 0) { console.log('\x1b[31mBelum ada etalase. Buat dulu!\x1b[0m'); process.exit(0); }
+                    layoutDb.sections.forEach((sec, idx) => console.log('[' + (idx+1) + '] ' + sec.title));
                 "
                 echo -e ""
                 read -p "Pilih nomor Etalase: " nomor_etalase
@@ -6006,15 +6163,16 @@ menu_etalase_custom() {
                     read -p "Masukkan KODE SKU Produk: " sku_tambah
                     if [ ! -z "$sku_tambah" ]; then
                         node -e "
-                            const fs = require('fs');
-                            let db = {sections: []};
-                            try { db = JSON.parse(fs.readFileSync('custom_layout.json', 'utf8')); } catch(e) {}
+                            const Database = require('better-sqlite3');
+                            const db = new Database('tendo_database.db');
+                            let row = db.prepare(\"SELECT data FROM custom_layout WHERE id = 'main'\").get();
+                            let layoutDb = row ? JSON.parse(row.data) : {sections: []};
                             let idx = parseInt('$nomor_etalase') - 1;
-                            if(db.sections[idx]) {
-                                if(!db.sections[idx].skus.includes('$sku_tambah')) {
-                                    db.sections[idx].skus.push('$sku_tambah');
-                                    fs.writeFileSync('custom_layout.json', JSON.stringify(db, null, 2));
-                                    console.log('\x1b[32m✅ SKU \'$sku_tambah\' berhasil ditambahkan ke ' + db.sections[idx].title + '!\x1b[0m');
+                            if(layoutDb.sections[idx]) {
+                                if(!layoutDb.sections[idx].skus.includes('$sku_tambah')) {
+                                    layoutDb.sections[idx].skus.push('$sku_tambah');
+                                    db.prepare(\"UPDATE custom_layout SET data = ? WHERE id = 'main'\").run(JSON.stringify(layoutDb));
+                                    console.log('\x1b[32m✅ SKU \'$sku_tambah\' berhasil ditambahkan ke ' + layoutDb.sections[idx].title + '!\x1b[0m');
                                 } else {
                                     console.log('\x1b[33mSKU sudah ada di etalase ini.\x1b[0m');
                                 }
@@ -6029,11 +6187,12 @@ menu_etalase_custom() {
             3)
                 echo -e "\n${C_MAG}--- HAPUS PRODUK DARI ETALASE ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let db = {sections: []};
-                    try { db = JSON.parse(fs.readFileSync('custom_layout.json', 'utf8')); } catch(e) {}
-                    if(!db.sections || db.sections.length === 0) { console.log('\x1b[31mBelum ada etalase.\x1b[0m'); process.exit(0); }
-                    db.sections.forEach((sec, idx) => console.log('[' + (idx+1) + '] ' + sec.title));
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM custom_layout WHERE id = 'main'\").get();
+                    let layoutDb = row ? JSON.parse(row.data) : {sections: []};
+                    if(!layoutDb.sections || layoutDb.sections.length === 0) { console.log('\x1b[31mBelum ada etalase.\x1b[0m'); process.exit(0); }
+                    layoutDb.sections.forEach((sec, idx) => console.log('[' + (idx+1) + '] ' + sec.title));
                 "
                 echo -e ""
                 read -p "Pilih nomor Etalase: " nomor_etalase
@@ -6041,16 +6200,17 @@ menu_etalase_custom() {
                     read -p "Masukkan KODE SKU Produk yg ingin dihapus: " sku_hapus
                     if [ ! -z "$sku_hapus" ]; then
                         node -e "
-                            const fs = require('fs');
-                            let db = {sections: []};
-                            try { db = JSON.parse(fs.readFileSync('custom_layout.json', 'utf8')); } catch(e) {}
+                            const Database = require('better-sqlite3');
+                            const db = new Database('tendo_database.db');
+                            let row = db.prepare(\"SELECT data FROM custom_layout WHERE id = 'main'\").get();
+                            let layoutDb = row ? JSON.parse(row.data) : {sections: []};
                             let idx = parseInt('$nomor_etalase') - 1;
-                            if(db.sections[idx]) {
-                                let oldLen = db.sections[idx].skus.length;
-                                db.sections[idx].skus = db.sections[idx].skus.filter(s => s !== '$sku_hapus');
-                                if(db.sections[idx].skus.length < oldLen) {
-                                    fs.writeFileSync('custom_layout.json', JSON.stringify(db, null, 2));
-                                    console.log('\x1b[32m✅ SKU \'$sku_hapus\' berhasil dihapus dari ' + db.sections[idx].title + '!\x1b[0m');
+                            if(layoutDb.sections[idx]) {
+                                let oldLen = layoutDb.sections[idx].skus.length;
+                                layoutDb.sections[idx].skus = layoutDb.sections[idx].skus.filter(s => s !== '$sku_hapus');
+                                if(layoutDb.sections[idx].skus.length < oldLen) {
+                                    db.prepare(\"UPDATE custom_layout SET data = ? WHERE id = 'main'\").run(JSON.stringify(layoutDb));
+                                    console.log('\x1b[32m✅ SKU \'$sku_hapus\' berhasil dihapus dari ' + layoutDb.sections[idx].title + '!\x1b[0m');
                                 } else {
                                     console.log('\x1b[31mSKU tidak ditemukan di etalase ini.\x1b[0m');
                                 }
@@ -6065,24 +6225,26 @@ menu_etalase_custom() {
             4)
                 echo -e "\n${C_MAG}--- HAPUS ETALASE ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let db = {sections: []};
-                    try { db = JSON.parse(fs.readFileSync('custom_layout.json', 'utf8')); } catch(e) {}
-                    if(!db.sections || db.sections.length === 0) { console.log('\x1b[31mBelum ada etalase.\x1b[0m'); process.exit(0); }
-                    db.sections.forEach((sec, idx) => console.log('[' + (idx+1) + '] ' + sec.title));
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM custom_layout WHERE id = 'main'\").get();
+                    let layoutDb = row ? JSON.parse(row.data) : {sections: []};
+                    if(!layoutDb.sections || layoutDb.sections.length === 0) { console.log('\x1b[31mBelum ada etalase.\x1b[0m'); process.exit(0); }
+                    layoutDb.sections.forEach((sec, idx) => console.log('[' + (idx+1) + '] ' + sec.title));
                 "
                 echo -e ""
                 read -p "Pilih nomor Etalase yg ingin dihapus: " nomor_etalase
                 if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
                     node -e "
-                        const fs = require('fs');
-                        let db = {sections: []};
-                        try { db = JSON.parse(fs.readFileSync('custom_layout.json', 'utf8')); } catch(e) {}
+                        const Database = require('better-sqlite3');
+                        const db = new Database('tendo_database.db');
+                        let row = db.prepare(\"SELECT data FROM custom_layout WHERE id = 'main'\").get();
+                        let layoutDb = row ? JSON.parse(row.data) : {sections: []};
                         let idx = parseInt('$nomor_etalase') - 1;
-                        if(db.sections[idx]) {
-                            let title = db.sections[idx].title;
-                            db.sections.splice(idx, 1);
-                            fs.writeFileSync('custom_layout.json', JSON.stringify(db, null, 2));
+                        if(layoutDb.sections[idx]) {
+                            let title = layoutDb.sections[idx].title;
+                            layoutDb.sections.splice(idx, 1);
+                            db.prepare(\"UPDATE custom_layout SET data = ? WHERE id = 'main'\").run(JSON.stringify(layoutDb));
                             console.log('\x1b[32m✅ Etalase \'' + title + '\' berhasil dihapus!\x1b[0m');
                         } else {
                             console.log('\x1b[31m❌ Nomor etalase tidak valid.\x1b[0m');
@@ -6094,21 +6256,21 @@ menu_etalase_custom() {
             5)
                 echo -e "\n${C_CYAN}--- DAFTAR ETALASE & PRODUK ---${C_RST}"
                 node -e "
-                    const fs = require('fs');
-                    let db = {sections: []};
-                    let prodDb = {};
-                    try { db = JSON.parse(fs.readFileSync('custom_layout.json', 'utf8')); } catch(e) {}
-                    try { prodDb = JSON.parse(fs.readFileSync('produk.json', 'utf8')); } catch(e) {}
+                    const Database = require('better-sqlite3');
+                    const db = new Database('tendo_database.db');
+                    let row = db.prepare(\"SELECT data FROM custom_layout WHERE id = 'main'\").get();
+                    let layoutDb = row ? JSON.parse(row.data) : {sections: []};
                     
-                    if(!db.sections || db.sections.length === 0) {
+                    if(!layoutDb.sections || layoutDb.sections.length === 0) {
                         console.log('\x1b[33mBelum ada etalase yang dibuat.\x1b[0m');
                     } else {
-                        db.sections.forEach((sec, idx) => {
+                        layoutDb.sections.forEach((sec, idx) => {
                             console.log('\n\x1b[36m[' + (idx+1) + '] ' + sec.title + '\x1b[0m');
                             if(sec.skus.length === 0) console.log('   (Kosong)');
                             else {
                                 sec.skus.forEach(sku => {
-                                    let pName = prodDb[sku] ? prodDb[sku].nama : 'Produk Tidak Ditemukan/Dihapus';
+                                    let pRow = db.prepare(\"SELECT data FROM produk WHERE id = ?\").get(sku);
+                                    let pName = pRow ? JSON.parse(pRow.data).nama : 'Produk Tidak Ditemukan/Dihapus';
                                     console.log('   - ' + sku + ' : ' + pName);
                                 });
                             }
@@ -6129,9 +6291,10 @@ menu_pemeliharaan() {
     echo -e "${C_YELLOW}${C_BOLD}          🛠️ ATUR WAKTU PEMELIHARAAN SISTEM 🛠️        ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     node -e "
-        const fs = require('fs');
-        let cfg = {};
-        try { cfg = JSON.parse(fs.readFileSync('config.json', 'utf8')); } catch(e) {}
+        const Database = require('better-sqlite3');
+        const db = new Database('tendo_database.db');
+        let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+        let cfg = row ? JSON.parse(row.data) : {};
         console.log('Waktu Pemeliharaan Saat Ini: ' + (cfg.maintStart || '23:00') + ' s/d ' + (cfg.maintEnd || '00:30') + ' WIB');
     "
     echo -e "${C_MAG}Format waktu 24 Jam (Contoh: 23:00)${C_RST}"
@@ -6140,12 +6303,13 @@ menu_pemeliharaan() {
     
     if [ ! -z "$m_start" ] && [ ! -z "$m_end" ]; then
         node -e "
-            const fs = require('fs');
-            let cfg = {};
-            try { cfg = JSON.parse(fs.readFileSync('config.json', 'utf8')); } catch(e) {}
+            const Database = require('better-sqlite3');
+            const db = new Database('tendo_database.db');
+            let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+            let cfg = row ? JSON.parse(row.data) : {};
             cfg.maintStart = '$m_start';
             cfg.maintEnd = '$m_end';
-            fs.writeFileSync('config.json', JSON.stringify(cfg, null, 2));
+            db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(cfg));
             console.log('\x1b[32m✅ Waktu pemeliharaan berhasil diupdate menjadi $m_start - $m_end WIB!\x1b[0m');
         "
     else
@@ -6210,12 +6374,13 @@ while true; do
                 read -p "📲 Masukkan Nomor WA Bot (Awali 628...): " nomor_bot
                 if [ ! -z "$nomor_bot" ]; then
                     node -e "
-                        const fs = require('fs');
-                        let config = {};
-                        try { config = JSON.parse(fs.readFileSync('config.json', 'utf8')); } catch(e) {}
+                        const Database = require('better-sqlite3');
+                        const db = new Database('tendo_database.db');
+                        let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+                        let config = row ? JSON.parse(row.data) : {};
                         config.botNumber = '$nomor_bot';
                         config.botName = config.botName || 'Digital Tendo Store';
-                        fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                        db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                     "
                 fi
             fi
@@ -6257,12 +6422,13 @@ while true; do
             read -p "Username Digiflazz Baru: " user_api
             read -p "API Key Digiflazz Baru: " key_api
             node -e "
-                const fs = require('fs');
-                let config = {};
-                try { config = JSON.parse(fs.readFileSync('config.json', 'utf8')); } catch(e) {}
+                const Database = require('better-sqlite3');
+                const db = new Database('tendo_database.db');
+                let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+                let config = row ? JSON.parse(row.data) : {};
                 if('$user_api' !== '') config.digiflazzUsername = '$user_api'.trim();
                 if('$key_api' !== '') config.digiflazzApiKey = '$key_api'.trim();
-                fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                 console.log('\x1b[32m\n✅ Konfigurasi Digiflazz berhasil disimpan!\x1b[0m');
             "
             read -p "Tekan Enter untuk kembali..."
@@ -6299,13 +6465,14 @@ while true; do
             echo -e "Teks QRIS berawalan '000201010211...' dan diakhiri dengan kombinasi 4 huruf/angka (CRC)."
             read -p "Paste TEKS STRING QRIS Anda di sini: " qris_text
             node -e "
-                const fs = require('fs');
-                let config = {};
-                try { config = JSON.parse(fs.readFileSync('config.json', 'utf8')); } catch(e) {}
+                const Database = require('better-sqlite3');
+                const db = new Database('tendo_database.db');
+                let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+                let config = row ? JSON.parse(row.data) : {};
                 if ('$gopay_token' !== '') config.gopayToken = '$gopay_token'.trim();
                 if ('$gopay_mid' !== '') config.gopayMerchantId = '$gopay_mid'.trim();
                 if ('$qris_text' !== '') config.qrisText = '$qris_text'.trim();
-                fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+                db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                 console.log('\x1b[32m\n✅ Konfigurasi GoPay BHM Biz & QRIS Dinamis berhasil disimpan!\x1b[0m');
             "
             read -p "Tekan Enter untuk kembali..."
