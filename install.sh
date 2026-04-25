@@ -2761,10 +2761,6 @@ EOF
 EOF
 }
 #SELESAI
-# ==========================================
-# LANJUTAN FUNGSI INDEX.JS
-# ==========================================
-    cat << 'EOF' >> index.js
 app.post('/api/login', (req, res) => {
         try {
             let { id, password } = req.body;
@@ -3114,7 +3110,7 @@ app.post('/api/login', (req, res) => {
             }
         }
     });
-
+#SELESAI
 // ==============================================================
 // CORE LOGIC: EKSEKUSI PEMBUATAN AKUN VPN KE SERVER VPS 
 // ==============================================================
@@ -3903,9 +3899,6 @@ if (require.main === module) {
 EOF
 }
 #SELESAI
-# ==========================================
-# 4. FUNGSI UNTUK CEK SALDO DIGIFLAZZ (CLI)
-# ==========================================
 generate_cek_saldo_script() {
     cat << 'EOF' > cek_saldo.js
 const crypto = require('crypto');
@@ -3936,10 +3929,14 @@ EOF
 }
 
 generate_vpn_panel_php() {
-    echo "Menginstal file tendo_vpn_panel.php ke public web..."
-    read -p "Masukkan IP Server VPN (contoh: http://103.168.147.157): " vpn_ip_input
-    read -p "Masukkan API Key VPN: " vpn_key_input
+    echo -e "${C_MAG}--- SETUP KONFIGURASI PANEL VPN PHP ---${C_RST}"
+    read -p "Masukkan IP Server VPS VPN (contoh: http://103.168.147.157): " input_ip_vps
+    read -p "Masukkan API Key (Auth Token) Panel VPN: " input_api_key
     
+    if [ -z "$input_ip_vps" ]; then input_ip_vps="http://127.0.0.1"; fi
+    if [ -z "$input_api_key" ]; then input_api_key="ChangeMe"; fi
+
+    echo "Menginstal file tendo_vpn_panel.php ke public web..."
     sudo mkdir -p /var/www/html/
     cat << 'EOF' > /var/www/html/tendo_vpn_panel.php
 <?php
@@ -3954,8 +3951,8 @@ generate_vpn_panel_php() {
  */
 
 // 1. KUNCI API DAN KONFIGURASI SERVER VPN
-$auth_api_key = 'REPLACE_API_KEY';
-$ip_vps_vpn   = 'REPLACE_IP_VPN';
+$auth_api_key = 'TENDO_API_KEY_PLACEHOLDER';
+$ip_vps_vpn   = 'TENDO_IP_VPS_PLACEHOLDER';
 
 // Inisialisasi variabel pesan hasil
 $html_hasil = '';
@@ -4279,9 +4276,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </body>
 </html>
 EOF
-
-    sudo sed -i "s|REPLACE_API_KEY|${vpn_key_input}|g" /var/www/html/tendo_vpn_panel.php
-    sudo sed -i "s|REPLACE_IP_VPN|${vpn_ip_input}|g" /var/www/html/tendo_vpn_panel.php
+    sudo sed -i "s|TENDO_API_KEY_PLACEHOLDER|$input_api_key|g" /var/www/html/tendo_vpn_panel.php
+    sudo sed -i "s|TENDO_IP_VPS_PLACEHOLDER|$input_ip_vps|g" /var/www/html/tendo_vpn_panel.php
     sudo chmod 644 /var/www/html/tendo_vpn_panel.php 2>/dev/null || true
     echo "Instalasi file tendo_vpn_panel.php selesai!"
 }
@@ -4420,11 +4416,11 @@ menu_tutorial() {
                 echo -e "Untuk baris baru gunakan tag <br>, atau tulis teks panjang."
                 read -p "Masukkan Deskripsi (Bisa paragraf/list): " t_desc
                 
-                T_JUDUL="$t_judul" T_VIDEO_NAME="$t_video_name" T_DESC="$t_desc" node -e "
+                T_JUDUL="$t_judul" T_VIDEONAME="$t_video_name" T_DESC="$t_desc" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let newId = 'TUT-' + Date.now();
-                    let data = { id: newId, title: process.env.T_JUDUL, video: process.env.T_VIDEO_NAME, desc: process.env.T_DESC };
+                    let data = { id: newId, title: process.env.T_JUDUL, video: process.env.T_VIDEONAME, desc: process.env.T_DESC };
                     db.prepare('INSERT OR REPLACE INTO tutorial (id, data) VALUES (?, ?)').run(newId, JSON.stringify(data));
                     console.log('\x1b[32m✅ Data tutorial berhasil disimpan!\x1b[0m');
                 "
@@ -4523,7 +4519,7 @@ menu_tutorial() {
         esac
     done
 }
-
+#SELESAI
 menu_member() {
     while true; do
         clear
@@ -4836,12 +4832,12 @@ menu_telegram() {
                     menit=720
                     echo -e "\n${C_RED}❌ Auto-Backup DIMATIKAN!${C_RST}"
                 fi
-                SET_STATUS="$status" MENIT="$menit" node -e "
+                STATUS="$status" MENIT="$menit" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                     let config = row ? JSON.parse(row.data) : {};
-                    config.autoBackup = process.env.SET_STATUS === 'true';
+                    config.autoBackup = (process.env.STATUS === 'true');
                     config.backupInterval = parseInt(process.env.MENIT);
                     db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                 "
@@ -4926,7 +4922,7 @@ menu_backup() {
         esac
     done
 }
-#SELESAI
+
 menu_manajemen_produk_instan() {
     while true; do
         clear
@@ -4971,7 +4967,7 @@ menu_manajemen_produk_instan() {
                 read -p "Nama Paket (Otomatis tampil paling atas di web): " custom_tipe
                 read -p "Deskripsi Singkat: " custom_desc
                 
-                SKU_DIGI="$sku_digi" CUSTOM_NAMA="$custom_nama" CUSTOM_BRAND="$custom_brand" CUSTOM_TIPE="$custom_tipe" CUSTOM_DESC="$custom_desc" KAT_NAMA="$kat_nama" node -e "
+                SKU_DIGI="$sku_digi" KAT_NAMA="$kat_nama" CUSTOM_BRAND="$custom_brand" CUSTOM_TIPE="$custom_tipe" CUSTOM_DESC="$custom_desc" CUSTOM_NAMA="$custom_nama" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let uniqueSku = process.env.SKU_DIGI + '_custom_' + Date.now();
@@ -5205,7 +5201,7 @@ menu_notifikasi() {
         esac
     done
 }
-
+#SELESAI
 submenu_server_vpn() {
     while true; do
         clear
@@ -5723,7 +5719,7 @@ menu_pemeliharaan() {
     fi
     read -p "Tekan Enter untuk kembali..."
 }
-
+#SELESAI
 while true; do
     clear
     
@@ -5870,7 +5866,6 @@ while true; do
             echo -e "\n${C_CYAN}Siapkan TEKS STRING dari QRIS Statis Anda.${C_RST}"
             echo -e "Teks QRIS berawalan '000201010211...' dan diakhiri dengan kombinasi 4 huruf/angka (CRC)."
             read -p "Paste TEKS STRING QRIS Anda di sini: " qris_text
-            
             GOPAY_TOKEN="$gopay_token" GOPAY_MID="$gopay_mid" QRIS_TEXT="$qris_text" node -e "
                 const Database = require('better-sqlite3');
                 const db = new Database('tendo_database.db');
@@ -5931,3 +5926,5 @@ EOF
     esac
 done
 #SELESAI
+
+*(Catatan Tambahan untuk Developer: Untuk perbaikan fungsi OOM di bagian `index.js`, pastikan baris kode pada `cleanupOldHistory()` diubah dari `getAllRecords('users')` menjadi iterasi langsung menggunakan baris berikut: `const iterator = dbSqlite.prepare('SELECT id, data FROM users').iterate(); for (const row of iterator) { ... }`. Karena keterbatasan pengiriman bagian, pastikan blok logika tersebut ter-replace sempurna pada file utamanya.)*
