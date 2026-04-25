@@ -2762,569 +2762,9 @@ EOF
 }
 #SELESAI
 # ==========================================
-# 3. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND)
+# LANJUTAN FUNGSI INDEX.JS
 # ==========================================
-generate_bot_script() {
-    cat << 'EOF' > index.js
-process.env.TZ = 'Asia/Jakarta';
-const fs = require('fs');
-const pino = require('pino');
-const express = require('express');
-const bodyParser = require('body-parser');
-const { exec } = require('child_process');
-const axios = require('axios'); 
-const crypto = require('crypto'); 
-const TelegramBot = require('node-telegram-bot-api');
-const { pipeline } = require('stream/promises');
-const Database = require('better-sqlite3');
-
-const app = express();
-app.disable('x-powered-by');
-
-// SECURITY: Memblokir akses langsung file konfigurasi JSON/DB lewat URL
-app.use((req, res, next) => {
-    if ((req.path.endsWith('.json') && !req.path.endsWith('manifest.json')) || req.path.endsWith('.db') || req.path.endsWith('.bak')) {
-        return res.status(403).json({success: false, message: 'Akses Ditolak (Sistem Keamanan Tendo)'});
-    }
-    next();
-});
-
-app.use(bodyParser.json());
-app.use(express.static('public')); 
-
-// ==============================================================
-// INIT SQLITE DATABASE & OPTIMASI PRAGMA
-// ==============================================================
-const dbSqlite = new Database('tendo_database.db');
-
-// Eksekusi PRAGMA untuk optimasi performa SQLite
-dbSqlite.pragma('journal_mode = WAL');
-dbSqlite.pragma('busy_timeout = 5000');
-dbSqlite.pragma('synchronous = NORMAL');
-
-dbSqlite.exec(`
-    CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, data TEXT);
-    CREATE TABLE IF NOT EXISTS config (id TEXT PRIMARY KEY, data TEXT);
-    CREATE TABLE IF NOT EXISTS produk (id TEXT PRIMARY KEY, data TEXT);
-    CREATE TABLE IF NOT EXISTS trx (id TEXT PRIMARY KEY, data TEXT);
-    CREATE TABLE IF NOT EXISTS topup (id TEXT PRIMARY KEY, data TEXT);
-    CREATE TABLE IF NOT EXISTS web_notif (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT);
-    CREATE TABLE IF NOT EXISTS global_trx (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT);
-    CREATE TABLE IF NOT EXISTS global_stats (id TEXT PRIMARY KEY, data TEXT);
-    CREATE TABLE IF NOT EXISTS tutorial (id TEXT PRIMARY KEY, data TEXT);
-    CREATE TABLE IF NOT EXISTS vpn_config (id TEXT PRIMARY KEY, data TEXT);
-    CREATE TABLE IF NOT EXISTS custom_layout (id TEXT PRIMARY KEY, data TEXT);
-`);
-
-// ==============================================================
-// SQLITE CRUD HELPERS (Mencegah Race Condition Secara Sinkron)
-// ==============================================================
-function getRecord(table, id) {
-    const row = dbSqlite.prepare(`SELECT data FROM ${table} WHERE id = ?`).get(id);
-    return row ? JSON.parse(row.data) : null;
-}
-
-function saveRecord(table, id, data) {
-    dbSqlite.prepare(`INSERT OR REPLACE INTO ${table} (id, data) VALUES (?, ?)`).run(id, JSON.stringify(data));
-}
-
-function deleteRecord(table, id) {
-    dbSqlite.prepare(`DELETE FROM ${table} WHERE id = ?`).run(id);
-}
-
-function getAllRecords(table) {
-    const rows = dbSqlite.prepare(`SELECT id, data FROM ${table}`).all();
-    let res = {};
-    for(let r of rows) res[r.id] = JSON.parse(r.data);
-    return res;
-}
-
-function getAllRecordsArray(table, limit = 100) {
-    if(table === 'tutorial') {
-        const rows = dbSqlite.prepare(`SELECT data FROM ${table}`).all();
-        return rows.map(r => JSON.parse(r.data));
-    }
-    const rows = dbSqlite.prepare(`SELECT data FROM ${table} ORDER BY id DESC LIMIT ?`).all(limit);
-    return rows.map(r => JSON.parse(r.data));
-}
-
-function unshiftRecordArray(table, data, maxLen = 100) {
-    dbSqlite.prepare(`INSERT INTO ${table} (data) VALUES (?)`).run(JSON.stringify(data));
-    dbSqlite.prepare(`DELETE FROM ${table} WHERE id NOT IN (SELECT id FROM ${table} ORDER BY id DESC LIMIT ?)`).run(maxLen);
-}
-
-const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
-
-function maskStringTarget(str) {
-    if (!str) return '-';
-    let s = str.toString().trim();
-    if (s.length <= 3) return s;
-    return '*'.repeat(s.length - 3) + s.substring(s.length - 3);
-}
-
-function cekPemeliharaan() {
-    let cfg = getRecord('config', 'main') || {};
-    let s = cfg.maintStart || "23:00";
-    let e = cfg.maintEnd || "00:30";
-    let d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
-    let h = d.getHours(); let m = d.getMinutes();
-    let curMins = h * 60 + m;
-    let sParts = s.split(':'); let eParts = e.split(':');
-    let sMins = parseInt(sParts[0])*60 + parseInt(sParts[1]);
-    let eMins = parseInt(eParts[0])*60 + parseInt(eParts[1]);
-    
-    if(sMins < eMins) return (curMins >= sMins && curMins < eMins);
-    else return (curMins >= sMins || curMins < eMins);
-}
-
-function cleanupOldHistory() {
-    try {
-        let users = getAllRecords('users');
-        let changedCount = 0;
-        let now = Date.now();
-        let thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-        
-        for (let phone in users) {
-            let u = users[phone];
-            if (u && u.history && u.history.length > 0) {
-                let origLen = u.history.length;
-                u.history = u.history.filter(h => (now - h.ts) < thirtyDaysMs);
-                if (u.history.length !== origLen) {
-                    saveRecord('users', phone, u);
-                    changedCount++;
-                }
-            }
-        }
-    } catch (e) {}
-}
-setInterval(cleanupOldHistory, 6 * 60 * 60 * 1000); 
-
-function sendTelegramAdmin(message) {
-    try {
-        let cfg = getRecord('config', 'main') || {};
-        if (cfg.teleToken && cfg.teleChatId) {
-            let chatIdStr = cfg.teleChatId.toString();
-            axios.post(`https://api.telegram.org/bot${cfg.teleToken}/sendMessage`, {
-                chat_id: chatIdStr,
-                text: message,
-                parse_mode: 'HTML'
-            }).catch(e => {});
-        }
-    } catch(e) {}
-}
-
-function sendBroadcastSuccess(productName, rawUser, rawTarget, price, method) {
-    try {
-        let cfg = getRecord('config', 'main') || {};
-        let maskTarget = maskStringTarget(rawTarget); 
-        let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-        let priceStr = price ? `\n💰 Harga: Rp ${price.toLocaleString('id-ID')}` : '';
-        let methodStr = method ? `\n💳 Metode: ${method}` : '';
-        
-        let msgTele = `✅ <b>PEMBELIAN BERHASIL</b>\n\n👤 Pelanggan: ${rawUser}\n📦 Layanan: ${productName}\n🎯 Tujuan: ${maskTarget}${priceStr}${methodStr}\n🕒 Waktu: ${timeStr} WIB\n\n<i>🌐 Transaksi diproses otomatis oleh sistem.</i>`;
-
-        if (cfg.teleTokenInfo && cfg.teleChannelId) {
-            let channelIdStr = cfg.teleChannelId.toString();
-            if (!channelIdStr.startsWith('-100') && !channelIdStr.startsWith('@')) {
-                channelIdStr = '-100' + channelIdStr;
-            }
-            axios.post(`https://api.telegram.org/bot${cfg.teleTokenInfo}/sendMessage`, {
-                chat_id: channelIdStr,
-                text: msgTele,
-                parse_mode: 'HTML'
-            }).catch(e => { console.error("Gagal kirim Telegram Channel:", e.message); });
-        }
-
-        if (globalSock && cfg.waBroadcastId) {
-            let msgWa = `✅ *PEMBELIAN BERHASIL*\n\n👤 Pelanggan: ${rawUser}\n📦 Layanan: ${productName}\n🎯 Tujuan: ${maskTarget}${priceStr}${methodStr}\n🕒 Waktu: ${timeStr} WIB\n\n_🌐 Transaksi diproses otomatis oleh sistem._`;
-            globalSock.sendMessage(cfg.waBroadcastId, { text: msgWa }).catch(e => {});
-        }
-    } catch(e) {}
-}
-
-function convertToDynamicQris(staticQris, amount) {
-    try {
-        if(!staticQris || staticQris.length < 30) return staticQris;
-        let qris = staticQris.substring(0, staticQris.length - 8);
-        qris = qris.replace("010211", "010212");
-        let parsed = ""; let i = 0;
-        while (i < qris.length) {
-            let id = qris.substring(i, i+2);
-            let lenStr = qris.substring(i+2, i+4);
-            let len = parseInt(lenStr, 10);
-            if (isNaN(len)) break;
-            let val = qris.substring(i+4, i+4+len);
-            if (id !== "54") parsed += id + lenStr + val;
-            i += 4 + len;
-        }
-        let amtStr = amount.toString();
-        let amtLen = amtStr.length.toString().padStart(2, '0');
-        let tag54 = "54" + amtLen + amtStr;
-        let finalQris = "";
-        if (parsed.includes("5802ID")) finalQris = parsed.replace("5802ID", tag54 + "5802ID");
-        else finalQris = parsed + tag54;
-        finalQris += "6304";
-        
-        let crc = 0xFFFF;
-        for(let j=0; j<finalQris.length; j++){
-            crc ^= finalQris.charCodeAt(j) << 8;
-            for(let k=0; k<8; k++){
-                if(crc & 0x8000) crc = (crc << 1) ^ 0x1021;
-                else crc = crc << 1;
-            }
-        }
-        let crcStr = (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
-        return finalQris + crcStr;
-    } catch(e) { return staticQris; }
-}
-
-let configAwal = getRecord('config', 'main') || {};
-configAwal.botName = configAwal.botName || "Digital Tendo Store";
-configAwal.botNumber = configAwal.botNumber || "";
-configAwal.gopayToken = configAwal.gopayToken || "";
-configAwal.gopayMerchantId = configAwal.gopayMerchantId || "";
-configAwal.qrisUrl = configAwal.qrisUrl || "https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg";
-configAwal.qrisText = configAwal.qrisText || "";
-configAwal.teleTokenInfo = configAwal.teleTokenInfo || ""; 
-configAwal.margin = configAwal.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
-saveRecord('config', 'main', configAwal);
-
-let vpnAwal = getRecord('vpn_config', 'main') || {};
-if(!vpnAwal.servers) vpnAwal.servers = {};
-if(!vpnAwal.products) vpnAwal.products = {};
-saveRecord('vpn_config', 'main', vpnAwal);
-
-let customLayoutAwal = getRecord('custom_layout', 'main') || {};
-if(!customLayoutAwal.sections) customLayoutAwal.sections = [];
-saveRecord('custom_layout', 'main', customLayoutAwal);
-
-if(!fs.existsSync('./public/maint_images')) fs.mkdirSync('./public/maint_images', { recursive: true });
-
-let globalSock = null;
-let tempOtpDB = {}; 
-let otpCooldown = {}; 
-let isMaintenanceNow = cekPemeliharaan();
-
-let teleBotInfo = null;
-let teleState = {}; 
-
-if (configAwal.teleTokenInfo) {
-    try {
-        teleBotInfo = new TelegramBot(configAwal.teleTokenInfo, {polling: true});
-        
-        teleBotInfo.on('polling_error', (error) => {
-            console.log('Telegram Info Polling Error:', error.message || error);
-        });
-        teleBotInfo.on('error', (error) => {
-            console.log('Telegram Info Error:', error.message || error);
-        });
-
-        teleBotInfo.on('callback_query', (callbackQuery) => {
-            teleBotInfo.answerCallbackQuery(callbackQuery.id).catch(e => {});
-            const msg = callbackQuery.message;
-            const data = callbackQuery.data;
-            const chatId = msg.chat.id;
-
-            if (data === 'menu_info') {
-                teleState[chatId] = { action: 'wait_info' };
-                teleBotInfo.sendMessage(chatId, "📢 *KIRIM INFO*\n\nSilakan ketik Teks Info, atau kirim Gambar beserta Caption.\nInfo ini akan otomatis dikirim ke Website dan Saluran WhatsApp Anda.", {parse_mode: "Markdown"});
-            } else if (data === 'menu_banner') {
-                const opts = {
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{ text: "🖼️ Banner 1", callback_data: "wait_banner_1" }, { text: "🖼️ Banner 2", callback_data: "wait_banner_2" }],
-                            [{ text: "🖼️ Banner 3", callback_data: "wait_banner_3" }, { text: "🖼️ Banner 4", callback_data: "wait_banner_4" }],
-                            [{ text: "🖼️ Banner 5", callback_data: "wait_banner_5" }]
-                        ]
-                    }
-                };
-                teleBotInfo.sendMessage(chatId, "🖼️ *PILIH SLOT BANNER*\n\nPilih nomor banner yang ingin diganti/diisi:", {parse_mode: "Markdown", ...opts});
-            } else if (data.startsWith('wait_banner_')) {
-                let slot = data.split('_')[2];
-                teleState[chatId] = { action: 'wait_banner', slot: slot };
-                teleBotInfo.sendMessage(chatId, `🖼️ *UPLOAD BANNER ${slot}*\n\nSilakan kirimkan file GAMBAR (JPG/PNG) untuk dipasang di posisi Banner ${slot}.`, {parse_mode: "Markdown"});
-            } else if (data === 'menu_tutorial') {
-                teleState[chatId] = { action: 'wait_tutorial_title' };
-                teleBotInfo.sendMessage(chatId, "📚 *TAMBAH TUTORIAL*\n\nMari kita buat tahap demi tahap.\nPertama, silakan kirimkan *JUDUL* tutorial Anda:", {parse_mode: "Markdown"});
-            }
-        });
-
-        teleBotInfo.on('message', async (msg) => {
-            let cfg = getRecord('config', 'main') || {};
-            if (!cfg.teleChatId || msg.chat.id.toString() !== cfg.teleChatId.toString()) return;
-            
-            let text = msg.text || msg.caption || '';
-            let chatId = msg.chat.id;
-
-            if (text === '/menu' || text === '/start' || text === '/info' || text === '/banner' || text === '/tutorial') {
-                const opts = {
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{ text: "📢 Kirim Info & Broadcast", callback_data: "menu_info" }],
-                            [{ text: "🖼️ Upload Banner Website", callback_data: "menu_banner" }],
-                            [{ text: "📚 Tambah Tutorial", callback_data: "menu_tutorial" }]
-                        ]
-                    }
-                };
-                return teleBotInfo.sendMessage(chatId, "🛠️ *MENU KONTEN DIGITAL TENDO*\n\nSilakan pilih menu di bawah ini dengan sekali klik:", {parse_mode: "Markdown", ...opts});
-            }
-
-            if (teleState[chatId]) {
-                let state = teleState[chatId];
-                
-                if (state.action === 'wait_info') {
-                    if(!text && !msg.photo) return teleBotInfo.sendMessage(chatId, '❌ Mohon kirimkan Teks atau Gambar dengan caption.');
-                    
-                    let imageFilename = null;
-                    if (msg.photo) {
-                        try {
-                            teleBotInfo.sendMessage(chatId, '⏳ Menyimpan gambar Info...');
-                            let fileId = msg.photo[msg.photo.length - 1].file_id;
-                            let file = await teleBotInfo.getFile(fileId);
-                            let url = `https://api.telegram.org/file/bot${cfg.teleTokenInfo}/${file.file_path}`;
-                            let ext = file.file_path.split('.').pop() || 'jpg';
-                            imageFilename = 'info_' + Date.now() + '.' + ext;
-                            let res = await axios.get(url, { responseType: 'stream', timeout: 60000 });
-                            const writer = fs.createWriteStream('./public/info_images/' + imageFilename);
-                            await pipeline(res.data, writer);
-                        } catch(e) { console.log("Download info image error:", e.message); }
-                    }
-                    
-                    let today = new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'long', year:'numeric' });
-                    unshiftRecordArray('web_notif', { date: today, text: text, image: imageFilename || '' }, 20);
-
-                    if (cfg.teleChannelId) {
-                        let chanIdStr = cfg.teleChannelId.toString();
-                        if (!chanIdStr.startsWith('-100') && !chanIdStr.startsWith('@')) chanIdStr = '-100' + chanIdStr;
-                        let sentMsg;
-                        if (imageFilename) sentMsg = await teleBotInfo.sendPhoto(chanIdStr, './public/info_images/' + imageFilename, {caption: text}).catch(e=>{});
-                        else sentMsg = await teleBotInfo.sendMessage(chanIdStr, text).catch(e=>{});
-                        if (sentMsg && sentMsg.message_id) await teleBotInfo.pinChatMessage(chanIdStr, sentMsg.message_id).catch(e=>{});
-                    }
-
-                    let waSuccess = false;
-                    if (cfg.waBroadcastId && globalSock) {
-                        let waMsg = `📢 *INFO TERBARU*\n\n${text}`;
-                        let targetWa = cfg.waBroadcastId;
-                        if (!targetWa.includes('@')) targetWa = targetWa + '@newsletter';
-                        
-                        try {
-                            if (imageFilename) {
-                                await globalSock.sendMessage(targetWa, { image: { url: './public/info_images/' + imageFilename }, caption: waMsg });
-                            } else {
-                                await globalSock.sendMessage(targetWa, { text: waMsg });
-                            }
-                            waSuccess = true;
-                        } catch(err) {
-                            console.log("WA Channel Error:", err.message);
-                            teleBotInfo.sendMessage(chatId, `⚠️ *Peringatan:* Info berhasil masuk Web, TAPI gagal dikirim ke Saluran WhatsApp.\nPastikan ID WA Saluran benar dan bot sudah dijadikan *Admin*.\n\nError: ${err.message}`, {parse_mode: "Markdown"});
-                        }
-                    }
-
-                    if(waSuccess) {
-                        teleBotInfo.sendMessage(chatId, '✅ *Berhasil!* Info telah ditambahkan ke Website, Telegram Channel, dan Saluran WhatsApp.', {parse_mode: "Markdown"});
-                    } else if (!cfg.waBroadcastId || !globalSock) {
-                        teleBotInfo.sendMessage(chatId, '✅ *Berhasil!* Info telah ditambahkan ke Website & Telegram Channel.\n_(Saluran WA belum disetting atau bot belum terkoneksi)_', {parse_mode: "Markdown"});
-                    }
-                    
-                    delete teleState[chatId];
-                    return;
-                }
-
-                if (state.action === 'wait_banner') {
-                    if (!msg.photo) return teleBotInfo.sendMessage(chatId, '❌ Anda harus mengirim file Gambar (JPG/PNG).');
-                    try {
-                        teleBotInfo.sendMessage(chatId, `⏳ Mengupload gambar ke Banner ${state.slot}...`);
-                        let fileId = msg.photo[msg.photo.length - 1].file_id;
-                        let file = await teleBotInfo.getFile(fileId);
-                        let url = `https://api.telegram.org/file/bot${cfg.teleTokenInfo}/${file.file_path}`;
-                        let ext = file.file_path.split('.').pop() || 'jpg';
-                        let bannerFolder = './public/baner' + state.slot;
-                        if (!fs.existsSync(bannerFolder)) fs.mkdirSync(bannerFolder, { recursive: true });
-                        
-                        let files = fs.readdirSync(bannerFolder);
-                        for (const f of files) fs.unlinkSync(bannerFolder + '/' + f);
-                        
-                        let filename = 'banner_' + Date.now() + '.' + ext;
-                        let res = await axios.get(url, { responseType: 'stream', timeout: 60000 });
-                        const writer = fs.createWriteStream(bannerFolder + '/' + filename);
-                        await pipeline(res.data, writer);
-                        
-                        teleBotInfo.sendMessage(chatId, `✅ *Sukses!* Gambar berhasil dipasang di posisi Banner ${state.slot}. Refresh web untuk melihatnya.`, {parse_mode: "Markdown"});
-                    } catch(e) {
-                        teleBotInfo.sendMessage(chatId, '❌ Gagal memproses gambar banner.');
-                    }
-                    delete teleState[chatId];
-                    return;
-                }
-
-                if (state.action === 'wait_tutorial_title') {
-                    if(!text) return teleBotInfo.sendMessage(chatId, '❌ Tolong kirim Teks untuk Judul.');
-                    teleState[chatId].title = text;
-                    teleState[chatId].action = 'wait_tutorial_desc';
-                    return teleBotInfo.sendMessage(chatId, "✅ Judul disimpan.\n\nSekarang kirimkan *DESKRIPSI / ISI* tutorialnya:", {parse_mode: "Markdown"});
-                }
-
-                if (state.action === 'wait_tutorial_desc') {
-                    if(!text) return teleBotInfo.sendMessage(chatId, '❌ Tolong kirim Teks untuk Deskripsi.');
-                    teleState[chatId].desc = text;
-                    teleState[chatId].action = 'wait_tutorial_video';
-                    return teleBotInfo.sendMessage(chatId, "✅ Deskripsi disimpan.\n\nTerakhir, kirimkan *VIDEO (MP4)* tutorial.\n\n_Jika Anda HANYA MENGGUNAKAN TEKS, silakan ketik_ `/lewati`", {parse_mode: "Markdown"});
-                }
-
-                if (state.action === 'wait_tutorial_video') {
-                    let vidFilename = '-';
-                    if (text === '/lewati' || text === '/skip') {
-                        teleBotInfo.sendMessage(chatId, "⏳ Menyimpan Tutorial Teks ke website...");
-                    } else if (msg.video) {
-                        try {
-                            teleBotInfo.sendMessage(chatId, '⏳ Mendownload Video dan memproses tutorial...');
-                            let fileId = msg.video.file_id;
-                            let file = await teleBotInfo.getFile(fileId);
-                            let url = `https://api.telegram.org/file/bot${cfg.teleTokenInfo}/${file.file_path}`;
-                            let ext = file.file_path.split('.').pop() || 'mp4';
-                            vidFilename = 'tutor_' + Date.now() + '.' + ext;
-                            
-                            let res = await axios.get(url, { responseType: 'stream', timeout: 120000 });
-                            const writer = fs.createWriteStream('./public/tutorials/' + vidFilename);
-                            await pipeline(res.data, writer);
-                        } catch(e) {
-                            delete teleState[chatId];
-                            return teleBotInfo.sendMessage(chatId, '❌ Gagal mendownload video. Mungkin file terlalu besar.');
-                        }
-                    } else {
-                        return teleBotInfo.sendMessage(chatId, '❌ Kirim file Video, atau ketik `/lewati` jika hanya teks.', {parse_mode: "Markdown"});
-                    }
-
-                    let newTutId = 'TUT-' + Date.now();
-                    saveRecord('tutorial', newTutId, {
-                        id: newTutId,
-                        title: teleState[chatId].title,
-                        video: vidFilename,
-                        desc: teleState[chatId].desc
-                    });
-                    
-                    teleBotInfo.sendMessage(chatId, '✅ *Berhasil!* Tutorial telah ditambahkan ke Website.', {parse_mode: "Markdown"});
-                    delete teleState[chatId];
-                    return;
-                }
-            }
-        });
-    } catch(e) {}
-}
-
-function normalizePhone(phoneStr) {
-    if(!phoneStr) return '';
-    let num = phoneStr.replace(/[^0-9]/g, '');
-    if(num.startsWith('0')) return '62' + num.substring(1);
-    return num;
-}
-
-app.get('/api/banners', (req, res) => {
-    let banners = [];
-    try {
-        for (let i = 1; i <= 5; i++) {
-            let folderPath = `./public/baner${i}`;
-            if (fs.existsSync(folderPath)) {
-                let files = fs.readdirSync(folderPath);
-                let imgFiles = files.filter(f => f.match(/\.(jpg|jpeg|png|gif|webp)$/i));
-                if (imgFiles.length > 0) banners.push(`/baner${i}/${imgFiles[0]}`);
-            }
-        }
-    } catch(e) {}
-    res.json({ success: true, data: banners });
-});
-
-app.get('/api/stats', (req, res) => {
-    try {
-        let gStats = getAllRecords('global_stats');
-        let cfg = getRecord('config', 'main') || {};
-        let daily = 0, weekly = 0, monthly = 0, total = 0;
-        
-        let now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
-        let nowYear = now.getFullYear();
-        let nowMonth = now.getMonth();
-        let nowString = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-        
-        let day = now.getDay() || 7; 
-        let monday = new Date(now);
-        monday.setDate(now.getDate() - day + 1);
-        monday.setHours(0,0,0,0);
-
-        for(let k in gStats) {
-            let count = gStats[k];
-            total += count;
-            let recordDate = new Date(k + 'T00:00:00+07:00');
-            if(k === nowString) daily += count;
-            if(recordDate >= monday) weekly += count;
-            if(recordDate.getFullYear() === nowYear && recordDate.getMonth() === nowMonth) monthly += count;
-        }
-        res.json({ success: true, daily, weekly, monthly, total, maintStart: cfg.maintStart || '23:00', maintEnd: cfg.maintEnd || '00:30' });
-    } catch(e) { res.json({ success: false, daily: 0, weekly: 0, monthly: 0, total: 0 }); }
-});
-
-app.get('/api/produk', (req, res) => { res.json(getAllRecords('produk')); });
-app.get('/api/notif', (req, res) => { res.json(getAllRecordsArray('web_notif')); });
-app.get('/api/global-trx', (req, res) => { res.json(getAllRecordsArray('global_trx')); });
-app.get('/api/custom-layout', (req, res) => { res.json({success: true, data: getRecord('custom_layout', 'main') || {sections:[]}}); }); 
-app.get('/api/tutorials', (req, res) => { res.json(getAllRecordsArray('tutorial')); });
-
-app.get('/api/vpn-config', (req, res) => {
-    try {
-        let vpn = getRecord('vpn_config', 'main') || {};
-        let safeConfig = JSON.parse(JSON.stringify(vpn));
-        if(safeConfig.servers) {
-            for(let srv in safeConfig.servers) {
-                delete safeConfig.servers[srv].pass;
-                delete safeConfig.servers[srv].user;
-                delete safeConfig.servers[srv].api_key;
-                delete safeConfig.servers[srv].port;
-            }
-        }
-        res.json({success: true, data: safeConfig});
-    } catch(e) { res.json({success: false}); }
-});
-
-app.get('/api/user/:phone', (req, res) => {
-    try {
-        let p = req.params.phone;
-        let u = getRecord('users', p);
-        if(u) {
-            let safeData = { ...u }; delete safeData.password; 
-            res.json({success: true, data: safeData});
-        } else res.json({success: false});
-    } catch(e) { res.json({success: false}); }
-});
-
-app.post('/api/cancel-topup', (req, res) => {
-    try {
-        let { sn, phone } = req.body;
-        let topup = getRecord('topup', sn);
-        
-        if(topup && topup.phone === phone) {
-            topup.status = 'gagal';
-            saveRecord('topup', sn, topup);
-        }
-        
-        let u = getRecord('users', phone);
-        if(u) {
-            let hist = u.history.find(h => h.sn === sn);
-            if(hist && hist.status === 'Pending') {
-                hist.status = 'Gagal (Dibatalkan)';
-                saveRecord('users', phone, u);
-                
-                let emailUser = u.email || '-';
-                let namaUser = u.username || phone;
-                let teleMsg = `❌ <b>TOPUP DIBATALKAN PELANGGAN</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${sn}`;
-                sendTelegramAdmin(teleMsg);
-                
-                return res.json({success: true});
-            }
-        }
-        res.json({success: false, message: 'Topup tidak ditemukan atau sudah diproses.'});
-    } catch(e) { res.json({success: false, message: 'Server error'}); }
-});
-#SELESAI
+    cat << 'EOF' >> index.js
 app.post('/api/login', (req, res) => {
         try {
             let { id, password } = req.body;
@@ -3674,7 +3114,7 @@ app.post('/api/login', (req, res) => {
             }
         }
     });
-#SELESAI
+
 // ==============================================================
 // CORE LOGIC: EKSEKUSI PEMBUATAN AKUN VPN KE SERVER VPS 
 // ==============================================================
@@ -4462,7 +3902,10 @@ if (require.main === module) {
 }
 EOF
 }
-
+#SELESAI
+# ==========================================
+# 4. FUNGSI UNTUK CEK SALDO DIGIFLAZZ (CLI)
+# ==========================================
 generate_cek_saldo_script() {
     cat << 'EOF' > cek_saldo.js
 const crypto = require('crypto');
@@ -4494,6 +3937,9 @@ EOF
 
 generate_vpn_panel_php() {
     echo "Menginstal file tendo_vpn_panel.php ke public web..."
+    read -p "Masukkan IP Server VPN (contoh: http://103.168.147.157): " vpn_ip_input
+    read -p "Masukkan API Key VPN: " vpn_key_input
+    
     sudo mkdir -p /var/www/html/
     cat << 'EOF' > /var/www/html/tendo_vpn_panel.php
 <?php
@@ -4508,8 +3954,8 @@ generate_vpn_panel_php() {
  */
 
 // 1. KUNCI API DAN KONFIGURASI SERVER VPN
-$auth_api_key = 'ChangeIPqhJ10UroYJSf46rekJDi0thD2GXj';
-$ip_vps_vpn   = 'http://103.168.147.157';
+$auth_api_key = 'REPLACE_API_KEY';
+$ip_vps_vpn   = 'REPLACE_IP_VPN';
 
 // Inisialisasi variabel pesan hasil
 $html_hasil = '';
@@ -4833,6 +4279,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </body>
 </html>
 EOF
+
+    sudo sed -i "s|REPLACE_API_KEY|${vpn_key_input}|g" /var/www/html/tendo_vpn_panel.php
+    sudo sed -i "s|REPLACE_IP_VPN|${vpn_ip_input}|g" /var/www/html/tendo_vpn_panel.php
     sudo chmod 644 /var/www/html/tendo_vpn_panel.php 2>/dev/null || true
     echo "Instalasi file tendo_vpn_panel.php selesai!"
 }
@@ -4915,7 +4364,7 @@ install_dependencies() {
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     read -p "Tekan Enter untuk kembali..."
 }
-#SELESAI
+
 menu_tutorial() {
     while true; do
         clear
@@ -4971,11 +4420,11 @@ menu_tutorial() {
                 echo -e "Untuk baris baru gunakan tag <br>, atau tulis teks panjang."
                 read -p "Masukkan Deskripsi (Bisa paragraf/list): " t_desc
                 
-                node -e "
+                T_JUDUL="$t_judul" T_VIDEO_NAME="$t_video_name" T_DESC="$t_desc" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let newId = 'TUT-' + Date.now();
-                    let data = { id: newId, title: '$t_judul', video: '$t_video_name', desc: '$t_desc' };
+                    let data = { id: newId, title: process.env.T_JUDUL, video: process.env.T_VIDEO_NAME, desc: process.env.T_DESC };
                     db.prepare('INSERT OR REPLACE INTO tutorial (id, data) VALUES (?, ?)').run(newId, JSON.stringify(data));
                     console.log('\x1b[32m✅ Data tutorial berhasil disimpan!\x1b[0m');
                 "
@@ -4997,16 +4446,16 @@ menu_tutorial() {
                     read -p "Nama File Video Baru (Kosongkan jika tidak diubah, isi '-' untuk hapus video): " t_video
                     read -p "Deskripsi Baru (Kosongkan jika tidak diubah): " t_desc
                     
-                    node -e "
+                    T_NUM="$t_num" T_JUDUL="$t_judul" T_VIDEO="$t_video" T_DESC="$t_desc" node -e "
                         const Database = require('better-sqlite3');
                         const db = new Database('tendo_database.db');
                         let rows = db.prepare('SELECT id, data FROM tutorial').all();
-                        let idx = parseInt('$t_num') - 1;
+                        let idx = parseInt(process.env.T_NUM) - 1;
                         if(rows[idx]) {
                             let t = JSON.parse(rows[idx].data);
-                            if('$t_judul' !== '') t.title = '$t_judul';
-                            if('$t_video' !== '') t.video = '$t_video';
-                            if('$t_desc' !== '') t.desc = '$t_desc';
+                            if(process.env.T_JUDUL !== '') t.title = process.env.T_JUDUL;
+                            if(process.env.T_VIDEO !== '') t.video = process.env.T_VIDEO;
+                            if(process.env.T_DESC !== '') t.desc = process.env.T_DESC;
                             db.prepare('UPDATE tutorial SET data = ? WHERE id = ?').run(JSON.stringify(t), t.id);
                             console.log('\x1b[32m✅ Tutorial berhasil diupdate!\x1b[0m');
                         } else {
@@ -5028,12 +4477,12 @@ menu_tutorial() {
                 echo ""
                 read -p "Pilih nomor tutorial yang ingin dihapus: " t_num
                 if [[ "$t_num" =~ ^[0-9]+$ ]]; then
-                    node -e "
+                    T_NUM="$t_num" node -e "
                         const fs = require('fs');
                         const Database = require('better-sqlite3');
                         const db = new Database('tendo_database.db');
                         let rows = db.prepare('SELECT id, data FROM tutorial').all();
-                        let idx = parseInt('$t_num') - 1;
+                        let idx = parseInt(process.env.T_NUM) - 1;
                         if(rows[idx]) {
                             let t = JSON.parse(rows[idx].data);
                             let videoName = t.video;
@@ -5096,10 +4545,10 @@ menu_member() {
                 echo -e "\n${C_MAG}--- TAMBAH SALDO ---${C_RST}"
                 read -p "Cari Target (Bisa Nomor WA, Email, ATAU Nama Akun): " pencarian
                 read -p "Masukkan Jumlah Saldo: " jumlah
-                node -e "
+                PENCARIAN="$pencarian" JUMLAH="$jumlah" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
-                    let input = '$pencarian'.trim();
+                    let input = process.env.PENCARIAN.trim();
                     let normPhone = input.replace(/[^0-9]/g, '');
                     if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
                     else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
@@ -5125,7 +4574,7 @@ menu_member() {
                     
                     let namaUser = targetData.username || target;
                     let saldoSebelum = parseInt(targetData.saldo || 0);
-                    let nominalTambah = parseInt('$jumlah');
+                    let nominalTambah = parseInt(process.env.JUMLAH);
                     targetData.saldo = saldoSebelum + nominalTambah;
                     
                     targetData.history = targetData.history || [];
@@ -5148,10 +4597,10 @@ menu_member() {
                 echo -e "\n${C_MAG}--- KURANGI SALDO ---${C_RST}"
                 read -p "Cari Target (Bisa Nomor WA, Email, ATAU Nama Akun): " pencarian
                 read -p "Masukkan Jumlah Saldo yg dikurangi: " jumlah
-                node -e "
+                PENCARIAN="$pencarian" JUMLAH="$jumlah" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
-                    let input = '$pencarian'.trim();
+                    let input = process.env.PENCARIAN.trim();
                     let normPhone = input.replace(/[^0-9]/g, '');
                     if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
                     else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
@@ -5171,7 +4620,7 @@ menu_member() {
                     } else {
                         let namaUser = targetData.username || target;
                         let saldoSebelum = parseInt(targetData.saldo || 0);
-                        let nominalKurang = parseInt('$jumlah');
+                        let nominalKurang = parseInt(process.env.JUMLAH);
                         
                         targetData.saldo = saldoSebelum - nominalKurang;
                         if(targetData.saldo < 0) targetData.saldo = 0;
@@ -5229,10 +4678,10 @@ menu_member() {
                 echo -e "\n${C_CYAN}--- RIWAYAT TOPUP/TRANSAKSI MEMBER ---${C_RST}"
                 read -p "Cari Target (Bisa Nomor WA, Email, ATAU Nama Akun): " pencarian
                 if [ ! -z "$pencarian" ]; then
-                    node -e "
+                    PENCARIAN="$pencarian" node -e "
                         const Database = require('better-sqlite3');
                         const db = new Database('tendo_database.db');
-                        let input = '$pencarian'.trim();
+                        let input = process.env.PENCARIAN.trim();
                         let normPhone = input.replace(/[^0-9]/g, '');
                         if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
                         else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
@@ -5321,14 +4770,14 @@ menu_keuntungan() {
                 continue
             fi
             
-            node -e "
+            K_CHOICE="$k_choice" NOMINAL_BARU="$nominal_baru" node -e "
                 const Database = require('better-sqlite3');
                 const db = new Database('tendo_database.db');
                 let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                 let config = row ? JSON.parse(row.data) : {};
                 if(!config.margin) config.margin = { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
-                let tier = 't' + $k_choice;
-                config.margin[tier] = parseInt('$nominal_baru');
+                let tier = 't' + process.env.K_CHOICE;
+                config.margin[tier] = parseInt(process.env.NOMINAL_BARU);
                 db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
             "
             echo -e "${C_GREEN}✅ Keuntungan tier $k_choice berhasil diubah! Me-refresh Katalog Website...${C_RST}"
@@ -5387,13 +4836,13 @@ menu_telegram() {
                     menit=720
                     echo -e "\n${C_RED}❌ Auto-Backup DIMATIKAN!${C_RST}"
                 fi
-                node -e "
+                SET_STATUS="$status" MENIT="$menit" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                     let config = row ? JSON.parse(row.data) : {};
-                    config.autoBackup = $status;
-                    config.backupInterval = parseInt('$menit');
+                    config.autoBackup = process.env.SET_STATUS === 'true';
+                    config.backupInterval = parseInt(process.env.MENIT);
                     db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -5477,7 +4926,7 @@ menu_backup() {
         esac
     done
 }
-
+#SELESAI
 menu_manajemen_produk_instan() {
     while true; do
         clear
@@ -5522,25 +4971,25 @@ menu_manajemen_produk_instan() {
                 read -p "Nama Paket (Otomatis tampil paling atas di web): " custom_tipe
                 read -p "Deskripsi Singkat: " custom_desc
                 
-                node -e "
+                SKU_DIGI="$sku_digi" CUSTOM_NAMA="$custom_nama" CUSTOM_BRAND="$custom_brand" CUSTOM_TIPE="$custom_tipe" CUSTOM_DESC="$custom_desc" KAT_NAMA="$kat_nama" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
-                    let uniqueSku = '$sku_digi' + '_custom_' + Date.now();
+                    let uniqueSku = process.env.SKU_DIGI + '_custom_' + Date.now();
                     
                     let existingPrice = 0;
                     let rows = db.prepare('SELECT data FROM produk').all();
                     for(let r of rows) {
                         let p = JSON.parse(r.data);
-                        if(String(p.sku_asli).toUpperCase() === String('$sku_digi').toUpperCase() && !p.is_manual_cat) {
+                        if(String(p.sku_asli).toUpperCase() === String(process.env.SKU_DIGI).toUpperCase() && !p.is_manual_cat) {
                             existingPrice = p.harga;
                             break;
                         }
                     }
 
                     let newProd = {
-                        sku_asli: '$sku_digi', nama: '$custom_nama', harga: existingPrice,
-                        kategori: '$kat_nama', brand: '$custom_brand', sub_kategori: '\u200B' + '$custom_tipe',
-                        deskripsi: '$custom_desc', status_produk: true, is_manual_cat: true
+                        sku_asli: process.env.SKU_DIGI, nama: process.env.CUSTOM_NAMA, harga: existingPrice,
+                        kategori: process.env.KAT_NAMA, brand: process.env.CUSTOM_BRAND, sub_kategori: '\u200B' + process.env.CUSTOM_TIPE,
+                        deskripsi: process.env.CUSTOM_DESC, status_produk: true, is_manual_cat: true
                     };
                     
                     db.prepare('INSERT OR REPLACE INTO produk (id, data) VALUES (?, ?)').run(uniqueSku, JSON.stringify(newProd));
@@ -5596,7 +5045,7 @@ menu_manajemen_produk_instan() {
                     read -p "Deskripsi Baru (Kosongkan jika tidak diubah): " e_desc
                     read -p "Nama Paket Baru (Kosongkan jika tidak diubah): " e_paket
                     
-                    node -e "
+                    EDIT_IDX="$edit_idx" E_NAMA="$e_nama" E_DESC="$e_desc" E_PAKET="$e_paket" node -e "
                         const Database = require('better-sqlite3');
                         const db = new Database('tendo_database.db');
                         let rows = db.prepare('SELECT id, data FROM produk').all();
@@ -5606,13 +5055,13 @@ menu_manajemen_produk_instan() {
                             if(p.is_manual_cat) manualProds.push({id: r.id, data: p});
                         }
                         
-                        let idx = parseInt('$edit_idx') - 1;
+                        let idx = parseInt(process.env.EDIT_IDX) - 1;
                         if(manualProds[idx]) {
                             let key = manualProds[idx].id;
                             let pData = manualProds[idx].data;
-                            if('$e_nama' !== '') pData.nama = '$e_nama';
-                            if('$e_desc' !== '') pData.deskripsi = '$e_desc';
-                            if('$e_paket' !== '') pData.sub_kategori = '\u200B' + '$e_paket';
+                            if(process.env.E_NAMA !== '') pData.nama = process.env.E_NAMA;
+                            if(process.env.E_DESC !== '') pData.deskripsi = process.env.E_DESC;
+                            if(process.env.E_PAKET !== '') pData.sub_kategori = '\u200B' + process.env.E_PAKET;
                             
                             db.prepare('UPDATE produk SET data = ? WHERE id = ?').run(JSON.stringify(pData), key);
                             console.log('\x1b[32m✅ Produk instan berhasil diupdate!\x1b[0m');
@@ -5642,7 +5091,7 @@ menu_manajemen_produk_instan() {
                 echo ""
                 read -p "Pilih nomor urut produk yang ingin dihapus: " del_idx
                 if [[ "$del_idx" =~ ^[0-9]+$ ]]; then
-                    node -e "
+                    DEL_IDX="$del_idx" node -e "
                         const Database = require('better-sqlite3');
                         const db = new Database('tendo_database.db');
                         let rows = db.prepare('SELECT id, data FROM produk').all();
@@ -5652,7 +5101,7 @@ menu_manajemen_produk_instan() {
                             if(p.is_manual_cat) manualProds.push({id: r.id});
                         }
                         
-                        let idx = parseInt('$del_idx') - 1;
+                        let idx = parseInt(process.env.DEL_IDX) - 1;
                         if(manualProds[idx]) {
                             db.prepare('DELETE FROM produk WHERE id = ?').run(manualProds[idx].id);
                             console.log('\x1b[32m✅ Produk instan berhasil dihapus dari website!\x1b[0m');
@@ -5691,13 +5140,13 @@ menu_notifikasi() {
                 echo -e "Notifikasi pesanan masuk, komplain, topup & backup akan dikirim kesini."
                 read -p "Masukkan Token Bot Telegram Admin: " token
                 read -p "Masukkan Chat ID Admin Anda: " chatid
-                node -e "
+                TOKEN="$token" CHATID="$chatid" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                     let config = row ? JSON.parse(row.data) : {};
-                    if('$token' !== '') config.teleToken = '$token'.trim();
-                    if('$chatid' !== '') config.teleChatId = '$chatid'.trim();
+                    if(process.env.TOKEN !== '') config.teleToken = process.env.TOKEN.trim();
+                    if(process.env.CHATID !== '') config.teleChatId = process.env.CHATID.trim();
                     db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                     console.log('\x1b[32m\n✅ Konfigurasi Telegram Admin berhasil disimpan!\x1b[0m');
                 "
@@ -5708,13 +5157,13 @@ menu_notifikasi() {
                 echo -e "Notifikasi untuk broadcast Global Transaksi Sukses dan Update Info di Web."
                 read -p "Masukkan Token Bot Telegram (Boleh bot yang sama/berbeda dari Admin): " token_info
                 read -p "Masukkan ID Channel/Saluran Pelanggan (Contoh: -100123456789): " chanid
-                node -e "
+                TOKEN_INFO="$token_info" CHANID="$chanid" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                     let config = row ? JSON.parse(row.data) : {};
-                    if('$token_info' !== '') config.teleTokenInfo = '$token_info'.trim();
-                    if('$chanid' !== '') config.teleChannelId = '$chanid'.trim();
+                    if(process.env.TOKEN_INFO !== '') config.teleTokenInfo = process.env.TOKEN_INFO.trim();
+                    if(process.env.CHANID !== '') config.teleChannelId = process.env.CHANID.trim();
                     db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                     console.log('\x1b[32m\n✅ Konfigurasi Telegram Pelanggan & Channel berhasil disimpan!\x1b[0m');
                 "
@@ -5725,12 +5174,12 @@ menu_notifikasi() {
                 echo -e "Masukkan ID Grup (contoh: 12345678@g.us) atau Saluran (contoh: 120363xxx@newsletter)."
                 echo -e "Bot WA Anda akan mengirim broadcast notifikasi beli sukses kesini."
                 read -p "Masukkan ID WA: " waid
-                node -e "
+                WAID="$waid" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                     let config = row ? JSON.parse(row.data) : {};
-                    if('$waid' !== '') config.waBroadcastId = '$waid'.trim();
+                    if(process.env.WAID !== '') config.waBroadcastId = process.env.WAID.trim();
                     db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                     console.log('\x1b[32m\n✅ ID WA Broadcast berhasil disimpan!\x1b[0m');
                 "
@@ -5787,19 +5236,19 @@ submenu_server_vpn() {
                 read -p "Masukkan Nama ISP Server: " srv_isp
                 read -p "Masukkan Nama Kota/City: " srv_city
                 
-                node -e "
+                SRV_ID="$srv_id" SRV_NAME="$srv_name" SRV_HOST="$srv_host" SRV_PORT="$srv_port" SRV_USER="$srv_user" SRV_PASS="$srv_pass" SRV_API="$srv_api" SRV_ISP="$srv_isp" SRV_CITY="$srv_city" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
                     let vpnDb = row ? JSON.parse(row.data) : {servers:{}, products:{}};
                     if(!vpnDb.servers) vpnDb.servers = {};
-                    vpnDb.servers['$srv_id'] = {
-                        server_name: '$srv_name', host: '$srv_host', port: '$srv_port',
-                        user: '$srv_user', pass: '$srv_pass', api_key: '$srv_api',
-                        isp: '$srv_isp', city: '$srv_city'
+                    vpnDb.servers[process.env.SRV_ID] = {
+                        server_name: process.env.SRV_NAME, host: process.env.SRV_HOST, port: process.env.SRV_PORT,
+                        user: process.env.SRV_USER, pass: process.env.SRV_PASS, api_key: process.env.SRV_API,
+                        isp: process.env.SRV_ISP, city: process.env.SRV_CITY
                     };
                     db.prepare(\"INSERT OR REPLACE INTO vpn_config (id, data) VALUES ('main', ?)\").run(JSON.stringify(vpnDb));
-                    console.log('\x1b[32m\n✅ Konfigurasi Server ($srv_id) berhasil disimpan!\x1b[0m');
+                    console.log('\x1b[32m\n✅ Konfigurasi Server (' + process.env.SRV_ID + ') berhasil disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
@@ -5824,17 +5273,17 @@ submenu_server_vpn() {
             3)
                 echo -e "\n${C_MAG}--- HAPUS KONEKSI SERVER ---${C_RST}"
                 read -p "Masukkan ID Server yang ingin dihapus: " del_id
-                node -e "
+                DEL_ID="$del_id" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
                     let vpnDb = row ? JSON.parse(row.data) : null;
-                    if(vpnDb && vpnDb.servers && vpnDb.servers['$del_id']) {
-                        delete vpnDb.servers['$del_id'];
+                    if(vpnDb && vpnDb.servers && vpnDb.servers[process.env.DEL_ID]) {
+                        delete vpnDb.servers[process.env.DEL_ID];
                         db.prepare(\"UPDATE vpn_config SET data = ? WHERE id = 'main'\").run(JSON.stringify(vpnDb));
-                        console.log('\x1b[32m\n✅ Server dengan ID ($del_id) berhasil dihapus!\x1b[0m');
+                        console.log('\x1b[32m\n✅ Server dengan ID (' + process.env.DEL_ID + ') berhasil dihapus!\x1b[0m');
                     } else {
-                        console.log('\x1b[31m\n❌ Server dengan ID ($del_id) tidak ditemukan.\x1b[0m');
+                        console.log('\x1b[31m\n❌ Server dengan ID (' + process.env.DEL_ID + ') tidak ditemukan.\x1b[0m');
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -5898,26 +5347,26 @@ submenu_produk_vpn() {
                 read -p "Jumlah Stok Awal: " p_stok
                 read -p "Deskripsi / Fitur Singkat: " p_desc
                 
-                node -e "
+                PROD_ID="$prod_id" TARGET_PROTO="$target_proto" SRV_ID_TARGET="$srv_id_target" P_NAMA="$p_nama" P_HARGA="$p_harga" P_DESC="$p_desc" P_LIMITIP="$p_limitip" P_KUOTA="$p_kuota" P_STOK="$p_stok" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
                     let vpnDb = row ? JSON.parse(row.data) : {servers:{}, products:{}};
                     if(!vpnDb.products) vpnDb.products = {};
                     
-                    vpnDb.products['$prod_id'] = {
-                        protocol: '$target_proto',
-                        server_id: '$srv_id_target',
-                        name: '$p_nama' !== '' ? '$p_nama' : 'VPN Premium',
-                        price: '$p_harga' !== '' ? parseInt('$p_harga') : 0,
-                        desc: '$p_desc' !== '' ? '$p_desc' : 'Proses Otomatis',
-                        limit_ip: '$p_limitip' !== '' ? parseInt('$p_limitip') : 2,
-                        kuota: '$p_kuota' !== '' ? parseInt('$p_kuota') : 200,
-                        stok: '$p_stok' !== '' ? parseInt('$p_stok') : 0
+                    vpnDb.products[process.env.PROD_ID] = {
+                        protocol: process.env.TARGET_PROTO,
+                        server_id: process.env.SRV_ID_TARGET,
+                        name: process.env.P_NAMA !== '' ? process.env.P_NAMA : 'VPN Premium',
+                        price: process.env.P_HARGA !== '' ? parseInt(process.env.P_HARGA) : 0,
+                        desc: process.env.P_DESC !== '' ? process.env.P_DESC : 'Proses Otomatis',
+                        limit_ip: process.env.P_LIMITIP !== '' ? parseInt(process.env.P_LIMITIP) : 2,
+                        kuota: process.env.P_KUOTA !== '' ? parseInt(process.env.P_KUOTA) : 200,
+                        stok: process.env.P_STOK !== '' ? parseInt(process.env.P_STOK) : 0
                     };
                     
                     db.prepare(\"INSERT OR REPLACE INTO vpn_config (id, data) VALUES ('main', ?)\").run(JSON.stringify(vpnDb));
-                    console.log('\x1b[32m\n✅ Produk VPN Baru ($prod_id) berhasil ditambahkan ke Server!\x1b[0m');
+                    console.log('\x1b[32m\n✅ Produk VPN Baru (' + process.env.PROD_ID + ') berhasil ditambahkan ke Server!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
@@ -5957,31 +5406,31 @@ submenu_produk_vpn() {
                 read -p "Limit Bandwidth Kuota GB: " p_kuota
                 read -p "Deskripsi / Fitur Singkat: " p_desc
                 
-                node -e "
+                EDIT_PROD_ID="$edit_prod_id" TARGET_PROTO="$target_proto" SRV_ID_TARGET="$srv_id_target" P_NAMA="$p_nama" P_HARGA="$p_harga" P_DESC="$p_desc" P_LIMITIP="$p_limitip" P_KUOTA="$p_kuota" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
                     let vpnDb = row ? JSON.parse(row.data) : null;
-                    if(!vpnDb || !vpnDb.products || !vpnDb.products['$edit_prod_id']) {
+                    if(!vpnDb || !vpnDb.products || !vpnDb.products[process.env.EDIT_PROD_ID]) {
                         console.log('\x1b[31m❌ ID Produk tidak ditemukan!\x1b[0m');
                         process.exit(0);
                     }
                     
-                    let existing = vpnDb.products['$edit_prod_id'];
+                    let existing = vpnDb.products[process.env.EDIT_PROD_ID];
                     
-                    vpnDb.products['$edit_prod_id'] = {
-                        protocol: '$target_proto' !== '' ? '$target_proto' : existing.protocol,
-                        server_id: '$srv_id_target' !== '' ? '$srv_id_target' : existing.server_id,
-                        name: '$p_nama' !== '' ? '$p_nama' : existing.name,
-                        price: '$p_harga' !== '' ? parseInt('$p_harga') : existing.price,
-                        desc: '$p_desc' !== '' ? '$p_desc' : existing.desc,
-                        limit_ip: '$p_limitip' !== '' ? parseInt('$p_limitip') : existing.limit_ip,
-                        kuota: '$p_kuota' !== '' ? parseInt('$p_kuota') : existing.kuota,
+                    vpnDb.products[process.env.EDIT_PROD_ID] = {
+                        protocol: process.env.TARGET_PROTO !== '' ? process.env.TARGET_PROTO : existing.protocol,
+                        server_id: process.env.SRV_ID_TARGET !== '' ? process.env.SRV_ID_TARGET : existing.server_id,
+                        name: process.env.P_NAMA !== '' ? process.env.P_NAMA : existing.name,
+                        price: process.env.P_HARGA !== '' ? parseInt(process.env.P_HARGA) : existing.price,
+                        desc: process.env.P_DESC !== '' ? process.env.P_DESC : existing.desc,
+                        limit_ip: process.env.P_LIMITIP !== '' ? parseInt(process.env.P_LIMITIP) : existing.limit_ip,
+                        kuota: process.env.P_KUOTA !== '' ? parseInt(process.env.P_KUOTA) : existing.kuota,
                         stok: existing.stok
                     };
                     
                     db.prepare(\"UPDATE vpn_config SET data = ? WHERE id = 'main'\").run(JSON.stringify(vpnDb));
-                    console.log('\x1b[32m\n✅ Produk VPN ($edit_prod_id) berhasil diupdate!\x1b[0m');
+                    console.log('\x1b[32m\n✅ Produk VPN (' + process.env.EDIT_PROD_ID + ') berhasil diupdate!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
@@ -6007,15 +5456,15 @@ submenu_produk_vpn() {
                 echo -e "\n${C_MAG}--- ATUR ULANG STOK PRODUK ---${C_RST}"
                 read -p "Masukkan ID Produk: " stok_id
                 read -p "Masukkan Jumlah Stok Baru: " stok_baru
-                node -e "
+                STOK_ID="$stok_id" STOK_BARU="$stok_baru" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
                     let vpnDb = row ? JSON.parse(row.data) : null;
-                    if(vpnDb && vpnDb.products && vpnDb.products['$stok_id']) {
-                        vpnDb.products['$stok_id'].stok = parseInt('$stok_baru') || 0;
+                    if(vpnDb && vpnDb.products && vpnDb.products[process.env.STOK_ID]) {
+                        vpnDb.products[process.env.STOK_ID].stok = parseInt(process.env.STOK_BARU) || 0;
                         db.prepare(\"UPDATE vpn_config SET data = ? WHERE id = 'main'\").run(JSON.stringify(vpnDb));
-                        console.log('\x1b[32m\n✅ Stok Produk ($stok_id) berhasil diupdate menjadi ' + vpnDb.products['$stok_id'].stok + '!\x1b[0m');
+                        console.log('\x1b[32m\n✅ Stok Produk (' + process.env.STOK_ID + ') berhasil diupdate menjadi ' + vpnDb.products[process.env.STOK_ID].stok + '!\x1b[0m');
                     } else {
                         console.log('\x1b[31m\n❌ ID Produk tidak ditemukan.\x1b[0m');
                     }
@@ -6025,15 +5474,15 @@ submenu_produk_vpn() {
             5)
                 echo -e "\n${C_MAG}--- HAPUS PRODUK ---${C_RST}"
                 read -p "Masukkan ID Produk yang ingin dihapus: " del_id
-                node -e "
+                DEL_ID="$del_id" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
                     let vpnDb = row ? JSON.parse(row.data) : null;
-                    if(vpnDb && vpnDb.products && vpnDb.products['$del_id']) {
-                        delete vpnDb.products['$del_id'];
+                    if(vpnDb && vpnDb.products && vpnDb.products[process.env.DEL_ID]) {
+                        delete vpnDb.products[process.env.DEL_ID];
                         db.prepare(\"UPDATE vpn_config SET data = ? WHERE id = 'main'\").run(JSON.stringify(vpnDb));
-                        console.log('\x1b[32m\n✅ Produk ($del_id) berhasil dihapus!\x1b[0m');
+                        console.log('\x1b[32m\n✅ Produk (' + process.env.DEL_ID + ') berhasil dihapus!\x1b[0m');
                     } else {
                         console.log('\x1b[31m\n❌ ID Produk tidak ditemukan.\x1b[0m');
                     }
@@ -6091,15 +5540,15 @@ menu_etalase_custom() {
                 echo -e "\n${C_MAG}--- BUAT ETALASE BARU ---${C_RST}"
                 read -p "Masukkan Judul Etalase (Cth: Best Seller): " judul_etalase
                 if [ ! -z "$judul_etalase" ]; then
-                    node -e "
+                    JUDUL_ETALASE="$judul_etalase" node -e "
                         const Database = require('better-sqlite3');
                         const db = new Database('tendo_database.db');
                         let row = db.prepare(\"SELECT data FROM custom_layout WHERE id = 'main'\").get();
                         let layoutDb = row ? JSON.parse(row.data) : {sections: []};
                         if(!layoutDb.sections) layoutDb.sections = [];
-                        layoutDb.sections.push({title: '$judul_etalase', skus: []});
+                        layoutDb.sections.push({title: process.env.JUDUL_ETALASE, skus: []});
                         db.prepare(\"INSERT OR REPLACE INTO custom_layout (id, data) VALUES ('main', ?)\").run(JSON.stringify(layoutDb));
-                        console.log('\x1b[32m✅ Etalase \'$judul_etalase\' berhasil dibuat!\x1b[0m');
+                        console.log('\x1b[32m✅ Etalase \'' + process.env.JUDUL_ETALASE + '\' berhasil dibuat!\x1b[0m');
                     "
                 fi
                 read -p "Tekan Enter untuk kembali..."
@@ -6119,17 +5568,17 @@ menu_etalase_custom() {
                 if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
                     read -p "Masukkan KODE SKU Produk: " sku_tambah
                     if [ ! -z "$sku_tambah" ]; then
-                        node -e "
+                        NOMOR_ETALASE="$nomor_etalase" SKU_TAMBAH="$sku_tambah" node -e "
                             const Database = require('better-sqlite3');
                             const db = new Database('tendo_database.db');
                             let row = db.prepare(\"SELECT data FROM custom_layout WHERE id = 'main'\").get();
                             let layoutDb = row ? JSON.parse(row.data) : {sections: []};
-                            let idx = parseInt('$nomor_etalase') - 1;
+                            let idx = parseInt(process.env.NOMOR_ETALASE) - 1;
                             if(layoutDb.sections[idx]) {
-                                if(!layoutDb.sections[idx].skus.includes('$sku_tambah')) {
-                                    layoutDb.sections[idx].skus.push('$sku_tambah');
+                                if(!layoutDb.sections[idx].skus.includes(process.env.SKU_TAMBAH)) {
+                                    layoutDb.sections[idx].skus.push(process.env.SKU_TAMBAH);
                                     db.prepare(\"UPDATE custom_layout SET data = ? WHERE id = 'main'\").run(JSON.stringify(layoutDb));
-                                    console.log('\x1b[32m✅ SKU \'$sku_tambah\' berhasil ditambahkan ke ' + layoutDb.sections[idx].title + '!\x1b[0m');
+                                    console.log('\x1b[32m✅ SKU \'' + process.env.SKU_TAMBAH + '\' berhasil ditambahkan ke ' + layoutDb.sections[idx].title + '!\x1b[0m');
                                 } else {
                                     console.log('\x1b[33mSKU sudah ada di etalase ini.\x1b[0m');
                                 }
@@ -6156,18 +5605,18 @@ menu_etalase_custom() {
                 if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
                     read -p "Masukkan KODE SKU Produk yg ingin dihapus: " sku_hapus
                     if [ ! -z "$sku_hapus" ]; then
-                        node -e "
+                        NOMOR_ETALASE="$nomor_etalase" SKU_HAPUS="$sku_hapus" node -e "
                             const Database = require('better-sqlite3');
                             const db = new Database('tendo_database.db');
                             let row = db.prepare(\"SELECT data FROM custom_layout WHERE id = 'main'\").get();
                             let layoutDb = row ? JSON.parse(row.data) : {sections: []};
-                            let idx = parseInt('$nomor_etalase') - 1;
+                            let idx = parseInt(process.env.NOMOR_ETALASE) - 1;
                             if(layoutDb.sections[idx]) {
                                 let oldLen = layoutDb.sections[idx].skus.length;
-                                layoutDb.sections[idx].skus = layoutDb.sections[idx].skus.filter(s => s !== '$sku_hapus');
+                                layoutDb.sections[idx].skus = layoutDb.sections[idx].skus.filter(s => s !== process.env.SKU_HAPUS);
                                 if(layoutDb.sections[idx].skus.length < oldLen) {
                                     db.prepare(\"UPDATE custom_layout SET data = ? WHERE id = 'main'\").run(JSON.stringify(layoutDb));
-                                    console.log('\x1b[32m✅ SKU \'$sku_hapus\' berhasil dihapus dari ' + layoutDb.sections[idx].title + '!\x1b[0m');
+                                    console.log('\x1b[32m✅ SKU \'' + process.env.SKU_HAPUS + '\' berhasil dihapus dari ' + layoutDb.sections[idx].title + '!\x1b[0m');
                                 } else {
                                     console.log('\x1b[31mSKU tidak ditemukan di etalase ini.\x1b[0m');
                                 }
@@ -6192,12 +5641,12 @@ menu_etalase_custom() {
                 echo -e ""
                 read -p "Pilih nomor Etalase yg ingin dihapus: " nomor_etalase
                 if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
-                    node -e "
+                    NOMOR_ETALASE="$nomor_etalase" node -e "
                         const Database = require('better-sqlite3');
                         const db = new Database('tendo_database.db');
                         let row = db.prepare(\"SELECT data FROM custom_layout WHERE id = 'main'\").get();
                         let layoutDb = row ? JSON.parse(row.data) : {sections: []};
-                        let idx = parseInt('$nomor_etalase') - 1;
+                        let idx = parseInt(process.env.NOMOR_ETALASE) - 1;
                         if(layoutDb.sections[idx]) {
                             let title = layoutDb.sections[idx].title;
                             layoutDb.sections.splice(idx, 1);
@@ -6259,15 +5708,15 @@ menu_pemeliharaan() {
     read -p "Masukkan Jam Selesai Pemeliharaan: " m_end
     
     if [ ! -z "$m_start" ] && [ ! -z "$m_end" ]; then
-        node -e "
+        M_START="$m_start" M_END="$m_end" node -e "
             const Database = require('better-sqlite3');
             const db = new Database('tendo_database.db');
             let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
             let cfg = row ? JSON.parse(row.data) : {};
-            cfg.maintStart = '$m_start';
-            cfg.maintEnd = '$m_end';
+            cfg.maintStart = process.env.M_START;
+            cfg.maintEnd = process.env.M_END;
             db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(cfg));
-            console.log('\x1b[32m✅ Waktu pemeliharaan berhasil diupdate menjadi $m_start - $m_end WIB!\x1b[0m');
+            console.log('\x1b[32m✅ Waktu pemeliharaan berhasil diupdate menjadi ' + process.env.M_START + ' - ' + process.env.M_END + ' WIB!\x1b[0m');
         "
     else
         echo -e "${C_RED}❌ Gagal, format waktu tidak boleh kosong!${C_RST}"
@@ -6330,12 +5779,12 @@ while true; do
             if [ ! -d "sesi_bot" ] || [ -z "$(ls -A sesi_bot 2>/dev/null)" ]; then
                 read -p "📲 Masukkan Nomor WA Bot (Awali 628...): " nomor_bot
                 if [ ! -z "$nomor_bot" ]; then
-                    node -e "
+                    NOMOR_BOT="$nomor_bot" node -e "
                         const Database = require('better-sqlite3');
                         const db = new Database('tendo_database.db');
                         let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                         let config = row ? JSON.parse(row.data) : {};
-                        config.botNumber = '$nomor_bot';
+                        config.botNumber = process.env.NOMOR_BOT;
                         config.botName = config.botName || 'Digital Tendo Store';
                         db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                     "
@@ -6378,13 +5827,13 @@ while true; do
             echo -e "\n${C_MAG}--- GANTI API DIGIFLAZZ ---${C_RST}"
             read -p "Username Digiflazz Baru: " user_api
             read -p "API Key Digiflazz Baru: " key_api
-            node -e "
+            USER_API="$user_api" KEY_API="$key_api" node -e "
                 const Database = require('better-sqlite3');
                 const db = new Database('tendo_database.db');
                 let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                 let config = row ? JSON.parse(row.data) : {};
-                if('$user_api' !== '') config.digiflazzUsername = '$user_api'.trim();
-                if('$key_api' !== '') config.digiflazzApiKey = '$key_api'.trim();
+                if(process.env.USER_API !== '') config.digiflazzUsername = process.env.USER_API.trim();
+                if(process.env.KEY_API !== '') config.digiflazzApiKey = process.env.KEY_API.trim();
                 db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                 console.log('\x1b[32m\n✅ Konfigurasi Digiflazz berhasil disimpan!\x1b[0m');
             "
@@ -6421,14 +5870,15 @@ while true; do
             echo -e "\n${C_CYAN}Siapkan TEKS STRING dari QRIS Statis Anda.${C_RST}"
             echo -e "Teks QRIS berawalan '000201010211...' dan diakhiri dengan kombinasi 4 huruf/angka (CRC)."
             read -p "Paste TEKS STRING QRIS Anda di sini: " qris_text
-            node -e "
+            
+            GOPAY_TOKEN="$gopay_token" GOPAY_MID="$gopay_mid" QRIS_TEXT="$qris_text" node -e "
                 const Database = require('better-sqlite3');
                 const db = new Database('tendo_database.db');
                 let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                 let config = row ? JSON.parse(row.data) : {};
-                if ('$gopay_token' !== '') config.gopayToken = '$gopay_token'.trim();
-                if ('$gopay_mid' !== '') config.gopayMerchantId = '$gopay_mid'.trim();
-                if ('$qris_text' !== '') config.qrisText = '$qris_text'.trim();
+                if (process.env.GOPAY_TOKEN !== '') config.gopayToken = process.env.GOPAY_TOKEN.trim();
+                if (process.env.GOPAY_MID !== '') config.gopayMerchantId = process.env.GOPAY_MID.trim();
+                if (process.env.QRIS_TEXT !== '') config.qrisText = process.env.QRIS_TEXT.trim();
                 db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                 console.log('\x1b[32m\n✅ Konfigurasi GoPay BHM Biz & QRIS Dinamis berhasil disimpan!\x1b[0m');
             "
