@@ -5288,25 +5288,27 @@ menu_keuntungan() {
         echo -e "${C_YELLOW}${C_BOLD}             💰 MANAJEMEN KEUNTUNGAN 💰             ${C_RST}"
         echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
         
-        node -e '
-            const Database = require("better-sqlite3");
-            const db = new Database("tendo_database.db", { readonly: true });
-            let row = db.prepare("SELECT data FROM config WHERE id = \'main\'").get();
+        # Eksekusi Node.js dengan Heredoc (Aman dari bentrok tanda kutip)
+        node -e "$(cat << 'EOF'
+            const Database = require('better-sqlite3');
+            const db = new Database('tendo_database.db', { readonly: true });
+            let row = db.prepare("SELECT data FROM config WHERE id = 'main'").get();
             let c = row ? JSON.parse(row.data).margin || {} : {};
-            console.log("  \x1b[32m[1]\x1b[0m  Modal Rp 0 - 100               : Rp " + (c.t1||50));
-            console.log("  \x1b[32m[2]\x1b[0m  Modal Rp 100 - 500             : Rp " + (c.t2||100));
-            console.log("  \x1b[32m[3]\x1b[0m  Modal Rp 500 - 1.000           : Rp " + (c.t3||250));
-            console.log("  \x1b[32m[4]\x1b[0m  Modal Rp 1.000 - 2.000         : Rp " + (c.t4||500));
-            console.log("  \x1b[32m[5]\x1b[0m  Modal Rp 2.000 - 3.000         : Rp " + (c.t5||1000));
-            console.log("  \x1b[32m[6]\x1b[0m  Modal Rp 3.000 - 4.000         : Rp " + (c.t6||1500));
-            console.log("  \x1b[32m[7]\x1b[0m  Modal Rp 4.000 - 5.000         : Rp " + (c.t7||2000));
-            console.log("  \x1b[32m[8]\x1b[0m  Modal Rp 5.000 - 10.000        : Rp " + (c.t8||2500));
-            console.log("  \x1b[32m[9]\x1b[0m  Modal Rp 10.000 - 25.000       : Rp " + (c.t9||3000));
-            console.log("  \x1b[32m[10]\x1b[0m Modal Rp 25.000 - 50.000      : Rp " + (c.t10||4000));
-            console.log("  \x1b[32m[11]\x1b[0m Modal Rp 50.000 - 75.000      : Rp " + (c.t11||5000));
-            console.log("  \x1b[32m[12]\x1b[0m Modal Rp 75.000 - 100.000     : Rp " + (c.t12||7500));
-            console.log("  \x1b[32m[13]\x1b[0m Modal Rp 100.000 - Seterusnya : Rp " + (c.t13||10000));
-        '
+            console.log('  \x1b[32m[1]\x1b[0m  Modal Rp 0 - 100               : Rp ' + (c.t1||50));
+            console.log('  \x1b[32m[2]\x1b[0m  Modal Rp 100 - 500             : Rp ' + (c.t2||100));
+            console.log('  \x1b[32m[3]\x1b[0m  Modal Rp 500 - 1.000           : Rp ' + (c.t3||250));
+            console.log('  \x1b[32m[4]\x1b[0m  Modal Rp 1.000 - 2.000         : Rp ' + (c.t4||500));
+            console.log('  \x1b[32m[5]\x1b[0m  Modal Rp 2.000 - 3.000         : Rp ' + (c.t5||1000));
+            console.log('  \x1b[32m[6]\x1b[0m  Modal Rp 3.000 - 4.000         : Rp ' + (c.t6||1500));
+            console.log('  \x1b[32m[7]\x1b[0m  Modal Rp 4.000 - 5.000         : Rp ' + (c.t7||2000));
+            console.log('  \x1b[32m[8]\x1b[0m  Modal Rp 5.000 - 10.000        : Rp ' + (c.t8||2500));
+            console.log('  \x1b[32m[9]\x1b[0m  Modal Rp 10.000 - 25.000       : Rp ' + (c.t9||3000));
+            console.log('  \x1b[32m[10]\x1b[0m Modal Rp 25.000 - 50.000      : Rp ' + (c.t10||4000));
+            console.log('  \x1b[32m[11]\x1b[0m Modal Rp 50.000 - 75.000      : Rp ' + (c.t11||5000));
+            console.log('  \x1b[32m[12]\x1b[0m Modal Rp 75.000 - 100.000     : Rp ' + (c.t12||7500));
+            console.log('  \x1b[32m[13]\x1b[0m Modal Rp 100.000 - Seterusnya : Rp ' + (c.t13||10000));
+EOF
+        )"
         
         echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
         echo -e "  ${C_RED}[0]${C_RST}  Kembali ke Panel Utama"
@@ -5325,16 +5327,17 @@ menu_keuntungan() {
                 continue
             fi
             
-            env TIER="$k_choice" NOMINAL="$nominal_baru" node -e '
-                const Database = require("better-sqlite3");
-                const db = new Database("tendo_database.db");
-                let row = db.prepare("SELECT data FROM config WHERE id = \'main\'").get();
+            env TIER="$k_choice" NOMINAL="$nominal_baru" node -e "$(cat << 'EOF'
+                const Database = require('better-sqlite3');
+                const db = new Database('tendo_database.db');
+                let row = db.prepare("SELECT data FROM config WHERE id = 'main'").get();
                 let config = row ? JSON.parse(row.data) : {};
                 if(!config.margin) config.margin = { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
                 let tier = "t" + process.env.TIER;
                 config.margin[tier] = parseInt(process.env.NOMINAL);
-                db.prepare("INSERT OR REPLACE INTO config (id, data) VALUES (\'main\', ?)").run(JSON.stringify(config));
-            '
+                db.prepare("INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)").run(JSON.stringify(config));
+EOF
+            )"
             echo -e "${C_GREEN}✅ Keuntungan tier $k_choice berhasil diubah! Me-refresh Katalog Website...${C_RST}"
             curl -s http://localhost:3000/api/sync-digiflazz > /dev/null
             sleep 1
@@ -5344,6 +5347,7 @@ menu_keuntungan() {
         fi
     done
 }
+
 
 menu_sinkron() {
     clear
