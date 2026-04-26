@@ -150,21 +150,57 @@ EOF
         .trx-badge { font-size: 11px; background: var(--bg-main); color: var(--text-main); padding: 5px 12px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.2s; z-index: 2;}
         .trx-badge:active { transform: scale(0.95); }
 
-        .banner-container { background: var(--topbar-bg); padding: 5px 20px 25px; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.25); position: relative; z-index: 10; transition: background 0.3s;}
+        .banner-container { 
+            background: var(--topbar-bg); 
+            padding: 5px 20px 25px; 
+            border-bottom-left-radius: 30px; 
+            border-bottom-right-radius: 30px; 
+            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.25);
+            position: relative;
+            z-index: 10;
+            transition: background 0.3s;
+        }
 
-        .saldo-card-modern { background: var(--bg-card); border-radius: 16px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow-outer), var(--shadow-inner); border: 1px solid var(--border-color); position: relative; z-index: 2; flex-wrap: wrap; gap: 10px;}
+        .saldo-card-modern {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow-outer), var(--shadow-inner);
+            border: 1px solid var(--border-color);
+            position: relative;
+            z-index: 2;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
         .sc-left { display: flex; align-items: center; gap: 14px; }
-        .sc-icon { width: 44px; height: 44px; background: rgba(56, 189, 248, 0.15); border-radius: 12px; display: flex; justify-content: center; align-items: center; color: #38bdf8; }
+        .sc-icon { 
+            width: 44px; height: 44px; background: rgba(56, 189, 248, 0.15); 
+            border-radius: 12px; display: flex; justify-content: center; align-items: center; color: #38bdf8; 
+        }
         .sc-info { display: flex; flex-direction: column; justify-content: center;}
         .sc-title { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;}
         .sc-amount { font-size: 18px; font-weight: 900; color: var(--text-main); letter-spacing: 0.5px;}
 
         .sc-actions { display: flex; gap: 8px; align-items: center; }
-        .sc-btn-action { background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border-color); width: 38px; height: 38px; border-radius: 12px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: transform 0.2s;}
+        .sc-btn-action {
+            background: var(--bg-main);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            width: 38px; height: 38px;
+            border-radius: 12px; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: transform 0.2s;
+        }
         .sc-btn-action:active { transform: scale(0.95); }
         .sc-btn-action svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 
-        .sc-btn-topup { background: var(--nav-active); color: #ffffff; border: none; padding: 0 16px; height: 38px; border-radius: 12px; font-weight: 800; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25); transition: transform 0.2s;}
+        .sc-btn-topup { 
+            background: var(--nav-active); color: #ffffff; border: none; 
+            padding: 0 16px; height: 38px; border-radius: 12px; font-weight: 800; font-size: 13px; cursor: pointer;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25); transition: transform 0.2s;
+        }
         .sc-btn-topup:active { transform: scale(0.95); }
 
         .banner-slider-container { margin: 20px 20px 0px; border-radius: 16px; overflow: hidden; position: relative; background: var(--bg-card); box-shadow: 0 15px 35px rgba(0,0,0,0.3);}
@@ -175,10 +211,18 @@ EOF
 
         .grid-title { margin: 25px 20px 15px; font-weight: 900; color: var(--text-main); font-size: 15px;}
         .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 0 20px;}
-        .grid-box { background: var(--grid-bg); border-radius: 18px; padding: 18px 5px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; box-shadow: var(--shadow-outer), var(--shadow-inner); border: 1px solid var(--border-color); transition: transform 0.2s, box-shadow 0.2s;}
+        .grid-box { 
+            background: var(--grid-bg); border-radius: 18px; padding: 18px 5px; 
+            text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+            box-shadow: var(--shadow-outer), var(--shadow-inner); border: 1px solid var(--border-color);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
         .grid-box:active { transform: scale(0.95); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         
-        .grid-icon-wrap { width: 50px; height: 50px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center; border-radius: 14px; transition: background 0.3s;}
+        .grid-icon-wrap { 
+            width: 50px; height: 50px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center; 
+            border-radius: 14px; transition: background 0.3s;
+        }
         .ic-pulsa { background: rgba(56, 189, 248, 0.15); color: #0284c7; }
         .ic-data { background: rgba(52, 211, 153, 0.15); color: #059669; }
         .ic-game { background: rgba(248, 113, 113, 0.15); color: #dc2626; }
@@ -216,7 +260,23 @@ EOF
         .b-logo { width: 45px; height: 45px; background: var(--bg-main); color: var(--text-main); border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border-color); flex-shrink: 0; text-transform: uppercase;}
         .b-name { font-size: 14px; font-weight: 800; flex: 1;}
 
-        .bottom-nav { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: calc(100% - 40px); max-width: 400px; background: var(--nav-bg); display: flex; justify-content: space-around; padding: 10px 5px; border-radius: 50px; box-shadow: var(--shadow-outer), var(--shadow-inner); z-index: 900; transition: background 0.3s; border: 1px solid var(--border-color);}
+        .bottom-nav { 
+            position: fixed; 
+            bottom: 20px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 40px); 
+            max-width: 400px; 
+            background: var(--nav-bg); 
+            display: flex; 
+            justify-content: space-around; 
+            padding: 10px 5px; 
+            border-radius: 50px; 
+            box-shadow: var(--shadow-outer), var(--shadow-inner); 
+            z-index: 900; 
+            transition: background 0.3s;
+            border: 1px solid var(--border-color);
+        }
         .nav-item { text-align: center; color: var(--nav-text); font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700; transition: color 0.3s;}
         .nav-icon { margin-bottom: 2px; display: flex; justify-content: center; align-items: center;}
         .nav-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
@@ -266,20 +326,39 @@ EOF
         
         .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;}
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
+        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: margin-top: 10px;}
         .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
 
         .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
         
-        .prof-avatar-wrap { width: 86px; height: 86px; background: transparent; border-radius: 50%; padding: 0; margin: 0 auto 15px auto; box-shadow: none; }
-        .prof-avatar { width: 100%; height: 100%; background: #ffffff; color: #0f172a; border-radius: 50%; font-size: 38px; display: flex; justify-content: center; align-items: center; font-weight: 900; text-transform: uppercase; }
+        .prof-avatar-wrap {
+            width: 86px; height: 86px;
+            background: transparent;
+            border-radius: 50%;
+            padding: 0;
+            margin: 0 auto 15px auto;
+            box-shadow: none;
+        }
+        .prof-avatar {
+            width: 100%; height: 100%;
+            background: #ffffff; color: #0f172a;
+            border-radius: 50%; font-size: 38px; display: flex; justify-content: center; align-items: center; font-weight: 900; text-transform: uppercase;
+        }
 
         .prof-box { background: var(--bg-card); color: var(--text-main); margin: -20px 20px 20px; border-radius: 16px; padding: 20px; position: relative; z-index: 10; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.03);}
         .prof-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed var(--border-color); font-size: 13px;}
         .prof-label { color: var(--text-muted); font-weight: 600;}
         .prof-val { font-weight: 900; text-align: right;}
         
-        .prof-actions-container { padding: 0 20px; margin-bottom: 150px; display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 10; }
+        .prof-actions-container {
+            padding: 0 20px;
+            margin-bottom: 150px; 
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            z-index: 10;
+        }
         
         .prof-action-btn { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px; transition: transform 0.2s; box-shadow: var(--shadow-outer), var(--shadow-inner); }
         .prof-action-btn:active { transform: scale(0.98); }
@@ -304,10 +383,48 @@ EOF
         .hidden { display: none !important; }
         .back-icon { cursor: pointer; fill: none; stroke: var(--text-main); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
 
-        .provider-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #ffffff; padding: 8px 18px; border-radius: 30px; font-size: 12px; font-weight: 800; z-index: 3000; opacity: 0; transition: opacity 0.3s, top 0.3s; pointer-events: none; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); }
+        .provider-toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0f172a;
+            color: #ffffff;
+            padding: 8px 18px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 800;
+            z-index: 3000;
+            opacity: 0;
+            transition: opacity 0.3s, top 0.3s;
+            pointer-events: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
         .provider-toast.show { opacity: 1; top: 40px; }
 
-        .custom-toast { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background: var(--toast-bg); color: var(--toast-text); padding: 12px 24px; border-radius: 30px; font-size: 13px; font-weight: 800; z-index: 9999; box-shadow: 0 10px 25px rgba(0,0,0,0.2); transition: top 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55); text-align: center; width: max-content; max-width: 90%; display: flex; align-items: center; gap: 10px; border: 1px solid rgba(255,255,255,0.1); }
+        .custom-toast {
+            position: fixed;
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--toast-bg);
+            color: var(--toast-text);
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 800;
+            z-index: 9999;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            transition: top 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            text-align: center;
+            width: max-content;
+            max-width: 90%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
         .custom-toast.show { top: 40px; }
         .custom-toast.error { background: #ef4444; color: #fff; }
         .custom-toast.success { background: #10b981; color: #fff; }
@@ -2643,6 +2760,7 @@ EOF
 </html>
 EOF
 }
+SELESAI
 # ==========================================
 # 3. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND)
 # ==========================================
@@ -2761,23 +2879,35 @@ function cekPemeliharaan() {
 
 function cleanupOldHistory() {
     try {
-        let users = getAllRecords('users');
-        let changedCount = 0;
         let now = Date.now();
         let thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+        let updates = [];
         
-        for (let phone in users) {
-            let u = users[phone];
+        let stmt = dbSqlite.prepare('SELECT id, data FROM users');
+        // Membaca baris per baris menggunakan .iterate() untuk mencegah Out Of Memory (OOM)
+        for (const row of stmt.iterate()) {
+            let u = JSON.parse(row.data);
             if (u && u.history && u.history.length > 0) {
                 let origLen = u.history.length;
                 u.history = u.history.filter(h => (now - h.ts) < thirtyDaysMs);
                 if (u.history.length !== origLen) {
-                    saveRecord('users', phone, u);
-                    changedCount++;
+                    updates.push({id: row.id, data: u});
                 }
             }
         }
-    } catch (e) {}
+        
+        // Eksekusi update dalam 1 transaksi
+        if (updates.length > 0) {
+            const updateStmt = dbSqlite.prepare('INSERT OR REPLACE INTO users (id, data) VALUES (?, ?)');
+            dbSqlite.transaction(() => {
+                for (let up of updates) {
+                    updateStmt.run(up.id, JSON.stringify(up.data));
+                }
+            })();
+        }
+    } catch (e) {
+        console.error("Error during history cleanup:", e.message);
+    }
 }
 setInterval(cleanupOldHistory, 6 * 60 * 60 * 1000); 
 
@@ -3439,20 +3569,20 @@ app.post('/api/login', (req, res) => {
                 finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
             }
 
-            let trxId = "VQ-" + Date.now();
+            let trxId = "OQ-" + Date.now();
             let expiredAt = Date.now() + 10 * 60 * 1000;
-            let prodName = prod.name;
 
             saveRecord('topup', trxId, { 
                 phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
                 status: 'pending', timestamp: Date.now(), expired_at: expiredAt, 
-                is_order: true, vpn_data: { protocol, product_id, mode, username, password, expired, nama_produk: prodName, harga_asli: nominalAsli }
+                is_order: true, sku: sku, tujuan: tujuan, nama_produk: p.nama, harga_asli: nominalAsli 
             });
 
+            u.history = u.history || [];
             u.history.unshift({ 
                 ts: Date.now(), 
                 tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-                type: 'Order VPN QRIS', nama: prodName + ' (QRIS)', tujuan: username, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
+                type: 'Order QRIS', nama: p.nama + ' (QRIS)', tujuan: tujuan, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
             });
             if(u.history.length > 50) u.history.pop();
             saveRecord('users', targetKey, u);
@@ -3461,10 +3591,338 @@ app.post('/api/login', (req, res) => {
             
             let emailUser = u.email || '-';
             let namaUser = u.username || targetKey;
-            let teleMsg = `🛒 <b>ORDER VPN QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${username}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+            let teleMsg = `🛒 <b>ORDER QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${u.saldo.toLocaleString('id-ID')}`;
             sendTelegramAdmin(teleMsg);
-        } catch(e) { res.json({success: false, message: "Gagal memproses QRIS VPN."}); }
+        } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
     });
+
+    app.post('/api/order', async (req, res) => {
+        try {
+            if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
+            
+            let { phone, sku, tujuan } = req.body; let pNorm = normalizePhone(phone);
+            let uNorm = getRecord('users', pNorm);
+            let uOri = getRecord('users', phone);
+            
+            let targetKey = uNorm ? pNorm : (uOri ? phone : null);
+            if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid. Silakan Logout dan Login kembali.'});
+            let u = uNorm || uOri;
+            
+            let p = getRecord('produk', sku);
+            if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
+            let config = getRecord('config', 'main') || {};
+            let realSku = p.sku_asli || sku;
+            
+            let hargaFix = parseInt(p.harga);
+            let saldoSebelum = parseInt(u.saldo);
+            if (saldoSebelum < hargaFix) return res.json({success: false, message: 'Saldo tidak cukup.'});
+
+            // Potong Saldo (Atomic & Sync)
+            u.saldo = saldoSebelum - hargaFix;
+            saveRecord('users', targetKey, u);
+
+            let username = (config.digiflazzUsername || '').trim();
+            let apiKey = (config.digiflazzApiKey || '').trim();
+            let refId = 'WEB-' + Date.now();
+            let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
+
+            const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
+                username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
+            });
+            
+            const statusOrder = response.data.data.status; 
+            
+            // Re-fetch user in case state changed during await
+            u = getRecord('users', targetKey);
+            let saldoTerkini = parseInt(u.saldo);
+            let emailUser = u.email || '-';
+            let namaUser = u.username || targetKey;
+            
+            if (statusOrder === 'Gagal') {
+                u.saldo = saldoTerkini + hargaFix;
+                saveRecord('users', targetKey, u);
+                
+                let teleMsgFail = `❌ <b>PESANAN GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                sendTelegramAdmin(teleMsgFail);
+                
+                return res.json({success: false, message: response.data.data.message});
+            }
+            
+            u.trx_count = (u.trx_count || 0) + 1;
+            u.history = u.history || [];
+            u.history.unshift({ 
+                ts: Date.now(), 
+                tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+                type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId,
+                saldo_sebelumnya: saldoSebelum, saldo_sesudah: u.saldo
+            });
+            if(u.history.length > 50) u.history.pop();
+            saveRecord('users', targetKey, u);
+            
+            let targetJid = u.jid || targetKey + '@s.whatsapp.net';
+            saveRecord('trx', refId, { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: p.nama, tanggal: Date.now(), phone: targetKey });
+
+            if (statusOrder === 'Sukses') {
+                let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+                let gStats = getRecord('global_stats', dateKey) || 0;
+                saveRecord('global_stats', dateKey, gStats + 1);
+
+                let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+                unshiftRecordArray('global_trx', { time: timeStr, product: p.nama, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'Saldo Akun' });
+
+                sendBroadcastSuccess(p.nama, namaUser, tujuan, hargaFix, 'Saldo Akun');
+            }
+
+            res.json({success: true, saldo: u.saldo});
+
+            let teleMsg = `🔔 <b>PESANAN BARU MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${u.saldo.toLocaleString('id-ID')}`;
+            sendTelegramAdmin(teleMsg);
+
+        } catch (error) { 
+            if (!res.headersSent) {
+                let errInfo = error.response && error.response.data && error.response.data.data ? error.response.data.data.message : 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)';
+                return res.json({success: false, message: errInfo});
+            }
+        }
+    });
+// ==============================================================
+// CORE LOGIC: EKSEKUSI PEMBUATAN AKUN VPN KE SERVER VPS 
+// ==============================================================
+async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vpnPassword, expiredDays, refIdAsal = null, paymentMethod = 'Saldo Akun') {
+    let targetKey = normalizePhone(phone);
+    let u = getRecord('users', targetKey) || getRecord('users', phone);
+    if(!u) return { success: false, message: "Sesi tidak valid." };
+
+    let vpnConfig = getRecord('vpn_config', 'main') || {products:{}, servers:{}};
+    let prod = vpnConfig.products[productId];
+    if(!prod) return { success: false, message: "Produk VPN tidak ditemukan atau telah dihapus." };
+    if(mode === 'reguler' && parseInt(prod.stok) <= 0) return { success: false, message: "Stok untuk produk ini sedang habis." };
+
+    let serverKey = prod.server_id;
+    let srv = vpnConfig.servers[serverKey];
+    if(!srv || !srv.host || !srv.api_key) {
+        return { success: false, message: "Server VPN ini sedang gangguan / konfigurasi tidak valid." };
+    }
+
+    if (mode === 'trial') {
+        if (!u.trial_claims) u.trial_claims = {};
+        let lastClaim = u.trial_claims[productId] || 0;
+        if (Date.now() - lastClaim < 2 * 60 * 60 * 1000) { 
+            return { success: false, message: "⚠️ Gagal: Anda sudah melakukan trial di Produk ini. Silakan coba 2 Jam lagi." };
+        }
+    }
+
+    let hargaFix = 0;
+    let saldoSebelum = parseInt(u.saldo);
+    if (mode === 'reguler') {
+        let basePrice = parseInt(prod.price) || 0;
+        let hari = parseInt(expiredDays);
+        if (hari > 30) hari = 30;
+        if (hari < 1) hari = 1;
+        hargaFix = Math.ceil((basePrice / 30) * hari);
+        
+        if(saldoSebelum < hargaFix && paymentMethod === 'Saldo Akun') return { success: false, message: "Saldo tidak mencukupi." };
+    }
+
+    let protoLower = protocol.toLowerCase();
+    let endpoint = '';
+    
+    let vpnLimitIp = parseInt(prod.limit_ip) || 2;
+    let vpnKuota = parseInt(prod.kuota) || 200;
+    
+    let payload = {};
+    let cleanHost = srv.host.replace(/^https?:\/\//i, '');
+
+    if (mode === 'trial') {
+        payload = { timelimit: "30m", kuota: 2, limitip: 2 };
+        if(protoLower === 'ssh') endpoint = `http://${cleanHost}/vps/trialsshvpn`;
+        else endpoint = `http://${cleanHost}/vps/trial${protoLower}all`;
+    } else {
+        payload = { username: vpnUsername, expired: parseInt(expiredDays), limitip: vpnLimitIp, kuota: vpnKuota };
+        if(protoLower === 'ssh' || protoLower === 'zivpn') payload.password = vpnPassword;
+        else payload.uuidv2 = '';
+        
+        if(protoLower === 'ssh') endpoint = `http://${cleanHost}/vps/sshvpn`;
+        else endpoint = `http://${cleanHost}/vps/${protoLower}all`; 
+    }
+
+    try {
+        let resApi = await axios.post(endpoint, payload, {
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer ' + srv.api_key },
+            timeout: 120000,
+            validateStatus: () => true, 
+            httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
+        });
+
+        // Re-fetch user in case it changed
+        u = getRecord('users', targetKey) || getRecord('users', phone);
+        if (!u.trial_claims) u.trial_claims = {};
+
+        let isSuccessResponse = (resApi.status >= 200 && resApi.status < 300) && resApi.data && !resApi.data.error && resApi.data.status !== false;
+        let isErrorResponse = resApi.data && (resApi.data.status === false || resApi.data.error || resApi.status >= 400);
+
+        if(isSuccessResponse && !isErrorResponse) {
+            let apiData = resApi.data.data || resApi.data || {};
+            let domain = srv.host;
+            let expDate = apiData.expired || apiData.exp || apiData.to || (mode === 'trial' ? '30 Menit' : `${expiredDays} Hari`);
+            let vpnDetails = '';
+            
+            let fixCity = srv.city || apiData.city || '-';
+            let fixIsp = srv.isp || apiData.isp || '-';
+            let vpnUser = apiData.username || vpnUsername || "TrialUser";
+
+            if (protoLower === 'ssh') {
+                vpnDetails = `Account Created Successfully\n————————————————————————————————————\nDomain Host     : ${domain}\nCity            : ${fixCity}\nISP             : ${fixIsp}\nUsername        : ${vpnUser}\nPassword        : ${apiData.password || vpnPassword || '1'}\n————————————————————————————————————\nExpired         : ${expDate}\n————————————————————————————————————\nTLS             : ${apiData.port?.tls || '443,8443'}\nNone TLS        : ${apiData.port?.none || '80,8080'}\nAny             : 2082,2083,8880\nOpenSSH         : 444\nDropbear        : 90\n————————————————————————————————————\nSlowDNS         : 53,5300\nUDP-Custom      : 1-65535\nOHP + SSH       : 9080\nSquid Proxy     : 3128\nUDPGW           : 7100-7600\nOpenVPN TCP     : 80,1194\nOpenVPN SSL     : 443\nOpenVPN UDP     : 25000\nOpenVPN DNS     : 53\nOHP + OVPN      : 9088\n————————————————————————————————————`;
+            } else if (protoLower === 'vmess') {
+                vpnDetails = `————————————————————————————————————\n               VMESS\n————————————————————————————————————\nRemarks        : ${vpnUser}\nDomain Host    : ${domain}\nCity           : ${fixCity}\nISP            : ${fixIsp}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nalterId        : 0\nSecurity       : auto\nnetwork        : ws,grpc,upgrade\npath ws        : /vmess\nserviceName    : vmess\npath upgrade   : /upvmess\nExpired On     : ${expDate}\n————————————————————————————————————\n           VMESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VMESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VMESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+            } else if (protoLower === 'vless') {
+                vpnDetails = `————————————————————————————————————\n               VLESS\n————————————————————————————————————\nRemarks        : ${vpnUser}\nDomain Host    : ${domain}\nCity           : ${fixCity}\nISP            : ${fixIsp}\nPort TLS       : 443,8443\nPort none TLS  : 80,8080\nPort any       : 2052,2053,8880\nid             : ${apiData.uuid || apiData.id || '-'}\nEncryption     : none\nNetwork        : ws,grpc,upgrade\nPath ws        : /vless\nserviceName    : vless\nPath upgrade   : /upvless\nExpired On     : ${expDate}\n————————————————————————————————————\n            VLESS WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n          VLESS WS NO TLS\n————————————————————————————————————\n${apiData.link?.none || '-'}\n————————————————————————————————————\n             VLESS GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+            } else if (protoLower === 'trojan') {
+                vpnDetails = `————————————————————————————————————\n               TROJAN\n————————————————————————————————————\nRemarks      : ${vpnUser}\nDomain Host  : ${domain}\nCity         : ${fixCity}\nISP          : ${fixIsp}\nPort         : 443,8443\nPort any     : 2052,2053,8880\nKey          : ${apiData.uuid || apiData.id || '-'}\nNetwork      : ws,grpc,upgrade\nPath ws      : /trojan\nserviceName  : trojan\nPath upgrade : /uptrojan\nExpired On   : ${expDate}\n————————————————————————————————————\n           TROJAN WS TLS\n————————————————————————————————————\n${apiData.link?.tls || '-'}\n————————————————————————————————————\n            TROJAN GRPC\n————————————————————————————————————\n${apiData.link?.grpc || '-'}\n————————————————————————————————————`;
+            } else {
+                vpnDetails = `Detail Akun ZIVPN:\nDomain Host: ${domain}\nCity: ${fixCity}\nISP: ${fixIsp}\nUsername: ${vpnUser}\nExp: ${expDate}\nLimit IP: ${vpnLimitIp}\n\nInfo selengkapnya cek di aplikasi.`;
+            }
+
+            let prodName = prod.name;
+            if (mode === 'trial') prodName += ' (TRIAL)';
+            
+            if (mode === 'reguler' && paymentMethod === 'Saldo Akun') {
+                u.saldo = saldoSebelum - hargaFix;
+                u.trx_count = (u.trx_count || 0) + 1;
+                
+                vpnConfig = getRecord('vpn_config', 'main');
+                vpnConfig.products[productId].stok -= 1;
+                saveRecord('vpn_config', 'main', vpnConfig);
+            } else if (mode === 'trial') {
+                u.trial_claims[productId] = Date.now();
+            }
+            
+            let refId = refIdAsal || ("VPN-" + Date.now());
+            
+            if (refIdAsal) {
+                let existingHist = u.history.find(h => h.sn === refIdAsal);
+                if (existingHist) {
+                    existingHist.status = 'Sukses';
+                    existingHist.vpn_details = vpnDetails;
+                    existingHist.nama = prodName;
+                    existingHist.type = 'Order VPN';
+                    existingHist.saldo_sebelumnya = saldoSebelum;
+                    existingHist.saldo_sesudah = u.saldo;
+                }
+            } else {
+                u.history.unshift({
+                    ts: Date.now(), 
+                    tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+                    type: 'Order VPN', nama: prodName, tujuan: (mode==='trial'?'Sistem':vpnUser), status: 'Sukses', sn: '-', amount: hargaFix, ref_id: refId,
+                    saldo_sebelumnya: saldoSebelum, saldo_sesudah: u.saldo,
+                    vpn_details: vpnDetails
+                });
+                if(u.history.length > 50) u.history.pop();
+            }
+            saveRecord('users', targetKey, u);
+
+            let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+            let gStats = getRecord('global_stats', dateKey) || 0;
+            saveRecord('global_stats', dateKey, gStats + 1);
+
+            let namaUser = u.username || targetKey;
+
+            if (mode !== 'trial') {
+                let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+                unshiftRecordArray('global_trx', { time: timeStr, product: prodName, user: namaUser, target: maskStringTarget(vpnUser), price: hargaFix, method: paymentMethod });
+                sendBroadcastSuccess(prodName, namaUser, vpnUser, hargaFix, paymentMethod);
+            }
+
+            let emailUser = u.email || '-';
+            let vpnConfNew = getRecord('vpn_config', 'main');
+            let teleSuccess = `🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${vpnUser}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: ${mode === 'trial' ? 'Gratis (Trial)' : paymentMethod}\n📦 Sisa Stok: ${mode === 'reguler' ? vpnConfNew.products[productId].stok : 'Trial'}\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+            sendTelegramAdmin(teleSuccess);
+
+            return { success: true };
+        } else {
+            let errMsg = "unknown error";
+            if (resApi.data && resApi.data.message) errMsg = resApi.data.message;
+            else if (resApi.data && resApi.data.error) errMsg = resApi.data.error;
+            else if (resApi.statusText) errMsg = resApi.statusText;
+            
+            if(errMsg.toLowerCase().includes('exist') || errMsg.toLowerCase().includes('already') || errMsg.toLowerCase().includes('sudah ada')) {
+                return { success: false, message: "Username sudah ada/terpakai, silakan ganti username lain." };
+            }
+            return { success: false, message: "Gagal membuat akun di Server VPN. Pesan: " + errMsg };
+        }
+    } catch(e) {
+        return { success: false, message: "Koneksi ke Server VPN Gagal / Timeout. Pesan: " + e.message };
+    }
+}
+
+app.post('/api/order-vpn', async (req, res) => {
+    if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
+    let { phone, protocol, product_id, mode, username, password, expired } = req.body;
+    let result = await executeVpnOrder(phone, protocol, product_id, mode, username, password, expired, null, 'Saldo Akun');
+    res.json(result);
+});
+
+app.post('/api/order-vpn-qris', async (req, res) => {
+    try {
+        if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
+        
+        let config = getRecord('config', 'main') || {};
+        if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
+        
+        let { phone, protocol, product_id, mode, username, password, expired } = req.body;
+        
+        let pNorm = normalizePhone(phone);
+        let uNorm = getRecord('users', pNorm);
+        let uOri = getRecord('users', phone);
+        let targetKey = uNorm ? pNorm : (uOri ? phone : null);
+        if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid.'});
+        let u = uNorm || uOri;
+        
+        let vpnConfig = getRecord('vpn_config', 'main');
+        let prod = vpnConfig.products[product_id];
+        if(!prod) return res.json({success: false, message: 'Produk VPN tidak ditemukan.'});
+        if(mode === 'reguler' && parseInt(prod.stok) <= 0) return res.json({success: false, message: 'Stok habis.'});
+
+        let basePrice = parseInt(prod.price) || 0;
+        let hari = parseInt(expired);
+        if(hari > 30) hari = 30; if(hari < 1) hari = 1;
+        let nominalAsli = Math.ceil((basePrice / 30) * hari);
+        
+        let uniqueCode = Math.floor(Math.random() * 50) + 1; 
+        let totalPay = nominalAsli + uniqueCode;
+
+        let finalQrisUrl = config.qrisUrl;
+        if (config.qrisText) {
+            let dynQris = convertToDynamicQris(config.qrisText, totalPay);
+            finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
+        }
+
+        let trxId = "VQ-" + Date.now();
+        let expiredAt = Date.now() + 10 * 60 * 1000;
+        let prodName = prod.name;
+
+        saveRecord('topup', trxId, { 
+            phone: targetKey, trx_id: trxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
+            status: 'pending', timestamp: Date.now(), expired_at: expiredAt, 
+            is_order: true, vpn_data: { protocol, product_id, mode, username, password, expired, nama_produk: prodName, harga_asli: nominalAsli }
+        });
+
+        u.history.unshift({ 
+            ts: Date.now(), 
+            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+            type: 'Order VPN QRIS', nama: prodName + ' (QRIS)', tujuan: username, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
+        });
+        if(u.history.length > 50) u.history.pop();
+        saveRecord('users', targetKey, u);
+
+        res.json({success: true});
+        
+        let emailUser = u.email || '-';
+        let namaUser = u.username || targetKey;
+        let teleMsg = `🛒 <b>ORDER VPN QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${username}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+        sendTelegramAdmin(teleMsg);
+    } catch(e) { res.json({success: false, message: "Gagal memproses QRIS VPN."}); }
+});
 
 async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
     let result = await executeVpnOrder(phone, vpnData.protocol, vpnData.product_id, vpnData.mode, vpnData.username, vpnData.password, vpnData.expired, refIdAsal, 'QRIS');
@@ -3591,7 +4049,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
 function doBackupAndSend() {
     let cfg = getRecord('config', 'main') || {};
     if (!cfg.teleToken || !cfg.teleChatId) return;
-    exec(`[ -d "/etc/letsencrypt" ] && tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip tendo_database.db ssl_backup.tar.gz 2>/dev/null`, (err) => {
+    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip tendo_database.db ssl_backup.tar.gz 2>/dev/null`, (err) => {
         if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store (SQLite)" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
     });
 }
@@ -3751,10 +4209,7 @@ async function startBot() {
                 } 
                 else {
                     let amountStr = req.amount_to_pay.toString();
-                    // PERBAIKAN BUG KEAMANAN GOPAY
-                    let regexMatch = new RegExp(`"amount"\\s*:\\s*"?${amountStr}(\\.00)?"?`, 'i');
-                    let isFound = regexMatch.test(responseStr);
-                    
+                    let isFound = responseStr.includes(`"${amountStr}"`) || responseStr.includes(`:${amountStr}`) || responseStr.includes(`"${amountStr}.00"`) || responseStr.includes(`:${amountStr}.00`);
                     if(isFound) {
                         req.status = 'sukses';
                         saveRecord('topup', key, req);
@@ -3992,15 +4447,8 @@ async function tarikDataLayananOtomatis() {
                 }
             });
 
-            // PERBAIKAN PERFORMA SQLITE (Transaction Batching)
             dbSqlite.prepare("DELETE FROM produk").run();
-            const insert = dbSqlite.prepare("INSERT OR REPLACE INTO produk (id, data) VALUES (?, ?)");
-            const insertMany = dbSqlite.transaction((dataObj) => {
-                for(let k in dataObj) {
-                    insert.run(k, JSON.stringify(dataObj[k]));
-                }
-            });
-            insertMany(daftarLokal);
+            for(let k in daftarLokal) saveRecord('produk', k, daftarLokal[k]);
 
             console.log('\x1b[32m✅ Data Produk Digiflazz Berhasil Tersinkronisasi ke SQLite!\x1b[0m');
         }
@@ -4055,6 +4503,10 @@ EOF
 }
 
 generate_vpn_panel_php() {
+    echo -e "\n${C_MAG}--- SETUP VPN PANEL PHP ---${C_RST}"
+    read -p "Masukkan IP Server VPN (contoh: http://103.168.x.x): " input_ip_vps
+    read -p "Masukkan API Key VPN Panel: " input_api_key
+
     echo "Menginstal file tendo_vpn_panel.php ke public web..."
     sudo mkdir -p /var/www/html/
     cat << 'EOF' > /var/www/html/tendo_vpn_panel.php
@@ -4070,8 +4522,8 @@ generate_vpn_panel_php() {
  */
 
 // 1. KUNCI API DAN KONFIGURASI SERVER VPN
-$auth_api_key = 'ChangeIPqhJ10UroYJSf46rekJDi0thD2GXj';
-$ip_vps_vpn   = 'http://103.168.147.157';
+$auth_api_key = 'REPLACE_API_KEY';
+$ip_vps_vpn   = 'REPLACE_IP_VPS';
 
 // Inisialisasi variabel pesan hasil
 $html_hasil = '';
@@ -4395,6 +4847,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </body>
 </html>
 EOF
+    
+    # Menerapkan input IP & API Key secara dinamis tanpa merusak kode PHP
+    sed -i "s|REPLACE_API_KEY|$input_api_key|g" /var/www/html/tendo_vpn_panel.php
+    sed -i "s|REPLACE_IP_VPS|$input_ip_vps|g" /var/www/html/tendo_vpn_panel.php
     sudo chmod 644 /var/www/html/tendo_vpn_panel.php 2>/dev/null || true
     echo "Instalasi file tendo_vpn_panel.php selesai!"
 }
@@ -4477,7 +4933,7 @@ install_dependencies() {
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     read -p "Tekan Enter untuk kembali..."
 }
-
+SELESAI
 menu_tutorial() {
     while true; do
         clear
@@ -4533,11 +4989,11 @@ menu_tutorial() {
                 echo -e "Untuk baris baru gunakan tag <br>, atau tulis teks panjang."
                 read -p "Masukkan Deskripsi (Bisa paragraf/list): " t_desc
                 
-                node -e "
+                T_JUDUL="$t_judul" T_VIDEO="$t_video_name" T_DESC="$t_desc" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let newId = 'TUT-' + Date.now();
-                    let data = { id: newId, title: '$t_judul', video: '$t_video_name', desc: '$t_desc' };
+                    let data = { id: newId, title: process.env.T_JUDUL, video: process.env.T_VIDEO, desc: process.env.T_DESC };
                     db.prepare('INSERT OR REPLACE INTO tutorial (id, data) VALUES (?, ?)').run(newId, JSON.stringify(data));
                     console.log('\x1b[32m✅ Data tutorial berhasil disimpan!\x1b[0m');
                 "
@@ -4559,16 +5015,16 @@ menu_tutorial() {
                     read -p "Nama File Video Baru (Kosongkan jika tidak diubah, isi '-' untuk hapus video): " t_video
                     read -p "Deskripsi Baru (Kosongkan jika tidak diubah): " t_desc
                     
-                    node -e "
+                    T_NUM="$t_num" T_JUDUL="$t_judul" T_VIDEO="$t_video" T_DESC="$t_desc" node -e "
                         const Database = require('better-sqlite3');
                         const db = new Database('tendo_database.db');
                         let rows = db.prepare('SELECT id, data FROM tutorial').all();
-                        let idx = parseInt('$t_num') - 1;
+                        let idx = parseInt(process.env.T_NUM) - 1;
                         if(rows[idx]) {
                             let t = JSON.parse(rows[idx].data);
-                            if('$t_judul' !== '') t.title = '$t_judul';
-                            if('$t_video' !== '') t.video = '$t_video';
-                            if('$t_desc' !== '') t.desc = '$t_desc';
+                            if(process.env.T_JUDUL !== '') t.title = process.env.T_JUDUL;
+                            if(process.env.T_VIDEO !== '') t.video = process.env.T_VIDEO;
+                            if(process.env.T_DESC !== '') t.desc = process.env.T_DESC;
                             db.prepare('UPDATE tutorial SET data = ? WHERE id = ?').run(JSON.stringify(t), t.id);
                             console.log('\x1b[32m✅ Tutorial berhasil diupdate!\x1b[0m');
                         } else {
@@ -4590,12 +5046,12 @@ menu_tutorial() {
                 echo ""
                 read -p "Pilih nomor tutorial yang ingin dihapus: " t_num
                 if [[ "$t_num" =~ ^[0-9]+$ ]]; then
-                    node -e "
+                    T_NUM="$t_num" node -e "
                         const fs = require('fs');
                         const Database = require('better-sqlite3');
                         const db = new Database('tendo_database.db');
                         let rows = db.prepare('SELECT id, data FROM tutorial').all();
-                        let idx = parseInt('$t_num') - 1;
+                        let idx = parseInt(process.env.T_NUM) - 1;
                         if(rows[idx]) {
                             let t = JSON.parse(rows[idx].data);
                             let videoName = t.video;
@@ -4658,10 +5114,10 @@ menu_member() {
                 echo -e "\n${C_MAG}--- TAMBAH SALDO ---${C_RST}"
                 read -p "Cari Target (Bisa Nomor WA, Email, ATAU Nama Akun): " pencarian
                 read -p "Masukkan Jumlah Saldo: " jumlah
-                node -e "
+                PENCARIAN="$pencarian" JUMLAH="$jumlah" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
-                    let input = '$pencarian'.trim();
+                    let input = (process.env.PENCARIAN || '').trim();
                     let normPhone = input.replace(/[^0-9]/g, '');
                     if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
                     else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
@@ -4687,7 +5143,7 @@ menu_member() {
                     
                     let namaUser = targetData.username || target;
                     let saldoSebelum = parseInt(targetData.saldo || 0);
-                    let nominalTambah = parseInt('$jumlah');
+                    let nominalTambah = parseInt(process.env.JUMLAH || 0);
                     targetData.saldo = saldoSebelum + nominalTambah;
                     
                     targetData.history = targetData.history || [];
@@ -4710,10 +5166,10 @@ menu_member() {
                 echo -e "\n${C_MAG}--- KURANGI SALDO ---${C_RST}"
                 read -p "Cari Target (Bisa Nomor WA, Email, ATAU Nama Akun): " pencarian
                 read -p "Masukkan Jumlah Saldo yg dikurangi: " jumlah
-                node -e "
+                PENCARIAN="$pencarian" JUMLAH="$jumlah" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
-                    let input = '$pencarian'.trim();
+                    let input = (process.env.PENCARIAN || '').trim();
                     let normPhone = input.replace(/[^0-9]/g, '');
                     if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
                     else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
@@ -4733,7 +5189,7 @@ menu_member() {
                     } else {
                         let namaUser = targetData.username || target;
                         let saldoSebelum = parseInt(targetData.saldo || 0);
-                        let nominalKurang = parseInt('$jumlah');
+                        let nominalKurang = parseInt(process.env.JUMLAH || 0);
                         
                         targetData.saldo = saldoSebelum - nominalKurang;
                         if(targetData.saldo < 0) targetData.saldo = 0;
@@ -4791,10 +5247,10 @@ menu_member() {
                 echo -e "\n${C_CYAN}--- RIWAYAT TOPUP/TRANSAKSI MEMBER ---${C_RST}"
                 read -p "Cari Target (Bisa Nomor WA, Email, ATAU Nama Akun): " pencarian
                 if [ ! -z "$pencarian" ]; then
-                    node -e "
+                    PENCARIAN="$pencarian" node -e "
                         const Database = require('better-sqlite3');
                         const db = new Database('tendo_database.db');
-                        let input = '$pencarian'.trim();
+                        let input = (process.env.PENCARIAN || '').trim();
                         let normPhone = input.replace(/[^0-9]/g, '');
                         if(input.startsWith('+62')) normPhone = '62' + input.substring(3);
                         else if(input.startsWith('0')) normPhone = '62' + input.substring(1);
@@ -4883,14 +5339,14 @@ menu_keuntungan() {
                 continue
             fi
             
-            node -e "
+            K_CHOICE="$k_choice" NOMINAL_BARU="$nominal_baru" node -e "
                 const Database = require('better-sqlite3');
                 const db = new Database('tendo_database.db');
                 let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                 let config = row ? JSON.parse(row.data) : {};
                 if(!config.margin) config.margin = { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
-                let tier = 't' + $k_choice;
-                config.margin[tier] = parseInt('$nominal_baru');
+                let tier = 't' + process.env.K_CHOICE;
+                config.margin[tier] = parseInt(process.env.NOMINAL_BARU);
                 db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
             "
             echo -e "${C_GREEN}✅ Keuntungan tier $k_choice berhasil diubah! Me-refresh Katalog Website...${C_RST}"
@@ -4949,13 +5405,13 @@ menu_telegram() {
                     menit=720
                     echo -e "\n${C_RED}❌ Auto-Backup DIMATIKAN!${C_RST}"
                 fi
-                node -e "
+                STATUS="$status" MENIT="$menit" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                     let config = row ? JSON.parse(row.data) : {};
-                    config.autoBackup = $status;
-                    config.backupInterval = parseInt('$menit');
+                    config.autoBackup = process.env.STATUS === 'true';
+                    config.backupInterval = parseInt(process.env.MENIT);
                     db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -5084,25 +5540,25 @@ menu_manajemen_produk_instan() {
                 read -p "Nama Paket (Otomatis tampil paling atas di web): " custom_tipe
                 read -p "Deskripsi Singkat: " custom_desc
                 
-                node -e "
+                SKU_DIGI="$sku_digi" CUSTOM_NAMA="$custom_nama" CUSTOM_BRAND="$custom_brand" CUSTOM_TIPE="$custom_tipe" CUSTOM_DESC="$custom_desc" KAT_NAMA="$kat_nama" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
-                    let uniqueSku = '$sku_digi' + '_custom_' + Date.now();
+                    let uniqueSku = process.env.SKU_DIGI + '_custom_' + Date.now();
                     
                     let existingPrice = 0;
                     let rows = db.prepare('SELECT data FROM produk').all();
                     for(let r of rows) {
                         let p = JSON.parse(r.data);
-                        if(String(p.sku_asli).toUpperCase() === String('$sku_digi').toUpperCase() && !p.is_manual_cat) {
+                        if(String(p.sku_asli).toUpperCase() === String(process.env.SKU_DIGI).toUpperCase() && !p.is_manual_cat) {
                             existingPrice = p.harga;
                             break;
                         }
                     }
 
                     let newProd = {
-                        sku_asli: '$sku_digi', nama: '$custom_nama', harga: existingPrice,
-                        kategori: '$kat_nama', brand: '$custom_brand', sub_kategori: '\u200B' + '$custom_tipe',
-                        deskripsi: '$custom_desc', status_produk: true, is_manual_cat: true
+                        sku_asli: process.env.SKU_DIGI, nama: process.env.CUSTOM_NAMA, harga: existingPrice,
+                        kategori: process.env.KAT_NAMA, brand: process.env.CUSTOM_BRAND, sub_kategori: '\u200B' + process.env.CUSTOM_TIPE,
+                        deskripsi: process.env.CUSTOM_DESC, status_produk: true, is_manual_cat: true
                     };
                     
                     db.prepare('INSERT OR REPLACE INTO produk (id, data) VALUES (?, ?)').run(uniqueSku, JSON.stringify(newProd));
@@ -5158,7 +5614,7 @@ menu_manajemen_produk_instan() {
                     read -p "Deskripsi Baru (Kosongkan jika tidak diubah): " e_desc
                     read -p "Nama Paket Baru (Kosongkan jika tidak diubah): " e_paket
                     
-                    node -e "
+                    EDIT_IDX="$edit_idx" E_NAMA="$e_nama" E_DESC="$e_desc" E_PAKET="$e_paket" node -e "
                         const Database = require('better-sqlite3');
                         const db = new Database('tendo_database.db');
                         let rows = db.prepare('SELECT id, data FROM produk').all();
@@ -5168,13 +5624,13 @@ menu_manajemen_produk_instan() {
                             if(p.is_manual_cat) manualProds.push({id: r.id, data: p});
                         }
                         
-                        let idx = parseInt('$edit_idx') - 1;
+                        let idx = parseInt(process.env.EDIT_IDX) - 1;
                         if(manualProds[idx]) {
                             let key = manualProds[idx].id;
                             let pData = manualProds[idx].data;
-                            if('$e_nama' !== '') pData.nama = '$e_nama';
-                            if('$e_desc' !== '') pData.deskripsi = '$e_desc';
-                            if('$e_paket' !== '') pData.sub_kategori = '\u200B' + '$e_paket';
+                            if(process.env.E_NAMA !== '') pData.nama = process.env.E_NAMA;
+                            if(process.env.E_DESC !== '') pData.deskripsi = process.env.E_DESC;
+                            if(process.env.E_PAKET !== '') pData.sub_kategori = '\u200B' + process.env.E_PAKET;
                             
                             db.prepare('UPDATE produk SET data = ? WHERE id = ?').run(JSON.stringify(pData), key);
                             console.log('\x1b[32m✅ Produk instan berhasil diupdate!\x1b[0m');
@@ -5204,7 +5660,7 @@ menu_manajemen_produk_instan() {
                 echo ""
                 read -p "Pilih nomor urut produk yang ingin dihapus: " del_idx
                 if [[ "$del_idx" =~ ^[0-9]+$ ]]; then
-                    node -e "
+                    DEL_IDX="$del_idx" node -e "
                         const Database = require('better-sqlite3');
                         const db = new Database('tendo_database.db');
                         let rows = db.prepare('SELECT id, data FROM produk').all();
@@ -5214,7 +5670,7 @@ menu_manajemen_produk_instan() {
                             if(p.is_manual_cat) manualProds.push({id: r.id});
                         }
                         
-                        let idx = parseInt('$del_idx') - 1;
+                        let idx = parseInt(process.env.DEL_IDX) - 1;
                         if(manualProds[idx]) {
                             db.prepare('DELETE FROM produk WHERE id = ?').run(manualProds[idx].id);
                             console.log('\x1b[32m✅ Produk instan berhasil dihapus dari website!\x1b[0m');
@@ -5253,13 +5709,13 @@ menu_notifikasi() {
                 echo -e "Notifikasi pesanan masuk, komplain, topup & backup akan dikirim kesini."
                 read -p "Masukkan Token Bot Telegram Admin: " token
                 read -p "Masukkan Chat ID Admin Anda: " chatid
-                node -e "
+                TOKEN="$token" CHATID="$chatid" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                     let config = row ? JSON.parse(row.data) : {};
-                    if('$token' !== '') config.teleToken = '$token'.trim();
-                    if('$chatid' !== '') config.teleChatId = '$chatid'.trim();
+                    if(process.env.TOKEN !== '') config.teleToken = process.env.TOKEN.trim();
+                    if(process.env.CHATID !== '') config.teleChatId = process.env.CHATID.trim();
                     db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                     console.log('\x1b[32m\n✅ Konfigurasi Telegram Admin berhasil disimpan!\x1b[0m');
                 "
@@ -5270,13 +5726,13 @@ menu_notifikasi() {
                 echo -e "Notifikasi untuk broadcast Global Transaksi Sukses dan Update Info di Web."
                 read -p "Masukkan Token Bot Telegram (Boleh bot yang sama/berbeda dari Admin): " token_info
                 read -p "Masukkan ID Channel/Saluran Pelanggan (Contoh: -100123456789): " chanid
-                node -e "
+                TOKEN_INFO="$token_info" CHANID="$chanid" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                     let config = row ? JSON.parse(row.data) : {};
-                    if('$token_info' !== '') config.teleTokenInfo = '$token_info'.trim();
-                    if('$chanid' !== '') config.teleChannelId = '$chanid'.trim();
+                    if(process.env.TOKEN_INFO !== '') config.teleTokenInfo = process.env.TOKEN_INFO.trim();
+                    if(process.env.CHANID !== '') config.teleChannelId = process.env.CHANID.trim();
                     db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                     console.log('\x1b[32m\n✅ Konfigurasi Telegram Pelanggan & Channel berhasil disimpan!\x1b[0m');
                 "
@@ -5287,12 +5743,12 @@ menu_notifikasi() {
                 echo -e "Masukkan ID Grup (contoh: 12345678@g.us) atau Saluran (contoh: 120363xxx@newsletter)."
                 echo -e "Bot WA Anda akan mengirim broadcast notifikasi beli sukses kesini."
                 read -p "Masukkan ID WA: " waid
-                node -e "
+                WAID="$waid" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                     let config = row ? JSON.parse(row.data) : {};
-                    if('$waid' !== '') config.waBroadcastId = '$waid'.trim();
+                    if(process.env.WAID !== '') config.waBroadcastId = process.env.WAID.trim();
                     db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                     console.log('\x1b[32m\n✅ ID WA Broadcast berhasil disimpan!\x1b[0m');
                 "
@@ -5349,19 +5805,19 @@ submenu_server_vpn() {
                 read -p "Masukkan Nama ISP Server: " srv_isp
                 read -p "Masukkan Nama Kota/City: " srv_city
                 
-                node -e "
+                SRV_ID="$srv_id" SRV_NAME="$srv_name" SRV_HOST="$srv_host" SRV_PORT="$srv_port" SRV_USER="$srv_user" SRV_PASS="$srv_pass" SRV_API="$srv_api" SRV_ISP="$srv_isp" SRV_CITY="$srv_city" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
                     let vpnDb = row ? JSON.parse(row.data) : {servers:{}, products:{}};
                     if(!vpnDb.servers) vpnDb.servers = {};
-                    vpnDb.servers['$srv_id'] = {
-                        server_name: '$srv_name', host: '$srv_host', port: '$srv_port',
-                        user: '$srv_user', pass: '$srv_pass', api_key: '$srv_api',
-                        isp: '$srv_isp', city: '$srv_city'
+                    vpnDb.servers[process.env.SRV_ID] = {
+                        server_name: process.env.SRV_NAME, host: process.env.SRV_HOST, port: process.env.SRV_PORT,
+                        user: process.env.SRV_USER, pass: process.env.SRV_PASS, api_key: process.env.SRV_API,
+                        isp: process.env.SRV_ISP, city: process.env.SRV_CITY
                     };
                     db.prepare(\"INSERT OR REPLACE INTO vpn_config (id, data) VALUES ('main', ?)\").run(JSON.stringify(vpnDb));
-                    console.log('\x1b[32m\n✅ Konfigurasi Server ($srv_id) berhasil disimpan!\x1b[0m');
+                    console.log('\x1b[32m\n✅ Konfigurasi Server (' + process.env.SRV_ID + ') berhasil disimpan!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
@@ -5386,17 +5842,17 @@ submenu_server_vpn() {
             3)
                 echo -e "\n${C_MAG}--- HAPUS KONEKSI SERVER ---${C_RST}"
                 read -p "Masukkan ID Server yang ingin dihapus: " del_id
-                node -e "
+                DEL_ID="$del_id" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
                     let vpnDb = row ? JSON.parse(row.data) : null;
-                    if(vpnDb && vpnDb.servers && vpnDb.servers['$del_id']) {
-                        delete vpnDb.servers['$del_id'];
+                    if(vpnDb && vpnDb.servers && vpnDb.servers[process.env.DEL_ID]) {
+                        delete vpnDb.servers[process.env.DEL_ID];
                         db.prepare(\"UPDATE vpn_config SET data = ? WHERE id = 'main'\").run(JSON.stringify(vpnDb));
-                        console.log('\x1b[32m\n✅ Server dengan ID ($del_id) berhasil dihapus!\x1b[0m');
+                        console.log('\x1b[32m\n✅ Server dengan ID (' + process.env.DEL_ID + ') berhasil dihapus!\x1b[0m');
                     } else {
-                        console.log('\x1b[31m\n❌ Server dengan ID ($del_id) tidak ditemukan.\x1b[0m');
+                        console.log('\x1b[31m\n❌ Server dengan ID (' + process.env.DEL_ID + ') tidak ditemukan.\x1b[0m');
                     }
                 "
                 read -p "Tekan Enter untuk kembali..."
@@ -5460,26 +5916,26 @@ submenu_produk_vpn() {
                 read -p "Jumlah Stok Awal: " p_stok
                 read -p "Deskripsi / Fitur Singkat: " p_desc
                 
-                node -e "
+                PROD_ID="$prod_id" TARGET_PROTO="$target_proto" SRV_ID_TARGET="$srv_id_target" P_NAMA="$p_nama" P_HARGA="$p_harga" P_DESC="$p_desc" P_LIMITIP="$p_limitip" P_KUOTA="$p_kuota" P_STOK="$p_stok" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
                     let vpnDb = row ? JSON.parse(row.data) : {servers:{}, products:{}};
                     if(!vpnDb.products) vpnDb.products = {};
                     
-                    vpnDb.products['$prod_id'] = {
-                        protocol: '$target_proto',
-                        server_id: '$srv_id_target',
-                        name: '$p_nama' !== '' ? '$p_nama' : 'VPN Premium',
-                        price: '$p_harga' !== '' ? parseInt('$p_harga') : 0,
-                        desc: '$p_desc' !== '' ? '$p_desc' : 'Proses Otomatis',
-                        limit_ip: '$p_limitip' !== '' ? parseInt('$p_limitip') : 2,
-                        kuota: '$p_kuota' !== '' ? parseInt('$p_kuota') : 200,
-                        stok: '$p_stok' !== '' ? parseInt('$p_stok') : 0
+                    vpnDb.products[process.env.PROD_ID] = {
+                        protocol: process.env.TARGET_PROTO,
+                        server_id: process.env.SRV_ID_TARGET,
+                        name: process.env.P_NAMA !== '' ? process.env.P_NAMA : 'VPN Premium',
+                        price: process.env.P_HARGA !== '' ? parseInt(process.env.P_HARGA) : 0,
+                        desc: process.env.P_DESC !== '' ? process.env.P_DESC : 'Proses Otomatis',
+                        limit_ip: process.env.P_LIMITIP !== '' ? parseInt(process.env.P_LIMITIP) : 2,
+                        kuota: process.env.P_KUOTA !== '' ? parseInt(process.env.P_KUOTA) : 200,
+                        stok: process.env.P_STOK !== '' ? parseInt(process.env.P_STOK) : 0
                     };
                     
                     db.prepare(\"INSERT OR REPLACE INTO vpn_config (id, data) VALUES ('main', ?)\").run(JSON.stringify(vpnDb));
-                    console.log('\x1b[32m\n✅ Produk VPN Baru ($prod_id) berhasil ditambahkan ke Server!\x1b[0m');
+                    console.log('\x1b[32m\n✅ Produk VPN Baru (' + process.env.PROD_ID + ') berhasil ditambahkan ke Server!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
@@ -5519,31 +5975,31 @@ submenu_produk_vpn() {
                 read -p "Limit Bandwidth Kuota GB: " p_kuota
                 read -p "Deskripsi / Fitur Singkat: " p_desc
                 
-                node -e "
+                EDIT_PROD_ID="$edit_prod_id" TARGET_PROTO="$target_proto" SRV_ID_TARGET="$srv_id_target" P_NAMA="$p_nama" P_HARGA="$p_harga" P_DESC="$p_desc" P_LIMITIP="$p_limitip" P_KUOTA="$p_kuota" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
                     let vpnDb = row ? JSON.parse(row.data) : null;
-                    if(!vpnDb || !vpnDb.products || !vpnDb.products['$edit_prod_id']) {
+                    if(!vpnDb || !vpnDb.products || !vpnDb.products[process.env.EDIT_PROD_ID]) {
                         console.log('\x1b[31m❌ ID Produk tidak ditemukan!\x1b[0m');
                         process.exit(0);
                     }
                     
-                    let existing = vpnDb.products['$edit_prod_id'];
+                    let existing = vpnDb.products[process.env.EDIT_PROD_ID];
                     
-                    vpnDb.products['$edit_prod_id'] = {
-                        protocol: '$target_proto' !== '' ? '$target_proto' : existing.protocol,
-                        server_id: '$srv_id_target' !== '' ? '$srv_id_target' : existing.server_id,
-                        name: '$p_nama' !== '' ? '$p_nama' : existing.name,
-                        price: '$p_harga' !== '' ? parseInt('$p_harga') : existing.price,
-                        desc: '$p_desc' !== '' ? '$p_desc' : existing.desc,
-                        limit_ip: '$p_limitip' !== '' ? parseInt('$p_limitip') : existing.limit_ip,
-                        kuota: '$p_kuota' !== '' ? parseInt('$p_kuota') : existing.kuota,
+                    vpnDb.products[process.env.EDIT_PROD_ID] = {
+                        protocol: process.env.TARGET_PROTO !== '' ? process.env.TARGET_PROTO : existing.protocol,
+                        server_id: process.env.SRV_ID_TARGET !== '' ? process.env.SRV_ID_TARGET : existing.server_id,
+                        name: process.env.P_NAMA !== '' ? process.env.P_NAMA : existing.name,
+                        price: process.env.P_HARGA !== '' ? parseInt(process.env.P_HARGA) : existing.price,
+                        desc: process.env.P_DESC !== '' ? process.env.P_DESC : existing.desc,
+                        limit_ip: process.env.P_LIMITIP !== '' ? parseInt(process.env.P_LIMITIP) : existing.limit_ip,
+                        kuota: process.env.P_KUOTA !== '' ? parseInt(process.env.P_KUOTA) : existing.kuota,
                         stok: existing.stok
                     };
                     
                     db.prepare(\"UPDATE vpn_config SET data = ? WHERE id = 'main'\").run(JSON.stringify(vpnDb));
-                    console.log('\x1b[32m\n✅ Produk VPN ($edit_prod_id) berhasil diupdate!\x1b[0m');
+                    console.log('\x1b[32m\n✅ Produk VPN (' + process.env.EDIT_PROD_ID + ') berhasil diupdate!\x1b[0m');
                 "
                 read -p "Tekan Enter untuk kembali..."
                 ;;
@@ -5569,15 +6025,15 @@ submenu_produk_vpn() {
                 echo -e "\n${C_MAG}--- ATUR ULANG STOK PRODUK ---${C_RST}"
                 read -p "Masukkan ID Produk: " stok_id
                 read -p "Masukkan Jumlah Stok Baru: " stok_baru
-                node -e "
+                STOK_ID="$stok_id" STOK_BARU="$stok_baru" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
                     let vpnDb = row ? JSON.parse(row.data) : null;
-                    if(vpnDb && vpnDb.products && vpnDb.products['$stok_id']) {
-                        vpnDb.products['$stok_id'].stok = parseInt('$stok_baru') || 0;
+                    if(vpnDb && vpnDb.products && vpnDb.products[process.env.STOK_ID]) {
+                        vpnDb.products[process.env.STOK_ID].stok = parseInt(process.env.STOK_BARU) || 0;
                         db.prepare(\"UPDATE vpn_config SET data = ? WHERE id = 'main'\").run(JSON.stringify(vpnDb));
-                        console.log('\x1b[32m\n✅ Stok Produk ($stok_id) berhasil diupdate menjadi ' + vpnDb.products['$stok_id'].stok + '!\x1b[0m');
+                        console.log('\x1b[32m\n✅ Stok Produk (' + process.env.STOK_ID + ') berhasil diupdate menjadi ' + vpnDb.products[process.env.STOK_ID].stok + '!\x1b[0m');
                     } else {
                         console.log('\x1b[31m\n❌ ID Produk tidak ditemukan.\x1b[0m');
                     }
@@ -5587,15 +6043,15 @@ submenu_produk_vpn() {
             5)
                 echo -e "\n${C_MAG}--- HAPUS PRODUK ---${C_RST}"
                 read -p "Masukkan ID Produk yang ingin dihapus: " del_id
-                node -e "
+                DEL_ID="$del_id" node -e "
                     const Database = require('better-sqlite3');
                     const db = new Database('tendo_database.db');
                     let row = db.prepare(\"SELECT data FROM vpn_config WHERE id = 'main'\").get();
                     let vpnDb = row ? JSON.parse(row.data) : null;
-                    if(vpnDb && vpnDb.products && vpnDb.products['$del_id']) {
-                        delete vpnDb.products['$del_id'];
+                    if(vpnDb && vpnDb.products && vpnDb.products[process.env.DEL_ID]) {
+                        delete vpnDb.products[process.env.DEL_ID];
                         db.prepare(\"UPDATE vpn_config SET data = ? WHERE id = 'main'\").run(JSON.stringify(vpnDb));
-                        console.log('\x1b[32m\n✅ Produk ($del_id) berhasil dihapus!\x1b[0m');
+                        console.log('\x1b[32m\n✅ Produk (' + process.env.DEL_ID + ') berhasil dihapus!\x1b[0m');
                     } else {
                         console.log('\x1b[31m\n❌ ID Produk tidak ditemukan.\x1b[0m');
                     }
@@ -5653,15 +6109,15 @@ menu_etalase_custom() {
                 echo -e "\n${C_MAG}--- BUAT ETALASE BARU ---${C_RST}"
                 read -p "Masukkan Judul Etalase (Cth: Best Seller): " judul_etalase
                 if [ ! -z "$judul_etalase" ]; then
-                    node -e "
+                    JUDUL_ETALASE="$judul_etalase" node -e "
                         const Database = require('better-sqlite3');
                         const db = new Database('tendo_database.db');
                         let row = db.prepare(\"SELECT data FROM custom_layout WHERE id = 'main'\").get();
                         let layoutDb = row ? JSON.parse(row.data) : {sections: []};
                         if(!layoutDb.sections) layoutDb.sections = [];
-                        layoutDb.sections.push({title: '$judul_etalase', skus: []});
+                        layoutDb.sections.push({title: process.env.JUDUL_ETALASE, skus: []});
                         db.prepare(\"INSERT OR REPLACE INTO custom_layout (id, data) VALUES ('main', ?)\").run(JSON.stringify(layoutDb));
-                        console.log('\x1b[32m✅ Etalase \'$judul_etalase\' berhasil dibuat!\x1b[0m');
+                        console.log('\x1b[32m✅ Etalase \'' + process.env.JUDUL_ETALASE + '\' berhasil dibuat!\x1b[0m');
                     "
                 fi
                 read -p "Tekan Enter untuk kembali..."
@@ -5681,17 +6137,17 @@ menu_etalase_custom() {
                 if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
                     read -p "Masukkan KODE SKU Produk: " sku_tambah
                     if [ ! -z "$sku_tambah" ]; then
-                        node -e "
+                        NOMOR_ETALASE="$nomor_etalase" SKU_TAMBAH="$sku_tambah" node -e "
                             const Database = require('better-sqlite3');
                             const db = new Database('tendo_database.db');
                             let row = db.prepare(\"SELECT data FROM custom_layout WHERE id = 'main'\").get();
                             let layoutDb = row ? JSON.parse(row.data) : {sections: []};
-                            let idx = parseInt('$nomor_etalase') - 1;
+                            let idx = parseInt(process.env.NOMOR_ETALASE) - 1;
                             if(layoutDb.sections[idx]) {
-                                if(!layoutDb.sections[idx].skus.includes('$sku_tambah')) {
-                                    layoutDb.sections[idx].skus.push('$sku_tambah');
+                                if(!layoutDb.sections[idx].skus.includes(process.env.SKU_TAMBAH)) {
+                                    layoutDb.sections[idx].skus.push(process.env.SKU_TAMBAH);
                                     db.prepare(\"UPDATE custom_layout SET data = ? WHERE id = 'main'\").run(JSON.stringify(layoutDb));
-                                    console.log('\x1b[32m✅ SKU \'$sku_tambah\' berhasil ditambahkan ke ' + layoutDb.sections[idx].title + '!\x1b[0m');
+                                    console.log('\x1b[32m✅ SKU \'' + process.env.SKU_TAMBAH + '\' berhasil ditambahkan ke ' + layoutDb.sections[idx].title + '!\x1b[0m');
                                 } else {
                                     console.log('\x1b[33mSKU sudah ada di etalase ini.\x1b[0m');
                                 }
@@ -5718,18 +6174,18 @@ menu_etalase_custom() {
                 if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
                     read -p "Masukkan KODE SKU Produk yg ingin dihapus: " sku_hapus
                     if [ ! -z "$sku_hapus" ]; then
-                        node -e "
+                        NOMOR_ETALASE="$nomor_etalase" SKU_HAPUS="$sku_hapus" node -e "
                             const Database = require('better-sqlite3');
                             const db = new Database('tendo_database.db');
                             let row = db.prepare(\"SELECT data FROM custom_layout WHERE id = 'main'\").get();
                             let layoutDb = row ? JSON.parse(row.data) : {sections: []};
-                            let idx = parseInt('$nomor_etalase') - 1;
+                            let idx = parseInt(process.env.NOMOR_ETALASE) - 1;
                             if(layoutDb.sections[idx]) {
                                 let oldLen = layoutDb.sections[idx].skus.length;
-                                layoutDb.sections[idx].skus = layoutDb.sections[idx].skus.filter(s => s !== '$sku_hapus');
+                                layoutDb.sections[idx].skus = layoutDb.sections[idx].skus.filter(s => s !== process.env.SKU_HAPUS);
                                 if(layoutDb.sections[idx].skus.length < oldLen) {
                                     db.prepare(\"UPDATE custom_layout SET data = ? WHERE id = 'main'\").run(JSON.stringify(layoutDb));
-                                    console.log('\x1b[32m✅ SKU \'$sku_hapus\' berhasil dihapus dari ' + layoutDb.sections[idx].title + '!\x1b[0m');
+                                    console.log('\x1b[32m✅ SKU \'' + process.env.SKU_HAPUS + '\' berhasil dihapus dari ' + layoutDb.sections[idx].title + '!\x1b[0m');
                                 } else {
                                     console.log('\x1b[31mSKU tidak ditemukan di etalase ini.\x1b[0m');
                                 }
@@ -5754,12 +6210,12 @@ menu_etalase_custom() {
                 echo -e ""
                 read -p "Pilih nomor Etalase yg ingin dihapus: " nomor_etalase
                 if [[ "$nomor_etalase" =~ ^[0-9]+$ ]]; then
-                    node -e "
+                    NOMOR_ETALASE="$nomor_etalase" node -e "
                         const Database = require('better-sqlite3');
                         const db = new Database('tendo_database.db');
                         let row = db.prepare(\"SELECT data FROM custom_layout WHERE id = 'main'\").get();
                         let layoutDb = row ? JSON.parse(row.data) : {sections: []};
-                        let idx = parseInt('$nomor_etalase') - 1;
+                        let idx = parseInt(process.env.NOMOR_ETALASE) - 1;
                         if(layoutDb.sections[idx]) {
                             let title = layoutDb.sections[idx].title;
                             layoutDb.sections.splice(idx, 1);
@@ -5821,15 +6277,15 @@ menu_pemeliharaan() {
     read -p "Masukkan Jam Selesai Pemeliharaan: " m_end
     
     if [ ! -z "$m_start" ] && [ ! -z "$m_end" ]; then
-        node -e "
+        M_START="$m_start" M_END="$m_end" node -e "
             const Database = require('better-sqlite3');
             const db = new Database('tendo_database.db');
             let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
             let cfg = row ? JSON.parse(row.data) : {};
-            cfg.maintStart = '$m_start';
-            cfg.maintEnd = '$m_end';
+            cfg.maintStart = process.env.M_START;
+            cfg.maintEnd = process.env.M_END;
             db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(cfg));
-            console.log('\x1b[32m✅ Waktu pemeliharaan berhasil diupdate menjadi $m_start - $m_end WIB!\x1b[0m');
+            console.log('\x1b[32m✅ Waktu pemeliharaan berhasil diupdate menjadi ' + process.env.M_START + ' - ' + process.env.M_END + ' WIB!\x1b[0m');
         "
     else
         echo -e "${C_RED}❌ Gagal, format waktu tidak boleh kosong!${C_RST}"
@@ -5892,12 +6348,12 @@ while true; do
             if [ ! -d "sesi_bot" ] || [ -z "$(ls -A sesi_bot 2>/dev/null)" ]; then
                 read -p "📲 Masukkan Nomor WA Bot (Awali 628...): " nomor_bot
                 if [ ! -z "$nomor_bot" ]; then
-                    node -e "
+                    NOMOR_BOT="$nomor_bot" node -e "
                         const Database = require('better-sqlite3');
                         const db = new Database('tendo_database.db');
                         let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                         let config = row ? JSON.parse(row.data) : {};
-                        config.botNumber = '$nomor_bot';
+                        config.botNumber = process.env.NOMOR_BOT;
                         config.botName = config.botName || 'Digital Tendo Store';
                         db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                     "
@@ -5940,13 +6396,13 @@ while true; do
             echo -e "\n${C_MAG}--- GANTI API DIGIFLAZZ ---${C_RST}"
             read -p "Username Digiflazz Baru: " user_api
             read -p "API Key Digiflazz Baru: " key_api
-            node -e "
+            USER_API="$user_api" KEY_API="$key_api" node -e "
                 const Database = require('better-sqlite3');
                 const db = new Database('tendo_database.db');
                 let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                 let config = row ? JSON.parse(row.data) : {};
-                if('$user_api' !== '') config.digiflazzUsername = '$user_api'.trim();
-                if('$key_api' !== '') config.digiflazzApiKey = '$key_api'.trim();
+                if(process.env.USER_API !== '') config.digiflazzUsername = process.env.USER_API.trim();
+                if(process.env.KEY_API !== '') config.digiflazzApiKey = process.env.KEY_API.trim();
                 db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                 console.log('\x1b[32m\n✅ Konfigurasi Digiflazz berhasil disimpan!\x1b[0m');
             "
@@ -5983,14 +6439,14 @@ while true; do
             echo -e "\n${C_CYAN}Siapkan TEKS STRING dari QRIS Statis Anda.${C_RST}"
             echo -e "Teks QRIS berawalan '000201010211...' dan diakhiri dengan kombinasi 4 huruf/angka (CRC)."
             read -p "Paste TEKS STRING QRIS Anda di sini: " qris_text
-            node -e "
+            GOPAY_TOKEN="$gopay_token" GOPAY_MID="$gopay_mid" QRIS_TEXT="$qris_text" node -e "
                 const Database = require('better-sqlite3');
                 const db = new Database('tendo_database.db');
                 let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                 let config = row ? JSON.parse(row.data) : {};
-                if ('$gopay_token' !== '') config.gopayToken = '$gopay_token'.trim();
-                if ('$gopay_mid' !== '') config.gopayMerchantId = '$gopay_mid'.trim();
-                if ('$qris_text' !== '') config.qrisText = '$qris_text'.trim();
+                if (process.env.GOPAY_TOKEN !== '') config.gopayToken = process.env.GOPAY_TOKEN.trim();
+                if (process.env.GOPAY_MID !== '') config.gopayMerchantId = process.env.GOPAY_MID.trim();
+                if (process.env.QRIS_TEXT !== '') config.qrisText = process.env.QRIS_TEXT.trim();
                 db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
                 console.log('\x1b[32m\n✅ Konfigurasi GoPay BHM Biz & QRIS Dinamis berhasil disimpan!\x1b[0m');
             "
@@ -6042,3 +6498,5 @@ EOF
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
 done
+
+SELESAI
