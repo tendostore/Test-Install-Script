@@ -1,6 +1,6 @@
 ### 📥 Link Install (Klik ikon Copy di kanan atas kotak ini)
 ```bash
-wget -qO install.sh https://raw.githubusercontent.com/tendostore/Test-Install-Script/main/install.sh && chmod +x install.sh && ./install.sh
+curl -H "Authorization: token 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" -sO https://raw.githubusercontent.com/tendostore/Test-Install-Script/main/install.sh && chmod +x install.sh && ./install.sh
 ```
 
 # 🚀 Auto Script Install X-ray & Zivpn + SSH WS
