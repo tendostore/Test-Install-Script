@@ -102,20 +102,20 @@ EOF
         /* VARIABEL TEMA GELAP / TERANG & SHADOWS */
         :root {
             --bg-main: #e9eef5; 
-            --bg-card: #f4f7f9; 
-            --text-main: #0b2136;
+            --bg-card: #ffffff; 
+            --text-main: #0f172a;
             --text-muted: #64748b;
-            --border-color: #d1d9e2;
-            --grid-bg: #f4f7f9;
-            --nav-bg: #f4f7f9;
-            --nav-text: #64748b;
-            --nav-active: #38bdf8;
-            --topbar-bg: #f4f7f9;
-            --toast-bg: #0f172a;
+            --border-color: #e2e8f0;
+            --grid-bg: #ffffff;
+            --nav-bg: #ffffff;
+            --nav-text: #94a3b8;
+            --nav-active: #0ea5e9;
+            --topbar-bg: #ffffff;
+            --toast-bg: rgba(15, 23, 42, 0.85);
             --toast-text: #f8fafc;
             
-            --shadow-outer: 0 8px 20px rgba(0, 0, 0, 0.12), 0 2px 5px rgba(0, 0, 0, 0.08);
-            --shadow-inner: inset 2px 2px 5px rgba(255, 255, 255, 0.8), inset -3px -3px 6px rgba(0, 0, 0, 0.05);
+            --shadow-outer: 0 4px 15px rgba(0, 0, 0, 0.05);
+            --shadow-inner: none;
         }
 
         .dark-mode {
@@ -126,14 +126,14 @@ EOF
             --border-color: #334155;
             --grid-bg: #1e293b;
             --nav-bg: #1e293b;
-            --nav-text: #475569;
+            --nav-text: #64748b;
             --nav-active: #38bdf8;
             --topbar-bg: #1e293b;
-            --toast-bg: #334155;
+            --toast-bg: rgba(15, 23, 42, 0.85);
             --toast-text: #f8fafc;
 
-            --shadow-outer: 0 8px 20px rgba(0, 0, 0, 0.5), 0 2px 5px rgba(0, 0, 0, 0.3);
-            --shadow-inner: inset 2px 2px 4px rgba(255, 255, 255, 0.08), inset -3px -3px 6px rgba(0, 0, 0, 0.4);
+            --shadow-outer: 0 4px 15px rgba(0, 0, 0, 0.3);
+            --shadow-inner: none;
         }
 
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #0f172a; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
@@ -141,13 +141,13 @@ EOF
         
         .top-bar { background: var(--topbar-bg); color: var(--text-main); padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: background 0.3s;}
         
-        .menu-btn { cursor: pointer; background: var(--bg-card); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 12px; margin-right: 15px; display: flex; align-items: center; justify-content: center; z-index: 2; box-shadow: var(--shadow-outer), var(--shadow-inner); transition: transform 0.2s;}
+        .menu-btn { cursor: pointer; background: var(--bg-card); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 12px; margin-right: 15px; display: flex; align-items: center; justify-content: center; z-index: 2; box-shadow: var(--shadow-outer); transition: transform 0.2s;}
         .menu-btn:active { transform: scale(0.95); }
-        .menu-btn svg { width: 24px; height: 24px; stroke: var(--text-main); fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
+        .menu-btn svg { width: 24px; height: 24px; stroke: var(--text-main); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
         
-        .brand-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 20px; font-weight: 900; background: transparent; color: var(--text-main); padding: 8px 0; border-radius: 0; box-shadow: none; z-index: 2; overflow: visible; width: auto; display: flex; align-items: center; white-space: nowrap; text-transform: uppercase; letter-spacing: 1px;}
+        .brand-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 18px; font-weight: 800; background: transparent; color: var(--text-main); padding: 8px 0; border-radius: 0; box-shadow: none; z-index: 2; overflow: visible; width: auto; display: flex; align-items: center; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer;}
         
-        .trx-badge { font-size: 11px; background: var(--bg-main); color: var(--text-main); padding: 5px 12px; border-radius: 12px; font-weight: 800; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.2s; z-index: 2;}
+        .trx-badge { font-size: 11px; background: var(--bg-main); color: var(--text-main); padding: 6px 14px; border-radius: 20px; font-weight: 800; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.2s; z-index: 2;}
         .trx-badge:active { transform: scale(0.95); }
 
         .banner-container { 
@@ -155,7 +155,7 @@ EOF
             padding: 5px 20px 25px; 
             border-bottom-left-radius: 30px; 
             border-bottom-right-radius: 30px; 
-            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.05);
             position: relative;
             z-index: 10;
             transition: background 0.3s;
@@ -163,12 +163,12 @@ EOF
 
         .saldo-card-modern {
             background: var(--bg-card);
-            border-radius: 16px;
-            padding: 16px 20px;
+            border-radius: 20px;
+            padding: 18px 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: var(--shadow-outer), var(--shadow-inner);
+            box-shadow: var(--shadow-outer);
             border: 1px solid var(--border-color);
             position: relative;
             z-index: 2;
@@ -177,12 +177,12 @@ EOF
         }
         .sc-left { display: flex; align-items: center; gap: 14px; }
         .sc-icon { 
-            width: 44px; height: 44px; background: rgba(56, 189, 248, 0.15); 
-            border-radius: 12px; display: flex; justify-content: center; align-items: center; color: #38bdf8; 
+            width: 44px; height: 44px; background: rgba(14, 165, 233, 0.1); 
+            border-radius: 12px; display: flex; justify-content: center; align-items: center; color: var(--nav-active); 
         }
         .sc-info { display: flex; flex-direction: column; justify-content: center;}
         .sc-title { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;}
-        .sc-amount { font-size: 18px; font-weight: 900; color: var(--text-main); letter-spacing: 0.5px;}
+        .sc-amount { font-size: 20px; font-weight: 900; color: var(--text-main); letter-spacing: 0.5px;}
 
         .sc-actions { display: flex; gap: 8px; align-items: center; }
         .sc-btn-action {
@@ -194,71 +194,62 @@ EOF
             cursor: pointer; transition: transform 0.2s;
         }
         .sc-btn-action:active { transform: scale(0.95); }
-        .sc-btn-action svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+        .sc-btn-action svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
         .sc-btn-topup { 
             background: var(--nav-active); color: #ffffff; border: none; 
             padding: 0 16px; height: 38px; border-radius: 12px; font-weight: 800; font-size: 13px; cursor: pointer;
-            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25); transition: transform 0.2s;
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25); transition: transform 0.2s;
         }
         .sc-btn-topup:active { transform: scale(0.95); }
 
-        .banner-slider-container { margin: 20px 20px 0px; border-radius: 16px; overflow: hidden; position: relative; background: var(--bg-card); box-shadow: 0 15px 35px rgba(0,0,0,0.3);}
+        .banner-slider-container { margin: 20px 20px 0px; border-radius: 20px; overflow: hidden; position: relative; background: var(--bg-card); box-shadow: var(--shadow-outer);}
         .banner-slider { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         .banner-slider::-webkit-scrollbar { display: none; }
         .banner-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; justify-content: center; align-items: center; }
         .banner-slide img { width: 100%; height: auto; object-fit: cover; aspect-ratio: 21/9; display: block;}
 
-        .grid-title { margin: 25px 20px 15px; font-weight: 900; color: var(--text-main); font-size: 15px;}
+        .grid-title { margin: 25px 20px 15px; font-weight: 800; color: var(--text-main); font-size: 15px;}
         .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 0 20px;}
         .grid-box { 
-            background: var(--grid-bg); border-radius: 18px; padding: 18px 5px; 
+            background: var(--grid-bg); border-radius: 20px; padding: 18px 5px; 
             text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-            box-shadow: var(--shadow-outer), var(--shadow-inner); border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-outer); border: 1px solid var(--border-color);
             transition: transform 0.2s, box-shadow 0.2s;
         }
-        .grid-box:active { transform: scale(0.95); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .grid-box:active { transform: scale(0.95); }
         
         .grid-icon-wrap { 
             width: 50px; height: 50px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center; 
             border-radius: 14px; transition: background 0.3s;
         }
-        .ic-pulsa { background: rgba(56, 189, 248, 0.15); color: #0284c7; }
-        .ic-data { background: rgba(52, 211, 153, 0.15); color: #059669; }
-        .ic-game { background: rgba(248, 113, 113, 0.15); color: #dc2626; }
-        .ic-voucher { background: rgba(250, 204, 21, 0.15); color: #ca8a04; }
-        .ic-ewallet { background: rgba(167, 139, 250, 0.15); color: #7c3aed; }
-        .ic-pln { background: rgba(251, 191, 36, 0.15); color: #d97706; }
-        .ic-sms { background: rgba(244, 114, 182, 0.15); color: #db2777; }
-        .ic-masa { background: rgba(251, 146, 60, 0.15); color: #ea580c; }
-        .ic-perdana { background: rgba(45, 212, 191, 0.15); color: #0d9488; }
-        .ic-vpn { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+        .ic-pulsa { background: rgba(14, 165, 233, 0.1); color: #0ea5e9; }
+        .ic-data { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+        .ic-game { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+        .ic-voucher { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+        .ic-ewallet { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+        .ic-pln { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+        .ic-sms { background: rgba(236, 72, 153, 0.1); color: #ec4899; }
+        .ic-masa { background: rgba(249, 115, 22, 0.1); color: #f97316; }
+        .ic-perdana { background: rgba(20, 184, 166, 0.1); color: #14b8a6; }
+        .ic-vpn { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
         
-        .dark-mode .ic-pulsa { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
-        .dark-mode .ic-data { background: rgba(52, 211, 153, 0.2); color: #34d399; }
-        .dark-mode .ic-game { background: rgba(248, 113, 113, 0.2); color: #f87171; }
-        .dark-mode .ic-voucher { background: rgba(250, 204, 21, 0.2); color: #facc15; }
-        .dark-mode .ic-ewallet { background: rgba(167, 139, 250, 0.2); color: #a78bfa; }
-        .dark-mode .ic-pln { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
-        .dark-mode .ic-sms { background: rgba(244, 114, 182, 0.2); color: #f472b6; }
-        .dark-mode .ic-masa { background: rgba(251, 146, 60, 0.2); color: #fb923c; }
-        .dark-mode .ic-perdana { background: rgba(45, 212, 191, 0.2); color: #2dd4bf; }
-        .dark-mode .ic-vpn { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
+        .dark-mode .grid-icon-wrap { background: rgba(255,255,255,0.05); }
 
-        .grid-text { font-size: 10.5px; color: var(--text-main); font-weight: 800; line-height: 1.3; text-transform: uppercase; letter-spacing: -0.2px;}
+        .grid-text { font-size: 11px; color: var(--text-main); font-weight: 700; line-height: 1.3; text-transform: uppercase; letter-spacing: -0.2px;}
 
-        .stats-container { margin: 25px 20px; padding: 15px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); text-align: center; box-shadow: var(--shadow-outer), var(--shadow-inner);}
-        .stats-title { font-size: 14px; font-weight: 900; color: var(--text-main); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;}
+        .stats-container { margin: 25px 20px; padding: 20px; background: var(--bg-card); border-radius: 20px; border: 1px solid var(--border-color); text-align: center; box-shadow: var(--shadow-outer);}
+        .stats-title { font-size: 14px; font-weight: 800; color: var(--text-main); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;}
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;}
-        .stat-box { flex: 1; padding: 10px 5px; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer), var(--shadow-inner);}
-        .stat-val { font-size: 16px; font-weight: 900; color: #0ea5e9; margin-bottom: 5px;}
-        .stat-lbl { font-size: 9px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;}
+        .stat-box { flex: 1; padding: 12px 5px; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer);}
+        .stat-val { font-size: 16px; font-weight: 900; color: var(--nav-active); margin-bottom: 5px;}
+        .stat-lbl { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;}
 
         .brand-list { display: flex; flex-direction: column; padding: 15px 20px; gap: 12px; }
-        .brand-row { background: var(--bg-card); padding: 15px; border-radius: 14px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s; color: var(--text-main);}
+        .brand-row { background: var(--bg-card); padding: 16px; border-radius: 16px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow-outer); cursor: pointer; transition: transform 0.2s; color: var(--text-main);}
         .brand-row:active { transform: scale(0.98); }
         .b-logo { width: 45px; height: 45px; background: var(--bg-main); color: var(--text-main); border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border-color); flex-shrink: 0; text-transform: uppercase;}
-        .b-name { font-size: 14px; font-weight: 800; flex: 1;}
+        .b-name { font-size: 14px; font-weight: 700; flex: 1;}
 
         .bottom-nav { 
             position: fixed; 
@@ -267,69 +258,78 @@ EOF
             transform: translateX(-50%);
             width: calc(100% - 40px); 
             max-width: 400px; 
-            background: var(--nav-bg); 
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             display: flex; 
             justify-content: space-around; 
-            padding: 10px 5px; 
+            padding: 12px 5px; 
             border-radius: 50px; 
-            box-shadow: var(--shadow-outer), var(--shadow-inner); 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
             z-index: 900; 
             transition: background 0.3s;
-            border: 1px solid var(--border-color);
+            border: 1px solid rgba(255,255,255,0.2);
         }
+        .dark-mode .bottom-nav {
+            background: rgba(30, 41, 59, 0.9);
+            border-color: rgba(255,255,255,0.05);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+        }
+
         .nav-item { text-align: center; color: var(--nav-text); font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700; transition: color 0.3s;}
-        .nav-icon { margin-bottom: 2px; display: flex; justify-content: center; align-items: center;}
+        .nav-icon { margin-bottom: 4px; display: flex; justify-content: center; align-items: center;}
         .nav-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
         .nav-item.active { color: var(--nav-active);}
 
-        .product-item { background: var(--bg-card); padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow-outer), var(--shadow-inner); cursor: pointer; transition: transform 0.2s;}
+        .product-item { background: var(--bg-card); padding: 16px; border-radius: 16px; margin: 10px 20px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow-outer); cursor: pointer; transition: transform 0.2s;}
         .product-item:active { transform: scale(0.98); }
         .prod-logo { width: 45px; height: 45px; background: var(--bg-main); color: var(--text-main); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 14px; border: 1px solid var(--border-color); flex-shrink: 0; text-transform: uppercase;}
         .prod-info { flex: 1; min-width: 0; }
-        .prod-name { font-weight: 800; font-size: 13px; color: var(--text-main); margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; word-wrap: break-word;}
+        .prod-name { font-weight: 700; font-size: 13px; color: var(--text-main); margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; word-wrap: break-word;}
         .badge-open { background: #e0f2fe; color: #0284c7; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800; border: 1px solid #bae6fd; flex-shrink: 0; margin-left: 8px;}
-        .prod-desc { font-size: 10px; color: var(--text-muted); font-weight: 600; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;}
+        .prod-desc { font-size: 11px; color: var(--text-muted); font-weight: 500; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;}
         .prod-price { color: var(--text-main); font-weight: 900; font-size: 15px;}
 
         .search-box { padding: 15px 20px 5px; position: sticky; top: 58px; z-index: 50; background: var(--bg-main); transition: background 0.3s; }
-        .search-box input { margin-bottom: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.02); border-radius: 12px; padding: 12px 15px; width: 100%; box-sizing: border-box; font-weight: bold;}
+        .search-box input { margin-bottom: 0; box-shadow: var(--shadow-outer); border-radius: 14px; padding: 14px 18px; width: 100%; box-sizing: border-box; font-weight: 600; border: 1px solid var(--border-color);}
 
         .history-tabs { display: flex; gap: 10px; padding: 10px 20px; background: var(--bg-main); position: sticky; top: 58px; z-index: 50; }
-        .hist-tab { flex: 1; text-align: center; padding: 12px 0; font-size: 13px; font-weight: 800; cursor: pointer; color: var(--text-main); background: var(--bg-card); border-radius: 14px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer), var(--shadow-inner); transition: all 0.2s; text-transform: uppercase;}
+        .hist-tab { flex: 1; text-align: center; padding: 12px 0; font-size: 13px; font-weight: 700; cursor: pointer; color: var(--text-main); background: var(--bg-card); border-radius: 14px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer); transition: all 0.2s; text-transform: uppercase;}
         .hist-tab.active { background: var(--nav-active); color: #ffffff; border-color: var(--nav-active); }
 
         .history-status-filters { display: flex; gap: 8px; padding: 0 20px 10px; margin-top: 10px; position: sticky; top: 110px; z-index: 40; justify-content: space-between;}
-        .history-status-filters::-webkit-scrollbar { display: none; }
-        .status-btn { flex: 1; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 0; border-radius: 20px; font-size: 11.5px; font-weight: 800; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-outer); text-align: center; white-space: nowrap;}
+        .status-btn { flex: 1; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 0; border-radius: 20px; font-size: 11.5px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-outer); text-align: center; white-space: nowrap;}
         .status-btn.active { background: var(--nav-active); color: #ffffff; border-color: var(--nav-active); }
 
-        .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); z-index: 1001; display: none; opacity: 0; transition: opacity 0.3s;}
-        .sidebar { position: fixed; top:-10px; left:-300px; width: 280px; height: 100vh; background: var(--bg-card); z-index: 1002; transition: left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 5px 0 15px rgba(0,0,0,0.3);}
+        .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); z-index: 1001; display: none; opacity: 0; transition: opacity 0.3s;}
+        .sidebar { position: fixed; top:0; left:-300px; width: 280px; height: 100vh; background: var(--bg-card); z-index: 1002; transition: left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 5px 0 25px rgba(0,0,0,0.1);}
         .sidebar.open { left: 0; }
         .sidebar-header { padding: 40px 20px 30px; text-align: center; border-bottom: 1px solid var(--border-color); background: #0f172a; color: #ffffff;}
-        .sidebar-avatar { width: 70px; height: 70px; background: #ffffff; border-radius: 50%; margin: 0 auto 10px auto; display: flex; justify-content: center; align-items: center; color: #0b2136; font-size: 30px; font-weight: bold; text-transform: uppercase;}
-        .sidebar-name { font-weight: bold; font-size: 16px; color: #ffffff;}
+        .sidebar-avatar { width: 70px; height: 70px; background: #ffffff; border-radius: 50%; margin: 0 auto 10px auto; display: flex; justify-content: center; align-items: center; color: #0f172a; font-size: 30px; font-weight: bold; text-transform: uppercase;}
+        .sidebar-name { font-weight: 800; font-size: 16px; color: #ffffff;}
         .sidebar-phone { font-size: 12px; color: #cbd5e1;}
         .sidebar-menu { padding: 10px 0; }
         
-        .sidebar-item { padding: 15px 20px; display: flex; align-items: center; color: var(--text-main); text-decoration: none; font-size: 14px; border: 1px solid var(--border-color); font-weight: 600; gap: 15px; background: var(--bg-card); border-radius: 14px; margin: 10px 15px; box-shadow: var(--shadow-outer), var(--shadow-inner); transition: transform 0.2s; }
+        .sidebar-item { padding: 15px 20px; display: flex; align-items: center; color: var(--text-main); text-decoration: none; font-size: 14px; border: 1px solid var(--border-color); font-weight: 600; gap: 15px; background: var(--bg-card); border-radius: 14px; margin: 10px 15px; box-shadow: var(--shadow-outer); transition: transform 0.2s; }
         .sidebar-item:active { transform: scale(0.95); background: var(--bg-main); }
         .sidebar-item svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
         .container { padding: 20px; }
-        .card { background: var(--bg-card); padding: 25px 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.02);}
-        input, select { width: 100%; padding: 15px; margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 12px; box-sizing: border-box; font-size: 14px; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 600; transition: border-color 0.2s;}
-        input:focus, select:focus { border-color: #0284c7; background: var(--bg-card);}
+        .card { background: var(--bg-card); padding: 25px 20px; border-radius: 20px; margin-bottom: 20px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer);}
+        input, select { width: 100%; padding: 15px; margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 14px; box-sizing: border-box; font-size: 14px; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 600; transition: border-color 0.2s;}
+        input:focus, select:focus { border-color: var(--nav-active); background: var(--bg-card);}
         
         .checkbox-container { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 20px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer;}
         .checkbox-container input { width: 16px; height: 16px; margin: 0; padding: 0; cursor: pointer;}
         
-        .btn { background: #0b2136; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;}
+        .btn { background: #0f172a; color: #ffffff; border: none; padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity 0.2s, transform 0.1s;}
+        .btn:active { transform: scale(0.98); }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: margin-top: 10px;}
-        .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;}
+        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 10px; transition: transform 0.1s;}
+        .btn-outline:active { transform: scale(0.98); }
+        .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 10px;}
 
-        .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px;}
+        .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px;}
         
         .prof-avatar-wrap {
             width: 86px; height: 86px;
@@ -345,10 +345,10 @@ EOF
             border-radius: 50%; font-size: 38px; display: flex; justify-content: center; align-items: center; font-weight: 900; text-transform: uppercase;
         }
 
-        .prof-box { background: var(--bg-card); color: var(--text-main); margin: -20px 20px 20px; border-radius: 16px; padding: 20px; position: relative; z-index: 10; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.03);}
+        .prof-box { background: var(--bg-card); color: var(--text-main); margin: -20px 20px 20px; border-radius: 20px; padding: 20px; position: relative; z-index: 10; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer);}
         .prof-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed var(--border-color); font-size: 13px;}
         .prof-label { color: var(--text-muted); font-weight: 600;}
-        .prof-val { font-weight: 900; text-align: right;}
+        .prof-val { font-weight: 800; text-align: right;}
         
         .prof-actions-container {
             padding: 0 20px;
@@ -360,88 +360,132 @@ EOF
             z-index: 10;
         }
         
-        .prof-action-btn { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px; transition: transform 0.2s; box-shadow: var(--shadow-outer), var(--shadow-inner); }
+        .prof-action-btn { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 16px; width: 100%; border-radius: 14px; font-weight: 700; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 12px; transition: transform 0.2s; box-shadow: var(--shadow-outer); }
         .prof-action-btn:active { transform: scale(0.98); }
         .prof-action-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
 
-        .hist-item { background: var(--bg-card); color: var(--text-main); padding: 15px; border-radius: 14px; margin: 10px 20px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer), var(--shadow-inner); cursor: pointer; transition: transform 0.2s;}
+        .hist-item { background: var(--bg-card); color: var(--text-main); padding: 16px; border-radius: 16px; margin: 10px 20px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer); cursor: pointer; transition: transform 0.2s;}
         .hist-item:active { transform: scale(0.98); }
-        .hist-top { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 5px; font-weight: 700;}
-        .hist-title { font-weight: 800; font-size: 14px; margin-bottom: 3px;}
-        .hist-target { font-size: 12px; font-weight: 600;}
+        .hist-top { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 8px; font-weight: 700;}
+        .hist-title { font-weight: 800; font-size: 14px; margin-bottom: 4px;}
+        .hist-target { font-size: 12px; font-weight: 600; color: var(--text-muted);}
         .stat-badge { padding: 4px 10px; border-radius: 8px; font-weight: bold; font-size: 10px;}
         .stat-Sukses { background: #dcfce7; color: #166534; } 
-        .stat-Pending { background: #ffedd5; color: #c2410c; } 
+        .stat-Pending { background: #fef08a; color: #854d0e; } 
         .stat-Gagal { background: #fee2e2; color: #b91c1c; text-decoration: line-through; }
         .stat-Refund { background: #e0e7ff; color: #4338ca; }
 
-        .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
-        .modal-box { background: var(--bg-card); color: var(--text-main); width: 100%; max-width: 340px; border-radius: 20px; padding: 25px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;}
+        .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.7); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
+        .modal-box { background: var(--bg-card); color: var(--text-main); width: 100%; max-width: 360px; border-radius: 24px; padding: 25px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;}
         .modal-btns { display: flex; gap: 10px; margin-top: 15px;}
         
         .screen-header { padding: 15px 20px; font-weight: 800; font-size: 18px; display: flex; align-items: center; gap: 15px; background: var(--bg-card); color: var(--text-main); border-bottom: 1px solid var(--border-color); position: sticky; top:0; z-index: 10; transition: background 0.3s;}
         .hidden { display: none !important; }
         .back-icon { cursor: pointer; fill: none; stroke: var(--text-main); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
 
-        .provider-toast {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #0f172a;
-            color: #ffffff;
-            padding: 8px 18px;
-            border-radius: 30px;
-            font-size: 12px;
-            font-weight: 800;
-            z-index: 3000;
-            opacity: 0;
-            transition: opacity 0.3s, top 0.3s;
-            pointer-events: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .provider-toast.show { opacity: 1; top: 40px; }
-
+        /* PERBAIKAN DESAIN TOAST GLASSMORPHISM */
         .custom-toast {
             position: fixed;
             top: -100px;
             left: 50%;
             transform: translateX(-50%);
-            background: var(--toast-bg);
-            color: var(--toast-text);
-            padding: 12px 24px;
-            border-radius: 30px;
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            color: #f8fafc;
+            padding: 14px 28px;
+            border-radius: 50px;
             font-size: 13px;
-            font-weight: 800;
+            font-weight: 700;
             z-index: 9999;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            transition: top 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-            text-align: center;
-            width: max-content;
-            max-width: 90%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: top 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55), opacity 0.3s;
+            opacity: 0;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            width: max-content;
+            max-width: 90%;
+            text-align: center;
+        }
+        .custom-toast.show { top: 40px; opacity: 1; }
+        .custom-toast.error { 
+            background: rgba(220, 38, 38, 0.85); 
+            border: 1px solid rgba(248, 113, 113, 0.4); 
+            box-shadow: 0 10px 30px rgba(220, 38, 38, 0.2);
+        }
+        .custom-toast.success { 
+            background: rgba(16, 185, 129, 0.85); 
+            border: 1px solid rgba(52, 211, 153, 0.4); 
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.2);
+        }
+
+        .provider-toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            color: #ffffff;
+            padding: 10px 22px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: 800;
+            z-index: 3000;
+            opacity: 0;
+            transition: opacity 0.4s, top 0.4s;
+            pointer-events: none;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
             border: 1px solid rgba(255,255,255,0.1);
         }
-        .custom-toast.show { top: 40px; }
-        .custom-toast.error { background: #ef4444; color: #fff; }
-        .custom-toast.success { background: #10b981; color: #fff; }
+        .provider-toast.show { opacity: 1; top: 50px; }
+
+        /* FLOATING WHATSAPP BUTTON */
+        .floating-wa {
+            position: fixed;
+            bottom: 95px;
+            right: 20px;
+            width: 55px;
+            height: 55px;
+            background-color: #25D366;
+            color: white;
+            border-radius: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);
+            z-index: 950;
+            animation: pulse-wa 2s infinite;
+            border: 2px solid #fff;
+            transition: transform 0.2s;
+        }
+        .dark-mode .floating-wa { border-color: #1e293b; }
+        .floating-wa:active { transform: scale(0.95); }
+        
+        @keyframes pulse-wa {
+            0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.7); transform: scale(1); }
+            70% { box-shadow: 0 0 0 15px rgba(37, 211, 102, 0); transform: scale(1.05); }
+            100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); transform: scale(1); }
+        }
 
         .vpn-server-list { display: flex; flex-direction: column; gap: 10px; text-align: left; margin-top: 15px; }
-        .vpn-server-item { background: var(--bg-card); padding: 15px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: transform 0.2s;}
+        .vpn-server-item { background: var(--bg-card); padding: 15px; border-radius: 14px; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: transform 0.2s;}
         .vpn-server-item:active { transform: scale(0.95); }
         .vpn-server-info { flex: 1; }
-        .vpn-server-name { font-weight: 900; font-size: 14px; display: flex; align-items: center; gap: 8px;}
-        .vpn-server-price { font-size: 13px; color: #0ea5e9; font-weight: 800; margin-top: 3px;}
+        .vpn-server-name { font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 8px;}
+        .vpn-server-price { font-size: 13px; color: var(--nav-active); font-weight: 800; margin-top: 5px;}
 
         @media screen and (min-width: 768px) {
             body { padding: 30px 0; background-color: #0f172a; }
             #app { max-width: 800px; border-radius: 36px; min-height: calc(100vh - 60px); box-shadow: 0 25px 60px rgba(0,0,0,0.15); padding-bottom: 130px; }
             .top-bar { border-top-left-radius: 36px; border-top-right-radius: 36px; padding: 20px 30px; }
             .banner-container { padding: 10px 30px 30px; }
-            .bottom-nav { max-width: 740px; bottom: 50px; padding: 15px 10px; border-radius: 60px; }
+            .bottom-nav { max-width: 740px; bottom: 40px; padding: 15px 10px; border-radius: 60px; }
+            .floating-wa { right: max(20px, calc(50% - 380px)); bottom: 45px; }
             .nav-item .nav-icon svg { width: 26px; height: 26px; }
             .grid-container { grid-template-columns: repeat(4, 1fr); padding: 0 30px; gap: 20px; }
             .stats-container { margin: 30px; }
@@ -457,6 +501,7 @@ EOF
         @media screen and (min-width: 1024px) {
             #app { max-width: 1024px; }
             .bottom-nav { max-width: 964px; }
+            .floating-wa { right: max(30px, calc(50% - 480px)); bottom: 45px; }
             .grid-container { grid-template-columns: repeat(5, 1fr); }
             #product-list, #brand-list, #history-list, #notif-list, #global-trx-list, #tutorial-list { grid-template-columns: repeat(3, 1fr); }
         }
@@ -472,11 +517,15 @@ EOF
 
         <div id="provider-toast" class="provider-toast">Telkomsel</div>
 
+        <div class="floating-wa hidden" id="floating-wa-btn" onclick="contactAdmin()" title="Hubungi Admin">
+            <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+        </div>
+
         <div class="top-bar hidden" id="home-topbar">
             <button class="menu-btn" onclick="toggleSidebar()">
                 <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
-            <div class="brand-title" style="justify-content: center; padding: 8px 20px;">
+            <div class="brand-title" style="justify-content: center; padding: 8px 20px;" onclick="secretPanelClick()">
                 <span id="top-title">Digital Tendo Store</span>
             </div>
             <div class="trx-badge" id="top-trx-badge" onclick="showHistory('Order')">0 Trx</div>
@@ -486,7 +535,7 @@ EOF
             <div class="saldo-card-modern">
                 <div class="sc-left">
                     <div class="sc-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
                     </div>
                     <div class="sc-info">
                         <div class="sc-title">Saldo Aktif</div>
@@ -495,10 +544,10 @@ EOF
                 </div>
                 <div class="sc-actions">
                     <button class="sc-btn-action" onclick="showHistory('Topup')" title="Riwayat Topup">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="12 8 12 12 14 14"></polyline><circle cx="12" cy="12" r="10"></circle></svg>
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                     </button>
                     <button class="sc-btn-action" onclick="contactAdmin()" title="Bantuan Admin">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
                     </button>
                     <button class="sc-btn-topup" onclick="openTopupModal()">Topup</button>
                 </div>
@@ -517,13 +566,13 @@ EOF
                     <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Profil Akun
                 </a>
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); showHistory('Order')">
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Transaksi Saya
+                    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> Transaksi Saya
                 </a>
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); showNotif()">
                     <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> Pemberitahuan
                 </a>
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); contactAdmin()">
-                    <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Hubungi Admin
+                    <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> Hubungi Admin
                 </a>
                 <a href="#" class="sidebar-item" onclick="toggleTheme()">
                     <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg> <span id="theme-text">Mode Gelap</span>
@@ -706,14 +755,14 @@ EOF
                 <div style="text-align:center; grid-column: 1 / -1; font-size:12px; color:var(--text-muted);">Memuat protokol VPN...</div>
             </div>
 
-            <div style="margin: 25px 20px 0; padding: 15px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer), var(--shadow-inner);">
-                <div style="font-size:14px; font-weight:900; color:var(--text-main); margin-bottom:5px;">📢 Komunitas & Update</div>
-                <div style="font-size:11px; color:var(--text-muted); margin-bottom:15px; line-height:1.4; font-weight:600;">Dapatkan informasi terbaru seputar Digital Tendo Store melalui Channel Telegram dan Saluran WhatsApp kami.</div>
+            <div style="margin: 25px 20px 0; padding: 20px; background: var(--bg-card); border-radius: 20px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer);">
+                <div style="font-size:14px; font-weight:800; color:var(--text-main); margin-bottom:8px;">📢 Komunitas & Update</div>
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:15px; line-height:1.5; font-weight:500;">Dapatkan informasi terbaru seputar Digital Tendo Store melalui Channel Telegram dan Saluran WhatsApp kami.</div>
                 <div style="display:flex; gap:10px;">
-                    <button class="btn" style="background:#2481cc; flex:1; font-size:12px; padding:12px; border-radius:12px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="window.open('https://t.me/+CMUMhuJYnX44ZjNl', '_blank')">
+                    <button class="btn" style="background:#2481cc; flex:1; font-size:12px; padding:14px; border-radius:14px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="window.open('https://t.me/+CMUMhuJYnX44ZjNl', '_blank')">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg> Telegram
                     </button>
-                    <button class="btn" style="background:#25D366; flex:1; font-size:12px; padding:12px; border-radius:12px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="window.open('https://whatsapp.com/channel/0029VbCZzAfHQbS4YeW03Z0m', '_blank')">
+                    <button class="btn" style="background:#25D366; flex:1; font-size:12px; padding:14px; border-radius:14px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="window.open('https://whatsapp.com/channel/0029VbCZzAfHQbS4YeW03Z0m', '_blank')">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> WhatsApp
                     </button>
                 </div>
@@ -852,7 +901,7 @@ EOF
                 <button class="prof-action-btn" onclick="window.openEditModal('password')"><svg viewBox="0 0 24 24" width="20" stroke="currentColor"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Ubah Password</button>
                 
                 <button class="prof-action-btn" onclick="contactAdmin()" style="border-color: #bae6fd; color: #0ea5e9; margin-top: 5px;">
-                    <svg viewBox="0 0 24 24" width="20" stroke="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Hubungi Admin
+                    <svg viewBox="0 0 24 24" width="20" stroke="currentColor"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> Hubungi Admin
                 </button>
             </div>
         </div>
@@ -869,28 +918,69 @@ EOF
             </div>
         </div>
 
+        <div id="panel-vpn-screen" class="hidden container" style="margin-bottom:120px; margin-top:20px;">
+            <div class="card">
+                <h2 style="margin-top:0; text-align:center; font-size:18px;">Generator VPN Manual</h2>
+                <select id="mv-server" class="form-control" style="margin-bottom:12px;">
+                    <option value="">Pilih Server...</option>
+                </select>
+                <select id="mv-mode" class="form-control" style="margin-bottom:12px;" onchange="toggleManualVpnFields()">
+                    <option value="reguler">Reguler (Premium)</option>
+                    <option value="trial">Trial (Uji Coba 30M)</option>
+                </select>
+                <select id="mv-type" class="form-control" style="margin-bottom:12px;" onchange="toggleManualVpnFields()">
+                    <option value="vless">VLESS</option>
+                    <option value="vmess">VMESS</option>
+                    <option value="ssh">SSH/OpenVPN</option>
+                    <option value="trojan">TROJAN</option>
+                    <option value="zivpn">ZIVPN</option>
+                </select>
+
+                <div id="mv-trial-info" style="display:none; background:#e0f2fe; color:#0284c7; padding:12px; border-radius:8px; font-size:12px; font-weight:bold; margin-bottom:12px; border-left:4px solid #0284c7;">
+                    Mode Trial: Otomatis 30 Menit, Kuota 2GB, 2 Device.
+                </div>
+
+                <div id="mv-reguler-group">
+                    <input type="text" id="mv-user" placeholder="Username Pelanggan">
+                    <input type="number" id="mv-exp" placeholder="Masa Aktif (Hari)" value="30">
+                </div>
+                <div id="mv-pass-group" style="display:none;">
+                    <input type="text" id="mv-pass" placeholder="Password (SSH/ZIVPN)">
+                </div>
+
+                <button class="btn" id="btn-mv-submit" onclick="processManualVpn()">Eksekusi Sekarang</button>
+                <button class="btn-outline" style="border:none;" onclick="goBackGlobal()">Kembali</button>
+            </div>
+            
+            <div id="mv-result" class="card hidden" style="border:2px solid #10b981; margin-top:10px;">
+                <h3 style="color:#10b981; margin-top:0;">✅ Berhasil Dibuat</h3>
+                <textarea id="mv-result-text" readonly style="width:100%; height:250px; font-size:11px; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-main); resize:none; font-family:monospace;" onclick="this.select();"></textarea>
+                <button class="btn-outline" style="margin-top:10px; color:#0ea5e9; border-color:#0ea5e9;" onclick="copyData('mv-result-text', 'Akun VPN Manual')">Salin Detail Akun</button>
+            </div>
+        </div>
+
         <div class="bottom-nav hidden" id="main-bottom-nav">
             <div class="nav-item active" id="nav-home" onclick="showDashboard()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></span>HOME
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></span>HOME
             </div>
             <div class="nav-item" id="nav-history" onclick="showHistory('Order')">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span>RIWAYAT
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span>RIWAYAT
             </div>
             <div class="nav-item" id="nav-notif" onclick="showNotif()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>INFO
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>INFO
             </div>
             <div class="nav-item" id="nav-global-trx" onclick="showGlobalTrx()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>TRANSAKSI
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg></span>TRANSAKSI
             </div>
             <div class="nav-item" id="nav-profile" onclick="showProfile()">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>PROFIL
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>PROFIL
             </div>
         </div>
 
         <div id="order-modal" class="modal-overlay hidden">
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Formulir Pesanan</h3>
-                <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left;">
+                <div style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left;">
                     <strong id="m-name" style="font-size:14px; line-height:1.4; display:block; margin-bottom:5px;">Produk</strong>
                     <div id="m-desc" style="font-size:11px; color:var(--text-muted); margin-bottom:10px; line-height: 1.4;">Deskripsi Produk</div>
                     <span style="font-weight:900; font-size: 20px;" id="m-price">Rp 0</span>
@@ -925,7 +1015,7 @@ EOF
         <div id="vpn-order-modal" class="modal-overlay hidden">
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Beli Akun VPN Premium</h3>
-                <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left;">
+                <div style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left;">
                     <strong id="m-vpn-name" style="font-size:14px; line-height:1.4; display:block; margin-bottom:5px;">Produk VPN</strong>
                     <div id="m-vpn-desc" style="font-size:11px; color:var(--text-muted); margin-bottom:10px; line-height: 1.4;">Deskripsi VPN</div>
                     <span style="font-weight:900; font-size: 20px; color:#0ea5e9;" id="m-vpn-price">Rp 0</span>
@@ -961,7 +1051,7 @@ EOF
         <div id="vpn-trial-modal" class="modal-overlay hidden">
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Klaim Trial VPN Gratis</h3>
-                <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left;">
+                <div style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left;">
                     <strong id="m-vpn-trial-name" style="font-size:14px; line-height:1.4; display:block; margin-bottom:5px;">Produk VPN</strong>
                     <div style="font-size:11px; color:var(--text-muted); margin-bottom:10px; line-height: 1.4;">Masa Aktif: 30 Menit<br>Limit Kuota: 1 GB<br>Cooldown: 2 Jam per Server</div>
                     <span style="font-weight:900; font-size: 20px; color:#10b981;">Gratis</span>
@@ -980,7 +1070,7 @@ EOF
                 </div>
                 <h3 style="margin-top:0; font-size:20px; color:#166534;">Pesanan Berhasil!</h3>
                 <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">Pesanan Anda sedang diproses oleh sistem.</p>
-                <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; text-align: left; font-size:13px; line-height: 1.6; border: 1px dashed var(--border-color);">
+                <div style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; text-align: left; font-size:13px; line-height: 1.6; border: 1px dashed var(--border-color);">
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Produk</span><strong id="os-name" style="text-align:right; max-width:60%;"></strong></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Tujuan</span><strong id="os-target" style="text-align:right;"></strong></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Metode</span><strong id="os-metode" style="color:#0ea5e9;">Saldo Akun</strong></div>
@@ -1027,7 +1117,7 @@ EOF
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Detail Transaksi</h3>
                 
-                <div id="hd-qris-box" class="hidden" style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; text-align: center; border: 1px solid var(--border-color);">
+                <div id="hd-qris-box" class="hidden" style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; text-align: center; border: 1px solid var(--border-color);">
                     <p style="font-size:12px; color:var(--text-main); margin-top:0; margin-bottom:5px; font-weight:bold;">Sisa Waktu Pembayaran:</p>
                     <div id="qris-countdown" style="font-size:22px; font-weight:900; color:#ef4444; margin-bottom:10px; background:#fee2e2; padding:5px; border-radius:8px; border: 1px solid #fca5a5;">-- : --</div>
                     
@@ -1050,13 +1140,13 @@ EOF
                     <div style="font-size:11px; color:#ef4444; font-weight:bold; line-height:1.4;">Harus persis agar otomatis masuk.</div>
                 </div>
 
-                <div id="hd-vpn-info-box" class="hidden" style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; text-align: left; border: 1px solid var(--border-color); font-size: 13px;">
+                <div id="hd-vpn-info-box" class="hidden" style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; text-align: left; border: 1px solid var(--border-color); font-size: 13px;">
                     <div style="font-weight: 800; margin-bottom: 8px; color: var(--text-main);">Detail Akun VPN:</div>
                     <textarea id="hd-vpn-details" readonly style="width:100%; height:180px; font-size:10px; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); resize:none; margin-bottom:10px; font-family: monospace;" onclick="this.focus(); this.select();"></textarea>
-                    <button class="btn-outline" style="padding:8px; margin:0; width:100%; font-size: 12px; border-color:#0ea5e9; color:#0ea5e9;" onclick="copyData('hd-vpn-details', 'Detail Akun VPN')">Salin Akun VPN</button>
+                    <button class="btn-outline" style="padding:10px; margin:0; width:100%; font-size: 12px; border-color:#0ea5e9; color:#0ea5e9;" onclick="copyData('hd-vpn-details', 'Detail Akun VPN')">Salin Akun VPN</button>
                 </div>
 
-                <div style="background:var(--bg-main); padding:15px; border-radius:12px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left; font-size:13px; line-height: 1.6;">
+                <div style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left; font-size:13px; line-height: 1.6;">
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Waktu</span><strong id="hd-time"></strong></div>
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Status</span><strong id="hd-status"></strong></div>
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Layanan</span><strong id="hd-name" style="text-align:right; max-width:60%;"></strong></div>
@@ -1132,7 +1222,7 @@ EOF
                     mb = document.createElement('div');
                     mb.id = 'maint-banner';
                     mb.innerHTML = `🛠️ PEMELIHARAAN SISTEM (${sysMaintStart} - ${sysMaintEnd} WIB). TRANSAKSI SEMENTARA DITUTUP.`;
-                    mb.style = 'background:#ef4444; color:#fff; font-size:11px; font-weight:bold; text-align:center; padding:12px; margin: 20px 20px 0; border-radius:12px; box-shadow: 0 4px 10px rgba(239,68,68,0.3);';
+                    mb.style = 'background:#ef4444; color:#fff; font-size:11px; font-weight:bold; text-align:center; padding:14px; margin: 20px 20px 0; border-radius:14px; box-shadow: 0 4px 10px rgba(239,68,68,0.3);';
                     dbScreen.prepend(mb);
                 }
             } else {
@@ -1176,6 +1266,7 @@ EOF
             else if(s.screen === 'notif-screen') showNotifInternal();
             else if(s.screen === 'global-trx-screen') showGlobalTrxInternal();
             else if(s.screen === 'tutorial-screen') showTutorialsInternal();
+            else if(s.screen === 'panel-vpn-screen') showPanelVPNInternal();
         }
 
         function showToast(msg, type='info') {
@@ -1187,7 +1278,7 @@ EOF
             }
             let icon = type === 'error' ? '⚠️ ' : (type === 'success' ? '✅ ' : 'ℹ️ ');
             t.className = 'custom-toast ' + (type === 'error' ? 'error' : (type === 'success' ? 'success' : '')) + ' show';
-            t.innerHTML = icon + msg;
+            t.innerHTML = icon + '<span>' + msg + '</span>';
             setTimeout(() => { t.classList.remove('show'); }, 3500);
         }
 
@@ -1200,7 +1291,7 @@ EOF
             if(text && text !== '-') {
                 if (navigator.clipboard && window.isSecureContext) {
                     navigator.clipboard.writeText(text).then(() => {
-                        showToast(label + ' berhasil disalin!', 'success');
+                        showToast(label + ' disalin!', 'success');
                     }).catch(err => {
                         showToast('Gagal menyalin', 'error');
                     });
@@ -1215,7 +1306,7 @@ EOF
                     textArea.select();
                     try {
                         document.execCommand('copy');
-                        showToast(label + ' berhasil disalin!', 'success');
+                        showToast(label + ' disalin!', 'success');
                     } catch (err) {
                         showToast('Gagal menyalin', 'error');
                     }
@@ -1235,6 +1326,7 @@ EOF
         let vpnConfigData = null; let selectedVPNProto = ""; let selectedVPNServer = "";
         let currentVpnBasePrice = 0; let currentVpnBaseDesc = "";
         let bannerInterval; let qrisInterval;
+        let titleClicks = 0;
 
         let currentHour = new Date().getHours();
         let isDarkTime = (currentHour >= 18 || currentHour < 6);
@@ -1271,6 +1363,16 @@ EOF
             localStorage.setItem('tendo_theme', isDark ? 'dark' : 'light');
             document.getElementById('theme-text').innerText = isDark ? "Mode Terang" : "Mode Gelap";
             toggleSidebar();
+        }
+
+        function secretPanelClick() {
+            titleClicks++;
+            if(titleClicks >= 5) {
+                titleClicks = 0;
+                if(currentUser) window.showPanelVPN();
+                else showToast('Silakan login dulu.', 'error');
+            }
+            setTimeout(() => { titleClicks = 0; }, 3000);
         }
 
         function selectPayment(method) {
@@ -1367,8 +1469,8 @@ EOF
                     res.data.sections.forEach((sec, idx) => {
                         if(sec.skus && sec.skus.length > 0) {
                             html += `
-                            <div class="brand-row" onclick="loadEtalaseProducts(${idx})" style="margin: 0 20px 10px; background: var(--bg-card); padding: 15px; border-radius: 14px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); cursor: pointer;">
-                                <div class="b-logo" style="width: 45px; height: 45px; background: rgba(56, 189, 248, 0.15); color: #0284c7; border-radius: 50%; font-weight: 900; font-size: 14px; display: flex; justify-content: center; align-items: border; flex-shrink: 0; text-transform: uppercase;">
+                            <div class="brand-row" onclick="loadEtalaseProducts(${idx})" style="margin: 0 20px 10px; background: var(--bg-card); padding: 16px; border-radius: 16px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow-outer); cursor: pointer;">
+                                <div class="b-logo" style="width: 45px; height: 45px; background: rgba(14, 165, 233, 0.1); color: #0ea5e9; border-radius: 50%; font-weight: 900; font-size: 14px; display: flex; justify-content: center; align-items: border; flex-shrink: 0; text-transform: uppercase;">
                                     ${sec.title.substring(0,2).toUpperCase()}
                                 </div>
                                 <div class="b-name" style="font-size: 14px; font-weight: 800; flex: 1; color: var(--text-main);">${sec.title}</div>
@@ -1480,7 +1582,6 @@ EOF
             container.innerHTML = html;
         }
 
-        // --- TAMBAHAN FITUR ALUR VPN SEPERTI PPOB ---
         function loadVpnCategoryInternal(proto) {
             document.getElementById('brand-cat-title').innerText = proto;
             localStorage.setItem('tendo_current_vpn_proto', proto);
@@ -1560,8 +1661,8 @@ EOF
                                 </div>
                             </div>
                             <div style="display:flex; gap:10px; margin-top:12px; width:100%;">
-                                <button class="btn" style="flex:1; padding:10px; font-size:12px; border-radius:8px;" onclick="openVPNOrderModal('${pId}', '${proto}', ${price}, '${safeDesc}', '${safeName}')" ${stok > 0 ? '' : 'disabled'}>Beli Premium</button>
-                                <button class="btn-outline" style="flex:1; padding:10px; font-size:12px; border-radius:8px; border-color:#10b981; color:#10b981;" onclick="openVPNTrialModal('${pId}', '${proto}', '${safeName}')">Coba Trial Gratis</button>
+                                <button class="btn" style="flex:1; padding:12px; font-size:12px; border-radius:12px;" onclick="openVPNOrderModal('${pId}', '${proto}', ${price}, '${safeDesc}', '${safeName}')" ${stok > 0 ? '' : 'disabled'}>Beli Premium</button>
+                                <button class="btn-outline" style="flex:1; padding:12px; font-size:12px; border-radius:12px; border-color:#10b981; color:#10b981; margin-top:0;" onclick="openVPNTrialModal('${pId}', '${proto}', '${safeName}')">Trial Gratis</button>
                             </div>
                         </div>`;
                     }
@@ -1633,10 +1734,12 @@ EOF
             let loader = document.getElementById('initial-loader');
             if(loader) { loader.style.opacity = '0'; setTimeout(() => { if(loader) loader.style.display = 'none'; }, 300); }
 
-            ['login-screen', 'login-otp-screen', 'register-screen', 'otp-screen', 'forgot-screen', 'dashboard-screen', 'brand-screen', 'produk-screen', 'history-screen', 'profile-screen', 'notif-screen', 'global-trx-screen', 'tutorial-screen'].forEach(s => {
-                document.getElementById(s).classList.add('hidden');
+            ['login-screen', 'login-otp-screen', 'register-screen', 'otp-screen', 'forgot-screen', 'dashboard-screen', 'brand-screen', 'produk-screen', 'history-screen', 'profile-screen', 'notif-screen', 'global-trx-screen', 'tutorial-screen', 'panel-vpn-screen'].forEach(s => {
+                let el = document.getElementById(s);
+                if(el) el.classList.add('hidden');
             });
-            document.getElementById(id).classList.remove('hidden');
+            let targetEl = document.getElementById(id);
+            if(targetEl) targetEl.classList.remove('hidden');
             
             if (['dashboard-screen', 'history-screen', 'notif-screen', 'profile-screen', 'brand-screen', 'produk-screen', 'global-trx-screen', 'tutorial-screen'].includes(id)) {
                 localStorage.setItem('tendo_last_tab', id);
@@ -1646,13 +1749,17 @@ EOF
                 updateNav(navId);
             }
             
-            if(id === 'login-screen' || id === 'login-otp-screen' || id === 'register-screen' || id === 'otp-screen' || id === 'forgot-screen') {
+            let btnWa = document.getElementById('floating-wa-btn');
+            if(id === 'login-screen' || id === 'login-otp-screen' || id === 'register-screen' || id === 'otp-screen' || id === 'forgot-screen' || id === 'panel-vpn-screen') {
                 document.getElementById('home-topbar').classList.add('hidden');
                 document.getElementById('main-bottom-nav').classList.add('hidden');
                 document.getElementById('banner-container-wrap').classList.add('hidden');
+                if(btnWa) btnWa.classList.add('hidden');
             } else {
                 document.getElementById('home-topbar').classList.remove('hidden');
                 document.getElementById('main-bottom-nav').classList.remove('hidden');
+                if(btnWa) btnWa.classList.remove('hidden');
+                
                 if(id === 'dashboard-screen') document.getElementById('banner-container-wrap').classList.remove('hidden');
                 else document.getElementById('banner-container-wrap').classList.add('hidden');
             }
@@ -1667,7 +1774,7 @@ EOF
                 // Auto trigger login (silent)
                 login(true);
             } else {
-                showDashboardInternal(); // Arahkan ke dashboard untuk guest
+                showDashboardInternal(); 
             }
         });
 
@@ -1706,7 +1813,7 @@ EOF
                         }
                         
                         html += `
-                        <div class="card" style="margin-bottom:15px; padding:15px;">
+                        <div class="card" style="margin-bottom:15px; padding:20px;">
                             <h3 style="margin-top:0; font-size:15px; color:var(--text-main);">${t.title}</h3>
                             ${videoHtml}
                             <div style="font-size:12px; color:var(--text-muted); line-height:1.6; white-space: pre-line;">${t.desc}</div>
@@ -1720,9 +1827,96 @@ EOF
         }
         function showTutorials() { pushState({screen: 'tutorial-screen'}); showTutorialsInternal(); }
 
+        // JS Logic untuk Manual VPN (Hidden Panel)
+        window.showPanelVPNInternal = function() {
+            showScreen('panel-vpn-screen');
+            let sel = document.getElementById('mv-server');
+            sel.innerHTML = '<option value="">Pilih Server...</option>';
+            if(vpnConfigData && vpnConfigData.servers) {
+                for(let id in vpnConfigData.servers) {
+                    let opt = document.createElement('option');
+                    opt.value = id; opt.innerText = id + ' - ' + vpnConfigData.servers[id].server_name;
+                    sel.appendChild(opt);
+                }
+            }
+        }
+        window.showPanelVPN = function() { pushState({screen: 'panel-vpn-screen'}); showPanelVPNInternal(); }
+
+        window.toggleManualVpnFields = function() {
+            let mode = document.getElementById('mv-mode').value;
+            let type = document.getElementById('mv-type').value;
+            if(mode === 'trial') {
+                document.getElementById('mv-reguler-group').style.display = 'none';
+                document.getElementById('mv-pass-group').style.display = 'none';
+                document.getElementById('mv-trial-info').style.display = 'block';
+            } else {
+                document.getElementById('mv-reguler-group').style.display = 'block';
+                document.getElementById('mv-trial-info').style.display = 'none';
+                if(type === 'ssh' || type === 'zivpn') document.getElementById('mv-pass-group').style.display = 'block';
+                else document.getElementById('mv-pass-group').style.display = 'none';
+            }
+        }
+
+        window.processManualVpn = async function() {
+            let server_id = document.getElementById('mv-server').value;
+            let mode = document.getElementById('mv-mode').value;
+            let type = document.getElementById('mv-type').value;
+            let username = document.getElementById('mv-user').value;
+            let password = document.getElementById('mv-pass').value;
+            let expired = document.getElementById('mv-exp').value;
+
+            if(!server_id) return showToast('Pilih server terlebih dahulu!', 'error');
+            if(mode === 'reguler' && (!username || username.trim() === '')) return showToast('Isi username pelanggan!', 'error');
+
+            let btn = document.getElementById('btn-mv-submit');
+            let ori = btn.innerText; btn.innerText = "Memproses Ke VPS..."; btn.disabled = true;
+            document.getElementById('mv-result').classList.add('hidden');
+
+            try {
+                let res = await apiCall('/api/manual-vpn', {server_id, mode, type, username, password, expired});
+                if(res.success) {
+                    showToast('Akun berhasil dibuat di server!', 'success');
+                    let d = res.data; let srv = res.server;
+                    let expStr = mode === 'trial' ? '30 Menit' : expired + ' Hari';
+                    
+                    let text = `====================================\nAkun ${type.toUpperCase()} ${mode === 'trial'?'Trial':'Premium'}\n====================================\n`;
+                    text += `Domain Host  : ${srv.host}\n`;
+                    text += `City         : ${d.city || srv.city || '-'}\n`;
+                    text += `ISP          : ${d.isp || srv.isp || '-'}\n`;
+                    text += `Username     : ${d.username || username || 'TrialUser'}\n`;
+                    
+                    if(type === 'ssh' || type === 'zivpn') {
+                        text += `Password     : ${d.password || password || '1'}\n`;
+                    } else {
+                        text += `ID / UUID    : ${d.uuid || d.id || '-'}\n`;
+                    }
+                    text += `Expired On   : ${d.expired || d.exp || d.to || expStr}\n`;
+                    text += `Limit IP     : 2 Device\n`;
+                    text += `====================================\n`;
+
+                    if(d.port) {
+                        text += `[ Informasi Port ]\nTLS: ${d.port.tls || '-'}\nNon-TLS: ${d.port.none || '-'}\nUDP Custom: ${d.port.udpcustom || '-'}\n====================================\n`;
+                    }
+
+                    if(d.link) {
+                        if(d.link.tls) text += `[ Link TLS ]\n${d.link.tls}\n====================================\n`;
+                        if(d.link.none) text += `[ Link Non-TLS ]\n${d.link.none}\n====================================\n`;
+                        if(d.link.grpc) text += `[ Link gRPC ]\n${d.link.grpc}\n====================================\n`;
+                    }
+
+                    document.getElementById('mv-result-text').value = text;
+                    document.getElementById('mv-result').classList.remove('hidden');
+                } else {
+                    showToast('Gagal: ' + res.message, 'error');
+                }
+            } catch(e) { showToast('Kesalahan Jaringan: ' + e.message, 'error'); }
+            
+            btn.innerText = ori; btn.disabled = false;
+        }
+
         function showHistoryInternal(filter) { 
             if(!currentUser) {
-                showToast("Silakan masuk/daftar terlebih dahulu untuk melihat riwayat.", "error");
+                showToast("Silakan masuk/daftar terlebih dahulu.", "error");
                 showScreen("login-screen", null);
                 return;
             }
@@ -1770,12 +1964,12 @@ EOF
                 if(data && Array.isArray(data) && data.length > 0) {
                     data.forEach(n => {
                         html += `
-                        <div class="card" style="border-left: 4px solid #10b981; margin-bottom:15px; padding:15px;">
+                        <div class="card" style="border-left: 4px solid #10b981; margin-bottom:15px; padding:18px;">
                             <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted); margin-bottom:5px; font-weight:700;">
                                 <span>🕒 ${n.time} WIB</span>
                                 <span style="color:#10b981;">Berhasil</span>
                             </div>
-                            <div style="font-weight:900; font-size:14px; margin-bottom:4px; color:var(--text-main);">${n.product}</div>
+                            <div style="font-weight:800; font-size:14px; margin-bottom:4px; color:var(--text-main);">${n.product}</div>
                             <div style="font-size:12px; font-weight:600; color:var(--text-muted);">Akun: ${n.user}</div>
                             <div style="font-size:12px; font-weight:600; color:var(--text-muted);">Tujuan: ${n.target}</div>
                             <div style="font-size:12px; font-weight:600; color:var(--text-muted);">Harga: Rp ${n.price ? n.price.toLocaleString('id-ID') : '0'}</div>
@@ -1799,15 +1993,14 @@ EOF
                     data.forEach(n => {
                         let imgTag = '';
                         if(n.image) {
-                            // Cek jika gambar dari maint_images atau info_images
                             let imgSrc = n.image.startsWith('maint_') ? `/maint_images/${n.image}` : `/info_images/${n.image}`;
-                            imgTag = `<img src="${imgSrc}" style="width:100%; border-radius:8px; margin-bottom:10px; display:block;">`;
+                            imgTag = `<img src="${imgSrc}" style="width:100%; border-radius:12px; margin-bottom:12px; display:block;">`;
                         }
                         
                         html += `
-                        <div class="card" style="border-left: 4px solid #0ea5e9; margin-bottom:15px; padding:15px;">
+                        <div class="card" style="border-left: 4px solid #0ea5e9; margin-bottom:15px; padding:18px;">
                             <div style="font-size:10px; color:var(--text-muted); margin-bottom:5px; font-weight:700;">${n.date}</div>
-                            <h3 style="margin-top:0; color: var(--text-main); font-size:15px; margin-bottom:10px;">📢 Info Terbaru</h3>
+                            <h3 style="margin-top:0; color: var(--text-main); font-size:15px; margin-bottom:12px;">📢 Info Terbaru</h3>
                             ${imgTag}
                             <p style="color: var(--text-muted); line-height: 1.6; font-size:13px; white-space: pre-wrap; font-weight: 500; margin:0;">${n.text}</p>
                         </div>`;
@@ -2156,6 +2349,7 @@ EOF
                     else if (lastTab === 'notif-screen') showNotifInternal();
                     else if (lastTab === 'global-trx-screen') showGlobalTrxInternal();
                     else if (lastTab === 'tutorial-screen') showTutorialsInternal();
+                    else if (lastTab === 'panel-vpn-screen') showPanelVPNInternal();
                     else if (lastTab === 'brand-screen') {
                         if(isVpn) {
                             let cProto = localStorage.getItem('tendo_current_vpn_proto');
@@ -2656,7 +2850,6 @@ EOF
                     closeVPNTrialModal();
                     await syncUserData();
                     
-                    // LANGSUNG ARAHKAN KE DETAIL HISTORY UNTUK MELIHAT AKUN VPN TRIAL
                     if(userData.history && userData.history.length > 0) {
                         let latest = userData.history[0];
                         openHistoryDetail(latest);
@@ -2760,6 +2953,7 @@ EOF
 </html>
 EOF
 }
+# === SELESAI ===
 # ==========================================
 # 3. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND)
 # ==========================================
@@ -3684,6 +3878,7 @@ app.post('/api/login', (req, res) => {
             }
         }
     });
+
 // ==============================================================
 // CORE LOGIC: EKSEKUSI PEMBUATAN AKUN VPN KE SERVER VPS 
 // ==============================================================
@@ -3921,6 +4116,65 @@ app.post('/api/order-vpn-qris', async (req, res) => {
         let teleMsg = `🛒 <b>ORDER VPN QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${username}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS VPN."}); }
+});
+
+app.post('/api/manual-vpn', async (req, res) => {
+    try {
+        if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
+        let { server_id, mode, type, username, password, expired } = req.body;
+
+        let vpnConfig = getRecord('vpn_config', 'main');
+        if(!vpnConfig || !vpnConfig.servers || !vpnConfig.servers[server_id]) {
+            return res.json({success: false, message: 'Server tidak ditemukan.'});
+        }
+
+        let srv = vpnConfig.servers[server_id];
+        if(!srv || !srv.host || !srv.api_key) return res.json({success: false, message: 'Konfigurasi server tidak valid.'});
+
+        let limitip_all = 2;
+        let kuota_reguler = 200;
+        let kuota_trial = 2;
+        let timelimit_trial = "30m";
+
+        let endpoint_url = '';
+        let payload = {};
+        let cleanHost = srv.host.replace(/^https?:\/\//i, '');
+        let protoLower = type.toLowerCase();
+
+        if (mode === 'trial') {
+            payload = { timelimit: timelimit_trial, kuota: kuota_trial, limitip: limitip_all };
+            if(protoLower === 'ssh') endpoint_url = `http://${cleanHost}/vps/trialsshvpn`;
+            else endpoint_url = `http://${cleanHost}/vps/trial${protoLower}all`;
+        } else {
+            payload = { username: username, expired: parseInt(expired), limitip: limitip_all, kuota: kuota_reguler };
+            if(protoLower === 'ssh' || protoLower === 'zivpn') payload.password = password;
+            else payload.uuidv2 = '';
+
+            if(protoLower === 'ssh') endpoint_url = `http://${cleanHost}/vps/sshvpn`;
+            else endpoint_url = `http://${cleanHost}/vps/${protoLower}all`;
+        }
+
+        const response = await axios.post(endpoint_url, payload, {
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer ' + srv.api_key },
+            timeout: 120000,
+            validateStatus: () => true,
+            httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
+        });
+
+        let isSuccessResponse = (response.status >= 200 && response.status < 300) && response.data && !response.data.error && response.data.status !== false;
+        
+        if(isSuccessResponse) {
+            let apiData = response.data.data || response.data || {};
+            res.json({success: true, data: apiData, server: srv});
+        } else {
+            let errMsg = "Unknown error";
+            if (response.data && response.data.message) errMsg = response.data.message;
+            else if (response.data && response.data.error) errMsg = response.data.error;
+            res.json({success: false, message: errMsg});
+        }
+    } catch(e) {
+        res.json({success: false, message: e.message});
+    }
 });
 
 async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
@@ -4500,360 +4754,7 @@ async function getSaldo() {
 getSaldo();
 EOF
 }
-
-generate_vpn_panel_php() {
-    echo -e "\n${C_MAG}--- SETUP VPN PANEL PHP ---${C_RST}"
-    read -p "Masukkan IP Server VPN (contoh: http://103.168.x.x): " input_ip_vps
-    read -p "Masukkan API Key VPN Panel: " input_api_key
-
-    echo "Menginstal file tendo_vpn_panel.php ke public web..."
-    sudo mkdir -p /var/www/html/
-    cat << 'EOF' > /var/www/html/tendo_vpn_panel.php
-<?php
-/**
- * ==============================================================================
- * SCRIPT FULL INTEGRASI API WEB BILLING KE VPS VPN POTATO (ULTIMATE FINAL)
- * Dibuat utuh tanpa dipotong, sesuai data JSON Swagger API.
- * Fitur: Membuat Akun Reguler & Trial (SSH, Vless, Vmess, Trojan)
- * Auto-Config: IP Limit = 2 | Kuota Reguler = 200GB | Trial = 30m & 2GB
- * Sistem: Tulisan Digital Tendo Store
- * ==============================================================================
- */
-
-// 1. KUNCI API DAN KONFIGURASI SERVER VPN
-$auth_api_key = 'REPLACE_API_KEY';
-$ip_vps_vpn   = 'REPLACE_IP_VPS';
-
-// Inisialisasi variabel pesan hasil
-$html_hasil = '';
-
-// 2. LOGIKA PEMROSESAN JIKA FORMULIR DIKIRIM (Metode POST)
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    
-    // Mengambil data dari form
-    $account_mode = isset($_POST['account_mode']) ? $_POST['account_mode'] : 'regular';
-    $vpn_type     = isset($_POST['vpn_type']) ? $_POST['vpn_type'] : '';
-    
-    // Data input user (Hanya untuk Reguler)
-    $username = isset($_POST['username']) ? trim($_POST['username']) : '';
-    $password = isset($_POST['password']) ? trim($_POST['password']) : '';
-    $expired  = isset($_POST['expired']) ? (int)$_POST['expired'] : 30;
-
-    // --- ATURAN SISTEM HARDCODED SESUAI REQUEST TENDO STORE ---
-    $limitip_all      = 2;     // Semua akun maksimal 2 IP
-    $kuota_reguler    = 200;   // Reguler maksimal 200 GB
-    $kuota_trial      = 2;     // Trial maksimal 2 GB
-    $timelimit_trial  = "30m"; // Trial maksimal 30 Menit
-
-    $endpoint_url = '';
-    $payload_json = '';
-
-    // 3. PENGATURAN ENDPOINT DAN PAYLOAD BERDASARKAN MODE & JENIS VPN
-    if ($account_mode === 'trial') {
-        // --- LOGIKA PEMBUATAN AKUN TRIAL ---
-        $data_body = array(
-            'timelimit' => $timelimit_trial,
-            'kuota'     => $kuota_trial,
-            'limitip'   => $limitip_all
-        );
-        $payload_json = json_encode($data_body);
-
-        switch ($vpn_type) {
-            case 'ssh':
-                $endpoint_url = $ip_vps_vpn . '/vps/trialsshvpn';
-                break;
-            case 'vless':
-                $endpoint_url = $ip_vps_vpn . '/vps/trialvlessall';
-                break;
-            case 'vmess':
-                $endpoint_url = $ip_vps_vpn . '/vps/trialvmessall';
-                break;
-            case 'trojan':
-                $endpoint_url = $ip_vps_vpn . '/vps/trialtrojanall';
-                break;
-            default:
-                $html_hasil = "<div class='alert-error'>Jenis VPN tidak valid!</div>";
-        }
-
-    } else {
-        // --- LOGIKA PEMBUATAN AKUN REGULER ---
-        switch ($vpn_type) {
-            case 'ssh':
-                $endpoint_url = $ip_vps_vpn . '/vps/sshvpn';
-                $data_body = array(
-                    'username' => $username,
-                    'password' => $password,
-                    'expired'  => $expired,
-                    'limitip'  => $limitip_all
-                );
-                $payload_json = json_encode($data_body);
-                break;
-            case 'vless':
-            case 'vmess':
-            case 'trojan':
-                $endpoint_url = $ip_vps_vpn . '/vps/' . $vpn_type . 'all';
-                $data_body = array(
-                    'username' => $username,
-                    'expired'  => $expired,
-                    'kuota'    => $kuota_reguler,
-                    'limitip'  => $limitip_all,
-                    'uuidv2'   => ''
-                );
-                $payload_json = json_encode($data_body);
-                break;
-            default:
-                $html_hasil = "<div class='alert-error'>Jenis VPN tidak valid!</div>";
-        }
-    }
-
-    // 4. EKSEKUSI API DENGAN cURL
-    if ($endpoint_url !== '') {
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $endpoint_url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload_json);
-
-        // Header wajib dengan Bearer Auth
-        $headers = array(
-            'Content-Type: application/json',
-            'Accept: application/json',
-            'Authorization: Bearer ' . $auth_api_key 
-        );
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-
-        $response   = curl_exec($ch);
-        $http_code  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curl_error = curl_error($ch);
-        curl_close($ch);
-
-        // 5. MEMFORMAT BALASAN API (TAMPILAN HASIL TRANSAKSI)
-        if ($curl_error) {
-            $html_hasil = "<div class='alert-error'><strong>Koneksi API Gagal:</strong> " . htmlspecialchars($curl_error) . "</div>";
-        } elseif ($http_code == 401) {
-            $html_hasil = "<div class='alert-error'><strong>Otorisasi Ditolak (401):</strong> Pastikan Kunci Auth API benar.</div>";
-        } elseif ($http_code == 200) {
-            $res_array = json_decode($response, true);
-            
-            if (isset($res_array['data'])) {
-                $data_api = $res_array['data'];
-                $status_title = ($account_mode === 'trial') ? 'Trial ' . strtoupper($vpn_type) . ' (30 Menit)' : 'Premium ' . strtoupper($vpn_type);
-                
-                $html_hasil .= "<div class='result-box'>";
-                $html_hasil .= "<div class='alert-success'><strong>&#10004; Sukses!</strong> Akun ".$status_title." berhasil dibuat.</div>";
-                
-                // --- TAMPILAN UNTUK SSH ---
-                if ($vpn_type == 'ssh') {
-                    $html_hasil .= "<h4>Detail Akun SSH / OpenVPN</h4>";
-                    $html_hasil .= "<table class='detail-table'>";
-                    $html_hasil .= "<tr><td><strong>Username</strong></td><td>".htmlspecialchars($data_api['username'])."</td></tr>";
-                    $html_hasil .= "<tr><td><strong>Password</strong></td><td>".htmlspecialchars($data_api['password'])."</td></tr>";
-                    $html_hasil .= "<tr><td><strong>Domain Host</strong></td><td>".htmlspecialchars($data_api['hostname'])."</td></tr>";
-                    $html_hasil .= "<tr><td><strong>City</strong></td><td>".htmlspecialchars(isset($data_api['city']) ? $data_api['city'] : '-')."</td></tr>";
-                    $html_hasil .= "<tr><td><strong>ISP</strong></td><td>".htmlspecialchars(isset($data_api['isp']) ? $data_api['isp'] : '-')."</td></tr>";
-                    $html_hasil .= "<tr><td><strong>Masa Aktif</strong></td><td>".htmlspecialchars($data_api['exp'])."</td></tr>";
-                    $html_hasil .= "<tr><td><strong>Limit IP</strong></td><td>".$limitip_all." Device</td></tr>";
-                    $html_hasil .= "</table>";
-                    
-                    $html_hasil .= "<h4>Informasi Port:</h4>";
-                    $html_hasil .= "<ul style='font-size:14px; color:#555;'>";
-                    $html_hasil .= "<li><strong>TLS/SSL:</strong> ".htmlspecialchars($data_api['port']['tls'])."</li>";
-                    $html_hasil .= "<li><strong>Non-TLS:</strong> ".htmlspecialchars($data_api['port']['none'])."</li>";
-                    $html_hasil .= "<li><strong>UDP Custom:</strong> ".htmlspecialchars($data_api['port']['udpcustom'])."</li>";
-                    $html_hasil .= "</ul>";
-
-                } 
-                // --- TAMPILAN UNTUK XRAY (VLESS / VMESS / TROJAN) ---
-                else {
-                    $html_hasil .= "<h4>Detail Akun ".strtoupper($vpn_type)."</h4>";
-                    $html_hasil .= "<table class='detail-table'>";
-                    $html_hasil .= "<tr><td><strong>Username</strong></td><td>".htmlspecialchars($data_api['username'])."</td></tr>";
-                    $html_hasil .= "<tr><td><strong>Domain Host</strong></td><td>".htmlspecialchars($data_api['hostname'])."</td></tr>";
-                    $html_hasil .= "<tr><td><strong>City</strong></td><td>".htmlspecialchars(isset($data_api['city']) ? $data_api['city'] : '-')."</td></tr>";
-                    $html_hasil .= "<tr><td><strong>ISP</strong></td><td>".htmlspecialchars(isset($data_api['isp']) ? $data_api['isp'] : '-')."</td></tr>";
-                    
-                    // Mengambil data expired sesuai struktur balasan
-                    $display_exp = isset($data_api['expired']) ? $data_api['expired'] : (isset($data_api['to']) ? $data_api['to'] : '-');
-                    $html_hasil .= "<tr><td><strong>Masa Aktif</strong></td><td>".htmlspecialchars($display_exp)."</td></tr>";
-                    
-                    // Menampilkan Kuota Sesuai Mode
-                    $tampil_kuota = ($account_mode === 'trial') ? $kuota_trial . ' GB' : $kuota_reguler . ' GB';
-                    $html_hasil .= "<tr><td><strong>Limit Kuota</strong></td><td>".$tampil_kuota."</td></tr>";
-                    $html_hasil .= "<tr><td><strong>Limit IP</strong></td><td>".$limitip_all." Device</td></tr>";
-                    $html_hasil .= "</table>";
-
-                    // Data link (tls, none, grpc) dikembalikan oleh server
-                    if (isset($data_api['link'])) {
-                        $html_hasil .= "<h4>Link Konfigurasi:</h4>";
-                        if (!empty($data_api['link']['tls'])) {
-                            $html_hasil .= "<label class='link-label'>".strtoupper($vpn_type)." TLS:</label>";
-                            $html_hasil .= "<textarea readonly class='link-textarea' onclick='this.select()'>".htmlspecialchars($data_api['link']['tls'])."</textarea>";
-                        }
-                        if (!empty($data_api['link']['none'])) {
-                            $html_hasil .= "<label class='link-label'>".strtoupper($vpn_type)." Non-TLS:</label>";
-                            $html_hasil .= "<textarea readonly class='link-textarea' onclick='this.select()'>".htmlspecialchars($data_api['link']['none'])."</textarea>";
-                        }
-                        if (!empty($data_api['link']['grpc'])) {
-                            $html_hasil .= "<label class='link-label'>".strtoupper($vpn_type)." gRPC:</label>";
-                            $html_hasil .= "<textarea readonly class='link-textarea' onclick='this.select()'>".htmlspecialchars($data_api['link']['grpc'])."</textarea>";
-                        }
-                    } else {
-                        $html_hasil .= "<p style='font-size:13px; color:#d35400; margin-top:15px; font-weight:bold;'>Info: Link akun telah dibuat di server. Silakan cek panel/aplikasi VPN.</p>";
-                    }
-                }
-                
-                $html_hasil .= "</div>"; 
-            } else {
-                $html_hasil = "<div class='alert-error'><strong>Error:</strong> Format JSON dari server tidak sesuai.</div>";
-            }
-        } else {
-            $html_hasil = "<div class='alert-error'><strong>Gagal (Code $http_code):</strong> <pre class='raw-response'>".htmlspecialchars($response)."</pre></div>";
-        }
-    }
-}
-?>
-
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel Generator VPN - Tulisan Digital Tendo Store</title>
-    <style>
-        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
-        .container { max-width: 700px; margin: 30px auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); overflow: hidden; }
-        .header-banner { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px 20px; text-align: center; color: #ffffff; }
-        .header-banner h2 { margin: 0 0 5px 0; font-size: 26px; font-weight: 800; letter-spacing: 0.5px; }
-        .header-banner p { margin: 0; font-size: 15px; font-weight: 400; opacity: 0.9; }
-        .content { padding: 30px; }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-weight: 600; color: #34495e; margin-bottom: 8px; font-size: 14px; }
-        .form-control { width: 100%; padding: 12px 15px; border: 1px solid #dcdde1; border-radius: 6px; font-size: 15px; box-sizing: border-box; transition: border-color 0.3s; }
-        .form-control:focus { border-color: #2a5298; outline: none; }
-        .form-row { display: flex; gap: 15px; }
-        .form-row .form-group { flex: 1; }
-        .btn-submit { display: block; width: 100%; background-color: #2a5298; color: #ffffff; border: none; padding: 15px; font-size: 16px; font-weight: 700; border-radius: 6px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 6px rgba(42, 82, 152, 0.3); transition: background-color 0.3s, transform 0.1s; margin-top: 10px; }
-        .btn-submit:hover { background-color: #1e3c72; }
-        .btn-submit:active { transform: scale(0.98); }
-        .result-box { background: #fdfbf7; padding: 25px; border-radius: 8px; border: 1px solid #eaeaea; margin-top: 30px; }
-        .alert-success { background: #e8f5e9; color: #2e7d32; padding: 15px; border-radius: 6px; margin-bottom: 20px; border-left: 5px solid #2e7d32; }
-        .alert-error { background: #ffebee; color: #c62828; padding: 15px; border-radius: 6px; margin-top: 30px; border-left: 5px solid #c62828; }
-        .detail-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 20px; }
-        .detail-table td { padding: 12px 8px; border-bottom: 1px dashed #ddd; color: #333; }
-        .detail-table td:last-child { text-align: right; font-weight: 600; color: #2a5298; }
-        .link-label { display: block; font-size: 13px; font-weight: 700; color: #333; margin-top: 10px; margin-bottom: 5px; }
-        .link-textarea { width: 100%; height: 70px; padding: 10px; border-radius: 5px; border: 1px solid #ccc; font-size: 11px; resize: none; box-sizing: border-box; background-color: #f9f9f9; cursor: pointer; }
-        .raw-response { font-size: 11px; background: #fff; padding: 10px; border: 1px solid #ffcdd2; overflow-x: auto; }
-        .trial-info { display: none; background: #e3f2fd; color: #1565c0; padding: 15px; border-radius: 6px; margin-bottom: 20px; border-left: 5px solid #1565c0; font-size: 14px; font-weight: 500;}
-        #password-group { display: none; }
-    </style>
-    <script>
-        function toggleFields() {
-            var mode = document.getElementById("account_mode").value;
-            var vpnType = document.getElementById("vpn_type").value;
-            
-            var regularGroups = document.getElementsByClassName("regular-group");
-            var trialInfo = document.getElementById("trial-info-box");
-            var passGroup = document.getElementById("password-group");
-
-            if (mode === "trial") {
-                for (var i = 0; i < regularGroups.length; i++) {
-                    regularGroups[i].style.display = "none";
-                }
-                trialInfo.style.display = "block";
-                passGroup.style.display = "none";
-            } else {
-                for (var i = 0; i < regularGroups.length; i++) {
-                    regularGroups[i].style.display = "block";
-                }
-                trialInfo.style.display = "none";
-                
-                if (vpnType === "ssh") {
-                    passGroup.style.display = "block";
-                } else {
-                    passGroup.style.display = "none";
-                }
-            }
-        }
-        window.onload = toggleFields;
-    </script>
-</head>
-<body>
-
-<div class="container">
-    <div class="header-banner">
-        <h2>Panel Generator VPN</h2>
-        <p>Tulisan Digital Tendo Store</p>
-    </div>
-
-    <div class="content">
-        <form method="POST" action="">
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="account_mode">Tipe Akun</label>
-                    <select name="account_mode" id="account_mode" class="form-control" onchange="toggleFields()" required>
-                        <option value="regular">Reguler (Premium)</option>
-                        <option value="trial">Trial (Uji Coba)</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="vpn_type">Jenis VPN</label>
-                    <select name="vpn_type" id="vpn_type" class="form-control" onchange="toggleFields()" required>
-                        <option value="vless">VLESS</option>
-                        <option value="vmess">VMESS</option>
-                        <option value="ssh">SSH / OpenVPN</option>
-                        <option value="trojan">TROJAN</option>
-                    </select>
-                </div>
-            </div>
-
-            <div id="trial-info-box" class="trial-info">
-                Mode Uji Coba (Trial) aktif. Sistem akan otomatis meng-generate username & password acak dengan durasi <strong>30 Menit</strong>, Kuota <strong>2 GB</strong>, dan Limit <strong>2 Device</strong>.
-            </div>
-
-            <div class="form-group regular-group">
-                <label for="username">Username Pelanggan</label>
-                <input type="text" name="username" id="username" class="form-control" placeholder="Contoh: tendo_user1">
-            </div>
-
-            <div class="form-group" id="password-group">
-                <label for="password">Password (Hanya untuk SSH)</label>
-                <input type="text" name="password" id="password" class="form-control" placeholder="Masukkan password SSH">
-            </div>
-
-            <div class="form-group regular-group">
-                <label for="expired">Masa Aktif (Hari)</label>
-                <input type="number" name="expired" id="expired" class="form-control" value="30" min="1">
-            </div>
-
-            <div class="regular-group" style="margin-bottom: 20px; font-size: 13px; color: #7f8c8d;">
-                <em>*Limit IP otomatis diatur <strong>2 Device</strong> dan Kuota <strong>200 GB</strong>.</em>
-            </div>
-
-            <button type="submit" class="btn-submit">Eksekusi Sekarang</button>
-            
-        </form>
-
-        <?php echo $html_hasil; ?>
-
-    </div>
-</div>
-
-</body>
-</html>
-EOF
-    
-    # Menerapkan input IP & API Key secara dinamis tanpa merusak kode PHP
-    sed -i "s|REPLACE_API_KEY|$input_api_key|g" /var/www/html/tendo_vpn_panel.php
-    sed -i "s|REPLACE_IP_VPS|$input_ip_vps|g" /var/www/html/tendo_vpn_panel.php
-    sudo chmod 644 /var/www/html/tendo_vpn_panel.php 2>/dev/null || true
-    echo "Instalasi file tendo_vpn_panel.php selesai!"
-}
-
+# === SELESAI ===
 install_dependencies() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
@@ -4916,14 +4817,13 @@ install_dependencies() {
     echo -ne "${C_MAG}>> Meracik sistem utama & Web App...${C_RST}"
     generate_bot_script
     generate_cek_saldo_script
-    generate_vpn_panel_php
     generate_web_app
     if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
     rm -rf node_modules package-lock.json
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
     echo -ne "${C_MAG}>> Mengunduh modul utama (termasuk SQLite)...${C_RST}"
-    npm install @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api better-sqlite3 > /dev/null 2>&1 &
+    npm install @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api better-sqlite3 > install_npm.log 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
@@ -6496,4 +6396,4 @@ EOF
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
 done
-
+# === SELESAI ===
