@@ -99,41 +99,41 @@ EOF
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0f172a" id="meta-theme">
     <style>
-        /* VARIABEL TEMA GELAP / TERANG & SHADOWS */
+        /* VARIABEL TEMA GELAP / TERANG & SHADOWS (NEUMORPHISM) */
         :root {
             --bg-main: #e9eef5; 
-            --bg-card: #ffffff; 
+            --bg-card: #e9eef5; 
             --text-main: #0f172a;
             --text-muted: #64748b;
-            --border-color: #e2e8f0;
-            --grid-bg: #ffffff;
-            --nav-bg: #ffffff;
+            --border-color: transparent;
+            --grid-bg: #e9eef5;
+            --nav-bg: #e9eef5;
             --nav-text: #94a3b8;
             --nav-active: #0ea5e9;
-            --topbar-bg: #ffffff;
+            --topbar-bg: #e9eef5;
             --toast-bg: rgba(15, 23, 42, 0.85);
             --toast-text: #f8fafc;
             
-            --shadow-outer: 0 4px 15px rgba(0, 0, 0, 0.05);
-            --shadow-inner: none;
+            --shadow-outer: 6px 6px 12px #c8d0e0, -6px -6px 12px #ffffff;
+            --shadow-inner: inset 4px 4px 8px #c8d0e0, inset -4px -4px 8px #ffffff;
         }
 
         .dark-mode {
             --bg-main: #0f172a;
-            --bg-card: #1e293b;
+            --bg-card: #0f172a;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
-            --border-color: #334155;
-            --grid-bg: #1e293b;
-            --nav-bg: #1e293b;
+            --border-color: transparent;
+            --grid-bg: #0f172a;
+            --nav-bg: #0f172a;
             --nav-text: #64748b;
             --nav-active: #38bdf8;
-            --topbar-bg: #1e293b;
+            --topbar-bg: #0f172a;
             --toast-bg: rgba(15, 23, 42, 0.85);
             --toast-text: #f8fafc;
 
-            --shadow-outer: 0 4px 15px rgba(0, 0, 0, 0.3);
-            --shadow-inner: none;
+            --shadow-outer: 6px 6px 12px #080d17, -6px -6px 12px #16213d;
+            --shadow-inner: inset 4px 4px 8px #080d17, inset -4px -4px 8px #16213d;
         }
 
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #0f172a; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
@@ -141,21 +141,20 @@ EOF
         
         .top-bar { background: var(--topbar-bg); color: var(--text-main); padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: background 0.3s;}
         
-        .menu-btn { cursor: pointer; background: var(--bg-card); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 12px; margin-right: 15px; display: flex; align-items: center; justify-content: center; z-index: 2; box-shadow: var(--shadow-outer); transition: transform 0.2s;}
-        .menu-btn:active { transform: scale(0.95); }
+        .menu-btn { cursor: pointer; background: var(--bg-card); border: none; padding: 6px 10px; border-radius: 12px; margin-right: 15px; display: flex; align-items: center; justify-content: center; z-index: 2; box-shadow: var(--shadow-outer); transition: transform 0.2s, box-shadow 0.2s;}
+        .menu-btn:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
         .menu-btn svg { width: 24px; height: 24px; stroke: var(--text-main); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
         
         .brand-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 18px; font-weight: 800; background: transparent; color: var(--text-main); padding: 8px 0; border-radius: 0; box-shadow: none; z-index: 2; overflow: visible; width: auto; display: flex; align-items: center; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer;}
         
-        .trx-badge { font-size: 11px; background: var(--bg-main); color: var(--text-main); padding: 6px 14px; border-radius: 20px; font-weight: 800; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.2s; z-index: 2;}
-        .trx-badge:active { transform: scale(0.95); }
+        .trx-badge { font-size: 11px; background: var(--bg-card); color: var(--text-main); padding: 6px 14px; border-radius: 20px; font-weight: 800; cursor: pointer; border: none; box-shadow: var(--shadow-outer); transition: transform 0.2s, box-shadow 0.2s; z-index: 2;}
+        .trx-badge:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
 
         .banner-container { 
             background: var(--topbar-bg); 
             padding: 5px 20px 25px; 
             border-bottom-left-radius: 30px; 
             border-bottom-right-radius: 30px; 
-            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.05);
             position: relative;
             z-index: 10;
             transition: background 0.3s;
@@ -169,7 +168,7 @@ EOF
             align-items: center;
             justify-content: space-between;
             box-shadow: var(--shadow-outer);
-            border: 1px solid var(--border-color);
+            border: none;
             position: relative;
             z-index: 2;
             flex-wrap: wrap;
@@ -177,8 +176,9 @@ EOF
         }
         .sc-left { display: flex; align-items: center; gap: 14px; }
         .sc-icon { 
-            width: 44px; height: 44px; background: rgba(14, 165, 233, 0.1); 
-            border-radius: 12px; display: flex; justify-content: center; align-items: center; color: var(--nav-active); 
+            width: 44px; height: 44px; background: var(--bg-card); 
+            border-radius: 50%; display: flex; justify-content: center; align-items: center; color: var(--nav-active);
+            box-shadow: var(--shadow-outer); transition: all 0.3s ease, transform 0.2s;
         }
         .sc-info { display: flex; flex-direction: column; justify-content: center;}
         .sc-title { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;}
@@ -186,22 +186,22 @@ EOF
 
         .sc-actions { display: flex; gap: 8px; align-items: center; }
         .sc-btn-action {
-            background: var(--bg-main);
+            background: var(--bg-card);
             color: var(--text-main);
-            border: 1px solid var(--border-color);
+            border: none;
             width: 38px; height: 38px;
             border-radius: 12px; display: flex; justify-content: center; align-items: center;
-            cursor: pointer; transition: transform 0.2s;
+            cursor: pointer; box-shadow: var(--shadow-outer); transition: transform 0.2s, box-shadow 0.2s;
         }
-        .sc-btn-action:active { transform: scale(0.95); }
+        .sc-btn-action:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
         .sc-btn-action svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
         .sc-btn-topup { 
             background: var(--nav-active); color: #ffffff; border: none; 
             padding: 0 16px; height: 38px; border-radius: 12px; font-weight: 800; font-size: 13px; cursor: pointer;
-            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25); transition: transform 0.2s;
+            box-shadow: var(--shadow-outer); transition: transform 0.2s, box-shadow 0.2s;
         }
-        .sc-btn-topup:active { transform: scale(0.95); }
+        .sc-btn-topup:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
 
         .banner-slider-container { margin: 20px 20px 0px; border-radius: 20px; overflow: hidden; position: relative; background: var(--bg-card); box-shadow: var(--shadow-outer);}
         .banner-slider { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
@@ -210,45 +210,49 @@ EOF
         .banner-slide img { width: 100%; height: auto; object-fit: cover; aspect-ratio: 21/9; display: block;}
 
         .grid-title { margin: 25px 20px 15px; font-weight: 800; color: var(--text-main); font-size: 15px;}
-        .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 0 20px;}
+        .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 0 20px;}
         .grid-box { 
             background: var(--grid-bg); border-radius: 20px; padding: 18px 5px; 
             text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-            box-shadow: var(--shadow-outer); border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-outer); border: none;
             transition: transform 0.2s, box-shadow 0.2s;
         }
-        .grid-box:active { transform: scale(0.95); }
         
         .grid-icon-wrap { 
             width: 50px; height: 50px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center; 
-            border-radius: 14px; transition: background 0.3s;
+            border-radius: 50%; box-shadow: var(--shadow-outer); transition: all 0.3s ease, transform 0.2s; background: var(--bg-card);
         }
-        .ic-pulsa { background: rgba(14, 165, 233, 0.1); color: #0ea5e9; }
-        .ic-data { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-        .ic-game { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-        .ic-voucher { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
-        .ic-ewallet { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
-        .ic-pln { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
-        .ic-sms { background: rgba(236, 72, 153, 0.1); color: #ec4899; }
-        .ic-masa { background: rgba(249, 115, 22, 0.1); color: #f97316; }
-        .ic-perdana { background: rgba(20, 184, 166, 0.1); color: #14b8a6; }
-        .ic-vpn { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
         
-        .dark-mode .grid-icon-wrap { background: rgba(255,255,255,0.05); }
+        /* Neumorphism Active States */
+        .sc-icon:active, .grid-icon-wrap:active, .b-logo:active, .prod-logo:active, .prof-avatar:active, .sidebar-avatar:active, .floating-wa:active, .grid-box:active { 
+            box-shadow: var(--shadow-inner) !important; 
+            transform: scale(0.95); 
+        }
+
+        .ic-pulsa { color: #0ea5e9; }
+        .ic-data { color: #10b981; }
+        .ic-game { color: #ef4444; }
+        .ic-voucher { color: #f59e0b; }
+        .ic-ewallet { color: #8b5cf6; }
+        .ic-pln { color: #f59e0b; }
+        .ic-sms { color: #ec4899; }
+        .ic-masa { color: #f97316; }
+        .ic-perdana { color: #14b8a6; }
+        .ic-vpn { color: #6366f1; }
 
         .grid-text { font-size: 11px; color: var(--text-main); font-weight: 700; line-height: 1.3; text-transform: uppercase; letter-spacing: -0.2px;}
 
-        .stats-container { margin: 25px 20px; padding: 20px; background: var(--bg-card); border-radius: 20px; border: 1px solid var(--border-color); text-align: center; box-shadow: var(--shadow-outer);}
+        .stats-container { margin: 25px 20px; padding: 20px; background: var(--bg-card); border-radius: 20px; border: none; text-align: center; box-shadow: var(--shadow-outer);}
         .stats-title { font-size: 14px; font-weight: 800; color: var(--text-main); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;}
-        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;}
-        .stat-box { flex: 1; padding: 12px 5px; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer);}
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;}
+        .stat-box { flex: 1; padding: 12px 5px; background: var(--bg-card); border-radius: 12px; border: none; box-shadow: var(--shadow-outer);}
         .stat-val { font-size: 16px; font-weight: 900; color: var(--nav-active); margin-bottom: 5px;}
         .stat-lbl { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;}
 
-        .brand-list { display: flex; flex-direction: column; padding: 15px 20px; gap: 12px; }
-        .brand-row { background: var(--bg-card); padding: 16px; border-radius: 16px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow-outer); cursor: pointer; transition: transform 0.2s; color: var(--text-main);}
-        .brand-row:active { transform: scale(0.98); }
-        .b-logo { width: 45px; height: 45px; background: var(--bg-main); color: var(--text-main); border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border-color); flex-shrink: 0; text-transform: uppercase;}
+        .brand-list { display: flex; flex-direction: column; padding: 15px 20px; gap: 15px; }
+        .brand-row { background: var(--bg-card); padding: 16px; border-radius: 16px; border: none; display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow-outer); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; color: var(--text-main);}
+        .brand-row:active { transform: scale(0.98); box-shadow: var(--shadow-inner); }
+        .b-logo { width: 45px; height: 45px; background: var(--bg-card); color: var(--nav-active); border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; box-shadow: var(--shadow-outer); transition: all 0.3s ease, transform 0.2s; flex-shrink: 0; text-transform: uppercase;}
         .b-name { font-size: 14px; font-weight: 700; flex: 1;}
 
         .bottom-nav { 
@@ -258,22 +262,15 @@ EOF
             transform: translateX(-50%);
             width: calc(100% - 40px); 
             max-width: 400px; 
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            background: var(--bg-card);
             display: flex; 
             justify-content: space-around; 
             padding: 12px 5px; 
             border-radius: 50px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+            box-shadow: var(--shadow-outer); 
             z-index: 900; 
             transition: background 0.3s;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        .dark-mode .bottom-nav {
-            background: rgba(30, 41, 59, 0.9);
-            border-color: rgba(255,255,255,0.05);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+            border: none;
         }
 
         .nav-item { text-align: center; color: var(--nav-text); font-size: 10px; flex: 1; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-weight: 700; transition: color 0.3s;}
@@ -281,71 +278,87 @@ EOF
         .nav-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
         .nav-item.active { color: var(--nav-active);}
 
-        .product-item { background: var(--bg-card); padding: 16px; border-radius: 16px; margin: 10px 20px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow-outer); cursor: pointer; transition: transform 0.2s;}
-        .product-item:active { transform: scale(0.98); }
-        .prod-logo { width: 45px; height: 45px; background: var(--bg-main); color: var(--text-main); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 14px; border: 1px solid var(--border-color); flex-shrink: 0; text-transform: uppercase;}
+        .product-item { background: var(--bg-card); padding: 16px; border-radius: 16px; margin: 10px 20px 15px; border: none; display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow-outer); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;}
+        .product-item:active { transform: scale(0.98); box-shadow: var(--shadow-inner); }
+        .prod-logo { width: 45px; height: 45px; background: var(--bg-card); color: var(--nav-active); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 14px; box-shadow: var(--shadow-outer); transition: all 0.3s ease, transform 0.2s; flex-shrink: 0; text-transform: uppercase;}
         .prod-info { flex: 1; min-width: 0; }
         .prod-name { font-weight: 700; font-size: 13px; color: var(--text-main); margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; word-wrap: break-word;}
-        .badge-open { background: #e0f2fe; color: #0284c7; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800; border: 1px solid #bae6fd; flex-shrink: 0; margin-left: 8px;}
+        .badge-open { background: var(--bg-main); color: #0284c7; font-size: 9px; padding: 4px 8px; border-radius: 6px; font-weight: 800; box-shadow: var(--shadow-outer); flex-shrink: 0; margin-left: 8px;}
         .prod-desc { font-size: 11px; color: var(--text-muted); font-weight: 500; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;}
         .prod-price { color: var(--text-main); font-weight: 900; font-size: 15px;}
 
         .search-box { padding: 15px 20px 5px; position: sticky; top: 58px; z-index: 50; background: var(--bg-main); transition: background 0.3s; }
-        .search-box input { margin-bottom: 0; box-shadow: var(--shadow-outer); border-radius: 14px; padding: 14px 18px; width: 100%; box-sizing: border-box; font-weight: 600; border: 1px solid var(--border-color);}
+        .search-box input { margin-bottom: 0; box-shadow: var(--shadow-inner); border-radius: 14px; padding: 14px 18px; width: 100%; box-sizing: border-box; font-weight: 600; border: none; background: var(--bg-main); outline: none; color: var(--text-main);}
 
-        .history-tabs { display: flex; gap: 10px; padding: 10px 20px; background: var(--bg-main); position: sticky; top: 58px; z-index: 50; }
-        .hist-tab { flex: 1; text-align: center; padding: 12px 0; font-size: 13px; font-weight: 700; cursor: pointer; color: var(--text-main); background: var(--bg-card); border-radius: 14px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer); transition: all 0.2s; text-transform: uppercase;}
-        .hist-tab.active { background: var(--nav-active); color: #ffffff; border-color: var(--nav-active); }
+        /* ANIMASI SKELETON LOADING */
+        .skeleton-box { 
+            animation: skeleton-loading 1.2s infinite linear alternate; 
+            border-radius: 16px; 
+            background-color: var(--border-color); 
+            height: 80px; 
+            margin: 10px 20px 15px; 
+            box-shadow: var(--shadow-outer);
+        }
+        @keyframes skeleton-loading { 
+            0% { opacity: 0.4; } 
+            100% { opacity: 0.8; } 
+        }
 
-        .history-status-filters { display: flex; gap: 8px; padding: 0 20px 10px; margin-top: 10px; position: sticky; top: 110px; z-index: 40; justify-content: space-between;}
-        .status-btn { flex: 1; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 0; border-radius: 20px; font-size: 11.5px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-outer); text-align: center; white-space: nowrap;}
-        .status-btn.active { background: var(--nav-active); color: #ffffff; border-color: var(--nav-active); }
+        .history-tabs { display: flex; gap: 15px; padding: 10px 20px; background: var(--bg-main); position: sticky; top: 58px; z-index: 50; }
+        .hist-tab { flex: 1; text-align: center; padding: 12px 0; font-size: 13px; font-weight: 700; cursor: pointer; color: var(--text-main); background: var(--bg-card); border-radius: 14px; border: none; box-shadow: var(--shadow-outer); transition: all 0.2s; text-transform: uppercase;}
+        .hist-tab.active { box-shadow: var(--shadow-inner); color: var(--nav-active); }
+
+        .history-status-filters { display: flex; gap: 10px; padding: 0 20px 10px; margin-top: 10px; position: sticky; top: 110px; z-index: 40; justify-content: space-between;}
+        .status-btn { flex: 1; background: var(--bg-card); color: var(--text-main); border: none; padding: 8px 0; border-radius: 20px; font-size: 11.5px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-outer); text-align: center; white-space: nowrap;}
+        .status-btn.active { box-shadow: var(--shadow-inner); color: var(--nav-active); }
 
         .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); z-index: 1001; display: none; opacity: 0; transition: opacity 0.3s;}
-        .sidebar { position: fixed; top:0; left:-300px; width: 280px; height: 100vh; background: var(--bg-card); z-index: 1002; transition: left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 5px 0 25px rgba(0,0,0,0.1);}
+        .sidebar { position: fixed; top:0; left:-300px; width: 280px; height: 100vh; background: var(--bg-main); z-index: 1002; transition: left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 5px 0 25px rgba(0,0,0,0.1);}
         .sidebar.open { left: 0; }
-        .sidebar-header { padding: 40px 20px 30px; text-align: center; border-bottom: 1px solid var(--border-color); background: #0f172a; color: #ffffff;}
-        .sidebar-avatar { width: 70px; height: 70px; background: #ffffff; border-radius: 50%; margin: 0 auto 10px auto; display: flex; justify-content: center; align-items: center; color: #0f172a; font-size: 30px; font-weight: bold; text-transform: uppercase;}
-        .sidebar-name { font-weight: 800; font-size: 16px; color: #ffffff;}
-        .sidebar-phone { font-size: 12px; color: #cbd5e1;}
-        .sidebar-menu { padding: 10px 0; }
+        .sidebar-header { padding: 40px 20px 30px; text-align: center; background: var(--bg-card); color: var(--text-main); box-shadow: var(--shadow-outer); border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;}
+        .sidebar-avatar { width: 70px; height: 70px; background: var(--bg-card); border-radius: 50%; margin: 0 auto 15px auto; display: flex; justify-content: center; align-items: center; color: var(--nav-active); font-size: 30px; font-weight: bold; text-transform: uppercase; box-shadow: var(--shadow-outer); transition: all 0.3s ease;}
+        .sidebar-name { font-weight: 800; font-size: 16px; color: var(--text-main);}
+        .sidebar-phone { font-size: 12px; color: var(--text-muted);}
+        .sidebar-menu { padding: 20px 0; }
         
-        .sidebar-item { padding: 15px 20px; display: flex; align-items: center; color: var(--text-main); text-decoration: none; font-size: 14px; border: 1px solid var(--border-color); font-weight: 600; gap: 15px; background: var(--bg-card); border-radius: 14px; margin: 10px 15px; box-shadow: var(--shadow-outer); transition: transform 0.2s; }
-        .sidebar-item:active { transform: scale(0.95); background: var(--bg-main); }
+        .sidebar-item { padding: 15px 20px; display: flex; align-items: center; color: var(--text-main); text-decoration: none; font-size: 14px; border: none; font-weight: 600; gap: 15px; background: var(--bg-card); border-radius: 14px; margin: 10px 20px; box-shadow: var(--shadow-outer); transition: transform 0.2s, box-shadow 0.2s; }
+        .sidebar-item:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
         .sidebar-item svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
         .container { padding: 20px; }
-        .card { background: var(--bg-card); padding: 25px 20px; border-radius: 20px; margin-bottom: 20px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer);}
-        input, select { width: 100%; padding: 15px; margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 14px; box-sizing: border-box; font-size: 14px; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 600; transition: border-color 0.2s;}
-        input:focus, select:focus { border-color: var(--nav-active); background: var(--bg-card);}
+        .card { background: var(--bg-card); padding: 25px 20px; border-radius: 20px; margin-bottom: 20px; border: none; box-shadow: var(--shadow-outer);}
+        input, select { width: 100%; padding: 15px; margin-bottom: 12px; border: none; border-radius: 14px; box-sizing: border-box; font-size: 14px; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 600; transition: box-shadow 0.2s; box-shadow: var(--shadow-inner);}
+        input:focus, select:focus { box-shadow: var(--shadow-outer);}
         
         .checkbox-container { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 20px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer;}
         .checkbox-container input { width: 16px; height: 16px; margin: 0; padding: 0; cursor: pointer;}
         
-        .btn { background: #0f172a; color: #ffffff; border: none; padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity 0.2s, transform 0.1s;}
-        .btn:active { transform: scale(0.98); }
+        .btn { background: var(--bg-card); color: var(--nav-active); border: none; padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 800; cursor: pointer; transition: transform 0.1s, box-shadow 0.2s; box-shadow: var(--shadow-outer);}
+        .btn:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-outline { background: var(--bg-card); color: var(--text-main); border: 1.5px solid var(--border-color); padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 10px; transition: transform 0.1s;}
-        .btn-outline:active { transform: scale(0.98); }
-        .btn-danger { background: #ef4444; color: #ffffff; border: none; padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 10px;}
+        .btn-outline { background: var(--bg-card); color: var(--text-main); border: none; padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 10px; transition: transform 0.1s, box-shadow 0.2s; box-shadow: var(--shadow-outer);}
+        .btn-outline:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
+        .btn-danger { background: var(--bg-card); color: #ef4444; border: none; padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 800; cursor: pointer; margin-top: 10px; box-shadow: var(--shadow-outer); transition: transform 0.1s, box-shadow 0.2s;}
+        .btn-danger:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
 
-        .prof-header { background: #0f172a; color: #ffffff; padding: 30px 20px; text-align: center; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px;}
+        .prof-header { background: var(--bg-card); color: var(--text-main); padding: 30px 20px; text-align: center; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; box-shadow: var(--shadow-outer);}
         
         .prof-avatar-wrap {
             width: 86px; height: 86px;
             background: transparent;
             border-radius: 50%;
             padding: 0;
-            margin: 0 auto 15px auto;
+            margin: 0 auto 20px auto;
             box-shadow: none;
         }
         .prof-avatar {
             width: 100%; height: 100%;
-            background: #ffffff; color: #0f172a;
+            background: var(--bg-card); color: var(--nav-active);
             border-radius: 50%; font-size: 38px; display: flex; justify-content: center; align-items: center; font-weight: 900; text-transform: uppercase;
+            box-shadow: var(--shadow-outer); transition: all 0.3s ease;
         }
 
-        .prof-box { background: var(--bg-card); color: var(--text-main); margin: -20px 20px 20px; border-radius: 20px; padding: 20px; position: relative; z-index: 10; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer);}
+        .prof-box { background: var(--bg-card); color: var(--text-main); margin: -20px 20px 20px; border-radius: 20px; padding: 20px; position: relative; z-index: 10; border: none; box-shadow: var(--shadow-outer);}
         .prof-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed var(--border-color); font-size: 13px;}
         .prof-label { color: var(--text-muted); font-weight: 600;}
         .prof-val { font-weight: 800; text-align: right;}
@@ -355,35 +368,34 @@ EOF
             margin-bottom: 150px; 
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 15px;
             position: relative;
             z-index: 10;
         }
         
-        .prof-action-btn { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 16px; width: 100%; border-radius: 14px; font-weight: 700; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 12px; transition: transform 0.2s; box-shadow: var(--shadow-outer); }
-        .prof-action-btn:active { transform: scale(0.98); }
+        .prof-action-btn { background: var(--bg-card); color: var(--text-main); border: none; padding: 16px; width: 100%; border-radius: 14px; font-weight: 700; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 12px; transition: transform 0.2s, box-shadow 0.2s; box-shadow: var(--shadow-outer); }
+        .prof-action-btn:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
         .prof-action-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
 
-        .hist-item { background: var(--bg-card); color: var(--text-main); padding: 16px; border-radius: 16px; margin: 10px 20px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer); cursor: pointer; transition: transform 0.2s;}
-        .hist-item:active { transform: scale(0.98); }
+        .hist-item { background: var(--bg-card); color: var(--text-main); padding: 16px; border-radius: 16px; margin: 10px 20px 15px; border: none; box-shadow: var(--shadow-outer); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;}
+        .hist-item:active { transform: scale(0.98); box-shadow: var(--shadow-inner); }
         .hist-top { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 8px; font-weight: 700;}
         .hist-title { font-weight: 800; font-size: 14px; margin-bottom: 4px;}
         .hist-target { font-size: 12px; font-weight: 600; color: var(--text-muted);}
-        .stat-badge { padding: 4px 10px; border-radius: 8px; font-weight: bold; font-size: 10px;}
-        .stat-Sukses { background: #dcfce7; color: #166534; } 
-        .stat-Pending { background: #fef08a; color: #854d0e; } 
-        .stat-Gagal { background: #fee2e2; color: #b91c1c; text-decoration: line-through; }
-        .stat-Refund { background: #e0e7ff; color: #4338ca; }
+        .stat-badge { padding: 4px 10px; border-radius: 8px; font-weight: bold; font-size: 10px; box-shadow: var(--shadow-outer);}
+        .stat-Sukses { background: var(--bg-main); color: #166534; } 
+        .stat-Pending { background: var(--bg-main); color: #854d0e; } 
+        .stat-Gagal { background: var(--bg-main); color: #b91c1c; text-decoration: line-through; }
+        .stat-Refund { background: var(--bg-main); color: #4338ca; }
 
         .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.7); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
-        .modal-box { background: var(--bg-card); color: var(--text-main); width: 100%; max-width: 360px; border-radius: 24px; padding: 25px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;}
-        .modal-btns { display: flex; gap: 10px; margin-top: 15px;}
+        .modal-box { background: var(--bg-card); color: var(--text-main); width: 100%; max-width: 360px; border-radius: 24px; padding: 25px; text-align: center; box-shadow: var(--shadow-outer); max-height: 90vh; overflow-y: auto;}
+        .modal-btns { display: flex; gap: 15px; margin-top: 20px;}
         
-        .screen-header { padding: 15px 20px; font-weight: 800; font-size: 18px; display: flex; align-items: center; gap: 15px; background: var(--bg-card); color: var(--text-main); border-bottom: 1px solid var(--border-color); position: sticky; top:0; z-index: 10; transition: background 0.3s;}
+        .screen-header { padding: 15px 20px; font-weight: 800; font-size: 18px; display: flex; align-items: center; gap: 15px; background: var(--bg-card); color: var(--text-main); border-bottom: none; box-shadow: var(--shadow-outer); position: sticky; top:0; z-index: 10; transition: background 0.3s;}
         .hidden { display: none !important; }
         .back-icon { cursor: pointer; fill: none; stroke: var(--text-main); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;}
 
-        /* PERBAIKAN DESAIN TOAST GLASSMORPHISM */
         .custom-toast {
             position: fixed;
             top: -100px;
@@ -443,38 +455,29 @@ EOF
         }
         .provider-toast.show { opacity: 1; top: 50px; }
 
-        /* FLOATING WHATSAPP BUTTON */
+        /* FLOATING WHATSAPP BUTTON (NEUMORPHISM) */
         .floating-wa {
             position: fixed;
             bottom: 95px;
             right: 20px;
             width: 55px;
             height: 55px;
-            background-color: #25D366;
-            color: white;
+            background-color: var(--bg-card);
+            color: #25D366;
             border-radius: 50px;
             display: flex;
             justify-content: center;
             align-items: center;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);
+            box-shadow: var(--shadow-outer);
             z-index: 950;
-            animation: pulse-wa 2s infinite;
-            border: 2px solid #fff;
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-        .dark-mode .floating-wa { border-color: #1e293b; }
-        .floating-wa:active { transform: scale(0.95); }
-        
-        @keyframes pulse-wa {
-            0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.7); transform: scale(1); }
-            70% { box-shadow: 0 0 0 15px rgba(37, 211, 102, 0); transform: scale(1.05); }
-            100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); transform: scale(1); }
-        }
+        .floating-wa:active { transform: scale(0.95); box-shadow: var(--shadow-inner) !important; }
 
-        .vpn-server-list { display: flex; flex-direction: column; gap: 10px; text-align: left; margin-top: 15px; }
-        .vpn-server-item { background: var(--bg-card); padding: 15px; border-radius: 14px; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: transform 0.2s;}
-        .vpn-server-item:active { transform: scale(0.95); }
+        .vpn-server-list { display: flex; flex-direction: column; gap: 15px; text-align: left; margin-top: 15px; }
+        .vpn-server-item { background: var(--bg-card); padding: 15px; border-radius: 14px; border: none; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: var(--shadow-outer);}
+        .vpn-server-item:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
         .vpn-server-info { flex: 1; }
         .vpn-server-name { font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 8px;}
         .vpn-server-price { font-size: 13px; color: var(--nav-active); font-weight: 800; margin-top: 5px;}
@@ -664,6 +667,10 @@ EOF
             
             <div id="live-clock" style="text-align:center; font-size:11.5px; font-weight:800; color:var(--text-main); margin: 25px 20px 0; letter-spacing: 0.5px;">Memuat waktu...</div>
 
+            <div class="search-box" id="global-search-container" style="top: 58px; z-index: 49; margin: 20px 20px 10px; border-radius: 14px; padding: 0;">
+                <input type="text" id="global-search-db" placeholder="🔍 Cari layanan, produk, provider..." onkeyup="filterGlobalDashboard()">
+            </div>
+
             <div id="custom-layout-container"></div>
 
             <div class="grid-title">Layanan Produk PPOB</div>
@@ -755,14 +762,14 @@ EOF
                 <div style="text-align:center; grid-column: 1 / -1; font-size:12px; color:var(--text-muted);">Memuat protokol VPN...</div>
             </div>
 
-            <div style="margin: 25px 20px 0; padding: 20px; background: var(--bg-card); border-radius: 20px; border: 1px solid var(--border-color); box-shadow: var(--shadow-outer);">
+            <div style="margin: 25px 20px 0; padding: 20px; background: var(--bg-card); border-radius: 20px; box-shadow: var(--shadow-outer);">
                 <div style="font-size:14px; font-weight:800; color:var(--text-main); margin-bottom:8px;">📢 Komunitas & Update</div>
                 <div style="font-size:12px; color:var(--text-muted); margin-bottom:15px; line-height:1.5; font-weight:500;">Dapatkan informasi terbaru seputar Digital Tendo Store melalui Channel Telegram dan Saluran WhatsApp kami.</div>
                 <div style="display:flex; gap:10px;">
-                    <button class="btn" style="background:#2481cc; flex:1; font-size:12px; padding:14px; border-radius:14px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="window.open('https://t.me/+CMUMhuJYnX44ZjNl', '_blank')">
+                    <button class="btn" style="background:#2481cc; color:#fff; flex:1; font-size:12px; padding:14px; border-radius:14px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="window.open('https://t.me/+CMUMhuJYnX44ZjNl', '_blank')">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg> Telegram
                     </button>
-                    <button class="btn" style="background:#25D366; flex:1; font-size:12px; padding:14px; border-radius:14px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="window.open('https://whatsapp.com/channel/0029VbCZzAfHQbS4YeW03Z0m', '_blank')">
+                    <button class="btn" style="background:#25D366; color:#fff; flex:1; font-size:12px; padding:14px; border-radius:14px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="window.open('https://whatsapp.com/channel/0029VbCZzAfHQbS4YeW03Z0m', '_blank')">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> WhatsApp
                     </button>
                 </div>
@@ -789,6 +796,8 @@ EOF
                     </div>
                 </div>
             </div>
+            
+            <div class="container" id="leaderboard-container" style="padding: 0 20px 20px;"></div>
         </div>
 
         <div id="tutorial-screen" class="hidden">
@@ -866,7 +875,7 @@ EOF
                     <div class="prof-avatar" id="p-avatar"></div>
                 </div>
                 <h2 style="margin:0 0 5px 0; font-size: 20px;" id="p-username">Username</h2>
-                <div style="font-size:13px; font-weight: bold; color: rgba(255,255,255,0.8);" id="p-id">ID: TD-000000</div>
+                <div style="font-size:13px; font-weight: bold; color: var(--text-muted);" id="p-id">ID: TD-000000</div>
             </div>
             <div class="prof-box">
                 <div class="prof-row">
@@ -900,7 +909,7 @@ EOF
                 <button class="prof-action-btn" onclick="window.openEditModal('phone')"><svg viewBox="0 0 24 24" width="20" stroke="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Ubah Nomor WA</button>
                 <button class="prof-action-btn" onclick="window.openEditModal('password')"><svg viewBox="0 0 24 24" width="20" stroke="currentColor"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Ubah Password</button>
                 
-                <button class="prof-action-btn" onclick="contactAdmin()" style="border-color: #bae6fd; color: #0ea5e9; margin-top: 5px;">
+                <button class="prof-action-btn" onclick="contactAdmin()" style="color: #0ea5e9; margin-top: 5px;">
                     <svg viewBox="0 0 24 24" width="20" stroke="currentColor"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> Hubungi Admin
                 </button>
             </div>
@@ -936,7 +945,7 @@ EOF
                     <option value="zivpn">ZIVPN</option>
                 </select>
 
-                <div id="mv-trial-info" style="display:none; background:#e0f2fe; color:#0284c7; padding:12px; border-radius:8px; font-size:12px; font-weight:bold; margin-bottom:12px; border-left:4px solid #0284c7;">
+                <div id="mv-trial-info" style="display:none; background:var(--bg-main); color:var(--nav-active); padding:12px; border-radius:14px; font-size:12px; font-weight:bold; margin-bottom:12px; border-left:4px solid var(--nav-active);">
                     Mode Trial: Otomatis 30 Menit, Kuota 2GB, 2 Device.
                 </div>
 
@@ -949,13 +958,13 @@ EOF
                 </div>
 
                 <button class="btn" id="btn-mv-submit" onclick="processManualVpn()">Eksekusi Sekarang</button>
-                <button class="btn-outline" style="border:none;" onclick="goBackGlobal()">Kembali</button>
+                <button class="btn-outline" onclick="goBackGlobal()">Kembali</button>
             </div>
             
-            <div id="mv-result" class="card hidden" style="border:2px solid #10b981; margin-top:10px;">
+            <div id="mv-result" class="card hidden" style="border:1px solid #10b981; margin-top:10px;">
                 <h3 style="color:#10b981; margin-top:0;">✅ Berhasil Dibuat</h3>
-                <textarea id="mv-result-text" readonly style="width:100%; height:250px; font-size:11px; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-main); resize:none; font-family:monospace;" onclick="this.select();"></textarea>
-                <button class="btn-outline" style="margin-top:10px; color:#0ea5e9; border-color:#0ea5e9;" onclick="copyData('mv-result-text', 'Akun VPN Manual')">Salin Detail Akun</button>
+                <textarea id="mv-result-text" readonly style="width:100%; height:250px; font-size:11px; padding:12px; border-radius:14px; border:none; box-shadow:var(--shadow-inner); background:var(--bg-main); color:var(--text-main); resize:none; font-family:monospace;" onclick="this.select();"></textarea>
+                <button class="btn-outline" style="margin-top:10px; color:var(--nav-active);" onclick="copyData('mv-result-text', 'Akun VPN Manual')">Salin Detail Akun</button>
             </div>
         </div>
 
@@ -980,7 +989,7 @@ EOF
         <div id="order-modal" class="modal-overlay hidden">
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Formulir Pesanan</h3>
-                <div style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left;">
+                <div style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; box-shadow:var(--shadow-inner); text-align: left;">
                     <strong id="m-name" style="font-size:14px; line-height:1.4; display:block; margin-bottom:5px;">Produk</strong>
                     <div id="m-desc" style="font-size:11px; color:var(--text-muted); margin-bottom:10px; line-height: 1.4;">Deskripsi Produk</div>
                     <span style="font-weight:900; font-size: 20px;" id="m-price">Rp 0</span>
@@ -990,7 +999,7 @@ EOF
                 <div style="margin-bottom:15px; text-align:left;">
                     <label style="font-size:12px; font-weight:800; color:var(--text-muted);">Metode Pembayaran:</label>
                     <div style="display:flex; gap:10px; margin-top:5px;">
-                        <button class="btn-outline pay-btn active" id="btn-pay-saldo" onclick="selectPayment('saldo')" style="margin:0; flex:1; border-color:#0ea5e9; color:#0ea5e9; background:rgba(14, 165, 233, 0.1);">💳 Saldo Akun</button>
+                        <button class="btn-outline pay-btn active" id="btn-pay-saldo" onclick="selectPayment('saldo')" style="margin:0; flex:1; color:var(--nav-active); box-shadow:var(--shadow-inner);">💳 Saldo Akun</button>
                         <button class="btn-outline pay-btn" id="btn-pay-qris" onclick="selectPayment('qris')" style="margin:0; flex:1;">📲 QRIS Auto</button>
                     </div>
                     <input type="hidden" id="m-payment-method" value="saldo">
@@ -1015,10 +1024,10 @@ EOF
         <div id="vpn-order-modal" class="modal-overlay hidden">
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Beli Akun VPN Premium</h3>
-                <div style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left;">
+                <div style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; box-shadow:var(--shadow-inner); text-align: left;">
                     <strong id="m-vpn-name" style="font-size:14px; line-height:1.4; display:block; margin-bottom:5px;">Produk VPN</strong>
                     <div id="m-vpn-desc" style="font-size:11px; color:var(--text-muted); margin-bottom:10px; line-height: 1.4;">Deskripsi VPN</div>
-                    <span style="font-weight:900; font-size: 20px; color:#0ea5e9;" id="m-vpn-price">Rp 0</span>
+                    <span style="font-weight:900; font-size: 20px; color:var(--nav-active);" id="m-vpn-price">Rp 0</span>
                 </div>
 
                 <div id="vpn-input-container">
@@ -1035,7 +1044,7 @@ EOF
                 <div id="m-vpn-payment-wrap" style="margin-bottom:15px; text-align:left;">
                     <label style="font-size:12px; font-weight:800; color:var(--text-muted);">Metode Pembayaran:</label>
                     <div style="display:flex; gap:10px; margin-top:5px;">
-                        <button class="btn-outline pay-btn-vpn active" id="btn-pay-vpn-saldo" onclick="selectPaymentVpn('saldo')" style="margin:0; flex:1; border-color:#0ea5e9; color:#0ea5e9; background:rgba(14, 165, 233, 0.1);">💳 Saldo Akun</button>
+                        <button class="btn-outline pay-btn-vpn active" id="btn-pay-vpn-saldo" onclick="selectPaymentVpn('saldo')" style="margin:0; flex:1; color:var(--nav-active); box-shadow:var(--shadow-inner);">💳 Saldo Akun</button>
                         <button class="btn-outline pay-btn-vpn" id="btn-pay-vpn-qris" onclick="selectPaymentVpn('qris')" style="margin:0; flex:1;">📲 QRIS Auto</button>
                     </div>
                     <input type="hidden" id="m-vpn-payment" value="saldo">
@@ -1051,32 +1060,32 @@ EOF
         <div id="vpn-trial-modal" class="modal-overlay hidden">
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Klaim Trial VPN Gratis</h3>
-                <div style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left;">
+                <div style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; box-shadow:var(--shadow-inner); text-align: left;">
                     <strong id="m-vpn-trial-name" style="font-size:14px; line-height:1.4; display:block; margin-bottom:5px;">Produk VPN</strong>
                     <div style="font-size:11px; color:var(--text-muted); margin-bottom:10px; line-height: 1.4;">Masa Aktif: 30 Menit<br>Limit Kuota: 1 GB<br>Cooldown: 2 Jam per Server</div>
                     <span style="font-weight:900; font-size: 20px; color:#10b981;">Gratis</span>
                 </div>
                 <div class="modal-btns">
                     <button class="btn-outline" style="margin-top:0;" onclick="closeVPNTrialModal()">Batal</button>
-                    <button class="btn" id="m-vpn-trial-submit" style="background:#10b981;" onclick="processVPNTrial()">Klaim Trial</button>
+                    <button class="btn" id="m-vpn-trial-submit" style="color:#10b981;" onclick="processVPNTrial()">Klaim Trial</button>
                 </div>
             </div>
         </div>
 
         <div id="order-success-modal" class="modal-overlay hidden">
             <div class="modal-box" style="text-align:center;">
-                <div style="width:60px; height:60px; background:#dcfce7; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
-                    <svg viewBox="0 0 24 24" width="35" height="35" stroke="#166534" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <div style="width:60px; height:60px; background:var(--bg-main); box-shadow:var(--shadow-inner); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
+                    <svg viewBox="0 0 24 24" width="35" height="35" stroke="#10b981" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                 </div>
-                <h3 style="margin-top:0; font-size:20px; color:#166534;">Pesanan Berhasil!</h3>
+                <h3 style="margin-top:0; font-size:20px; color:#10b981;">Pesanan Berhasil!</h3>
                 <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">Pesanan Anda sedang diproses oleh sistem.</p>
-                <div style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; text-align: left; font-size:13px; line-height: 1.6; border: 1px dashed var(--border-color);">
+                <div style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; box-shadow:var(--shadow-inner); text-align: left; font-size:13px; line-height: 1.6;">
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Produk</span><strong id="os-name" style="text-align:right; max-width:60%;"></strong></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Tujuan</span><strong id="os-target" style="text-align:right;"></strong></div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Metode</span><strong id="os-metode" style="color:#0ea5e9;">Saldo Akun</strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Metode</span><strong id="os-metode" style="color:var(--nav-active);">Saldo Akun</strong></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:var(--text-muted);">Harga</span><strong id="os-price" style="text-align:right;"></strong></div>
                 </div>
-                <button class="btn" style="width:100%;" onclick="cekRiwayatBaru()">Cek Riwayat Pembelian Ini</button>
+                <button class="btn" style="width:100%;" onclick="cekRiwayatBaru()">Cek Riwayat Pembelian</button>
             </div>
         </div>
 
@@ -1085,12 +1094,12 @@ EOF
                 <h3 style="margin-top:0; font-size:18px;">Isi Saldo Otomatis</h3>
                 <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Pilih atau masukkan nominal (Khusus QRIS Tanpa biaya admin). Saldo masuk utuh.</p>
                 
-                <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; justify-items:center; margin-bottom:15px; width: 100%;">
-                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center;" onclick="document.getElementById('topup-nominal').value='1000'">Rp.1000</div>
-                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center;" onclick="document.getElementById('topup-nominal').value='5000'">Rp.5000</div>
-                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center;" onclick="document.getElementById('topup-nominal').value='10000'">Rp.10.000</div>
-                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center;" onclick="document.getElementById('topup-nominal').value='50000'">Rp.50.000</div>
-                    <div class="trx-badge" style="padding:10px; width:100%; box-sizing:border-box; text-align:center; grid-column: span 2;" onclick="document.getElementById('topup-nominal').value='100000'">Rp.100.000</div>
+                <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:15px; justify-items:center; margin-bottom:20px; width: 100%;">
+                    <div class="trx-badge" style="padding:12px; width:100%; box-sizing:border-box; text-align:center; font-size:12px;" onclick="document.getElementById('topup-nominal').value='1000'">Rp.1000</div>
+                    <div class="trx-badge" style="padding:12px; width:100%; box-sizing:border-box; text-align:center; font-size:12px;" onclick="document.getElementById('topup-nominal').value='5000'">Rp.5000</div>
+                    <div class="trx-badge" style="padding:12px; width:100%; box-sizing:border-box; text-align:center; font-size:12px;" onclick="document.getElementById('topup-nominal').value='10000'">Rp.10.000</div>
+                    <div class="trx-badge" style="padding:12px; width:100%; box-sizing:border-box; text-align:center; font-size:12px;" onclick="document.getElementById('topup-nominal').value='50000'">Rp.50.000</div>
+                    <div class="trx-badge" style="padding:12px; width:100%; box-sizing:border-box; text-align:center; grid-column: span 2; font-size:12px;" onclick="document.getElementById('topup-nominal').value='100000'">Rp.100.000</div>
                 </div>
 
                 <input type="number" id="topup-nominal" placeholder="Nominal (Min. 1000)" style="text-align:center; font-size:18px; font-weight:bold;">
@@ -1098,16 +1107,16 @@ EOF
                     <button class="btn-outline" style="margin-top:0;" onclick="closeTopupModal()">Batal</button>
                     <button class="btn" id="btn-topup-submit" onclick="generateQris()">Buat QRIS</button>
                 </div>
-                <button class="btn-outline" style="margin-top:10px; width:100%; border-color: #0ea5e9; color: #0ea5e9;" onclick="manualTopupWA()">Topup Manual (Hubungi Admin)</button>
+                <button class="btn-outline" style="margin-top:15px; width:100%; color: var(--nav-active);" onclick="manualTopupWA()">Topup Manual (Hubungi Admin)</button>
             </div>
         </div>
 
         <div id="topup-success-modal" class="modal-overlay hidden">
             <div class="modal-box" style="text-align:center;">
-                <div style="width:60px; height:60px; background:#dcfce7; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
-                    <svg viewBox="0 0 24 24" width="35" height="35" stroke="#166534" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <div style="width:60px; height:60px; background:var(--bg-main); box-shadow:var(--shadow-inner); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
+                    <svg viewBox="0 0 24 24" width="35" height="35" stroke="#10b981" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                 </div>
-                <h3 style="margin-top:0; font-size:20px; color:#166534;">Berhasil Dibuat!</h3>
+                <h3 style="margin-top:0; font-size:20px; color:#10b981;">Berhasil Dibuat!</h3>
                 <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">Silakan bayar menggunakan barcode QRIS yang akan ditampilkan di Riwayat.</p>
                 <button class="btn" style="width:100%;" onclick="closeTopupSuccessModal()">Oke, Lanjut Bayar</button>
             </div>
@@ -1117,36 +1126,36 @@ EOF
             <div class="modal-box">
                 <h3 style="margin-top:0; font-size:18px;">Detail Transaksi</h3>
                 
-                <div id="hd-qris-box" class="hidden" style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; text-align: center; border: 1px solid var(--border-color);">
+                <div id="hd-qris-box" class="hidden" style="background:var(--bg-main); box-shadow:var(--shadow-inner); padding:15px; border-radius:16px; margin-bottom:15px; text-align: center;">
                     <p style="font-size:12px; color:var(--text-main); margin-top:0; margin-bottom:5px; font-weight:bold;">Sisa Waktu Pembayaran:</p>
-                    <div id="qris-countdown" style="font-size:22px; font-weight:900; color:#ef4444; margin-bottom:10px; background:#fee2e2; padding:5px; border-radius:8px; border: 1px solid #fca5a5;">-- : --</div>
+                    <div id="qris-countdown" style="font-size:22px; font-weight:900; color:#ef4444; margin-bottom:10px; background:var(--bg-card); box-shadow:var(--shadow-outer); padding:5px; border-radius:12px;">-- : --</div>
                     
                     <p style="font-size:11px; color:var(--text-main); margin-top:0; margin-bottom:10px;">Segera bayar dengan QRIS ini:</p>
-                    <img id="hd-qris-img" src="" style="width:100%; max-width:240px; padding:20px; border-radius:16px; border:1px solid var(--border-color); margin-bottom:15px; background:#ffffff; box-sizing: border-box; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+                    <img id="hd-qris-img" src="" style="width:100%; max-width:240px; padding:20px; border-radius:16px; margin-bottom:15px; background:#ffffff; box-sizing: border-box; box-shadow: var(--shadow-outer);">
                     
                     <div style="display:flex; gap:10px; justify-content:center; margin-bottom:15px;">
-                        <button class="btn-outline" style="flex:1; margin:0; padding:10px 5px; font-size:12px; font-weight: bold; border-color:#16a34a; color:#16a34a; border-radius:20px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="shareQRIS()">
+                        <button class="btn-outline" style="flex:1; margin:0; padding:10px 5px; font-size:12px; font-weight: bold; color:#10b981; border-radius:20px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="shareQRIS()">
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                             Bagikan
                         </button>
-                        <button class="btn-outline" style="flex:1; margin:0; padding:10px 5px; font-size:12px; font-weight: bold; border-color:#16a34a; color:#16a34a; border-radius:20px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="downloadQRIS()">
+                        <button class="btn-outline" style="flex:1; margin:0; padding:10px 5px; font-size:12px; font-weight: bold; color:#10b981; border-radius:20px; display:flex; align-items:center; justify-content:center; gap:5px;" onclick="downloadQRIS()">
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                             Simpan
                         </button>
                     </div>
 
                     <div style="font-size:11px; color:var(--text-muted); font-weight:bold;">Transfer TEPAT SEBESAR:</div>
-                    <div style="font-size:24px; font-weight:900; color:#0ea5e9; margin: 5px 0;" id="hd-qris-amount">Rp 0</div>
+                    <div style="font-size:24px; font-weight:900; color:var(--nav-active); margin: 5px 0;" id="hd-qris-amount">Rp 0</div>
                     <div style="font-size:11px; color:#ef4444; font-weight:bold; line-height:1.4;">Harus persis agar otomatis masuk.</div>
                 </div>
 
-                <div id="hd-vpn-info-box" class="hidden" style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; text-align: left; border: 1px solid var(--border-color); font-size: 13px;">
+                <div id="hd-vpn-info-box" class="hidden" style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; text-align: left; box-shadow:var(--shadow-inner); font-size: 13px;">
                     <div style="font-weight: 800; margin-bottom: 8px; color: var(--text-main);">Detail Akun VPN:</div>
-                    <textarea id="hd-vpn-details" readonly style="width:100%; height:180px; font-size:10px; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); resize:none; margin-bottom:10px; font-family: monospace;" onclick="this.focus(); this.select();"></textarea>
-                    <button class="btn-outline" style="padding:10px; margin:0; width:100%; font-size: 12px; border-color:#0ea5e9; color:#0ea5e9;" onclick="copyData('hd-vpn-details', 'Detail Akun VPN')">Salin Akun VPN</button>
+                    <textarea id="hd-vpn-details" readonly style="width:100%; height:180px; font-size:10px; padding:10px; border-radius:12px; border:none; box-shadow:var(--shadow-inner); background:var(--bg-main); color:var(--text-main); resize:none; margin-bottom:10px; font-family: monospace;" onclick="this.focus(); this.select();"></textarea>
+                    <button class="btn-outline" style="padding:10px; margin:0; width:100%; font-size: 12px; color:var(--nav-active);" onclick="copyData('hd-vpn-details', 'Detail Akun VPN')">Salin Akun VPN</button>
                 </div>
 
-                <div style="background:var(--bg-main); padding:15px; border-radius:16px; margin-bottom:15px; border: 1px solid var(--border-color); text-align: left; font-size:13px; line-height: 1.6;">
+                <div style="background:var(--bg-main); box-shadow:var(--shadow-inner); padding:15px; border-radius:16px; margin-bottom:15px; text-align: left; font-size:13px; line-height: 1.6;">
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Waktu</span><strong id="hd-time"></strong></div>
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Status</span><strong id="hd-status"></strong></div>
                     <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Layanan</span><strong id="hd-name" style="text-align:right; max-width:60%;"></strong></div>
@@ -1156,7 +1165,7 @@ EOF
                     <div style="display:flex; justify-content:space-between;" class="hd-saldo-row hidden"><span style="color:var(--text-muted);">Saldo Sebelum</span><strong id="hd-saldo-sebelum"></strong></div>
                     <div style="display:flex; justify-content:space-between;" class="hd-saldo-row hidden"><span style="color:var(--text-muted);">Saldo Sesudah</span><strong id="hd-saldo-sesudah"></strong></div>
                 </div>
-                <button class="btn-danger hidden" id="hd-cancel-topup-btn" onclick="cancelTopup()" style="margin-bottom: 10px; background: #ef4444;">Batalkan Topup</button>
+                <button class="btn-danger hidden" id="hd-cancel-topup-btn" onclick="cancelTopup()" style="margin-bottom: 10px;">Batalkan Topup</button>
                 <button class="btn-danger" id="hd-complain-btn" onclick="complainAdmin()" style="margin-bottom: 15px;">Hubungi Admin (Komplain)</button>
                 <button class="btn-outline" style="margin-top:0;" onclick="closeHistoryModal()">Tutup</button>
             </div>
@@ -1188,18 +1197,14 @@ EOF
         let sysMaintStart = "23:00";
         let sysMaintEnd = "00:30";
 
-        // JAM DIGITAL REALTIME & SYSTEM PEMELIHARAAN
         setInterval(() => {
             let d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
-            
-            // Render Live Clock
             let clockEl = document.getElementById('live-clock');
             if(clockEl) {
                 let opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
                 clockEl.innerText = d.toLocaleString('id-ID', opts).replace(/\./g, ':') + ' WIB';
             }
 
-            // Render Banner Maintenance
             let h = d.getHours();
             let m = d.getMinutes();
             let curMins = h * 60 + m;
@@ -1209,11 +1214,8 @@ EOF
             let eMins = parseInt(eParts[0])*60 + parseInt(eParts[1]);
             
             let isMaint = false;
-            if(sMins < eMins) {
-                isMaint = (curMins >= sMins && curMins < eMins);
-            } else {
-                isMaint = (curMins >= sMins || curMins < eMins);
-            }
+            if(sMins < eMins) isMaint = (curMins >= sMins && curMins < eMins);
+            else isMaint = (curMins >= sMins || curMins < eMins);
             
             let mb = document.getElementById('maint-banner');
             let dbScreen = document.getElementById('dashboard-screen');
@@ -1222,7 +1224,7 @@ EOF
                     mb = document.createElement('div');
                     mb.id = 'maint-banner';
                     mb.innerHTML = `🛠️ PEMELIHARAAN SISTEM (${sysMaintStart} - ${sysMaintEnd} WIB). TRANSAKSI SEMENTARA DITUTUP.`;
-                    mb.style = 'background:#ef4444; color:#fff; font-size:11px; font-weight:bold; text-align:center; padding:14px; margin: 20px 20px 0; border-radius:14px; box-shadow: 0 4px 10px rgba(239,68,68,0.3);';
+                    mb.style = 'background:#ef4444; color:#fff; font-size:11px; font-weight:bold; text-align:center; padding:14px; margin: 20px 20px 0; border-radius:14px; box-shadow: var(--shadow-outer);';
                     dbScreen.prepend(mb);
                 }
             } else {
@@ -1315,6 +1317,16 @@ EOF
             }
         }
 
+        function filterGlobalDashboard() {
+            let input = document.getElementById('global-search-db').value.toLowerCase();
+            let boxes = document.querySelectorAll('.grid-box, .brand-row');
+            boxes.forEach(box => {
+                let text = box.innerText.toLowerCase();
+                if (text.includes(input)) box.style.display = 'flex';
+                else box.style.display = 'none';
+            });
+        }
+
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => { 
             e.preventDefault(); deferredPrompt = e;
@@ -1378,22 +1390,22 @@ EOF
         function selectPayment(method) {
             document.getElementById('m-payment-method').value = method;
             if(method === 'saldo') {
-                document.getElementById('btn-pay-saldo').style = 'margin:0; flex:1; border-color:#0ea5e9; color:#0ea5e9; background:rgba(14, 165, 233, 0.1);';
-                document.getElementById('btn-pay-qris').style = 'margin:0; flex:1; border-color:var(--border-color); color:var(--text-main); background:transparent;';
+                document.getElementById('btn-pay-saldo').style = 'margin:0; flex:1; color:var(--nav-active); box-shadow:var(--shadow-inner);';
+                document.getElementById('btn-pay-qris').style = 'margin:0; flex:1; color:var(--text-main); box-shadow:var(--shadow-outer);';
             } else {
-                document.getElementById('btn-pay-qris').style = 'margin:0; flex:1; border-color:#0ea5e9; color:#0ea5e9; background:rgba(14, 165, 233, 0.1);';
-                document.getElementById('btn-pay-saldo').style = 'margin:0; flex:1; border-color:var(--border-color); color:var(--text-main); background:transparent;';
+                document.getElementById('btn-pay-qris').style = 'margin:0; flex:1; color:var(--nav-active); box-shadow:var(--shadow-inner);';
+                document.getElementById('btn-pay-saldo').style = 'margin:0; flex:1; color:var(--text-main); box-shadow:var(--shadow-outer);';
             }
         }
 
         function selectPaymentVpn(method) {
             document.getElementById('m-vpn-payment').value = method;
             if(method === 'saldo') {
-                document.getElementById('btn-pay-vpn-saldo').style = 'margin:0; flex:1; border-color:#0ea5e9; color:#0ea5e9; background:rgba(14, 165, 233, 0.1);';
-                document.getElementById('btn-pay-vpn-qris').style = 'margin:0; flex:1; border-color:var(--border-color); color:var(--text-main); background:transparent;';
+                document.getElementById('btn-pay-vpn-saldo').style = 'margin:0; flex:1; color:var(--nav-active); box-shadow:var(--shadow-inner);';
+                document.getElementById('btn-pay-vpn-qris').style = 'margin:0; flex:1; color:var(--text-main); box-shadow:var(--shadow-outer);';
             } else {
-                document.getElementById('btn-pay-vpn-qris').style = 'margin:0; flex:1; border-color:#0ea5e9; color:#0ea5e9; background:rgba(14, 165, 233, 0.1);';
-                document.getElementById('btn-pay-vpn-saldo').style = 'margin:0; flex:1; border-color:var(--border-color); color:var(--text-main); background:transparent;';
+                document.getElementById('btn-pay-vpn-qris').style = 'margin:0; flex:1; color:var(--nav-active); box-shadow:var(--shadow-inner);';
+                document.getElementById('btn-pay-vpn-saldo').style = 'margin:0; flex:1; color:var(--text-main); box-shadow:var(--shadow-outer);';
             }
         }
 
@@ -1449,6 +1461,26 @@ EOF
             } catch(e){}
         }
 
+        async function fetchLeaderboard() {
+            try {
+                let res = await apiCall('/api/leaderboard');
+                if(res && res.success && res.data.length > 0) {
+                    let html = '<div class="stats-title" style="margin-top:20px; margin-bottom:15px; font-size:14px; text-transform:uppercase;">🏆 Top Sultan 🏆</div><div style="display:flex; flex-direction:column; gap:15px;">';
+                    res.data.forEach((u, i) => {
+                        let badge = (i === 0) ? '👑' : (i === 1) ? '🥈' : (i === 2) ? '🥉' : `<span style="font-size:14px; font-weight:bold; color:var(--text-muted);">${i+1}</span>`;
+                        html += `
+                        <div class="brand-row" style="margin: 0; cursor:default;">
+                            <div class="b-logo" style="width:40px; height:40px; font-size: 18px;">${badge}</div>
+                            <div class="b-name">${u.name}</div>
+                            <div style="font-weight:900; color:var(--nav-active); font-size:12px;">${u.trx} Trx</div>
+                        </div>`;
+                    });
+                    html += '</div>';
+                    document.getElementById('leaderboard-container').innerHTML = html;
+                }
+            } catch(e) {}
+        }
+
         async function fetchVPNConfig() {
             try {
                 let res = await apiCall('/api/vpn-config');
@@ -1469,11 +1501,11 @@ EOF
                     res.data.sections.forEach((sec, idx) => {
                         if(sec.skus && sec.skus.length > 0) {
                             html += `
-                            <div class="brand-row" onclick="loadEtalaseProducts(${idx})" style="margin: 0 20px 10px; background: var(--bg-card); padding: 16px; border-radius: 16px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow-outer); cursor: pointer;">
-                                <div class="b-logo" style="width: 45px; height: 45px; background: rgba(14, 165, 233, 0.1); color: #0ea5e9; border-radius: 50%; font-weight: 900; font-size: 14px; display: flex; justify-content: center; align-items: border; flex-shrink: 0; text-transform: uppercase;">
+                            <div class="brand-row" onclick="loadEtalaseProducts(${idx})" style="margin: 0 20px 15px;">
+                                <div class="b-logo" style="width: 45px; height: 45px;">
                                     ${sec.title.substring(0,2).toUpperCase()}
                                 </div>
-                                <div class="b-name" style="font-size: 14px; font-weight: 800; flex: 1; color: var(--text-main);">${sec.title}</div>
+                                <div class="b-name">${sec.title}</div>
                                 <div style="margin-left:auto">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                                 </div>
@@ -1503,7 +1535,7 @@ EOF
                     let safeDesc = p.deskripsi ? p.deskripsi.replace(/'/g, "\\'").replace(/"/g, '&quot;') : 'Proses Otomatis';
                     let initial = (p.brand || 'O').substring(0,2).toUpperCase();
                     let statusBadge = p.status_produk === false 
-                        ? '<span style="background:#fee2e2; color:#b91c1c; font-size:9px; padding:2px 6px; border-radius:4px; font-weight:800; border:1px solid #fca5a5; flex-shrink:0; margin-left:8px;">GANGGUAN</span>' 
+                        ? '<span style="background:var(--bg-main); color:#b91c1c; font-size:9px; padding:4px 8px; border-radius:6px; font-weight:800; box-shadow:var(--shadow-outer); flex-shrink:0; margin-left:8px;">GANGGUAN</span>' 
                         : '<span class="badge-open">OPEN</span>';
                     let onClickAction = p.status_produk === false
                         ? `showToast('Maaf, produk ini sedang gangguan.', 'error')`
@@ -1520,7 +1552,11 @@ EOF
                     </div>`;
                 }
             });
-            document.getElementById('product-list').innerHTML = listHTML || '<div style="text-align:center; padding:30px; font-weight:bold; color:var(--text-muted);">KOSONG</div>';
+            
+            document.getElementById('product-list').innerHTML = '<div class="skeleton-box"></div><div class="skeleton-box"></div><div class="skeleton-box"></div>';
+            setTimeout(() => {
+                document.getElementById('product-list').innerHTML = listHTML || '<div style="text-align:center; padding:30px; font-weight:bold; color:var(--text-muted);">KOSONG</div>';
+            }, 600);
             showScreen('produk-screen', 'nav-home');
         }
 
@@ -1546,8 +1582,8 @@ EOF
                 }
                 
                 let statusBadge = isAvailable 
-                    ? '<div style="font-size:9px; background:#dcfce7; color:#166534; padding:2px 5px; border-radius:4px; margin-top:5px; font-weight:800; border: 1px solid #bbf7d0;">Tersedia</div>' 
-                    : '<div style="font-size:9px; background:#fee2e2; color:#b91c1c; padding:2px 5px; border-radius:4px; margin-top:5px; font-weight:800; border: 1px solid #fca5a5;">Kosong</div>';
+                    ? '<div style="font-size:9px; background:var(--bg-main); color:#166534; padding:4px 8px; border-radius:6px; margin-top:8px; font-weight:800; box-shadow:var(--shadow-outer);">Tersedia</div>' 
+                    : '<div style="font-size:9px; background:var(--bg-main); color:#b91c1c; padding:4px 8px; border-radius:6px; margin-top:8px; font-weight:800; box-shadow:var(--shadow-outer);">Kosong</div>';
 
                 let iconSvg = '';
                 if(proto.toUpperCase() === 'SSH') iconSvg = '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"></path>';
@@ -1571,7 +1607,7 @@ EOF
             
             html += `
             <div class="grid-box" onclick="showTutorials()">
-                <div class="grid-icon-wrap" style="background: rgba(236, 72, 153, 0.15); color: #ec4899;">
+                <div class="grid-icon-wrap" style="color: #ec4899;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
                         <polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
                     </svg>
@@ -1646,7 +1682,7 @@ EOF
                         let safeDesc = desc.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                         let safeName = customName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-                        let statusBadge = stok > 0 ? '<span class="badge-open" style="background:#dcfce7; color:#166534; border-color:#bbf7d0;">STOK: '+stok+'</span>' : '<span style="background:#fee2e2; color:#b91c1c; font-size:9px; padding:2px 6px; border-radius:4px; font-weight:800; border:1px solid #fca5a5; flex-shrink:0; margin-left:8px;">HABIS</span>';
+                        let statusBadge = stok > 0 ? '<span class="badge-open" style="background:var(--bg-main); color:#166534; box-shadow:var(--shadow-outer);">STOK: '+stok+'</span>' : '<span style="background:var(--bg-main); color:#b91c1c; font-size:9px; padding:4px 8px; border-radius:6px; font-weight:800; box-shadow:var(--shadow-outer); flex-shrink:0; margin-left:8px;">HABIS</span>';
 
                         let initial = proto.substring(0,2).toUpperCase();
 
@@ -1662,14 +1698,17 @@ EOF
                             </div>
                             <div style="display:flex; gap:10px; margin-top:12px; width:100%;">
                                 <button class="btn" style="flex:1; padding:12px; font-size:12px; border-radius:12px;" onclick="openVPNOrderModal('${pId}', '${proto}', ${price}, '${safeDesc}', '${safeName}')" ${stok > 0 ? '' : 'disabled'}>Beli Premium</button>
-                                <button class="btn-outline" style="flex:1; padding:12px; font-size:12px; border-radius:12px; border-color:#10b981; color:#10b981; margin-top:0;" onclick="openVPNTrialModal('${pId}', '${proto}', '${safeName}')">Trial Gratis</button>
+                                <button class="btn-outline" style="flex:1; padding:12px; font-size:12px; border-radius:12px; color:#10b981; margin-top:0;" onclick="openVPNTrialModal('${pId}', '${proto}', '${safeName}')">Trial Gratis</button>
                             </div>
                         </div>`;
                     }
                 }
             }
 
-            document.getElementById('product-list').innerHTML = html || '<div style="text-align:center; padding:30px; font-weight:bold; color:var(--text-muted);">KOSONG</div>';
+            document.getElementById('product-list').innerHTML = '<div class="skeleton-box"></div><div class="skeleton-box"></div><div class="skeleton-box"></div>';
+            setTimeout(() => {
+                document.getElementById('product-list').innerHTML = html || '<div style="text-align:center; padding:30px; font-weight:bold; color:var(--text-muted);">KOSONG</div>';
+            }, 600);
             showScreen('produk-screen', 'nav-home');
         }
         function loadVpnProductsList(proto, serverId) { pushState({screen: 'produk-vpn', proto: proto, serverId: serverId}); loadVpnProductsListInternal(proto, serverId); }
@@ -1771,7 +1810,6 @@ EOF
             if(savedId && savedPass) {
                 document.getElementById('log-id').value = savedId;
                 document.getElementById('log-pass').value = savedPass;
-                // Auto trigger login (silent)
                 login(true);
             } else {
                 showDashboardInternal(); 
@@ -1784,7 +1822,7 @@ EOF
                 syncUserData(); 
             } else {
                 let sbAvatar = document.getElementById('sb-avatar');
-                if(sbAvatar) sbAvatar.innerHTML = '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#0f172a" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>';
+                if(sbAvatar) sbAvatar.innerHTML = '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--nav-active)" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>';
                 document.getElementById('sb-name').innerText = "Guest (Belum Login)";
                 document.getElementById('sb-phone').innerText = "Silakan login untuk transaksi";
                 document.getElementById('user-saldo').innerText = "Rp 0";
@@ -1795,6 +1833,7 @@ EOF
             await fetchAllProducts(); 
             fetchCustomLayout();
             fetchVPNConfig(); 
+            fetchLeaderboard();
         }
         function showDashboard() { pushState({screen: 'dashboard-screen'}); showDashboardInternal(); }
         
@@ -1827,7 +1866,6 @@ EOF
         }
         function showTutorials() { pushState({screen: 'tutorial-screen'}); showTutorialsInternal(); }
 
-        // JS Logic untuk Manual VPN (Hidden Panel)
         window.showPanelVPNInternal = function() {
             showScreen('panel-vpn-screen');
             let sel = document.getElementById('mv-server');
@@ -1998,7 +2036,7 @@ EOF
                         }
                         
                         html += `
-                        <div class="card" style="border-left: 4px solid #0ea5e9; margin-bottom:15px; padding:18px;">
+                        <div class="card" style="border-left: 4px solid var(--nav-active); margin-bottom:15px; padding:18px;">
                             <div style="font-size:10px; color:var(--text-muted); margin-bottom:5px; font-weight:700;">${n.date}</div>
                             <h3 style="margin-top:0; color: var(--text-main); font-size:15px; margin-bottom:12px;">📢 Info Terbaru</h3>
                             ${imgTag}
@@ -2182,7 +2220,7 @@ EOF
                                     <div class="hist-top"><span>${h.tanggal}</span> <span class="stat-badge ${statClass}">${h.status}</span></div>
                                     <div class="hist-title" style="display:flex; justify-content:space-between; align-items:center;">
                                         <span style="max-width:65%;">${h.nama}</span>
-                                        <span style="color:#0ea5e9; font-size:13px;">Rp ${h.amount ? h.amount.toLocaleString('id-ID') : '0'}</span>
+                                        <span style="color:var(--nav-active); font-size:13px;">Rp ${h.amount ? h.amount.toLocaleString('id-ID') : '0'}</span>
                                     </div>
                                     <div class="hist-target">Tujuan: ${displayTujuan}</div>
                                 </div>
@@ -2329,11 +2367,11 @@ EOF
             try {
                 let data = await apiCall('/api/login', {id: idLogin, password:pass});
                 if(data && data.success) {
-                    // Berhasil masuk tanpa OTP
                     currentUser = data.phone; userData = data.data;
                     await fetchAllProducts(); 
                     await fetchVPNConfig();
                     fetchGlobalStats();
+                    fetchLeaderboard();
                     loadBanners();
                     
                     let lastTab = localStorage.getItem('tendo_last_tab') || 'dashboard-screen';
@@ -2666,7 +2704,7 @@ EOF
                 let initial = brand.substring(0,2).toUpperCase();
                 
                 let statusBadge = p.status_produk === false 
-                    ? '<span style="background:#fee2e2; color:#b91c1c; font-size:9px; padding:2px 6px; border-radius:4px; font-weight:800; border:1px solid #fca5a5; flex-shrink:0; margin-left:8px;">GANGGUAN</span>' 
+                    ? '<span style="background:var(--bg-main); color:#b91c1c; font-size:9px; padding:4px 8px; border-radius:6px; font-weight:800; box-shadow:var(--shadow-outer); flex-shrink:0; margin-left:8px;">GANGGUAN</span>' 
                     : '<span class="badge-open">OPEN</span>';
                 
                 let onClickAction = p.status_produk === false
@@ -2683,7 +2721,11 @@ EOF
                     </div>
                 </div>`;
             }
-            document.getElementById('product-list').innerHTML = listHTML || '<div style="text-align:center; padding:30px; font-weight:bold; color:var(--text-muted);">KOSONG</div>';
+            
+            document.getElementById('product-list').innerHTML = '<div class="skeleton-box"></div><div class="skeleton-box"></div><div class="skeleton-box"></div>';
+            setTimeout(() => {
+                document.getElementById('product-list').innerHTML = listHTML || '<div style="text-align:center; padding:30px; font-weight:bold; color:var(--text-muted);">KOSONG</div>';
+            }, 600);
             showScreen('produk-screen', 'nav-home');
         }
         function loadProducts(cat, brand, subCat = null) { pushState({screen: 'produk-screen', cat: cat, brand: brand, subcat: subCat}); loadProductsInternal(cat, brand, subCat); }
@@ -2795,7 +2837,7 @@ EOF
                                     </div>
                                 </div>
                                 <div>
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--nav-active)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                                 </div>
                             </div>`;
                         }
@@ -3469,6 +3511,27 @@ app.get('/api/stats', (req, res) => {
 });
 
 app.get('/api/produk', (req, res) => { res.json(getAllRecords('produk')); });
+
+app.get('/api/leaderboard', (req, res) => {
+    try {
+        let users = getAllRecords('users');
+        let leaderboard = [];
+        for (let id in users) {
+            let u = users[id];
+            let trx = u.trx_count || 0;
+            if (trx > 0) {
+                let nameStr = u.username || id;
+                let maskedName = nameStr.length > 5 ? nameStr.substring(0, 4) + '***' + nameStr.substring(nameStr.length - 2) : nameStr.substring(0, 2) + '***';
+                leaderboard.push({ name: maskedName, trx: trx });
+            }
+        }
+        leaderboard.sort((a, b) => b.trx - a.trx);
+        res.json({ success: true, data: leaderboard.slice(0, 5) }); 
+    } catch(e) { 
+        res.json({ success: false, data: [] }); 
+    }
+});
+
 app.get('/api/notif', (req, res) => { res.json(getAllRecordsArray('web_notif')); });
 app.get('/api/global-trx', (req, res) => { res.json(getAllRecordsArray('global_trx')); });
 app.get('/api/custom-layout', (req, res) => { res.json({success: true, data: getRecord('custom_layout', 'main') || {sections:[]}}); }); 
@@ -4832,6 +4895,7 @@ install_dependencies() {
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     read -p "Tekan Enter untuk kembali..."
 }
+
 menu_tutorial() {
     while true; do
         clear
@@ -5393,7 +5457,7 @@ menu_backup() {
         esac
     done
 }
-
+# === SELESAI ===
 menu_manajemen_produk_instan() {
     while true; do
         clear
