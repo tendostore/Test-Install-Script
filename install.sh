@@ -101,7 +101,7 @@ EOF
     <style>
         /* VARIABEL TEMA GELAP / TERANG & SHADOWS (NEUMORPHISM) */
         :root {
-            --bg-main: #e2e8f0; 
+            --bg-main: #f1f5f9; 
             --bg-card: #ffffff; 
             --text-main: #0f172a;
             --text-muted: #64748b;
@@ -114,8 +114,8 @@ EOF
             --toast-bg: rgba(15, 23, 42, 0.85);
             --toast-text: #f8fafc;
             
-            --shadow-outer: 6px 6px 12px #c8d0e0, -6px -6px 12px #ffffff;
-            --shadow-inner: inset 4px 4px 8px #c8d0e0, inset -4px -4px 8px #ffffff;
+            --shadow-outer: 0 4px 20px rgba(0, 0, 0, 0.05);
+            --shadow-inner: inset 0 2px 10px rgba(0, 0, 0, 0.05);
         }
 
         .dark-mode {
@@ -388,14 +388,14 @@ EOF
         .hist-top { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 8px; font-weight: 700;}
         .hist-title { font-weight: 800; font-size: 14px; margin-bottom: 4px;}
         .hist-target { font-size: 12px; font-weight: 600; color: var(--text-muted);}
-        .stat-badge { padding: 4px 10px; border-radius: 8px; font-weight: bold; font-size: 10px; box-shadow: var(--shadow-outer);}
-        .stat-Sukses { background: var(--bg-main); color: #166534; } 
-        .stat-Pending { background: var(--bg-main); color: #854d0e; } 
-        .stat-Gagal { background: var(--bg-main); color: #b91c1c; text-decoration: line-through; }
-        .stat-Refund { background: var(--bg-main); color: #4338ca; }
+        .stat-badge { padding: 4px 10px; border-radius: 8px; font-weight: bold; font-size: 10px; box-shadow: none;}
+        .stat-Sukses { background: #dcfce7; color: #059669; } 
+        .stat-Pending { background: #fef3c7; color: #d97706; } 
+        .stat-Gagal { background: #fee2e2; color: #dc2626; text-decoration: line-through; }
+        .stat-Refund { background: #e0e7ff; color: #4f46e5; }
 
         .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15, 23, 42, 0.85); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
-        .modal-box { background: var(--bg-card); color: var(--text-main); width: 100%; max-width: 360px; border-radius: 24px; padding: 25px; text-align: center; box-shadow: var(--shadow-outer); max-height: 90vh; overflow-y: auto;}
+        .modal-box { background: var(--bg-card); color: var(--text-main); width: 100%; max-width: 360px; border-radius: 24px; padding: 25px; text-align: center; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2); max-height: 90vh; overflow-y: auto;}
         .modal-btns { display: flex; gap: 15px; margin-top: 20px;}
         
         .screen-header { padding: 15px 20px; font-weight: 800; font-size: 18px; display: flex; align-items: center; gap: 15px; background: var(--bg-card); color: var(--text-main); border-bottom: none; box-shadow: var(--shadow-outer); position: sticky; top:0; z-index: 10; transition: background 0.3s;}
@@ -4764,17 +4764,20 @@ async function tarikDataLayananOtomatis() {
         
         const balasanPrepaid = await axios.post('https://api.digiflazz.com/v1/price-list', {
             cmd: 'prepaid', username: namaPengguna, sign: tandaPengenal
-        }).catch(() => ({data: {data: []}}));
+        });
         
         const balasanPasca = await axios.post('https://api.digiflazz.com/v1/price-list', {
             cmd: 'pasca', username: namaPengguna, sign: tandaPengenal
-        }).catch(() => ({data: {data: []}}));
+        });
 
         let daftarPusat = [];
         if (balasanPrepaid.data && balasanPrepaid.data.data) daftarPusat = daftarPusat.concat(balasanPrepaid.data.data);
         if (balasanPasca.data && balasanPasca.data.data) daftarPusat = daftarPusat.concat(balasanPasca.data.data);
 
-        if (daftarPusat.length === 0) { console.log("\x1b[31m❌ Sinkronisasi Gagal. Cek IP Whitelist atau API Key Digiflazz Anda.\x1b[0m"); return; }
+        if (daftarPusat.length < 500) { 
+            console.log('Data dari pusat tidak valid/kosong, sinkronisasi dibatalkan.');
+            return; 
+        }
         
         let produkLama = getAllRecords('produk');
         let daftarLokal = {};
@@ -4868,7 +4871,7 @@ app.get('/api/sync-digiflazz', async (req, res) => {
     res.json({success: true, message: 'Sinkronisasi Selesai.'});
 });
 
-setInterval(tarikDataLayananOtomatis, 10 * 60 * 1000);
+setInterval(tarikDataLayananOtomatis, 30 * 60 * 1000);
 setTimeout(tarikDataLayananOtomatis, 10000);
 
 if (require.main === module) {
