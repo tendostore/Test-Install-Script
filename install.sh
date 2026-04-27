@@ -226,10 +226,11 @@ EOF
         }
         
         /* Neumorphism Active States */
-        .sc-icon:active, .grid-icon-wrap:active, .b-logo:active, .prod-logo:active, .prof-avatar:active, .sidebar-avatar:active, .floating-wa:active, .grid-box:active { 
+        .sc-icon:active, .grid-icon-wrap:active, .b-logo:active, .prod-logo:active, .prof-avatar:active, .sidebar-avatar:active { 
             box-shadow: var(--shadow-inner) !important; 
             transform: scale(0.95); 
         }
+        .grid-box:active { box-shadow: var(--shadow-inner) !important; transform: scale(0.95); }
 
         .ic-pulsa { color: #0ea5e9; }
         .ic-data { color: #10b981; }
@@ -3655,6 +3656,7 @@ app.post('/api/cancel-topup', (req, res) => {
         res.json({success: false, message: 'Topup tidak ditemukan atau sudah diproses.'});
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
+
 app.post('/api/login', (req, res) => {
         try {
             let { id, password } = req.body;
@@ -4770,14 +4772,15 @@ async function tarikDataLayananOtomatis() {
             cmd: 'pasca', username: namaPengguna, sign: tandaPengenal
         });
 
-        let daftarPusat = [];
-        if (balasanPrepaid.data && balasanPrepaid.data.data) daftarPusat = daftarPusat.concat(balasanPrepaid.data.data);
-        if (balasanPasca.data && balasanPasca.data.data) daftarPusat = daftarPusat.concat(balasanPasca.data.data);
+        let dataPrepaid = balasanPrepaid.data.data || [];
+        let dataPasca = balasanPasca.data.data || [];
 
-        if (daftarPusat.length < 500) { 
-            console.log('Data dari pusat tidak valid/kosong, sinkronisasi dibatalkan.');
-            return; 
+        if (dataPrepaid.length < 500 || dataPasca.length < 10) {
+            console.log('Data Prabayar/Pascabayar tidak valid. Auto-sync dibatalkan.');
+            return;
         }
+
+        let daftarPusat = dataPrepaid.concat(dataPasca);
         
         let produkLama = getAllRecords('produk');
         let daftarLokal = {};
