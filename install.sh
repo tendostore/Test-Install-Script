@@ -119,24 +119,26 @@ EOF
         }
 
         .dark-mode {
-            --bg-main: #0f172a;
-            --bg-card: #0f172a;
+            --bg-main: #1a202c;
+            --bg-card: #1a202c;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --border-color: transparent;
-            --grid-bg: #0f172a;
-            --nav-bg: #0f172a;
+            --grid-bg: #1a202c;
+            --nav-bg: #1a202c;
             --nav-text: #64748b;
             --nav-active: #38bdf8;
-            --topbar-bg: #0f172a;
+            --topbar-bg: #1a202c;
             --toast-bg: rgba(15, 23, 42, 0.85);
             --toast-text: #f8fafc;
 
-            --shadow-outer: 6px 6px 12px #080d17, -6px -6px 12px #16213d;
-            --shadow-inner: inset 4px 4px 8px #080d17, inset -4px -4px 8px #16213d;
+            --shadow-outer: 6px 6px 12px #0d121a, -6px -6px 12px #273042;
+            --shadow-inner: inset 4px 4px 8px #0d121a, inset -4px -4px 8px #273042;
         }
 
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #0f172a; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #e9eef5; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
+        .dark-mode body { background-color: #0a111f; }
+        
         #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 140px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
         
         .top-bar { background: var(--topbar-bg); color: var(--text-main); padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: background 0.3s;}
@@ -462,8 +464,8 @@ EOF
             right: 20px;
             width: 55px;
             height: 55px;
-            background-color: var(--bg-card);
-            color: #25D366;
+            background-color: #25D366;
+            color: #ffffff;
             border-radius: 50px;
             display: flex;
             justify-content: center;
@@ -472,8 +474,15 @@ EOF
             box-shadow: var(--shadow-outer);
             z-index: 950;
             transition: transform 0.2s, box-shadow 0.2s;
+            animation: pulse-wa 2s infinite;
         }
         .floating-wa:active { transform: scale(0.95); box-shadow: var(--shadow-inner) !important; }
+        
+        @keyframes pulse-wa {
+            0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(37, 211, 102, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+        }
 
         .vpn-server-list { display: flex; flex-direction: column; gap: 15px; text-align: left; margin-top: 15px; }
         .vpn-server-item { background: var(--bg-card); padding: 15px; border-radius: 14px; border: none; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: var(--shadow-outer);}
@@ -483,7 +492,8 @@ EOF
         .vpn-server-price { font-size: 13px; color: var(--nav-active); font-weight: 800; margin-top: 5px;}
 
         @media screen and (min-width: 768px) {
-            body { padding: 30px 0; background-color: #0f172a; }
+            body { padding: 30px 0; background-color: #e9eef5; }
+            .dark-mode body { background-color: #0a111f; }
             #app { max-width: 800px; border-radius: 36px; min-height: calc(100vh - 60px); box-shadow: 0 25px 60px rgba(0,0,0,0.15); padding-bottom: 130px; }
             .top-bar { border-top-left-radius: 36px; border-top-right-radius: 36px; padding: 20px 30px; }
             .banner-container { padding: 10px 30px 30px; }
@@ -673,7 +683,7 @@ EOF
 
             <div id="custom-layout-container"></div>
 
-            <div class="grid-title">Layanan Produk PPOB</div>
+            <div class="grid-title">Daftar Produk Prabayar</div>
             <div class="grid-container">
                 <div class="grid-box" onclick="loadCategory('Pulsa')">
                     <div class="grid-icon-wrap ic-pulsa">
@@ -757,7 +767,59 @@ EOF
                 </div>
             </div>
 
-            <div class="grid-title">Layanan Produk VPN Premium</div>
+            <div class="grid-title">Daftar Produk Pascabayar</div>
+            <div class="grid-container">
+                <div class="grid-box" onclick="loadCategory('PLN Pasca')">
+                    <div class="grid-icon-wrap" style="color: #f59e0b;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                    </div>
+                    <div class="grid-text">PLN</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('PDAM')">
+                    <div class="grid-icon-wrap" style="color: #0ea5e9;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+                            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="grid-text">PDAM</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('Internet & TV')">
+                    <div class="grid-icon-wrap" style="color: #8b5cf6;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+                            <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline>
+                        </svg>
+                    </div>
+                    <div class="grid-text">INTERNET</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('BPJS')">
+                    <div class="grid-icon-wrap" style="color: #10b981;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                        </svg>
+                    </div>
+                    <div class="grid-text">BPJS</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('Gas Negara')">
+                    <div class="grid-icon-wrap" style="color: #f97316;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+                            <path d="M17.5 19c2.5 0 4.5-2 4.5-4.5a4.5 4.5 0 0 0-4-4.47V6a2 2 0 0 0-2-2h-3a2 2 0 0 0-2 2v4.03a4.5 4.5 0 0 0-4 4.47C7 17 9 19 11.5 19h6z"></path>
+                        </svg>
+                    </div>
+                    <div class="grid-text">GAS</div>
+                </div>
+                <div class="grid-box" onclick="loadCategory('E-Money Pasca')">
+                    <div class="grid-icon-wrap" style="color: #ec4899;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line>
+                        </svg>
+                    </div>
+                    <div class="grid-text">E-MONEY</div>
+                </div>
+            </div>
+
+            <div class="grid-title">Produk VPN Premium</div>
             <div class="grid-container" id="vpn-grid-container">
                 <div style="text-align:center; grid-column: 1 / -1; font-size:12px; color:var(--text-muted);">Memuat protokol VPN...</div>
             </div>
@@ -1319,7 +1381,7 @@ EOF
 
         function filterGlobalDashboard() {
             let input = document.getElementById('global-search-db').value.toLowerCase();
-            let boxes = document.querySelectorAll('.grid-box, .brand-row');
+            let boxes = document.querySelectorAll('.grid-box, #custom-layout-container .brand-row');
             boxes.forEach(box => {
                 let text = box.innerText.toLowerCase();
                 if (text.includes(input)) box.style.display = 'flex';
@@ -3973,7 +4035,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
     let saldoSebelum = parseInt(u.saldo);
     if (mode === 'reguler') {
         let basePrice = parseInt(prod.price) || 0;
-        let hari = parseInt(expiredDays);
+        let hari = parseInt(expiredDays) || 30;
         if (hari > 30) hari = 30;
         if (hari < 1) hari = 1;
         hargaFix = Math.ceil((basePrice / 30) * hari);
@@ -3995,7 +4057,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
         if(protoLower === 'ssh') endpoint = `http://${cleanHost}/vps/trialsshvpn`;
         else endpoint = `http://${cleanHost}/vps/trial${protoLower}all`;
     } else {
-        payload = { username: vpnUsername, expired: parseInt(expiredDays), limitip: vpnLimitIp, kuota: vpnKuota };
+        payload = { username: vpnUsername, expired: parseInt(expiredDays) || 30, limitip: vpnLimitIp, kuota: vpnKuota };
         if(protoLower === 'ssh' || protoLower === 'zivpn') payload.password = vpnPassword;
         else payload.uuidv2 = '';
         
@@ -4021,7 +4083,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
         if(isSuccessResponse && !isErrorResponse) {
             let apiData = resApi.data.data || resApi.data || {};
             let domain = srv.host;
-            let expDate = apiData.expired || apiData.exp || apiData.to || (mode === 'trial' ? '30 Menit' : `${expiredDays} Hari`);
+            let expDate = apiData.expired || apiData.exp || apiData.to || (mode === 'trial' ? '30 Menit' : `${parseInt(expiredDays) || 30} Hari`);
             let vpnDetails = '';
             
             let fixCity = srv.city || apiData.city || '-';
@@ -4141,7 +4203,7 @@ app.post('/api/order-vpn-qris', async (req, res) => {
         if(mode === 'reguler' && parseInt(prod.stok) <= 0) return res.json({success: false, message: 'Stok habis.'});
 
         let basePrice = parseInt(prod.price) || 0;
-        let hari = parseInt(expired);
+        let hari = parseInt(expired) || 30;
         if(hari > 30) hari = 30; if(hari < 1) hari = 1;
         let nominalAsli = Math.ceil((basePrice / 30) * hari);
         
@@ -4209,7 +4271,7 @@ app.post('/api/manual-vpn', async (req, res) => {
             if(protoLower === 'ssh') endpoint_url = `http://${cleanHost}/vps/trialsshvpn`;
             else endpoint_url = `http://${cleanHost}/vps/trial${protoLower}all`;
         } else {
-            payload = { username: username, expired: parseInt(expired), limitip: limitip_all, kuota: kuota_reguler };
+            payload = { username: username, expired: parseInt(expired) || 30, limitip: limitip_all, kuota: kuota_reguler };
             if(protoLower === 'ssh' || protoLower === 'zivpn') payload.password = password;
             else payload.uuidv2 = '';
 
@@ -4241,6 +4303,19 @@ app.post('/api/manual-vpn', async (req, res) => {
 });
 
 async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
+    let uCheck = getRecord('users', phone);
+    let hargaFix = parseInt(vpnData.harga_asli);
+    let saldoSebelum = parseInt(uCheck.saldo);
+    
+    if (saldoSebelum < hargaFix) {
+        let hist = uCheck.history.find(h => h.sn === refIdAsal);
+        if(hist) hist.status = 'Gagal (Saldo Tidak Cukup)';
+        saveRecord('users', phone, uCheck);
+        return;
+    }
+    uCheck.saldo = saldoSebelum - hargaFix;
+    saveRecord('users', phone, uCheck);
+
     let result = await executeVpnOrder(phone, vpnData.protocol, vpnData.product_id, vpnData.mode, vpnData.username, vpnData.password, vpnData.expired, refIdAsal, 'QRIS');
     let u = getRecord('users', phone);
     
@@ -4249,11 +4324,11 @@ async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
 
     if(!result.success) {
         let saldoSblm = parseInt(u.saldo);
-        u.saldo = saldoSblm + parseInt(vpnData.harga_asli);
+        u.saldo = saldoSblm + hargaFix;
         hist.status = 'Refund';
         hist.nama = 'Refund: ' + vpnData.nama_produk;
         hist.type = 'Refund';
-        hist.amount = vpnData.harga_asli;
+        hist.amount = hargaFix;
         hist.saldo_sebelumnya = saldoSblm;
         hist.saldo_sesudah = u.saldo;
         saveRecord('users', phone, u);
@@ -4261,7 +4336,7 @@ async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
         let failMsg = result.message || "GAGAL VPS";
         let emailUser = u.email || '-';
         let namaUser = u.username || phone;
-        let teleMsg = `⚠️ <b>INFO ORDER VPN QRIS: GAGAL VPS</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Alasan: ${failMsg}\n💰 Saldo Rp ${vpnData.harga_asli.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
+        let teleMsg = `⚠️ <b>INFO ORDER VPN QRIS: GAGAL VPS</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Alasan: ${failMsg}\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
         sendTelegramAdmin(teleMsg);
     }
 }
@@ -4279,7 +4354,14 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         let emailUser = u.email || '-';
         let namaUser = u.username || phone;
         
-        if (saldoSebelum < hargaFix) return; 
+        if (saldoSebelum < hargaFix) {
+            let hist = u.history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
+            if(hist) {
+                hist.status = 'Gagal (Saldo Tidak Cukup)';
+                saveRecord('users', phone, u);
+            }
+            return;
+        } 
         
         // Sync Deduction
         u.saldo = saldoSebelum - hargaFix; 
@@ -4666,13 +4748,6 @@ async function startBot() {
                 u = { saldo: 0, tanggal_daftar: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }), jid: senderJid, step: 'idle', trx_count:0, history:[]}; 
                 saveRecord('users', sender, u); 
             }
-            let rawCommand = body.trim().toLowerCase().split(' ')[0];
-            let cfg = getRecord('config', 'main') || {};
-            if (['bot', 'menu', 'p'].includes(rawCommand)) {
-                let menuText = `👋 *${cfg.botName || "Digital Tendo Store"}*\n\nSilakan belanja lebih mudah di Aplikasi:\n🌐 http://${process.env.IP_ADDRESS || 'IP_VPS_ANDA'}:3000\n\n_(Atau balas 1 untuk Cek Saldo)_`;
-                return await sock.sendMessage(from, { text: menuText });
-            }
-            if (['1', 'saldo'].includes(rawCommand)) return await sock.sendMessage(from, { text: `💰 Saldo Anda: *Rp ${u.saldo.toLocaleString('id-ID')}*` });
         } catch (err) {}
     });
 }
@@ -4686,88 +4761,101 @@ async function tarikDataLayananOtomatis() {
 
         let tandaPengenal = crypto.createHash('md5').update(namaPengguna + kunciAkses + 'pricelist').digest('hex');
         
-        const balasan = await axios.post('https://api.digiflazz.com/v1/price-list', {
-            cmd: 'prepaid',
-            username: namaPengguna,
-            sign: tandaPengenal
+        const balasanPrepaid = await axios.post('https://api.digiflazz.com/v1/price-list', {
+            cmd: 'prepaid', username: namaPengguna, sign: tandaPengenal
+        }).catch(() => ({data: {data: []}}));
+        
+        const balasanPasca = await axios.post('https://api.digiflazz.com/v1/price-list', {
+            cmd: 'pasca', username: namaPengguna, sign: tandaPengenal
+        }).catch(() => ({data: {data: []}}));
+
+        let daftarPusat = [];
+        if (balasanPrepaid.data && balasanPrepaid.data.data) daftarPusat = daftarPusat.concat(balasanPrepaid.data.data);
+        if (balasanPasca.data && balasanPasca.data.data) daftarPusat = daftarPusat.concat(balasanPasca.data.data);
+
+        if (daftarPusat.length === 0) { console.log("\x1b[31m❌ Sinkronisasi Gagal. Cek IP Whitelist atau API Key Digiflazz Anda.\x1b[0m"); return; }
+        
+        let produkLama = getAllRecords('produk');
+        let daftarLokal = {};
+        let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
+        
+        Object.keys(produkLama).forEach(k => {
+            if(produkLama[k].is_manual_cat) daftarLokal[k] = produkLama[k];
+        });
+        
+        daftarPusat.forEach(item => {
+            let kodeBarang = item.buyer_sku_code;
+            let namaBarang = item.product_name;
+            let hargaModal = item.price || item.admin || 0;
+            
+            let statusProduk = (item.buyer_product_status === true && item.seller_product_status === true);
+            let catDigi = (item.category || '').trim();
+            let catLower = catDigi.toLowerCase();
+            let brandLower = (item.brand || '').toLowerCase();
+            let kategoriBarang = 'Lainnya';
+            
+            // PRABAYAR
+            if (catLower === 'pulsa') kategoriBarang = 'Pulsa';
+            else if (catLower === 'data') kategoriBarang = 'Data';
+            else if (catLower === 'e-money') kategoriBarang = 'E-Money';
+            else if (catLower === 'games') kategoriBarang = 'Game';
+            else if (catLower === 'pln') kategoriBarang = 'PLN';
+            else if (catLower === 'voucher') kategoriBarang = 'Voucher';
+            else if (catLower === 'paket sms & telpon') kategoriBarang = 'Paket SMS & Telpon';
+            else if (catLower === 'masa aktif') kategoriBarang = 'Masa Aktif';
+            else if (catLower === 'aktivasi perdana' || catLower === 'perdana') kategoriBarang = 'Aktivasi Perdana';
+            // PASCABAYAR MAPPING
+            else if (catLower === 'pln pasca' || catLower.includes('pln pasca')) kategoriBarang = 'PLN Pasca';
+            else if (catLower.includes('pdam') || brandLower.includes('pdam')) kategoriBarang = 'PDAM';
+            else if (catLower.includes('internet') || catLower.includes('tv') || catLower.includes('telkom')) kategoriBarang = 'Internet & TV';
+            else if (catLower.includes('bpjs') || brandLower.includes('bpjs')) kategoriBarang = 'BPJS';
+            else if (catLower.includes('gas') || brandLower.includes('pgn')) kategoriBarang = 'Gas Negara';
+            else if (catLower.includes('finance') || catLower.includes('e-money pasca') || catLower.includes('kredit')) kategoriBarang = 'E-Money Pasca';
+            else kategoriBarang = catDigi;
+            
+            let keuntungan = 0;
+            if(hargaModal <= 100) keuntungan = m.t1;
+            else if(hargaModal <= 500) keuntungan = m.t2;
+            else if(hargaModal <= 1000) keuntungan = m.t3;
+            else if(hargaModal <= 2000) keuntungan = m.t4;
+            else if(hargaModal <= 3000) keuntungan = m.t5;
+            else if(hargaModal <= 4000) keuntungan = m.t6;
+            else if(hargaModal <= 5000) keuntungan = m.t7;
+            else if(hargaModal <= 10000) keuntungan = m.t8;
+            else if(hargaModal <= 25000) keuntungan = m.t9;
+            else if(hargaModal <= 50000) keuntungan = m.t10;
+            else if(hargaModal <= 75000) keuntungan = m.t11;
+            else if(hargaModal <= 100000) keuntungan = m.t12;
+            else keuntungan = m.t13;
+
+            let finalPrice = hargaModal + keuntungan;
+
+            for (let k in daftarLokal) {
+                if (daftarLokal[k].is_manual_cat && String(daftarLokal[k].sku_asli).toUpperCase() === String(kodeBarang).toUpperCase()) {
+                    daftarLokal[k].harga = finalPrice;
+                }
+            }
+
+            if (!produkLama[kodeBarang] || !produkLama[kodeBarang].is_manual_cat) {
+                daftarLokal[kodeBarang] = {
+                    sku_asli: kodeBarang,
+                    nama: namaBarang,
+                    harga: finalPrice,
+                    kategori: kategoriBarang,
+                    brand: item.brand || 'Lainnya',
+                    sub_kategori: item.type || 'Umum',
+                    deskripsi: item.desc || 'Proses Otomatis',
+                    status_produk: statusProduk,
+                    is_manual_cat: false
+                };
+            }
         });
 
-        if (balasan.data && balasan.data.data) {
-            let daftarPusat = balasan.data.data;
-            if (!Array.isArray(daftarPusat)) { console.log("\x1b[31m❌ Sinkronisasi Gagal. Cek IP Whitelist atau API Key Digiflazz Anda.\x1b[0m"); return; }
-            
-            let produkLama = getAllRecords('produk');
-            let daftarLokal = {};
-            let m = config.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
-            
-            Object.keys(produkLama).forEach(k => {
-                if(produkLama[k].is_manual_cat) daftarLokal[k] = produkLama[k];
-            });
-            
-            daftarPusat.forEach(item => {
-                let kodeBarang = item.buyer_sku_code;
-                let namaBarang = item.product_name;
-                let hargaModal = item.price;
-                
-                let statusProduk = (item.buyer_product_status === true && item.seller_product_status === true);
-                let catDigi = (item.category || '').trim();
-                let catLower = catDigi.toLowerCase();
-                let kategoriBarang = 'Lainnya';
-                
-                if (catLower === 'pulsa') kategoriBarang = 'Pulsa';
-                else if (catLower === 'data') kategoriBarang = 'Data';
-                else if (catLower === 'e-money') kategoriBarang = 'E-Money';
-                else if (catLower === 'games') kategoriBarang = 'Game';
-                else if (catLower === 'pln') kategoriBarang = 'PLN';
-                else if (catLower === 'voucher') kategoriBarang = 'Voucher';
-                else if (catLower === 'paket sms & telpon') kategoriBarang = 'Paket SMS & Telpon';
-                else if (catLower === 'masa aktif') kategoriBarang = 'Masa Aktif';
-                else if (catLower === 'aktivasi perdana' || catLower === 'perdana') kategoriBarang = 'Aktivasi Perdana';
-                else kategoriBarang = catDigi; 
-                
-                let keuntungan = 0;
-                if(hargaModal <= 100) keuntungan = m.t1;
-                else if(hargaModal <= 500) keuntungan = m.t2;
-                else if(hargaModal <= 1000) keuntungan = m.t3;
-                else if(hargaModal <= 2000) keuntungan = m.t4;
-                else if(hargaModal <= 3000) keuntungan = m.t5;
-                else if(hargaModal <= 4000) keuntungan = m.t6;
-                else if(hargaModal <= 5000) keuntungan = m.t7;
-                else if(hargaModal <= 10000) keuntungan = m.t8;
-                else if(hargaModal <= 25000) keuntungan = m.t9;
-                else if(hargaModal <= 50000) keuntungan = m.t10;
-                else if(hargaModal <= 75000) keuntungan = m.t11;
-                else if(hargaModal <= 100000) keuntungan = m.t12;
-                else keuntungan = m.t13;
+        dbSqlite.prepare("DELETE FROM produk").run();
+        for(let k in daftarLokal) saveRecord('produk', k, daftarLokal[k]);
 
-                let finalPrice = hargaModal + keuntungan;
+        console.log('\x1b[32m✅ Data Produk Digiflazz Berhasil Tersinkronisasi ke SQLite!\x1b[0m');
 
-                for (let k in daftarLokal) {
-                    if (daftarLokal[k].is_manual_cat && String(daftarLokal[k].sku_asli).toUpperCase() === String(kodeBarang).toUpperCase()) {
-                        daftarLokal[k].harga = finalPrice;
-                    }
-                }
-
-                if (!produkLama[kodeBarang] || !produkLama[kodeBarang].is_manual_cat) {
-                    daftarLokal[kodeBarang] = {
-                        sku_asli: kodeBarang,
-                        nama: namaBarang,
-                        harga: finalPrice,
-                        kategori: kategoriBarang,
-                        brand: item.brand || 'Lainnya',
-                        sub_kategori: item.type || 'Umum',
-                        deskripsi: item.desc || 'Proses Otomatis',
-                        status_produk: statusProduk,
-                        is_manual_cat: false
-                    };
-                }
-            });
-
-            dbSqlite.prepare("DELETE FROM produk").run();
-            for(let k in daftarLokal) saveRecord('produk', k, daftarLokal[k]);
-
-            console.log('\x1b[32m✅ Data Produk Digiflazz Berhasil Tersinkronisasi ke SQLite!\x1b[0m');
-        }
     } catch(err) {
         let errorMsg = err.response && err.response.data && err.response.data.data ? err.response.data.data.message : err.message;
         console.log('\x1b[31m❌ Gagal Sinkronisasi Digiflazz.\x1b[0m Alasan:', errorMsg); 
