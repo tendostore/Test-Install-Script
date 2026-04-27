@@ -101,16 +101,16 @@ EOF
     <style>
         /* VARIABEL TEMA GELAP / TERANG & SHADOWS (NEUMORPHISM) */
         :root {
-            --bg-main: #e9eef5; 
-            --bg-card: #e9eef5; 
+            --bg-main: #e2e8f0; 
+            --bg-card: #ffffff; 
             --text-main: #0f172a;
             --text-muted: #64748b;
             --border-color: transparent;
-            --grid-bg: #e9eef5;
-            --nav-bg: #e9eef5;
+            --grid-bg: #ffffff;
+            --nav-bg: #e2e8f0;
             --nav-text: #94a3b8;
             --nav-active: #0ea5e9;
-            --topbar-bg: #e9eef5;
+            --topbar-bg: #e2e8f0;
             --toast-bg: rgba(15, 23, 42, 0.85);
             --toast-text: #f8fafc;
             
@@ -136,7 +136,7 @@ EOF
             --shadow-inner: inset 4px 4px 8px #0d121a, inset -4px -4px 8px #273042;
         }
 
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #cbd5e1; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-main); color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
         .dark-mode body { background-color: #020617; }
         
         #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 140px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
@@ -314,7 +314,7 @@ EOF
         .status-btn { flex: 1; background: var(--bg-card); color: var(--text-main); border: none; padding: 8px 0; border-radius: 20px; font-size: 11.5px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-outer); text-align: center; white-space: nowrap;}
         .status-btn.active { box-shadow: var(--shadow-inner); color: var(--nav-active); }
 
-        .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.8); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); z-index: 1001; display: none; opacity: 0; transition: opacity 0.3s;}
+        .sidebar-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.85); z-index: 1001; display: none; opacity: 0; transition: opacity 0.3s;}
         .sidebar { position: fixed; top:0; left:-300px; width: 280px; height: 100vh; background: var(--bg-main); z-index: 1002; transition: left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 5px 0 25px rgba(0,0,0,0.1);}
         .sidebar.open { left: 0; }
         .sidebar-header { padding: 40px 20px 30px; text-align: center; background: var(--bg-card); color: var(--text-main); box-shadow: var(--shadow-outer); border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;}
@@ -343,7 +343,9 @@ EOF
         .btn-outline:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
         .btn-danger { background: var(--bg-card); color: #ef4444; border: none; padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 800; cursor: pointer; margin-top: 10px; box-shadow: var(--shadow-outer); transition: transform 0.1s, box-shadow 0.2s;}
         .btn-danger:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
-        .pay-btn.active, .pay-btn-vpn.active { box-shadow: var(--shadow-inner) !important; color: var(--nav-active) !important; transform: scale(0.98); }
+        
+        .btn-saldo.active { box-shadow: var(--shadow-inner) !important; color: var(--nav-active) !important; transform: scale(0.98); }
+        .btn-qris.active { box-shadow: var(--shadow-inner) !important; color: #f59e0b !important; transform: scale(0.98); }
 
         .prof-header { background: var(--bg-card); color: var(--text-main); padding: 30px 20px; text-align: center; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; box-shadow: var(--shadow-outer);}
         
@@ -392,7 +394,7 @@ EOF
         .stat-Gagal { background: var(--bg-main); color: #b91c1c; text-decoration: line-through; }
         .stat-Refund { background: var(--bg-main); color: #4338ca; }
 
-        .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15,23,42,0.7); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
+        .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15, 23, 42, 0.85); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px;}
         .modal-box { background: var(--bg-card); color: var(--text-main); width: 100%; max-width: 360px; border-radius: 24px; padding: 25px; text-align: center; box-shadow: var(--shadow-outer); max-height: 90vh; overflow-y: auto;}
         .modal-btns { display: flex; gap: 15px; margin-top: 20px;}
         
@@ -405,9 +407,7 @@ EOF
             top: -100px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(15, 23, 42, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            background: rgba(15, 23, 42, 0.85);
             color: #f8fafc;
             padding: 14px 28px;
             border-radius: 50px;
@@ -442,9 +442,7 @@ EOF
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(15, 23, 42, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            background: rgba(15, 23, 42, 0.85);
             color: #ffffff;
             padding: 10px 22px;
             border-radius: 50px;
@@ -494,7 +492,7 @@ EOF
         .vpn-server-price { font-size: 13px; color: var(--nav-active); font-weight: 800; margin-top: 5px;}
 
         @media screen and (min-width: 768px) {
-            body { padding: 30px 0; background-color: #cbd5e1; }
+            body { padding: 30px 0; background-color: var(--bg-main); }
             .dark-mode body { background-color: #020617; }
             #app { max-width: 800px; border-radius: 36px; min-height: calc(100vh - 60px); box-shadow: 0 25px 60px rgba(0,0,0,0.15); padding-bottom: 130px; }
             .top-bar { border-top-left-radius: 36px; border-top-right-radius: 36px; padding: 20px 30px; }
@@ -1063,8 +1061,8 @@ EOF
                 <div style="margin-bottom:15px; text-align:left;">
                     <label style="font-size:12px; font-weight:800; color:var(--text-muted);">Metode Pembayaran:</label>
                     <div style="display:flex; gap:10px; margin-top:5px;">
-                        <button class="btn-outline pay-btn active" id="btn-pay-saldo" onclick="selectPayment('saldo')" style="margin:0; flex:1;">💳 Saldo Akun</button>
-                        <button class="btn-outline pay-btn" id="btn-pay-qris" onclick="selectPayment('qris')" style="margin:0; flex:1;">📲 QRIS Auto</button>
+                        <button class="btn-outline pay-btn btn-saldo active" id="btn-pay-saldo" onclick="selectPayment('saldo')" style="margin:0; flex:1;">💳 Saldo Akun</button>
+                        <button class="btn-outline pay-btn btn-qris" id="btn-pay-qris" onclick="selectPayment('qris')" style="margin:0; flex:1;">📲 QRIS Auto</button>
                     </div>
                     <input type="hidden" id="m-payment-method" value="saldo">
                 </div>
@@ -1108,8 +1106,8 @@ EOF
                 <div id="m-vpn-payment-wrap" style="margin-bottom:15px; text-align:left;">
                     <label style="font-size:12px; font-weight:800; color:var(--text-muted);">Metode Pembayaran:</label>
                     <div style="display:flex; gap:10px; margin-top:5px;">
-                        <button class="btn-outline pay-btn-vpn active" id="btn-pay-vpn-saldo" onclick="selectPaymentVpn('saldo')" style="margin:0; flex:1;">💳 Saldo Akun</button>
-                        <button class="btn-outline pay-btn-vpn" id="btn-pay-vpn-qris" onclick="selectPaymentVpn('qris')" style="margin:0; flex:1;">📲 QRIS Auto</button>
+                        <button class="btn-outline pay-btn-vpn btn-saldo active" id="btn-pay-vpn-saldo" onclick="selectPaymentVpn('saldo')" style="margin:0; flex:1;">💳 Saldo Akun</button>
+                        <button class="btn-outline pay-btn-vpn btn-qris" id="btn-pay-vpn-qris" onclick="selectPaymentVpn('qris')" style="margin:0; flex:1;">📲 QRIS Auto</button>
                     </div>
                     <input type="hidden" id="m-vpn-payment" value="saldo">
                 </div>
@@ -1451,6 +1449,7 @@ EOF
             setTimeout(() => { titleClicks = 0; }, 3000);
         }
 
+        // JS logic applies the .active class to specific styled buttons (.btn-saldo or .btn-qris)
         function selectPayment(method) {
             document.getElementById('m-payment-method').value = method;
             if(method === 'saldo') {
@@ -5826,7 +5825,7 @@ menu_notifikasi() {
         esac
     done
 }
-# === SELESAI ===
+
 submenu_server_vpn() {
     while true; do
         clear
@@ -6382,11 +6381,11 @@ while true; do
     echo -e "  ${C_GREEN}[15]${C_RST} 📢 Setup Integrasi Notifikasi (Tele/Web)"
     echo -e "  ${C_GREEN}[16]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
     echo -e "  ${C_GREEN}[17]${C_RST} 🔄 Ganti Akun WA Web OTP (Reset Sesi)"
-    echo -e "  ${C_GREEN}[20]${C_RST} 🛠️ Atur Waktu Pemeliharaan Sistem"
+    echo -e "  ${C_GREEN}[18]${C_RST} 🛠️ Atur Waktu Pemeliharaan Sistem"
     echo ""
     echo -e "${C_MAG}▶ 💾 BACKUP & RESTORE${C_RST}"
-    echo -e "  ${C_GREEN}[18]${C_RST} 💾 Backup & Restore Database"
-    echo -e "  ${C_GREEN}[19]${C_RST} ⚙️ Pengaturan Auto-Backup Telegram"
+    echo -e "  ${C_GREEN}[19]${C_RST} 💾 Backup & Restore Database"
+    echo -e "  ${C_GREEN}[20]${C_RST} ⚙️ Pengaturan Auto-Backup Telegram"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
     echo -e "${C_CYAN}======================================================${C_RST}"
@@ -6543,9 +6542,9 @@ EOF
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
-        18) menu_backup ;;
-        19) menu_telegram ;;
-        20) menu_pemeliharaan ;;
+        18) menu_pemeliharaan ;;
+        19) menu_backup ;;
+        20) menu_telegram ;;
         0) echo -e "${C_GREEN}Sampai jumpa!${C_RST}"; exit 0 ;;
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
