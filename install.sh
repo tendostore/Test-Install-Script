@@ -136,8 +136,8 @@ EOF
             --shadow-inner: inset 4px 4px 8px #0d121a, inset -4px -4px 8px #273042;
         }
 
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #e9eef5; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
-        .dark-mode body { background-color: #0a111f; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #cbd5e1; color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
+        .dark-mode body { background-color: #020617; }
         
         #app { width: 100%; max-width: 480px; background: var(--bg-main); min-height: 100vh; position: relative; overflow-x: hidden; padding-bottom: 140px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.1); transition: background 0.3s;}
         
@@ -331,6 +331,7 @@ EOF
         .card { background: var(--bg-card); padding: 25px 20px; border-radius: 20px; margin-bottom: 20px; border: none; box-shadow: var(--shadow-outer);}
         input, select { width: 100%; padding: 15px; margin-bottom: 12px; border: none; border-radius: 14px; box-sizing: border-box; font-size: 14px; outline: none; background: var(--bg-main); color: var(--text-main); font-weight: 600; transition: box-shadow 0.2s; box-shadow: var(--shadow-inner);}
         input:focus, select:focus { box-shadow: var(--shadow-outer);}
+        input::placeholder { color: #94a3b8; font-weight: 600; }
         
         .checkbox-container { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 20px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer;}
         .checkbox-container input { width: 16px; height: 16px; margin: 0; padding: 0; cursor: pointer;}
@@ -342,6 +343,7 @@ EOF
         .btn-outline:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
         .btn-danger { background: var(--bg-card); color: #ef4444; border: none; padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 800; cursor: pointer; margin-top: 10px; box-shadow: var(--shadow-outer); transition: transform 0.1s, box-shadow 0.2s;}
         .btn-danger:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
+        .pay-btn.active, .pay-btn-vpn.active { box-shadow: var(--shadow-inner) !important; color: var(--nav-active) !important; transform: scale(0.98); }
 
         .prof-header { background: var(--bg-card); color: var(--text-main); padding: 30px 20px; text-align: center; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; box-shadow: var(--shadow-outer);}
         
@@ -492,8 +494,8 @@ EOF
         .vpn-server-price { font-size: 13px; color: var(--nav-active); font-weight: 800; margin-top: 5px;}
 
         @media screen and (min-width: 768px) {
-            body { padding: 30px 0; background-color: #e9eef5; }
-            .dark-mode body { background-color: #0a111f; }
+            body { padding: 30px 0; background-color: #cbd5e1; }
+            .dark-mode body { background-color: #020617; }
             #app { max-width: 800px; border-radius: 36px; min-height: calc(100vh - 60px); box-shadow: 0 25px 60px rgba(0,0,0,0.15); padding-bottom: 130px; }
             .top-bar { border-top-left-radius: 36px; border-top-right-radius: 36px; padding: 20px 30px; }
             .banner-container { padding: 10px 30px 30px; }
@@ -1061,7 +1063,7 @@ EOF
                 <div style="margin-bottom:15px; text-align:left;">
                     <label style="font-size:12px; font-weight:800; color:var(--text-muted);">Metode Pembayaran:</label>
                     <div style="display:flex; gap:10px; margin-top:5px;">
-                        <button class="btn-outline pay-btn active" id="btn-pay-saldo" onclick="selectPayment('saldo')" style="margin:0; flex:1; color:var(--nav-active); box-shadow:var(--shadow-inner);">💳 Saldo Akun</button>
+                        <button class="btn-outline pay-btn active" id="btn-pay-saldo" onclick="selectPayment('saldo')" style="margin:0; flex:1;">💳 Saldo Akun</button>
                         <button class="btn-outline pay-btn" id="btn-pay-qris" onclick="selectPayment('qris')" style="margin:0; flex:1;">📲 QRIS Auto</button>
                     </div>
                     <input type="hidden" id="m-payment-method" value="saldo">
@@ -1106,7 +1108,7 @@ EOF
                 <div id="m-vpn-payment-wrap" style="margin-bottom:15px; text-align:left;">
                     <label style="font-size:12px; font-weight:800; color:var(--text-muted);">Metode Pembayaran:</label>
                     <div style="display:flex; gap:10px; margin-top:5px;">
-                        <button class="btn-outline pay-btn-vpn active" id="btn-pay-vpn-saldo" onclick="selectPaymentVpn('saldo')" style="margin:0; flex:1; color:var(--nav-active); box-shadow:var(--shadow-inner);">💳 Saldo Akun</button>
+                        <button class="btn-outline pay-btn-vpn active" id="btn-pay-vpn-saldo" onclick="selectPaymentVpn('saldo')" style="margin:0; flex:1;">💳 Saldo Akun</button>
                         <button class="btn-outline pay-btn-vpn" id="btn-pay-vpn-qris" onclick="selectPaymentVpn('qris')" style="margin:0; flex:1;">📲 QRIS Auto</button>
                     </div>
                     <input type="hidden" id="m-vpn-payment" value="saldo">
@@ -1452,22 +1454,22 @@ EOF
         function selectPayment(method) {
             document.getElementById('m-payment-method').value = method;
             if(method === 'saldo') {
-                document.getElementById('btn-pay-saldo').style = 'margin:0; flex:1; color:var(--nav-active); box-shadow:var(--shadow-inner);';
-                document.getElementById('btn-pay-qris').style = 'margin:0; flex:1; color:var(--text-main); box-shadow:var(--shadow-outer);';
+                document.getElementById('btn-pay-saldo').classList.add('active');
+                document.getElementById('btn-pay-qris').classList.remove('active');
             } else {
-                document.getElementById('btn-pay-qris').style = 'margin:0; flex:1; color:var(--nav-active); box-shadow:var(--shadow-inner);';
-                document.getElementById('btn-pay-saldo').style = 'margin:0; flex:1; color:var(--text-main); box-shadow:var(--shadow-outer);';
+                document.getElementById('btn-pay-qris').classList.add('active');
+                document.getElementById('btn-pay-saldo').classList.remove('active');
             }
         }
 
         function selectPaymentVpn(method) {
             document.getElementById('m-vpn-payment').value = method;
             if(method === 'saldo') {
-                document.getElementById('btn-pay-vpn-saldo').style = 'margin:0; flex:1; color:var(--nav-active); box-shadow:var(--shadow-inner);';
-                document.getElementById('btn-pay-vpn-qris').style = 'margin:0; flex:1; color:var(--text-main); box-shadow:var(--shadow-outer);';
+                document.getElementById('btn-pay-vpn-saldo').classList.add('active');
+                document.getElementById('btn-pay-vpn-qris').classList.remove('active');
             } else {
-                document.getElementById('btn-pay-vpn-qris').style = 'margin:0; flex:1; color:var(--nav-active); box-shadow:var(--shadow-inner);';
-                document.getElementById('btn-pay-vpn-saldo').style = 'margin:0; flex:1; color:var(--text-main); box-shadow:var(--shadow-outer);';
+                document.getElementById('btn-pay-vpn-qris').classList.add('active');
+                document.getElementById('btn-pay-vpn-saldo').classList.remove('active');
             }
         }
 
@@ -5545,7 +5547,7 @@ menu_backup() {
         esac
     done
 }
-# === SELESAI ===
+
 menu_manajemen_produk_instan() {
     while true; do
         clear
@@ -5824,7 +5826,7 @@ menu_notifikasi() {
         esac
     done
 }
-
+# === SELESAI ===
 submenu_server_vpn() {
     while true; do
         clear
