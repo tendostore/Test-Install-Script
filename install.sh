@@ -116,6 +116,9 @@ EOF
             
             --shadow-outer: 0 4px 20px rgba(0, 0, 0, 0.05);
             --shadow-inner: inset 0 2px 10px rgba(0, 0, 0, 0.05);
+            --shadow-icon: 4px 4px 10px #d1d5db, -4px -4px 10px #ffffff;
+            --shadow-icon-inner: inset 4px 4px 8px #d1d5db, inset -4px -4px 8px #ffffff;
+            --bg-icon: #f8fafc;
         }
 
         .dark-mode {
@@ -134,6 +137,9 @@ EOF
 
             --shadow-outer: 6px 6px 12px #0d121a, -6px -6px 12px #273042;
             --shadow-inner: inset 4px 4px 8px #0d121a, inset -4px -4px 8px #273042;
+            --shadow-icon: 5px 5px 12px #0d121a, -5px -5px 12px #273042;
+            --shadow-icon-inner: inset 4px 4px 8px #0d121a, inset -4px -4px 8px #273042;
+            --bg-icon: var(--bg-card);
         }
 
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-main); color: var(--text-main); margin: 0; display: flex; justify-content: center; transition: background-color 0.3s;}
@@ -178,9 +184,9 @@ EOF
         }
         .sc-left { display: flex; align-items: center; gap: 14px; }
         .sc-icon { 
-            width: 44px; height: 44px; background: var(--bg-card); 
+            width: 44px; height: 44px; background: var(--bg-icon); 
             border-radius: 50%; display: flex; justify-content: center; align-items: center; color: var(--nav-active);
-            box-shadow: var(--shadow-outer); transition: all 0.3s ease, transform 0.2s;
+            box-shadow: var(--shadow-icon); transition: all 0.3s ease, transform 0.2s;
         }
         .sc-info { display: flex; flex-direction: column; justify-content: center;}
         .sc-title { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;}
@@ -222,12 +228,12 @@ EOF
         
         .grid-icon-wrap { 
             width: 50px; height: 50px; margin-bottom: 12px; display: flex; justify-content: center; align-items: center; 
-            border-radius: 50%; box-shadow: var(--shadow-outer); transition: all 0.3s ease, transform 0.2s; background: var(--bg-card);
+            border-radius: 50%; box-shadow: var(--shadow-icon); transition: all 0.3s ease, transform 0.2s; background: var(--bg-icon);
         }
         
         /* Neumorphism Active States */
         .sc-icon:active, .grid-icon-wrap:active, .b-logo:active, .prod-logo:active, .prof-avatar:active, .sidebar-avatar:active { 
-            box-shadow: var(--shadow-inner) !important; 
+            box-shadow: var(--shadow-icon-inner) !important; 
             transform: scale(0.95); 
         }
         .grid-box:active { box-shadow: var(--shadow-inner) !important; transform: scale(0.95); }
@@ -255,7 +261,7 @@ EOF
         .brand-list { display: flex; flex-direction: column; padding: 15px 20px; gap: 15px; }
         .brand-row { background: var(--bg-card); padding: 16px; border-radius: 16px; border: none; display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow-outer); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; color: var(--text-main);}
         .brand-row:active { transform: scale(0.98); box-shadow: var(--shadow-inner); }
-        .b-logo { width: 45px; height: 45px; background: var(--bg-card); color: var(--nav-active); border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; box-shadow: var(--shadow-outer); transition: all 0.3s ease, transform 0.2s; flex-shrink: 0; text-transform: uppercase;}
+        .b-logo { width: 45px; height: 45px; background: var(--bg-icon); color: var(--nav-active); border-radius: 50%; font-weight: 900; font-size: 15px; display: flex; justify-content: center; align-items: center; box-shadow: var(--shadow-icon); transition: all 0.3s ease, transform 0.2s; flex-shrink: 0; text-transform: uppercase;}
         .b-name { font-size: 14px; font-weight: 700; flex: 1;}
 
         .bottom-nav { 
@@ -283,7 +289,7 @@ EOF
 
         .product-item { background: var(--bg-card); padding: 16px; border-radius: 16px; margin: 10px 20px 15px; border: none; display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow-outer); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;}
         .product-item:active { transform: scale(0.98); box-shadow: var(--shadow-inner); }
-        .prod-logo { width: 45px; height: 45px; background: var(--bg-card); color: var(--nav-active); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 14px; box-shadow: var(--shadow-outer); transition: all 0.3s ease, transform 0.2s; flex-shrink: 0; text-transform: uppercase;}
+        .prod-logo { width: 45px; height: 45px; background: var(--bg-icon); color: var(--nav-active); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 14px; box-shadow: var(--shadow-icon); transition: all 0.3s ease, transform 0.2s; flex-shrink: 0; text-transform: uppercase;}
         .prod-info { flex: 1; min-width: 0; }
         .prod-name { font-weight: 700; font-size: 13px; color: var(--text-main); margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; word-wrap: break-word;}
         .badge-open { background: var(--bg-main); color: #0284c7; font-size: 9px; padding: 4px 8px; border-radius: 6px; font-weight: 800; box-shadow: var(--shadow-outer); flex-shrink: 0; margin-left: 8px;}
@@ -319,7 +325,7 @@ EOF
         .sidebar { position: fixed; top:0; left:-300px; width: 280px; height: 100vh; background: var(--bg-main); z-index: 1002; transition: left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 5px 0 25px rgba(0,0,0,0.1);}
         .sidebar.open { left: 0; }
         .sidebar-header { padding: 40px 20px 30px; text-align: center; background: var(--bg-card); color: var(--text-main); box-shadow: var(--shadow-outer); border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;}
-        .sidebar-avatar { width: 70px; height: 70px; background: var(--bg-card); border-radius: 50%; margin: 0 auto 15px auto; display: flex; justify-content: center; align-items: center; color: var(--nav-active); font-size: 30px; font-weight: bold; text-transform: uppercase; box-shadow: var(--shadow-outer); transition: all 0.3s ease;}
+        .sidebar-avatar { width: 70px; height: 70px; background: var(--bg-icon); border-radius: 50%; margin: 0 auto 15px auto; display: flex; justify-content: center; align-items: center; color: var(--nav-active); font-size: 30px; font-weight: bold; text-transform: uppercase; box-shadow: var(--shadow-icon); transition: all 0.3s ease;}
         .sidebar-name { font-weight: 800; font-size: 16px; color: var(--text-main);}
         .sidebar-phone { font-size: 12px; color: var(--text-muted);}
         .sidebar-menu { padding: 20px 0; }
@@ -360,9 +366,9 @@ EOF
         }
         .prof-avatar {
             width: 100%; height: 100%;
-            background: var(--bg-card); color: var(--nav-active);
+            background: var(--bg-icon); color: var(--nav-active);
             border-radius: 50%; font-size: 38px; display: flex; justify-content: center; align-items: center; font-weight: 900; text-transform: uppercase;
-            box-shadow: var(--shadow-outer); transition: all 0.3s ease;
+            box-shadow: var(--shadow-icon); transition: all 0.3s ease;
         }
 
         .prof-box { background: var(--bg-card); color: var(--text-main); margin: -20px 20px 20px; border-radius: 20px; padding: 20px; position: relative; z-index: 10; border: none; box-shadow: var(--shadow-outer);}
@@ -2668,6 +2674,7 @@ EOF
             localStorage.setItem('tendo_is_vpn', 'false');
             
             document.getElementById('brand-cat-title').innerText = cat;
+            document.getElementById('brand-list').innerHTML = '';
             
             let brands = [];
             for(let key in allProducts) {
@@ -2695,7 +2702,10 @@ EOF
                 });
                 document.getElementById('brand-list').innerHTML = gridHTML;
                 showScreen('brand-screen', 'nav-home');
-            } else { showToast('Belum ada produk di kategori ini.', 'error'); }
+            } else { 
+                showToast('Belum ada produk di kategori ini.', 'error');
+                document.getElementById('brand-list').innerHTML = '<div style="text-align:center; padding:30px; font-weight:bold; color:var(--text-muted);">Kategori ini sedang kosong</div>'; 
+            }
         }
         function loadCategory(cat) { pushState({screen: 'brand-screen', cat: cat, subcat_mode: false}); loadCategoryInternal(cat); }
 
@@ -4775,10 +4785,13 @@ async function tarikDataLayananOtomatis() {
         let dataPrepaid = balasanPrepaid.data.data || [];
         let dataPasca = balasanPasca.data.data || [];
 
-        if (dataPrepaid.length < 500 || dataPasca.length < 10) {
-            console.log('Data Prabayar/Pascabayar tidak valid. Auto-sync dibatalkan.');
+        if (dataPrepaid.length < 100) {
+            console.log('Data Prabayar tidak valid (kurang dari 100). Auto-sync dibatalkan agar database aman.');
             return;
         }
+
+        dataPrepaid = dataPrepaid.map(item => ({ ...item, is_pasca_api: false }));
+        dataPasca = dataPasca.map(item => ({ ...item, is_pasca_api: true }));
 
         let daftarPusat = dataPrepaid.concat(dataPasca);
         
@@ -4801,24 +4814,26 @@ async function tarikDataLayananOtomatis() {
             let brandLower = (item.brand || '').toLowerCase();
             let kategoriBarang = 'Lainnya';
             
-            // PRABAYAR
-            if (catLower === 'pulsa') kategoriBarang = 'Pulsa';
-            else if (catLower === 'data') kategoriBarang = 'Data';
-            else if (catLower === 'e-money') kategoriBarang = 'E-Money';
-            else if (catLower === 'games') kategoriBarang = 'Game';
-            else if (catLower === 'pln') kategoriBarang = 'PLN';
-            else if (catLower === 'voucher') kategoriBarang = 'Voucher';
-            else if (catLower === 'paket sms & telpon') kategoriBarang = 'Paket SMS & Telpon';
-            else if (catLower === 'masa aktif') kategoriBarang = 'Masa Aktif';
-            else if (catLower === 'aktivasi perdana' || catLower === 'perdana') kategoriBarang = 'Aktivasi Perdana';
-            // PASCABAYAR MAPPING
-            else if (catLower === 'pln pasca' || catLower.includes('pln pasca')) kategoriBarang = 'PLN Pasca';
-            else if (catLower.includes('pdam') || brandLower.includes('pdam')) kategoriBarang = 'PDAM';
-            else if (catLower.includes('internet') || catLower.includes('tv') || catLower.includes('telkom')) kategoriBarang = 'Internet & TV';
-            else if (catLower.includes('bpjs') || brandLower.includes('bpjs')) kategoriBarang = 'BPJS';
-            else if (catLower.includes('gas') || brandLower.includes('pgn')) kategoriBarang = 'Gas Negara';
-            else if (catLower.includes('finance') || catLower.includes('e-money pasca') || catLower.includes('kredit')) kategoriBarang = 'E-Money Pasca';
-            else kategoriBarang = catDigi;
+            if (item.is_pasca_api) {
+                if (catLower === 'pln pasca' || catLower.includes('pln pasca')) kategoriBarang = 'PLN Pasca';
+                else if (catLower.includes('pdam') || brandLower.includes('pdam')) kategoriBarang = 'PDAM';
+                else if (catLower.includes('internet') || catLower.includes('tv') || catLower.includes('telkom')) kategoriBarang = 'Internet & TV';
+                else if (catLower.includes('bpjs') || brandLower.includes('bpjs')) kategoriBarang = 'BPJS';
+                else if (catLower.includes('gas') || brandLower.includes('pgn')) kategoriBarang = 'Gas Negara';
+                else if (catLower.includes('finance') || catLower.includes('e-money pasca') || catLower.includes('kredit')) kategoriBarang = 'E-Money Pasca';
+                else kategoriBarang = catDigi;
+            } else {
+                if (catLower === 'pulsa') kategoriBarang = 'Pulsa';
+                else if (catLower === 'data') kategoriBarang = 'Data';
+                else if (catLower === 'e-money') kategoriBarang = 'E-Money';
+                else if (catLower === 'games') kategoriBarang = 'Game';
+                else if (catLower === 'pln') kategoriBarang = 'PLN';
+                else if (catLower === 'voucher') kategoriBarang = 'Voucher';
+                else if (catLower === 'paket sms & telpon') kategoriBarang = 'Paket SMS & Telpon';
+                else if (catLower === 'masa aktif') kategoriBarang = 'Masa Aktif';
+                else if (catLower === 'aktivasi perdana' || catLower === 'perdana') kategoriBarang = 'Aktivasi Perdana';
+                else kategoriBarang = catDigi;
+            }
             
             let keuntungan = 0;
             if(hargaModal <= 100) keuntungan = m.t1;
