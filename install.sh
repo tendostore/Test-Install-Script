@@ -527,7 +527,7 @@ EOF
         }
     </style>
 </head>
-<body> <div id="app">
+<body class="dark-mode"> <div id="app">
         <div id="initial-loader" style="display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; background: var(--bg-main); position: fixed; top:0; left:0; width:100%; z-index:9999; transition: opacity 0.3s;">
             <div style="width: 50px; height: 50px; border: 4px solid var(--border-color); border-top-color: #0ea5e9; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
             <div style="font-size:20px; font-weight:900; color:var(--text-main); letter-spacing: 1px;">DIGITAL TENDO</div>
@@ -593,9 +593,6 @@ EOF
                 </a>
                 <a href="#" class="sidebar-item" onclick="toggleSidebar(); contactAdmin()">
                     <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> Hubungi Admin
-                </a>
-                <a href="#" class="sidebar-item" onclick="toggleTheme()">
-                    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg> <span id="theme-text">Mode Gelap</span>
                 </a>
                 <a href="#" class="sidebar-item" onclick="logout()" style="color: #ef4444;" id="sidebar-logout-btn">
                     <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Keluar Akun
@@ -1265,6 +1262,7 @@ EOF
     <script>
         let sysMaintStart = "23:00";
         let sysMaintEnd = "00:30";
+        let adminWaNumber = "6282224460678";
 
         setInterval(() => {
             let d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
@@ -1409,43 +1407,6 @@ EOF
         let bannerInterval; let qrisInterval;
         let titleClicks = 0;
 
-        let currentHour = new Date().getHours();
-        let isDarkTime = (currentHour >= 18 || currentHour < 6);
-
-        if(isDarkTime) {
-            document.body.classList.add('dark-mode');
-            if(document.getElementById('theme-text')) document.getElementById('theme-text').innerText = "Mode Terang";
-            localStorage.setItem('tendo_theme', 'dark');
-        } else {
-            document.body.classList.remove('dark-mode');
-            if(document.getElementById('theme-text')) document.getElementById('theme-text').innerText = "Mode Gelap";
-            localStorage.setItem('tendo_theme', 'light');
-        }
-
-        setInterval(() => {
-            let hr = new Date().getHours();
-            let isDark = (hr >= 18 || hr < 6);
-            let bodyIsDark = document.body.classList.contains('dark-mode');
-            
-            if(isDark && !bodyIsDark) {
-                document.body.classList.add('dark-mode');
-                if(document.getElementById('theme-text')) document.getElementById('theme-text').innerText = "Mode Terang";
-                localStorage.setItem('tendo_theme', 'dark');
-            } else if(!isDark && bodyIsDark) {
-                document.body.classList.remove('dark-mode');
-                if(document.getElementById('theme-text')) document.getElementById('theme-text').innerText = "Mode Gelap";
-                localStorage.setItem('tendo_theme', 'light');
-            }
-        }, 60000);
-
-        function toggleTheme() {
-            document.body.classList.toggle('dark-mode');
-            let isDark = document.body.classList.contains('dark-mode');
-            localStorage.setItem('tendo_theme', isDark ? 'dark' : 'light');
-            document.getElementById('theme-text').innerText = isDark ? "Mode Terang" : "Mode Gelap";
-            toggleSidebar();
-        }
-
         function secretPanelClick() {
             titleClicks++;
             if(titleClicks >= 5) {
@@ -1456,7 +1417,6 @@ EOF
             setTimeout(() => { titleClicks = 0; }, 3000);
         }
 
-        // JS logic applies the .active class to specific styled buttons (.btn-saldo or .btn-qris)
         function selectPayment(method) {
             document.getElementById('m-payment-method').value = method;
             if(method === 'saldo') {
@@ -1507,12 +1467,26 @@ EOF
 
         async function apiCall(url, bodyData) {
             let options = {};
+            let headers = {};
+            let token = localStorage.getItem('tendo_token');
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            
             if(bodyData) {
                 options.method = 'POST';
-                options.headers = {'Content-Type': 'application/json'};
+                headers['Content-Type'] = 'application/json';
                 options.body = JSON.stringify(bodyData);
             }
+            options.headers = headers;
             let res = await fetch(url, options);
+            if(res.status === 403) {
+                let data = await res.json();
+                if(data.message.includes('Token') || data.message.includes('token') || data.message.includes('Akses')) {
+                    logout();
+                    showToast('Sesi kedaluwarsa, silakan login ulang.', 'error');
+                    return {success: false, message: 'Sesi kedaluwarsa'};
+                }
+                return data;
+            }
             return await res.json();
         }
 
@@ -1524,9 +1498,9 @@ EOF
                     document.getElementById('stat-weekly').innerText = res.weekly;
                     document.getElementById('stat-monthly').innerText = res.monthly;
                     if(document.getElementById('stat-total')) document.getElementById('stat-total').innerText = res.total;
-                    
                     if(res.maintStart) sysMaintStart = res.maintStart;
                     if(res.maintEnd) sysMaintEnd = res.maintEnd;
+                    if(res.adminWa) adminWaNumber = res.adminWa.replace(/[^0-9]/g, '');
                 }
             } catch(e){}
         }
@@ -1652,8 +1626,8 @@ EOF
                 }
                 
                 let statusBadge = isAvailable 
-                    ? '<div style="font-size:9px; background:var(--bg-main); color:#166534; padding:4px 8px; border-radius:6px; margin-top:8px; font-weight:800; box-shadow:var(--shadow-outer);">Tersedia</div>' 
-                    : '<div style="font-size:9px; background:var(--bg-main); color:#b91c1c; padding:4px 8px; border-radius:6px; margin-top:8px; font-weight:800; box-shadow:var(--shadow-outer);">Kosong</div>';
+                    ? '<div style="font-size:9px; background:#16a34a; color:#ffffff; padding:4px 8px; border-radius:6px; margin-top:8px; font-weight:800; box-shadow:var(--shadow-outer);">Tersedia</div>' 
+                    : '<div style="font-size:9px; background:#ef4444; color:#ffffff; padding:4px 8px; border-radius:6px; margin-top:8px; font-weight:800; box-shadow:var(--shadow-outer);">Kosong</div>';
 
                 let iconSvg = '';
                 if(proto.toUpperCase() === 'SSH') iconSvg = '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"></path>';
@@ -1752,7 +1726,9 @@ EOF
                         let safeDesc = desc.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                         let safeName = customName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-                        let statusBadge = stok > 0 ? '<span class="badge-open" style="background:var(--bg-main); color:#166534; box-shadow:var(--shadow-outer);">STOK: '+stok+'</span>' : '<span style="background:var(--bg-main); color:#b91c1c; font-size:9px; padding:4px 8px; border-radius:6px; font-weight:800; box-shadow:var(--shadow-outer); flex-shrink:0; margin-left:8px;">HABIS</span>';
+                        let statusBadge = stok > 0 
+                            ? '<span class="badge-open" style="background:#16a34a; color:#ffffff; box-shadow:var(--shadow-outer);">STOK: '+stok+'</span>' 
+                            : '<span style="background:#ef4444; color:#ffffff; font-size:9px; padding:4px 8px; border-radius:6px; font-weight:800; box-shadow:var(--shadow-outer); flex-shrink:0; margin-left:8px;">HABIS</span>';
 
                         let initial = proto.substring(0,2).toUpperCase();
 
@@ -2208,7 +2184,7 @@ EOF
             let phone = currentUser || "-";
             let nom = document.getElementById('topup-nominal').value || "[Sebutkan Nominal]";
             let pesan = `Halo Admin Digital Tendo Store,%0A%0ASaya ingin melakukan *Topup Saldo Manual*.%0A%0A📧 Email Akun: *${email}*%0A📱 Nomor WA: *${phone}*%0A💰 Nominal: *Rp ${nom}*%0A%0AMohon info panduan transfernya. Terima kasih.`;
-            window.open(`https://wa.me/6282224460678?text=${pesan}`, '_blank');
+            window.open(`https://wa.me/${adminWaNumber}?text=${pesan}`, '_blank');
         }
 
         function logout() {
@@ -2219,6 +2195,7 @@ EOF
             localStorage.removeItem('tendo_current_cat'); localStorage.removeItem('tendo_current_brand');
             localStorage.removeItem('tendo_current_vpn_proto'); localStorage.removeItem('tendo_current_vpn_server');
             localStorage.removeItem('tendo_is_vpn');
+            localStorage.removeItem('tendo_token');
             let btnSidebarLogout = document.getElementById('sidebar-logout-btn');
             if(btnSidebarLogout) btnSidebarLogout.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> <span>Keluar Akun</span>';
             toggleSidebar(); showScreen('login-screen', null);
@@ -2408,7 +2385,7 @@ EOF
         
         function contactAdmin() {
             let pesan = `Halo Admin Digital Tendo Store,%0A%0ASaya butuh bantuan terkait akun / layanan.`;
-            window.open(`https://wa.me/6282224460678?text=${pesan}`, '_blank');
+            window.open(`https://wa.me/${adminWaNumber}?text=${pesan}`, '_blank');
         }
         
         function complainAdmin() {
@@ -2418,7 +2395,7 @@ EOF
             let phone = currentUser || "-";
             let currentSaldo = userData.saldo || 0;
             let pesan = `Halo Admin Digital Tendo Store,%0A%0ASaya ingin komplain/tanya transaksi ini:%0A%0A📧 Email: *${email}*%0A📱 Nomor WA: *${phone}*%0A💰 Saldo Saat Ini: *Rp ${currentSaldo.toLocaleString('id-ID')}*%0A💸 Nominal Transaksi: *Rp ${h.amount ? h.amount.toLocaleString('id-ID') : '0'}*%0A📦 Layanan: *${h.nama}*%0A📱 Tujuan: *${h.tujuan}*%0A🕒 Waktu: *${h.tanggal}*%0A⚙️ Status: *${h.status}*%0A🔑 SN/Ref: *${h.sn || '-'}*%0A%0AMohon bantuannya dicek.%0A%0A_*(Note: Jika komplain topup/pembayaran belum masuk, mohon kirimkan juga foto/bukti transfernya)*_ Terima kasih.`;
-            window.open(`https://wa.me/6282224460678?text=${pesan}`, '_blank');
+            window.open(`https://wa.me/${adminWaNumber}?text=${pesan}`, '_blank');
         }
 
         async function login(isAuto = false) {
@@ -2438,6 +2415,7 @@ EOF
                 let data = await apiCall('/api/login', {id: idLogin, password:pass});
                 if(data && data.success) {
                     currentUser = data.phone; userData = data.data;
+                    if(data.token) localStorage.setItem('tendo_token', data.token);
                     await fetchAllProducts(); 
                     await fetchVPNConfig();
                     fetchGlobalStats();
@@ -2897,7 +2875,7 @@ EOF
                             let safeDesc = desc.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                             let safeName = customName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-                            let stokBadge = stok > 0 ? `<span style="color:#10b981; font-weight:bold; font-size:11px;">Stok: ${stok}</span>` : `<span style="color:#ef4444; font-weight:bold; font-size:11px;">Stok Habis</span>`;
+                            let stokBadge = stok > 0 ? `<span style="background:#16a34a; color:#ffffff; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:11px;">Stok: ${stok}</span>` : `<span style="background:#ef4444; color:#ffffff; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:11px;">Stok Habis</span>`;
                             let onClick = stok > 0 ? `openVPNOrderModal('${pId}', '${protocol}', ${price}, '${safeDesc}', '${safeName}')` : `showToast('Maaf, stok produk ini sedang habis.', 'error')`;
 
                             html += `
@@ -3086,9 +3064,12 @@ const crypto = require('crypto');
 const TelegramBot = require('node-telegram-bot-api');
 const { pipeline } = require('stream/promises');
 const Database = require('better-sqlite3');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 app.disable('x-powered-by');
+
+const SECRET_KEY = 'TENDO_SECURE_KEY_JWT_2026'; // Kunci Rahasia JWT
 
 // SECURITY: Memblokir akses langsung file konfigurasi JSON/DB lewat URL
 app.use((req, res, next) => {
@@ -3100,6 +3081,26 @@ app.use((req, res, next) => {
 
 app.use(bodyParser.json());
 app.use(express.static('public')); 
+
+// ==============================================================
+// MIDDLEWARE JWT VERIFY
+// ==============================================================
+const verifyToken = (req, res, next) => {
+    const bearerHeader = req.headers['authorization'];
+    if(typeof bearerHeader !== 'undefined') {
+        const bearer = bearerHeader.split(' ');
+        const token = bearer[1];
+        jwt.verify(token, SECRET_KEY, (err, authData) => {
+            if(err) {
+                return res.status(403).json({success: false, message: 'Token kedaluwarsa atau tidak valid. Silakan login ulang.'});
+            }
+            req.authData = authData;
+            next();
+        });
+    } else {
+        res.status(403).json({success: false, message: 'Akses Ditolak. Token Otorisasi diperlukan.'});
+    }
+};
 
 // ==============================================================
 // INIT SQLITE DATABASE & OPTIMASI PRAGMA
@@ -3126,7 +3127,7 @@ dbSqlite.exec(`
 `);
 
 // ==============================================================
-// SQLITE CRUD HELPERS (Mencegah Race Condition Secara Sinkron)
+// SQLITE CRUD HELPERS & ATOMIC TRANSACTIONS
 // ==============================================================
 function getRecord(table, id) {
     const row = dbSqlite.prepare(`SELECT data FROM ${table} WHERE id = ?`).get(id);
@@ -3162,6 +3163,35 @@ function unshiftRecordArray(table, data, maxLen = 100) {
     dbSqlite.prepare(`DELETE FROM ${table} WHERE id NOT IN (SELECT id FROM ${table} ORDER BY id DESC LIMIT ?)`).run(maxLen);
 }
 
+// LOGIKA ATOMIC MENGHINDARI RACE CONDITION (BETTER-SQLITE3 TRANSACTION)
+const atomicDeductBalance = dbSqlite.transaction((phone, amount, refId) => {
+    const row = dbSqlite.prepare(`SELECT data FROM users WHERE id = ?`).get(phone);
+    if (!row) throw new Error("User tidak valid.");
+    
+    let u = JSON.parse(row.data);
+    let hargaFix = parseInt(amount);
+    
+    if (parseInt(u.saldo) < hargaFix) {
+        throw new Error("Saldo tidak cukup.");
+    }
+    
+    u.saldo = parseInt(u.saldo) - hargaFix;
+    dbSqlite.prepare(`UPDATE users SET data = ? WHERE id = ?`).run(JSON.stringify(u), phone);
+    
+    return { saldoTerkini: u.saldo, uData: u };
+});
+
+const atomicRefundBalance = dbSqlite.transaction((phone, amount) => {
+    const row = dbSqlite.prepare(`SELECT data FROM users WHERE id = ?`).get(phone);
+    if (!row) return null;
+    
+    let u = JSON.parse(row.data);
+    u.saldo = parseInt(u.saldo) + parseInt(amount);
+    dbSqlite.prepare(`UPDATE users SET data = ? WHERE id = ?`).run(JSON.stringify(u), phone);
+    
+    return u;
+});
+
 const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
 
 function maskStringTarget(str) {
@@ -3193,7 +3223,6 @@ function cleanupOldHistory() {
         let updates = [];
         
         let stmt = dbSqlite.prepare('SELECT id, data FROM users');
-        // Membaca baris per baris menggunakan .iterate() untuk mencegah Out Of Memory (OOM)
         for (const row of stmt.iterate()) {
             let u = JSON.parse(row.data);
             if (u && u.history && u.history.length > 0) {
@@ -3205,7 +3234,6 @@ function cleanupOldHistory() {
             }
         }
         
-        // Eksekusi update dalam 1 transaksi
         if (updates.length > 0) {
             const updateStmt = dbSqlite.prepare('INSERT OR REPLACE INTO users (id, data) VALUES (?, ?)');
             dbSqlite.transaction(() => {
@@ -3580,7 +3608,11 @@ app.get('/api/stats', (req, res) => {
             if(recordDate >= monday) weekly += count;
             if(recordDate.getFullYear() === nowYear && recordDate.getMonth() === nowMonth) monthly += count;
         }
-        res.json({ success: true, daily, weekly, monthly, total, maintStart: cfg.maintStart || '23:00', maintEnd: cfg.maintEnd || '00:30' });
+        res.json({ 
+            success: true, daily, weekly, monthly, total, 
+            maintStart: cfg.maintStart || '23:00', maintEnd: cfg.maintEnd || '00:30',
+            adminWa: cfg.botNumber || "6282224460678"
+        });
     } catch(e) { res.json({ success: false, daily: 0, weekly: 0, monthly: 0, total: 0 }); }
 });
 
@@ -3638,7 +3670,7 @@ app.get('/api/user/:phone', (req, res) => {
     } catch(e) { res.json({success: false}); }
 });
 
-app.post('/api/cancel-topup', (req, res) => {
+app.post('/api/cancel-topup', verifyToken, (req, res) => {
     try {
         let { sn, phone } = req.body;
         let topup = getRecord('topup', sn);
@@ -3693,7 +3725,8 @@ app.post('/api/login', (req, res) => {
 
             if (userPhone) {
                 let safeData = { ...users[userPhone] }; delete safeData.password;
-                res.json({success: true, phone: userPhone, data: safeData});
+                const token = jwt.sign({ phone: userPhone }, SECRET_KEY, { expiresIn: '30d' });
+                res.json({success: true, phone: userPhone, data: safeData, token: token});
             }
             else res.json({success: false, message: 'Data Akun (Email/WA/Username) atau Password salah!'});
         } catch(e) { res.json({success: false, message: 'Server error'}); }
@@ -3717,7 +3750,7 @@ app.post('/api/login', (req, res) => {
             if (isUsernameExist) return res.json({success: false, message: 'Username sudah digunakan, silakan ganti yang lain!'});
 
             let otp = Math.floor(1000 + Math.random() * 9000).toString();
-            tempOtpDB[phone] = { username, email, password: hashPassword(password), otp };
+            tempOtpDB[phone] = { username, email, password: hashPassword(password), otp, attempts: 0 };
 
             res.json({success: true});
 
@@ -3736,7 +3769,10 @@ app.post('/api/login', (req, res) => {
     app.post('/api/verify-otp', (req, res) => {
         try {
             let otp = req.body.otp; let phone = normalizePhone(req.body.phone);
-            if(tempOtpDB[phone] && tempOtpDB[phone].otp === otp) {
+            let session = tempOtpDB[phone];
+            if(!session) return res.json({success: false, message: 'Sesi pendaftaran kadaluwarsa. Silakan request OTP ulang.'});
+
+            if(session.otp === otp) {
                 let idPelanggan = 'TD-' + Math.floor(100000 + Math.random() * 900000); 
                 let u = getRecord('users', phone) || { 
                     id_pelanggan: idPelanggan, saldo: 0, 
@@ -3744,19 +3780,26 @@ app.post('/api/login', (req, res) => {
                     jid: phone + '@s.whatsapp.net', step: 'idle', trx_count: 0, history: [] 
                 };
                 
-                u.username = tempOtpDB[phone].username; 
-                u.email = tempOtpDB[phone].email; 
-                u.password = tempOtpDB[phone].password;
+                u.username = session.username; 
+                u.email = session.email; 
+                u.password = session.password;
                 if(!u.id_pelanggan) u.id_pelanggan = idPelanggan;
                 
                 saveRecord('users', phone, u); 
                 delete tempOtpDB[phone]; 
                 res.json({success: true});
-            } else res.json({success: false, message: 'Kode OTP Salah!'});
+            } else {
+                session.attempts = (session.attempts || 0) + 1;
+                if(session.attempts >= 3) {
+                    delete tempOtpDB[phone];
+                    return res.json({success: false, message: 'Terlalu banyak percobaan. Sesi diblokir, silakan request OTP ulang.'});
+                }
+                res.json({success: false, message: 'Kode OTP Salah!'});
+            }
         } catch(e) { res.json({success: false, message: 'Server error'}); }
     });
 
-    app.post('/api/req-edit-otp', (req, res) => {
+    app.post('/api/req-edit-otp', verifyToken, (req, res) => {
         try {
             let { phone, type, newValue } = req.body; 
             let u = getRecord('users', phone);
@@ -3766,7 +3809,7 @@ app.post('/api/login', (req, res) => {
 
             let otp = Math.floor(1000 + Math.random() * 9000).toString();
             if (type === 'password') newValue = hashPassword(newValue);
-            tempOtpDB[phone + '_edit'] = { type, newValue, otp };
+            tempOtpDB[phone + '_edit'] = { type, newValue, otp, attempts: 0 };
             res.json({success: true});
 
             setTimeout(() => {
@@ -3775,10 +3818,12 @@ app.post('/api/login', (req, res) => {
         } catch(e) { if (!res.headersSent) res.json({success: false, message: 'Gagal memproses OTP.'}); }
     });
 
-    app.post('/api/verify-edit-otp', (req, res) => {
+    app.post('/api/verify-edit-otp', verifyToken, (req, res) => {
         try {
             let { phone, otp } = req.body; let session = tempOtpDB[phone + '_edit'];
-            if(session && session.otp === otp) {
+            if(!session) return res.json({success: false, message: 'Sesi kadaluwarsa, silakan request ulang.'});
+
+            if(session.otp === otp) {
                 let u = getRecord('users', phone);
                 if(session.type === 'email') u.email = session.newValue;
                 if(session.type === 'password') u.password = session.newValue;
@@ -3793,7 +3838,14 @@ app.post('/api/login', (req, res) => {
                     saveRecord('users', phone, u);
                 }
                 delete tempOtpDB[phone + '_edit']; res.json({success: true});
-            } else res.json({success: false, message: 'OTP Salah!'});
+            } else {
+                session.attempts = (session.attempts || 0) + 1;
+                if(session.attempts >= 3) {
+                    delete tempOtpDB[phone + '_edit'];
+                    return res.json({success: false, message: 'Terlalu banyak percobaan. Sesi diblokir, silakan request OTP ulang.'});
+                }
+                res.json({success: false, message: 'OTP Salah!'});
+            }
         } catch(e) { res.json({success: false, message: 'Server error'}); }
     });
 
@@ -3806,7 +3858,7 @@ app.post('/api/login', (req, res) => {
             otpCooldown[phone] = Date.now();
 
             let otp = Math.floor(1000 + Math.random() * 9000).toString();
-            tempOtpDB[phone + '_forgot'] = { otp };
+            tempOtpDB[phone + '_forgot'] = { otp, attempts: 0 };
             res.json({success: true});
 
             setTimeout(() => {
@@ -3819,15 +3871,24 @@ app.post('/api/login', (req, res) => {
         try {
             let phone = normalizePhone(req.body.phone); let { otp, newPass } = req.body;
             let session = tempOtpDB[phone + '_forgot'];
-            if(session && session.otp === otp) {
+            if(!session) return res.json({success: false, message: 'Sesi OTP tidak ditemukan atau sudah expired.'});
+
+            if(session.otp === otp) {
                 let u = getRecord('users', phone);
                 if(u) { u.password = hashPassword(newPass); saveRecord('users', phone, u); }
                 delete tempOtpDB[phone + '_forgot']; res.json({success: true});
-            } else res.json({success: false, message: 'Kode OTP Salah!'});
+            } else {
+                session.attempts = (session.attempts || 0) + 1;
+                if(session.attempts >= 3) {
+                    delete tempOtpDB[phone + '_forgot'];
+                    return res.json({success: false, message: 'Terlalu banyak percobaan. Sesi diblokir, silakan request OTP ulang.'});
+                }
+                res.json({success: false, message: 'Kode OTP Salah!'});
+            }
         } catch(e) { res.json({success: false, message: 'Server error'}); }
     });
 
-    app.post('/api/topup', async (req, res) => {
+    app.post('/api/topup', verifyToken, async (req, res) => {
         try {
             if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
             let config = getRecord('config', 'main') || {};
@@ -3873,7 +3934,7 @@ app.post('/api/login', (req, res) => {
         } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
     });
 
-    app.post('/api/order-qris', async (req, res) => {
+    app.post('/api/order-qris', verifyToken, async (req, res) => {
         try {
             if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
             
@@ -3927,7 +3988,7 @@ app.post('/api/login', (req, res) => {
         } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
     });
 
-    app.post('/api/order', async (req, res) => {
+    app.post('/api/order', verifyToken, async (req, res) => {
         try {
             if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
             
@@ -3937,20 +3998,23 @@ app.post('/api/login', (req, res) => {
             
             let targetKey = uNorm ? pNorm : (uOri ? phone : null);
             if (!targetKey) return res.json({success: false, message: 'Sesi Anda tidak valid. Silakan Logout dan Login kembali.'});
-            let u = uNorm || uOri;
             
             let p = getRecord('produk', sku);
             if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
             let config = getRecord('config', 'main') || {};
             let realSku = p.sku_asli || sku;
-            
             let hargaFix = parseInt(p.harga);
-            let saldoSebelum = parseInt(u.saldo);
-            if (saldoSebelum < hargaFix) return res.json({success: false, message: 'Saldo tidak cukup.'});
+            
+            // Menggunakan Atomic Transaction (Mencegah Race Condition Double Deduct)
+            let atomicRes;
+            try {
+                atomicRes = atomicDeductBalance(targetKey, hargaFix);
+            } catch (err) {
+                return res.json({success: false, message: err.message});
+            }
 
-            // Potong Saldo (Atomic & Sync)
-            u.saldo = saldoSebelum - hargaFix;
-            saveRecord('users', targetKey, u);
+            let u = atomicRes.uData;
+            let saldoSebelum = atomicRes.saldoTerkini + hargaFix;
 
             let username = (config.digiflazzUsername || '').trim();
             let apiKey = (config.digiflazzApiKey || '').trim();
@@ -3963,15 +4027,14 @@ app.post('/api/login', (req, res) => {
             
             const statusOrder = response.data.data.status; 
             
-            // Re-fetch user in case state changed during await
+            // Re-fetch user in case state changed
             u = getRecord('users', targetKey);
             let saldoTerkini = parseInt(u.saldo);
             let emailUser = u.email || '-';
             let namaUser = u.username || targetKey;
             
             if (statusOrder === 'Gagal') {
-                u.saldo = saldoTerkini + hargaFix;
-                saveRecord('users', targetKey, u);
+                u = atomicRefundBalance(targetKey, hargaFix);
                 
                 let teleMsgFail = `❌ <b>PESANAN GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${u.saldo.toLocaleString('id-ID')}`;
                 sendTelegramAdmin(teleMsgFail);
@@ -4011,7 +4074,7 @@ app.post('/api/login', (req, res) => {
 
         } catch (error) { 
             if (!res.headersSent) {
-                let errInfo = error.response && error.response.data && error.response.data.data ? error.response.data.data.message : 'Gagal diproses Digiflazz (Nomor Tujuan Salah/Harga Berubah)';
+                let errInfo = error.response && error.response.data && error.response.data.data ? error.response.data.data.message : error.message;
                 return res.json({success: false, message: errInfo});
             }
         }
@@ -4053,7 +4116,14 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
         if (hari < 1) hari = 1;
         hargaFix = Math.ceil((basePrice / 30) * hari);
         
-        if(saldoSebelum < hargaFix && paymentMethod === 'Saldo Akun') return { success: false, message: "Saldo tidak mencukupi." };
+        if (paymentMethod === 'Saldo Akun') {
+            try {
+                let atomicRes = atomicDeductBalance(targetKey, hargaFix);
+                u = atomicRes.uData;
+            } catch (err) {
+                return { success: false, message: err.message };
+            }
+        }
     }
 
     let protoLower = protocol.toLowerCase();
@@ -4118,10 +4188,8 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
             let prodName = prod.name;
             if (mode === 'trial') prodName += ' (TRIAL)';
             
-            if (mode === 'reguler' && paymentMethod === 'Saldo Akun') {
-                u.saldo = saldoSebelum - hargaFix;
+            if (mode === 'reguler') {
                 u.trx_count = (u.trx_count || 0) + 1;
-                
                 vpnConfig = getRecord('vpn_config', 'main');
                 vpnConfig.products[productId].stok -= 1;
                 saveRecord('vpn_config', 'main', vpnConfig);
@@ -4172,6 +4240,11 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
 
             return { success: true };
         } else {
+            // Revert Deduction if Failed
+            if (mode === 'reguler' && paymentMethod === 'Saldo Akun') {
+                 atomicRefundBalance(targetKey, hargaFix);
+            }
+
             let errMsg = "unknown error";
             if (resApi.data && resApi.data.message) errMsg = resApi.data.message;
             else if (resApi.data && resApi.data.error) errMsg = resApi.data.error;
@@ -4183,18 +4256,21 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
             return { success: false, message: "Gagal membuat akun di Server VPN. Pesan: " + errMsg };
         }
     } catch(e) {
+        if (mode === 'reguler' && paymentMethod === 'Saldo Akun') {
+            atomicRefundBalance(targetKey, hargaFix);
+        }
         return { success: false, message: "Koneksi ke Server VPN Gagal / Timeout. Pesan: " + e.message };
     }
 }
 
-app.post('/api/order-vpn', async (req, res) => {
+app.post('/api/order-vpn', verifyToken, async (req, res) => {
     if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
     let { phone, protocol, product_id, mode, username, password, expired } = req.body;
     let result = await executeVpnOrder(phone, protocol, product_id, mode, username, password, expired, null, 'Saldo Akun');
     res.json(result);
 });
 
-app.post('/api/order-vpn-qris', async (req, res) => {
+app.post('/api/order-vpn-qris', verifyToken, async (req, res) => {
     try {
         if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
         
@@ -4256,7 +4332,7 @@ app.post('/api/order-vpn-qris', async (req, res) => {
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS VPN."}); }
 });
 
-app.post('/api/manual-vpn', async (req, res) => {
+app.post('/api/manual-vpn', verifyToken, async (req, res) => {
     try {
         if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
         let { server_id, mode, type, username, password, expired } = req.body;
@@ -4316,19 +4392,6 @@ app.post('/api/manual-vpn', async (req, res) => {
 });
 
 async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
-    let uCheck = getRecord('users', phone);
-    let hargaFix = parseInt(vpnData.harga_asli);
-    let saldoSebelum = parseInt(uCheck.saldo);
-    
-    if (saldoSebelum < hargaFix) {
-        let hist = uCheck.history.find(h => h.sn === refIdAsal);
-        if(hist) hist.status = 'Gagal (Saldo Tidak Cukup)';
-        saveRecord('users', phone, uCheck);
-        return;
-    }
-    uCheck.saldo = saldoSebelum - hargaFix;
-    saveRecord('users', phone, uCheck);
-
     let result = await executeVpnOrder(phone, vpnData.protocol, vpnData.product_id, vpnData.mode, vpnData.username, vpnData.password, vpnData.expired, refIdAsal, 'QRIS');
     let u = getRecord('users', phone);
     
@@ -4336,19 +4399,20 @@ async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
     if(!hist) return;
 
     if(!result.success) {
-        let saldoSblm = parseInt(u.saldo);
-        u.saldo = saldoSblm + hargaFix;
+        let hargaFix = parseInt(vpnData.harga_asli);
+        let uRefund = atomicRefundBalance(phone, hargaFix);
+        
         hist.status = 'Refund';
         hist.nama = 'Refund: ' + vpnData.nama_produk;
         hist.type = 'Refund';
         hist.amount = hargaFix;
-        hist.saldo_sebelumnya = saldoSblm;
-        hist.saldo_sesudah = u.saldo;
-        saveRecord('users', phone, u);
+        hist.saldo_sebelumnya = uRefund.saldo - hargaFix;
+        hist.saldo_sesudah = uRefund.saldo;
+        saveRecord('users', phone, uRefund);
         
         let failMsg = result.message || "GAGAL VPS";
-        let emailUser = u.email || '-';
-        let namaUser = u.username || phone;
+        let emailUser = uRefund.email || '-';
+        let namaUser = uRefund.username || phone;
         let teleMsg = `⚠️ <b>INFO ORDER VPN QRIS: GAGAL VPS</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Alasan: ${failMsg}\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
         sendTelegramAdmin(teleMsg);
     }
@@ -4356,29 +4420,11 @@ async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
 
 async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, refIdAsal) {
     try {
-        let u = getRecord('users', phone);
         let config = getRecord('config', 'main') || {}; 
         let p = getRecord('produk', sku) || {};
         
         let hargaFix = parseInt(harga_asli);
         let realSku = p.sku_asli || sku;
-        let saldoSebelum = parseInt(u.saldo);
-        
-        let emailUser = u.email || '-';
-        let namaUser = u.username || phone;
-        
-        if (saldoSebelum < hargaFix) {
-            let hist = u.history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
-            if(hist) {
-                hist.status = 'Gagal (Saldo Tidak Cukup)';
-                saveRecord('users', phone, u);
-            }
-            return;
-        } 
-        
-        // Sync Deduction
-        u.saldo = saldoSebelum - hargaFix; 
-        saveRecord('users', phone, u);
 
         let username = (config.digiflazzUsername || '').trim();
         let apiKey = (config.digiflazzApiKey || '').trim();
@@ -4391,12 +4437,13 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         
         const statusOrder = response.data.data.status; 
         
-        // Re-fetch
-        u = getRecord('users', phone);
+        let u = getRecord('users', phone);
         let saldoTerkini = parseInt(u.saldo);
+        let emailUser = u.email || '-';
+        let namaUser = u.username || phone;
 
         if (statusOrder === 'Gagal') {
-            u.saldo = saldoTerkini + hargaFix;
+            u = atomicRefundBalance(phone, hargaFix);
             
             let hist = u.history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
             if(hist) {
@@ -4406,10 +4453,10 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
                 hist.amount = hargaFix;
                 hist.ref_id = refId;
                 hist.sn = '-';
-                hist.saldo_sebelumnya = saldoTerkini;
+                hist.saldo_sebelumnya = u.saldo - hargaFix;
                 hist.saldo_sesudah = u.saldo;
             } else {
-                u.history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoTerkini, saldo_sesudah: u.saldo });
+                u.history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: u.saldo - hargaFix, saldo_sesudah: u.saldo });
                 if(u.history.length > 50) u.history.pop();
             }
             saveRecord('users', phone, u);
@@ -4433,10 +4480,10 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
             hist.type = 'Order';
             hist.amount = hargaFix;
             hist.ref_id = refId;
-            hist.saldo_sebelumnya = saldoTerkini;
-            hist.saldo_sesudah = u.saldo;
+            hist.saldo_sebelumnya = saldoTerkini + hargaFix;
+            hist.saldo_sesudah = saldoTerkini;
         } else {
-            u.history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoTerkini, saldo_sesudah: u.saldo });
+            u.history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoTerkini + hargaFix, saldo_sesudah: saldoTerkini });
             if(u.history.length > 50) u.history.pop();
         }
         saveRecord('users', phone, u);
@@ -4650,6 +4697,14 @@ async function startBot() {
                                 if(req.vpn_data) {
                                     prosesAutoOrderVPN(req.phone, req.vpn_data, req.trx_id);
                                 } else {
+                                    // Update Deduction atomic function via prosesAutoOrderQRIS handling
+                                    let nominalBeli = parseInt(req.harga_asli);
+                                    let deductRes;
+                                    try {
+                                        deductRes = atomicDeductBalance(req.phone, nominalBeli);
+                                    } catch(err) {
+                                        // Ignore jika tidak cukup (walaupun barusan diisi harusnya cukup)
+                                    }
                                     prosesAutoOrderQRIS(req.phone, req.sku, req.tujuan, req.nama_produk, req.harga_asli, req.trx_id);
                                 }
                             }
@@ -4714,17 +4769,16 @@ async function startBot() {
                             
                         } else {
                             if (u) { 
-                                let saldoSebelum = parseInt(u.saldo);
-                                u.saldo = saldoSebelum + parseInt(trx.harga); 
+                                u = atomicRefundBalance(phoneKey, parseInt(trx.harga));
                                 if(u.history) {
                                     let hist = u.history.find(h => h.ref_id === ref);
                                     if (hist) {
                                         hist.status = 'Refund';
                                         hist.nama = 'Refund: ' + hist.nama;
-                                        hist.saldo_sebelumnya = saldoSebelum;
+                                        hist.saldo_sebelumnya = u.saldo - parseInt(trx.harga);
                                         hist.saldo_sesudah = u.saldo;
                                     } else {
-                                        u.history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + trx.nama, tujuan: trx.tujuan, status: 'Refund', sn: '-', amount: parseInt(trx.harga), ref_id: ref, saldo_sebelumnya: saldoSebelum, saldo_sesudah: u.saldo });
+                                        u.history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + trx.nama, tujuan: trx.tujuan, status: 'Refund', sn: '-', amount: parseInt(trx.harga), ref_id: ref, saldo_sebelumnya: u.saldo - parseInt(trx.harga), saldo_sesudah: u.saldo });
                                     }
                                     if(u.history.length > 50) u.history.pop();
                                 }
@@ -4815,12 +4869,12 @@ async function tarikDataLayananOtomatis() {
             let kategoriBarang = 'Lainnya';
             
             if (item.is_pasca_api) {
-                if (catLower === 'pln pasca' || catLower.includes('pln pasca')) kategoriBarang = 'PLN Pasca';
-                else if (catLower.includes('pdam') || brandLower.includes('pdam')) kategoriBarang = 'PDAM';
-                else if (catLower.includes('internet') || catLower.includes('tv') || catLower.includes('telkom')) kategoriBarang = 'Internet & TV';
-                else if (catLower.includes('bpjs') || brandLower.includes('bpjs')) kategoriBarang = 'BPJS';
-                else if (catLower.includes('gas') || brandLower.includes('pgn')) kategoriBarang = 'Gas Negara';
-                else if (catLower.includes('finance') || catLower.includes('e-money pasca') || catLower.includes('kredit')) kategoriBarang = 'E-Money Pasca';
+                if (catLower.includes('pln') || catLower.includes('pasca') || catLower.includes('token')) kategoriBarang = 'PLN Pasca';
+                else if (catLower.includes('pdam') || catLower.includes('air') || catLower.includes('tirta') || brandLower.includes('pdam') || brandLower.includes('air') || brandLower.includes('tirta')) kategoriBarang = 'PDAM';
+                else if (catLower.includes('internet') || catLower.includes('tv') || catLower.includes('telkom') || catLower.includes('indihome') || catLower.includes('wifi') || catLower.includes('biznet') || catLower.includes('megavision') || catLower.includes('cbn')) kategoriBarang = 'Internet & TV';
+                else if (catLower.includes('bpjs') || catLower.includes('kesehatan') || catLower.includes('tk') || catLower.includes('ketenagakerjaan') || brandLower.includes('bpjs')) kategoriBarang = 'BPJS';
+                else if (catLower.includes('gas') || catLower.includes('pgn') || catLower.includes('pertagas') || brandLower.includes('pgn')) kategoriBarang = 'Gas Negara';
+                else if (catLower.includes('finance') || catLower.includes('e-money') || catLower.includes('emoney') || catLower.includes('kredit') || catLower.includes('cicilan') || catLower.includes('tagihan') || catLower.includes('multifinance') || catLower.includes('wallet')) kategoriBarang = 'E-Money Pasca';
                 else kategoriBarang = catDigi;
             } else {
                 if (catLower === 'pulsa') kategoriBarang = 'Pulsa';
@@ -4995,8 +5049,8 @@ install_dependencies() {
     rm -rf node_modules package-lock.json
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    echo -ne "${C_MAG}>> Mengunduh modul utama (termasuk SQLite)...${C_RST}"
-    npm install @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api better-sqlite3 > install_npm.log 2>&1 &
+    echo -ne "${C_MAG}>> Mengunduh modul utama (termasuk SQLite & JWT)...${C_RST}"
+    npm install @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api better-sqlite3 jsonwebtoken > install_npm.log 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
@@ -5005,7 +5059,7 @@ install_dependencies() {
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     read -p "Tekan Enter untuk kembali..."
 }
-
+# === SELESAI ===
 menu_tutorial() {
     while true; do
         clear
