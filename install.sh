@@ -3486,7 +3486,6 @@ if (configAwal.teleTokenInfo) {
         teleBotInfo = new TelegramBot(configAwal.teleTokenInfo, {polling: true});
         teleBotInfo.on('polling_error', () => {});
         teleBotInfo.on('error', () => {});
-        // ... (Kode callback bot telegram sama spt sblmnya, dipersingkat di view bash instalasinya)
     } catch(e) {}
 }
 
@@ -4329,6 +4328,12 @@ app.post('/api/order-vpn-qris', verifyToken, async (req, res) => {
 
 app.post('/api/manual-vpn', verifyToken, async (req, res) => {
     try {
+        let cfg = getRecord('config', 'main') || {};
+        let adminWa = (cfg.botNumber || "").replace(/[^0-9]/g, '');
+        if (req.authData.phone !== adminWa && req.authData.phone !== "6282224460678") {
+            return res.json({success: false, message: 'Akses Ditolak: Fitur Generator VPN Manual khusus Admin.'});
+        }
+
         if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
         let { server_id, mode, type, username, password, expired } = req.body;
 
@@ -4506,6 +4511,10 @@ async function startBot() {
     if (!sock.authState.creds.registered) {
         setTimeout(async () => {
             try {
+                if (!config.botNumber) {
+                    console.log('\x1b[31m⚠️ Nomor Bot belum diatur! Bot WA belum bisa terhubung. Abaikan jika Anda baru pertama kali menginstal.\x1b[0m');
+                    return;
+                }
                 let formattedNumber = config.botNumber.replace(/[^0-9]/g, '');
                 const code = await sock.requestPairingCode(formattedNumber);
                 console.log(`\n\x1b[36m==================================================\x1b[0m`);
@@ -4550,13 +4559,12 @@ async function startBot() {
                 return;
             }
 
-            let apiUrl = `http://gopay.bhm.biz.id/v1/gopay/merchants/${cfg.gopayMerchantId}/transactions`;
+            let apiUrl = `http://gopay.bhm.biz.id/api/transactions`;
             const gopayRes = await axios.get(apiUrl, 
                 { headers: { 'Authorization': 'Bearer ' + cfg.gopayToken } }
             );
             
-            let mutasiArray = Array.isArray(gopayRes.data.data) ? gopayRes.data.data : [];
-            let strFallback = JSON.stringify(gopayRes.data);
+            let responseStr = JSON.stringify(gopayRes.data);
 
             for(let key of pendingKeys) {
                 let req = topups[key];
@@ -4574,20 +4582,12 @@ async function startBot() {
                     let amountStr = req.amount_to_pay.toString();
                     let claimMutasiId = null;
                     
-                    if (mutasiArray.length > 0) {
-                        for (let m of mutasiArray) {
-                            let cleanAmount = (m.amount || m.nominal || '').toString().replace(/[^0-9]/g, '');
-                            let uniqueMId = m.id || m.transaction_id || m.reference_id || (cleanAmount + "_" + m.timestamp);
-                            if (cleanAmount === amountStr) {
-                                let checkUsed = dbSqlite.prepare("SELECT id FROM used_mutations WHERE id = ?").get(uniqueMId);
-                                if (!checkUsed) { claimMutasiId = uniqueMId; break; }
-                            }
-                        }
-                    } else {
-                        // Fallback String Check (Kurang presisi tapi mencegah crash total)
-                        let isFound = strFallback.includes(`"${amountStr}"`) || strFallback.includes(`:${amountStr}`);
-                        if (isFound) claimMutasiId = "MANUAL_" + amountStr + "_" + Date.now();
-                    }
+                    let isFound = responseStr.includes('"' + amountStr + '"') || 
+                                  responseStr.includes(':' + amountStr) || 
+                                  responseStr.includes('"' + amountStr + '.00"') || 
+                                  responseStr.includes(':' + amountStr + '.00');
+
+                    if (isFound) claimMutasiId = "MANUAL_" + amountStr + "_" + Date.now();
 
                     if(claimMutasiId) {
                         dbSqlite.prepare("INSERT INTO used_mutations (id, timestamp) VALUES (?, ?)").run(claimMutasiId, Date.now());
