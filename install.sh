@@ -3973,6 +3973,7 @@ app.post('/api/order-qris', verifyToken, async (req, res) => {
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
 });
 
+// BUG 1 FIXED: Menyimpan data trx/history DULU sebelum Axios, dan HAPUS refund di blok catch
 app.post('/api/order', verifyToken, async (req, res) => {
     let targetKey = ""; let hargaFix = 0; let refId = 'WEB-' + Date.now();
     try {
@@ -4001,36 +4002,13 @@ app.post('/api/order', verifyToken, async (req, res) => {
         let u = atomicRes.uData;
         let saldoSebelum = atomicRes.saldoTerkini + hargaFix;
 
-        let username = (config.digiflazzUsername || '').trim();
-        let apiKey = (config.digiflazzApiKey || '').trim();
-        let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
-
-        const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
-            username: username, buyer_sku_code: realSku, customer_no: sanitizeInput(tujuan), ref_id: refId, sign: sign, max_price: hargaFix
-        });
-        
-        const statusOrder = response.data.data.status; 
-        
-        let emailUser = u.email || '-';
-        let namaUser = u.username || targetKey;
-        
-        if (statusOrder === 'Gagal') {
-            let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + p.nama, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId };
-            u = atomicRefundBalance(targetKey, hargaFix, histObj);
-            
-            let teleMsgFail = `❌ <b>PESANAN GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${u.saldo.toLocaleString('id-ID')}`;
-            sendTelegramAdmin(teleMsgFail);
-            
-            return res.json({success: false, message: response.data.data.message});
-        }
-        
-        u = getRecord('users', targetKey); // Re-fetch
+        // 1. Simpan history "Pending" dan "trx" SEBELUM menembak API PPOB
         u.trx_count = (u.trx_count || 0) + 1;
         u.history = u.history || [];
         u.history.unshift({ 
             ts: Date.now(), 
             tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-            type: 'Order', nama: p.nama, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId,
+            type: 'Order', nama: p.nama, tujuan: tujuan, status: 'Pending', sn: '-', amount: hargaFix, ref_id: refId,
             saldo_sebelumnya: saldoSebelum, saldo_sesudah: u.saldo
         });
         if(u.history.length > 50) u.history.pop();
@@ -4039,32 +4017,72 @@ app.post('/api/order', verifyToken, async (req, res) => {
         let targetJid = u.jid || targetKey + '@s.whatsapp.net';
         saveRecord('trx', refId, { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: p.nama, tanggal: Date.now(), phone: targetKey });
 
-        if (statusOrder === 'Sukses') {
-            let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-            let gStats = getRecord('global_stats', dateKey) || 0;
-            saveRecord('global_stats', dateKey, gStats + 1);
+        let username = (config.digiflazzUsername || '').trim();
+        let apiKey = (config.digiflazzApiKey || '').trim();
+        let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
 
-            let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-            unshiftRecordArray('global_trx', { time: timeStr, product: p.nama, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'Saldo Akun' });
+        let statusOrder = 'Pending';
+        let snOrder = '-';
 
-            sendBroadcastSuccess(p.nama, namaUser, tujuan, hargaFix, 'Saldo Akun');
-        }
+        try {
+            const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
+                username: username, buyer_sku_code: realSku, customer_no: sanitizeInput(tujuan), ref_id: refId, sign: sign, max_price: hargaFix
+            });
+            statusOrder = response.data.data.status; 
+            snOrder = response.data.data.sn || '-';
 
-        res.json({success: true, saldo: u.saldo});
-
-        let teleMsg = `🔔 <b>PESANAN BARU MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${u.saldo.toLocaleString('id-ID')}`;
-        sendTelegramAdmin(teleMsg);
-
-    } catch (error) { 
-        if (!res.headersSent) {
-            // SAFEGUARD REFUND JIKA AXIOS ERROR / TIMEOUT (Cegah Saldo Menguap)
-            if (targetKey && hargaFix > 0) {
-                let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Pengembalian: Error API', tujuan: req.body.tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId };
-                atomicRefundBalance(targetKey, hargaFix, histObj);
+            let emailUser = u.email || '-';
+            let namaUser = u.username || targetKey;
+            
+            // Refund HANYA BILA Digiflazz secara definitif menjawab "Gagal"
+            if (statusOrder === 'Gagal') {
+                let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + p.nama, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId };
+                u = atomicRefundBalance(targetKey, hargaFix, histObj);
+                
+                // Menghapus rekaman riwayat "Pending" awal agar tidak dobel
+                u.history = u.history.filter(h => !(h.ref_id === refId && h.status === 'Pending'));
+                saveRecord('users', targetKey, u);
+                deleteRecord('trx', refId);
+                
+                let teleMsgFail = `❌ <b>PESANAN GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                sendTelegramAdmin(teleMsgFail);
+                
+                return res.json({success: false, message: response.data.data.message});
+            } else {
+                // Update history jika berhasil atau tetap pending
+                u = getRecord('users', targetKey);
+                let idxHist = u.history.findIndex(h => h.ref_id === refId && h.type === 'Order');
+                if (idxHist !== -1) {
+                    u.history[idxHist].status = statusOrder;
+                    u.history[idxHist].sn = snOrder;
+                    saveRecord('users', targetKey, u);
+                }
             }
-            let errInfo = error.response && error.response.data && error.response.data.data ? error.response.data.data.message : error.message;
-            return res.json({success: false, message: errInfo});
+
+            if (statusOrder === 'Sukses') {
+                let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+                let gStats = getRecord('global_stats', dateKey) || 0;
+                saveRecord('global_stats', dateKey, gStats + 1);
+
+                let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+                unshiftRecordArray('global_trx', { time: timeStr, product: p.nama, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'Saldo Akun' });
+
+                sendBroadcastSuccess(p.nama, namaUser, tujuan, hargaFix, 'Saldo Akun');
+            }
+
+            res.json({success: true, saldo: u.saldo});
+
+            let teleMsg = `🔔 <b>PESANAN BARU MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${u.saldo.toLocaleString('id-ID')}`;
+            sendTelegramAdmin(teleMsg);
+
+        } catch (error) { 
+            // Hapus blok 'atomicRefundBalance' ini agar Webhook bisa memperbarui statusnya.
+            if (!res.headersSent) {
+                return res.json({success: true, message: 'Request sedang diproses oleh sistem...', saldo: u.saldo});
+            }
         }
+    } catch (e) {
+        if (!res.headersSent) return res.json({success: false, message: "Terjadi kesalahan internal."});
     }
 });
 
@@ -4419,12 +4437,12 @@ async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
     }
 }
 
+// BUG 2 FIXED: Memberi logika penanganan error dan refund saat axios.post ke PPOB gagal (Dana Hangus QRIS)
 async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, refIdAsal) {
+    let hargaFix = parseInt(harga_asli);
     try {
         let config = getRecord('config', 'main') || {}; 
         let p = getRecord('produk', sku) || {};
-        
-        let hargaFix = parseInt(harga_asli);
         let realSku = p.sku_asli || sku;
 
         let username = (config.digiflazzUsername || '').trim();
@@ -4489,7 +4507,28 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         let teleMsg = `🚀 <b>AUTO ORDER QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
 
-    } catch(e) {}
+    } catch(e) {
+        // PERBAIKAN: Refund otomatis ke pengguna bila koneksi API Digiflazz putus 
+        let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refIdAsal };
+        let uRefund = atomicRefundBalance(phone, hargaFix, histObj);
+        
+        let hist = uRefund.history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
+        if(hist) {
+            hist.status = 'Refund';
+            saveRecord('users', phone, uRefund);
+        }
+
+        let emailUser = uRefund.email || '-';
+        let namaUser = uRefund.username || phone;
+        let errMsg = e.response && e.response.data && e.response.data.data ? e.response.data.data.message : e.message;
+
+        let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: KONEKSI PPOB ERROR</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Error: ${errMsg}\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan otomatis ke akun pengguna.\n💳 Metode: QRIS Auto`;
+        sendTelegramAdmin(teleMsgFail);
+        
+        if(globalSock) {
+            globalSock.sendMessage(uRefund.jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL PPOB*\n\nMaaf, pesanan ${nama_produk} gagal diproses karena gangguan pusat.\n\n💰 Saldo Anda sebesar Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan ke akun Website.` }).catch(err=>{});
+        }
+    }
 }
 
 function doBackupAndSend() {
@@ -4552,6 +4591,8 @@ async function startBot() {
     }, 60000); 
 
     let isCheckingQris = false;
+    
+    // BUG 3 FIXED: Menghapus fallback JSON.stringify().includes() yang memicu saldo gratis.
     setInterval(async () => {
         if(isCheckingQris) return;
         isCheckingQris = true;
@@ -4569,7 +4610,13 @@ async function startBot() {
                 { headers: { 'Authorization': 'Bearer ' + cfg.gopayToken } }
             );
             
-            let responseStr = JSON.stringify(gopayRes.data);
+            // Ekstrak array mutasi yang benar
+            let mutasiArray = [];
+            if (gopayRes.data && Array.isArray(gopayRes.data)) {
+                mutasiArray = gopayRes.data;
+            } else if (gopayRes.data && gopayRes.data.data && Array.isArray(gopayRes.data.data)) {
+                mutasiArray = gopayRes.data.data;
+            }
 
             for(let key of pendingKeys) {
                 let req = topups[key];
@@ -4584,17 +4631,20 @@ async function startBot() {
                     }
                 } 
                 else {
-                    let amountStr = req.amount_to_pay.toString();
                     let claimMutasiId = null;
-                    
-                    let isFound = responseStr.includes('"' + amountStr + '"') || 
-                                  responseStr.includes(':' + amountStr) || 
-                                  responseStr.includes('"' + amountStr + '.00"') || 
-                                  responseStr.includes(':' + amountStr + '.00');
+                    let isFound = false;
 
-                    if (isFound) claimMutasiId = "MANUAL_" + amountStr + "_" + Date.now();
+                    // Lakukan perulangan iterasi array dari mutasi (TANPA FALLBACK STRINGIFY INCLUDES)
+                    for (let mutasi of mutasiArray) {
+                        let mAmount = parseFloat(mutasi.amount || mutasi.value || mutasi.total || 0);
+                        if (mAmount === req.amount_to_pay) {
+                            isFound = true;
+                            claimMutasiId = mutasi.id || mutasi.transaction_id || ("MUTASI_" + mAmount + "_" + Date.now());
+                            break;
+                        }
+                    }
 
-                    if(claimMutasiId) {
+                    if(isFound && claimMutasiId) {
                         dbSqlite.prepare("INSERT INTO used_mutations (id, timestamp) VALUES (?, ?)").run(claimMutasiId, Date.now());
                         req.status = 'sukses';
                         saveRecord('topup', key, req);
