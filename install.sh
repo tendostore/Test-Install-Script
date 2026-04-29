@@ -3118,7 +3118,12 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(bodyParser.json());
+// Modifikasi body-parser untuk mendapatkan rawBody demi validasi Webhook HMAC SHA1
+app.use(bodyParser.json({
+    verify: (req, res, buf) => {
+        req.rawBody = buf;
+    }
+}));
 app.use(express.static('public')); 
 
 // ==============================================================
@@ -4625,84 +4630,94 @@ async function startBot() {
         isCheckingQris = false;
     }, 30000); 
 
-    let isCheckingDigi = false;
-    setInterval(async () => {
-        if(isCheckingDigi) return;
-        isCheckingDigi = true;
+    // Webhook Endpoint Digiflazz Pengganti Sistem Polling
+    app.post('/api/webhook', (req, res) => {
         try {
-            let trxs = getAllRecords('trx'); 
-            let keys = Object.keys(trxs); 
-            if (keys.length === 0) { isCheckingDigi = false; return; }
-            
-            let cfg = getRecord('config', 'main') || {}; 
-            let userAPI = (cfg.digiflazzUsername || '').trim(); 
-            let keyAPI = (cfg.digiflazzApiKey || '').trim();
-            if (!userAPI || !keyAPI) { isCheckingDigi = false; return; }
+            let config = getRecord('config', 'main') || {};
+            let secret = config.webhookSecret;
+            if (!secret) return res.status(403).json({success: false, message: 'Secret webhook belum diatur admin.'});
 
-            // OPTIMASI: Filter dan Batasi 5 Trx per Cycle (Aman dari Rate Limit)
-            let validKeys = keys.filter(ref => (Date.now() - trxs[ref].tanggal) > 60000); 
-            let batch = validKeys.slice(0, 5);
+            let signature = req.headers['x-hub-signature'];
+            if (!signature) return res.status(403).json({success: false, message: 'No signature found'});
 
-            for (let ref of batch) {
-                let trx = trxs[ref]; 
-                let signCheck = crypto.createHash('md5').update(userAPI + keyAPI + ref).digest('hex');
-                try {
-                    const cekRes = await axios.post('https://api.digiflazz.com/v1/transaction', { username: userAPI, buyer_sku_code: trx.sku, customer_no: trx.tujuan, ref_id: ref, sign: signCheck });
-                    const resData = cekRes.data.data;
-                    if (resData.status === 'Sukses' || resData.status === 'Gagal') {
-                        let phoneKey = trx.phone || trx.jid.split('@')[0];
-                        let u = getRecord('users', phoneKey);
-                        let namaUser = u?.username || phoneKey;
-                        let emailUser = u?.email || '-';
+            let hmac = crypto.createHmac('sha1', secret).update(req.rawBody).digest('hex');
+            let expectedSignature = 'sha1=' + hmac;
 
-                        if(resData.status === 'Sukses') {
-                            let wasNotSuccess = false;
-                            if (u && u.history) {
-                                let hist = u.history.find(h => h.ref_id === ref);
-                                if (hist && hist.status !== 'Sukses') { 
-                                    hist.status = 'Sukses'; hist.sn = resData.sn || '-'; 
-                                    saveRecord('users', phoneKey, u); 
-                                    wasNotSuccess = true;
-                                }
-                            }
-                            
-                            if(wasNotSuccess) {
-                                let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-                                let gStats = getRecord('global_stats', dateKey) || 0;
-                                saveRecord('global_stats', dateKey, gStats + 1);
-                                
-                                let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-                                unshiftRecordArray('global_trx', { time: timeStr, product: trx.nama, user: namaUser, target: maskStringTarget(trx.tujuan), price: parseInt(trx.harga), method: 'Sistem Otomatis' });
-
-                                sendBroadcastSuccess(trx.nama, namaUser, trx.tujuan, parseInt(trx.harga), 'Sistem Otomatis');
-
-                                let teleSuccess = `✅ <b>PESANAN SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n🔑 SN: ${resData.sn || '-'}\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
-                                sendTelegramAdmin(teleSuccess);
-                            }
-                            
-                        } else {
-                            if (u) { 
-                                let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + trx.nama, tujuan: trx.tujuan, status: 'Refund', sn: '-', amount: parseInt(trx.harga), ref_id: ref };
-                                let uRefund = atomicRefundBalance(phoneKey, parseInt(trx.harga), histObj);
-                                
-                                if (globalSock) {
-                                    globalSock.sendMessage(trx.jid, { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf pesanan ${trx.nama} tujuan ${trx.tujuan} gagal diproses pusat.\n\n💰 Saldo Rp ${parseInt(trx.harga).toLocaleString('id-ID')} telah dikembalikan utuh ke akun Anda.` }).catch(e=>{});
-                                }
-                            }
-                            
-                            let teleFail = `❌ <b>PESANAN GAGAL & REFUND</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${ref}\n📝 Alasan: ${resData.message}\n\n💰 Saldo telah otomatis dikembalikan.`;
-                            sendTelegramAdmin(teleFail);
-                        }
-                        deleteRecord('trx', ref);
-                    } else if (Date.now() - trx.tanggal > 24 * 60 * 60 * 1000) { 
-                        deleteRecord('trx', ref);
-                    }
-                } catch (err) {}
-                await new Promise(r => setTimeout(r, 2000)); 
+            if (signature !== expectedSignature) {
+                return res.status(403).json({success: false, message: 'Invalid signature'});
             }
-        } catch (err) {}
-        isCheckingDigi = false;
-    }, 15000); 
+
+            let data = req.body.data;
+            if (!data) return res.status(400).send('Payload invalid');
+
+            let refId = data.ref_id;
+            let statusOrder = data.status;
+            let sn = data.sn || '-';
+            let message = data.message || '';
+
+            if (statusOrder === 'Pending') {
+                return res.status(200).send('OK');
+            }
+
+            let trx = getRecord('trx', refId);
+            if (!trx) return res.status(200).send('OK - No Trx'); 
+
+            let phoneKey = trx.phone || trx.jid.split('@')[0];
+            let u = getRecord('users', phoneKey);
+            if (!u) {
+                deleteRecord('trx', refId);
+                return res.status(200).send('OK');
+            }
+
+            let namaUser = u.username || phoneKey;
+            let emailUser = u.email || '-';
+
+            if (statusOrder === 'Sukses') {
+                let wasNotSuccess = false;
+                if (u.history) {
+                    let hist = u.history.find(h => h.ref_id === refId);
+                    if (hist && hist.status !== 'Sukses') { 
+                        hist.status = 'Sukses'; 
+                        hist.sn = sn; 
+                        saveRecord('users', phoneKey, u); 
+                        wasNotSuccess = true;
+                    }
+                }
+                
+                if (wasNotSuccess) {
+                    let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+                    let gStats = getRecord('global_stats', dateKey) || 0;
+                    saveRecord('global_stats', dateKey, gStats + 1);
+                    
+                    let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+                    unshiftRecordArray('global_trx', { time: timeStr, product: trx.nama, user: namaUser, target: maskStringTarget(trx.tujuan), price: parseInt(trx.harga), method: 'Sistem Otomatis' });
+
+                    sendBroadcastSuccess(trx.nama, namaUser, trx.tujuan, parseInt(trx.harga), 'Sistem Otomatis');
+
+                    let teleSuccess = `✅ <b>PESANAN SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${refId}\n🔑 SN: ${sn}\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                    sendTelegramAdmin(teleSuccess);
+                }
+                deleteRecord('trx', refId);
+
+            } else if (statusOrder === 'Gagal') {
+                let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + trx.nama, tujuan: trx.tujuan, status: 'Refund', sn: '-', amount: parseInt(trx.harga), ref_id: refId };
+                let uRefund = atomicRefundBalance(phoneKey, parseInt(trx.harga), histObj);
+                
+                if (globalSock) {
+                    globalSock.sendMessage(trx.jid, { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf pesanan ${trx.nama} tujuan ${trx.tujuan} gagal diproses pusat.\nAlasan: ${message}\n\n💰 Saldo Rp ${parseInt(trx.harga).toLocaleString('id-ID')} telah dikembalikan utuh ke akun Anda.` }).catch(e=>{});
+                }
+                
+                let teleFail = `❌ <b>PESANAN GAGAL & REFUND</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${refId}\n📝 Alasan: ${message}\n\n💰 Saldo telah otomatis dikembalikan.`;
+                sendTelegramAdmin(teleFail);
+                
+                deleteRecord('trx', refId);
+            }
+
+            res.status(200).send('OK');
+        } catch (err) {
+            res.status(500).send('Error webhook processing');
+        }
+    });
 
     sock.ev.on('messages.upsert', async m => {
         try {
@@ -6356,20 +6371,21 @@ while true; do
     echo -e "  ${C_GREEN}[12]${C_RST} 👥 Manajemen Saldo & Member"
     echo ""
     echo -e "${C_MAG}▶ ⚙️ PENGATURAN & INTEGRASI${C_RST}"
-    echo -e "  ${C_GREEN}[13]${C_RST} 🔌 Ganti API Digiflazz"
-    echo -e "  ${C_GREEN}[14]${C_RST} 💳 Setup GoPay Merchant API"
-    echo -e "  ${C_GREEN}[15]${C_RST} 📢 Setup Integrasi Notifikasi (Tele/Web)"
-    echo -e "  ${C_GREEN}[16]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
-    echo -e "  ${C_GREEN}[17]${C_RST} 🔄 Ganti Akun WA Web OTP (Reset Sesi)"
-    echo -e "  ${C_GREEN}[18]${C_RST} 🛠️ Atur Waktu Pemeliharaan Sistem"
+    echo -e "  ${C_GREEN}[13]${C_RST} 🔌 Setup API Digiflazz"
+    echo -e "  ${C_GREEN}[14]${C_RST} 🔐 Setup Secret Digiflazz"
+    echo -e "  ${C_GREEN}[15]${C_RST} 💳 Setup GoPay Merchant API"
+    echo -e "  ${C_GREEN}[16]${C_RST} 📢 Setup Integrasi Notifikasi (Tele/Web)"
+    echo -e "  ${C_GREEN}[17]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
+    echo -e "  ${C_GREEN}[18]${C_RST} 🔄 Ganti Akun WA Web OTP (Reset Sesi)"
+    echo -e "  ${C_GREEN}[19]${C_RST} 🛠️ Atur Waktu Pemeliharaan Sistem"
     echo ""
     echo -e "${C_MAG}▶ 💾 BACKUP & RESTORE${C_RST}"
-    echo -e "  ${C_GREEN}[19]${C_RST} 💾 Backup & Restore Database"
-    echo -e "  ${C_GREEN}[20]${C_RST} ⚙️ Pengaturan Auto-Backup Telegram"
+    echo -e "  ${C_GREEN}[20]${C_RST} 💾 Backup & Restore Database"
+    echo -e "  ${C_GREEN}[21]${C_RST} ⚙️ Pengaturan Auto-Backup Telegram"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
     echo -e "${C_CYAN}======================================================${C_RST}"
-    echo -ne "${C_YELLOW}Pilih menu [0-20]: ${C_RST}"
+    echo -ne "${C_YELLOW}Pilih menu [0-21]: ${C_RST}"
     read choice
 
     case $choice in
@@ -6424,7 +6440,7 @@ while true; do
         11) menu_tutorial ;;
         12) menu_member ;;
         13)
-            echo -e "\n${C_MAG}--- GANTI API DIGIFLAZZ ---${C_RST}"
+            echo -e "\n${C_MAG}--- SETUP API DIGIFLAZZ ---${C_RST}"
             read -p "Username Digiflazz Baru: " user_api
             read -p "API Key Digiflazz Baru: " key_api
             USER_API="$user_api" KEY_API="$key_api" node -e "
@@ -6435,11 +6451,25 @@ while true; do
                 if(process.env.USER_API !== '') config.digiflazzUsername = process.env.USER_API.trim();
                 if(process.env.KEY_API !== '') config.digiflazzApiKey = process.env.KEY_API.trim();
                 db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
-                console.log('\x1b[32m\n✅ Konfigurasi Digiflazz berhasil disimpan!\x1b[0m');
+                console.log('\x1b[32m\n✅ Konfigurasi API Digiflazz berhasil disimpan!\x1b[0m');
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
         14)
+            echo -e "\n${C_MAG}--- SETUP SECRET DIGIFLAZZ (WEBHOOK) ---${C_RST}"
+            read -p "Masukkan Secret Key Webhook Digiflazz Anda: " secret_webhook
+            SECRET_WEBHOOK="$secret_webhook" node -e "
+                const Database = require('better-sqlite3');
+                const db = new Database('tendo_database.db');
+                let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+                let config = row ? JSON.parse(row.data) : {};
+                if(process.env.SECRET_WEBHOOK !== '') config.webhookSecret = process.env.SECRET_WEBHOOK.trim();
+                db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
+                console.log('\x1b[32m\n✅ Secret Webhook Digiflazz berhasil disimpan!\x1b[0m');
+            "
+            read -p "Tekan Enter untuk kembali..."
+            ;;
+        15)
             echo -e "\n${C_MAG}--- SETUP GOPAY MERCHANT (BHM BIZ API) ---${C_RST}"
             echo -e "${C_YELLOW}Fitur ini akan menghubungkan merchant GoPay Anda dan mengatur QRIS Dinamis!${C_RST}"
             read -p "Masukkan API Token BHM Biz Anda: " gopay_token
@@ -6483,8 +6513,8 @@ while true; do
             "
             read -p "Tekan Enter untuk kembali..."
             ;;
-        15) menu_notifikasi ;;
-        16)
+        16) menu_notifikasi ;;
+        17)
             echo -e "\n${C_MAG}--- SETUP DOMAIN & HTTPS ---${C_RST}"
             read -p "Masukkan Nama Domain Anda (contoh: digitaltendostore.com): " domain_name
             read -p "Masukkan Email Aktif (untuk SSL Let's Encrypt): " ssl_email
@@ -6512,7 +6542,7 @@ EOF
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
-        17)
+        18)
             echo -e "\n${C_RED}⚠️ Reset Sesi akan mengeluarkan sistem dari WhatsApp saat ini.${C_RST}"
             read -p "Yakin ingin mereset sesi? (y/n): " reset_sesi
             if [ "$reset_sesi" == "y" ]; then
@@ -6522,9 +6552,9 @@ EOF
             fi
             read -p "Tekan Enter untuk kembali..."
             ;;
-        18) menu_pemeliharaan ;;
-        19) menu_backup ;;
-        20) menu_telegram ;;
+        19) menu_pemeliharaan ;;
+        20) menu_backup ;;
+        21) menu_telegram ;;
         0) echo -e "${C_GREEN}Sampai jumpa!${C_RST}"; exit 0 ;;
         *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
     esac
