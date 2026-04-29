@@ -4519,7 +4519,7 @@ async function startBot() {
                 return;
             }
 
-            const gopayRes = await axios.get('http://gopay.bhm.biz.id/api/transactions', 
+            const gopayRes = await axios.get(`http://gopay.bhm.biz.id/v1/gopay/merchants/${cfg.gopayMerchantId}/transactions`, 
                 { headers: { 'Authorization': 'Bearer ' + cfg.gopayToken } }
             );
             
@@ -4587,7 +4587,9 @@ async function startBot() {
                     }
                 }
             }
-        } catch(e) {}
+        } catch(e) {
+            console.error("Error cek QRIS:", e.response ? e.response.data : e.message);
+        }
         isCheckingQris = false;
     }, 30000); 
 
@@ -4732,12 +4734,12 @@ async function tarikDataLayananOtomatis() {
             let kategoriBarang = 'Lainnya';
             
             if (item.is_pasca_api) {
-                if (catLower === 'pln pascabayar') kategoriBarang = 'PLN Pasca';
-                else if (catLower === 'pdam') kategoriBarang = 'PDAM';
-                else if (catLower === 'bpjs kesehatan') kategoriBarang = 'BPJS';
-                else if (catLower === 'gas negara') kategoriBarang = 'Gas Negara';
-                else if (catLower === 'internet pascabayar') kategoriBarang = 'Internet & TV';
-                else if (catLower === 'e-money' || catLower.includes('finance') || catLower.includes('tagihan')) kategoriBarang = 'E-Money Pasca';
+                if (catLower.includes('pln')) kategoriBarang = 'PLN Pasca';
+                else if (catLower.includes('pdam')) kategoriBarang = 'PDAM';
+                else if (catLower.includes('bpjs')) kategoriBarang = 'BPJS';
+                else if (catLower.includes('gas')) kategoriBarang = 'Gas Negara';
+                else if (catLower.includes('internet') || catLower.includes('tv')) kategoriBarang = 'Internet & TV';
+                else if (catLower.includes('e-money') || catLower.includes('finance') || catLower.includes('tagihan')) kategoriBarang = 'E-Money Pasca';
                 else kategoriBarang = catDigi;
             } else {
                 if (catLower === 'pulsa') kategoriBarang = 'Pulsa';
