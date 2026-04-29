@@ -79,9 +79,13 @@ self.addEventListener('activate', (e) => {
     }));
     self.clients.claim(); 
 });
-self.addEventListener('fetch', (e) => { 
+self.addEventListener('fetch', (e) => {
     e.respondWith(
-        fetch(e.request).catch(() => caches.match(e.request))
+        fetch(e.request).then((response) => {
+            const resClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, resClone));
+            return response;
+        }).catch(() => caches.match(e.request))
     );
 });
 EOF
@@ -3355,6 +3359,11 @@ function cleanupOldHistory() {
         
         // Membersihkan mutasi usang (> 24 jam)
         dbSqlite.prepare(`DELETE FROM used_mutations WHERE timestamp < ?`).run(Date.now() - 86400000);
+
+        let nowTime = Date.now();
+        for (let key in loginAttempts) { if (nowTime - loginAttempts[key].time > 3600000) delete loginAttempts[key]; }
+        for (let key in ipOtpLimit) { if (nowTime - ipOtpLimit[key].time > 600000) delete ipOtpLimit[key]; }
+
     } catch (e) {
         console.error("Error during cleanup:", e.message);
     }
@@ -3466,6 +3475,7 @@ let globalSock = null;
 let tempOtpDB = {}; 
 let otpCooldown = {}; 
 let loginAttempts = {}; // Menyimpan percobaan login rate limit
+let ipOtpLimit = {};
 let isMaintenanceNow = cekPemeliharaan();
 
 let teleBotInfo = null;
@@ -3670,6 +3680,12 @@ app.post('/api/login', (req, res) => {
 
 app.post('/api/register', (req, res) => {
     try {
+        let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        ipOtpLimit[ip] = ipOtpLimit[ip] || { count: 0, time: Date.now() };
+        if (Date.now() - ipOtpLimit[ip].time > 600000) { ipOtpLimit[ip] = { count: 1, time: Date.now() }; } 
+        else { ipOtpLimit[ip].count++; }
+        if (ipOtpLimit[ip].count > 3) return res.json({success: false, message: 'Terlalu banyak request dari IP Anda. Tunggu 10 menit.'});
+
         let username = sanitizeInput(req.body.username);
         let email = sanitizeInput(req.body.email);
         let password = req.body.password;
@@ -3788,6 +3804,12 @@ app.post('/api/verify-edit-otp', verifyToken, (req, res) => {
 
 app.post('/api/req-forgot-otp', (req, res) => {
     try {
+        let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        ipOtpLimit[ip] = ipOtpLimit[ip] || { count: 0, time: Date.now() };
+        if (Date.now() - ipOtpLimit[ip].time > 600000) { ipOtpLimit[ip] = { count: 1, time: Date.now() }; } 
+        else { ipOtpLimit[ip].count++; }
+        if (ipOtpLimit[ip].count > 3) return res.json({success: false, message: 'Terlalu banyak request dari IP Anda. Tunggu 10 menit.'});
+
         let phone = normalizePhone(req.body.phone);
         let u = getRecord('users', phone);
         if(!u) return res.json({success: false, message: 'Nomor WA tidak terdaftar!'});
@@ -3843,9 +3865,12 @@ app.post('/api/topup', verifyToken, async (req, res) => {
         let uniqueCode = Math.floor(Math.random() * 999) + 1;
         let totalPay = nominalAsli + uniqueCode;
         let allTopups = getAllRecords('topup');
+        let attempts = 0;
         while(Object.values(allTopups).some(t => t.status === 'pending' && t.amount_to_pay === totalPay)) {
             uniqueCode = Math.floor(Math.random() * 999) + 1;
             totalPay = nominalAsli + uniqueCode;
+            attempts++;
+            if (attempts > 1000) break;
         }
 
         let finalQrisUrl = config.qrisUrl;
@@ -3903,9 +3928,12 @@ app.post('/api/order-qris', verifyToken, async (req, res) => {
         let uniqueCode = Math.floor(Math.random() * 999) + 1; 
         let totalPay = nominalAsli + uniqueCode;
         let allTopups = getAllRecords('topup');
+        let attempts = 0;
         while(Object.values(allTopups).some(t => t.status === 'pending' && t.amount_to_pay === totalPay)) {
             uniqueCode = Math.floor(Math.random() * 999) + 1;
             totalPay = nominalAsli + uniqueCode;
+            attempts++;
+            if (attempts > 1000) break;
         }
 
         let finalQrisUrl = config.qrisUrl;
@@ -4258,9 +4286,12 @@ app.post('/api/order-vpn-qris', verifyToken, async (req, res) => {
         let uniqueCode = Math.floor(Math.random() * 999) + 1; 
         let totalPay = nominalAsli + uniqueCode;
         let allTopups = getAllRecords('topup');
+        let attempts = 0;
         while(Object.values(allTopups).some(t => t.status === 'pending' && t.amount_to_pay === totalPay)) {
             uniqueCode = Math.floor(Math.random() * 999) + 1;
             totalPay = nominalAsli + uniqueCode;
+            attempts++;
+            if (attempts > 1000) break;
         }
 
         let finalQrisUrl = config.qrisUrl;
@@ -4519,7 +4550,8 @@ async function startBot() {
                 return;
             }
 
-            const gopayRes = await axios.get(`http://gopay.bhm.biz.id/v1/gopay/merchants/${cfg.gopayMerchantId}/transactions`, 
+            let apiUrl = `http://gopay.bhm.biz.id/v1/gopay/merchants/${cfg.gopayMerchantId}/transactions`;
+            const gopayRes = await axios.get(apiUrl, 
                 { headers: { 'Authorization': 'Bearer ' + cfg.gopayToken } }
             );
             
@@ -4588,7 +4620,7 @@ async function startBot() {
                 }
             }
         } catch(e) {
-            console.error("Error cek QRIS:", e.response ? e.response.data : e.message);
+            console.log("Error cek QRIS:", e.response ? e.response.data : e.message);
         }
         isCheckingQris = false;
     }, 30000); 
@@ -4708,7 +4740,8 @@ async function tarikDataLayananOtomatis() {
         let dataPrepaid = balasanPrepaid.data.data || [];
         let dataPasca = balasanPasca.data.data || [];
 
-        if (dataPrepaid.length < 100) return;
+        if (!Array.isArray(dataPrepaid)) dataPrepaid = [];
+        if (!Array.isArray(dataPasca)) dataPasca = [];
 
         dataPrepaid = dataPrepaid.map(item => ({ ...item, is_pasca_api: false }));
         dataPasca = dataPasca.map(item => ({ ...item, is_pasca_api: true }));
@@ -4909,6 +4942,9 @@ install_dependencies() {
     (sudo npm install -g pm2 > /dev/null 2>&1) &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
+
+    echo -e "${C_CYAN}>> Menginstal PM2 Logrotate untuk mencegah hardisk penuh...${C_RST}"
+    pm2 install pm2-logrotate >/dev/null 2>&1
 
     echo -ne "${C_MAG}>> Meracik sistem utama & Web App...${C_RST}"
     generate_bot_script
@@ -6371,7 +6407,7 @@ while true; do
             export IP_ADDRESS=$(curl -s ifconfig.me)
             pm2 start index.js --name "tendo-bot" >/dev/null 2>&1
             pm2 save >/dev/null 2>&1
-            pm2 startup >/dev/null 2>&1
+            eval $(pm2 startup | grep "sudo env") >/dev/null 2>&1
             echo -e "\n${C_GREEN}✅ Sistem berjalan di latar belakang!${C_RST}"
             sleep 2 ;;
         4) 
