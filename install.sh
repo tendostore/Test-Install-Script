@@ -831,6 +831,14 @@ EOF
                     </div>
                     <div class="grid-text">E-MONEY</div>
                 </div>
+                <div class="grid-box" onclick="loadCategory('Lainnya')">
+                    <div class="grid-icon-wrap" style="color: #64748b;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+                            <circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle><circle cx="5" cy="12" r="2"></circle>
+                        </svg>
+                    </div>
+                    <div class="grid-text">LAINNYA</div>
+                </div>
             </div>
 
             <div class="grid-title">Produk VPN Premium</div>
@@ -3973,7 +3981,9 @@ app.post('/api/order-qris', verifyToken, async (req, res) => {
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
 });
 
-// BUG 1 FIXED: Menyimpan data trx/history DULU sebelum Axios, dan HAPUS refund di blok catch
+// ==============================================================
+// KEBUTUHAN 1 FIX: LOGIKA PRABAYAR & PASCABAYAR
+// ==============================================================
 app.post('/api/order', verifyToken, async (req, res) => {
     let targetKey = ""; let hargaFix = 0; let refId = 'WEB-' + Date.now();
     try {
@@ -3992,93 +4002,182 @@ app.post('/api/order', verifyToken, async (req, res) => {
         let realSku = p.sku_asli || sku;
         hargaFix = parseInt(p.harga);
         
-        let atomicRes;
-        try {
-            atomicRes = atomicDeductBalance(targetKey, hargaFix);
-        } catch (err) {
-            return res.json({success: false, message: err.message});
-        }
-
-        let u = atomicRes.uData;
-        let saldoSebelum = atomicRes.saldoTerkini + hargaFix;
-
-        // 1. Simpan history "Pending" dan "trx" SEBELUM menembak API PPOB
-        u.trx_count = (u.trx_count || 0) + 1;
-        u.history = u.history || [];
-        u.history.unshift({ 
-            ts: Date.now(), 
-            tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-            type: 'Order', nama: p.nama, tujuan: tujuan, status: 'Pending', sn: '-', amount: hargaFix, ref_id: refId,
-            saldo_sebelumnya: saldoSebelum, saldo_sesudah: u.saldo
-        });
-        if(u.history.length > 50) u.history.pop();
-        saveRecord('users', targetKey, u);
-        
-        let targetJid = u.jid || targetKey + '@s.whatsapp.net';
-        saveRecord('trx', refId, { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: p.nama, tanggal: Date.now(), phone: targetKey });
-
         let username = (config.digiflazzUsername || '').trim();
         let apiKey = (config.digiflazzApiKey || '').trim();
-        let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
+        let isPasca = p.kategori === 'PLN Pasca' || p.kategori === 'PDAM' || p.kategori === 'BPJS' || p.kategori === 'Gas Negara' || p.kategori === 'Internet & TV' || p.kategori === 'E-Money Pasca' || p.is_pasca_api === true;
 
-        let statusOrder = 'Pending';
-        let snOrder = '-';
+        if (isPasca) {
+            // ALUR PASCABAYAR
+            let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
+            let inqRes;
+            try {
+                inqRes = await axios.post('https://api.digiflazz.com/v1/transaction', {
+                    commands: "inq-pasca", username: username, buyer_sku_code: realSku, customer_no: sanitizeInput(tujuan), ref_id: refId, sign: sign
+                });
+            } catch(err) {
+                return res.json({success: false, message: err.response?.data?.data?.message || err.message || "Inquiry gagal."});
+            }
 
-        try {
-            const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
-                username: username, buyer_sku_code: realSku, customer_no: sanitizeInput(tujuan), ref_id: refId, sign: sign, max_price: hargaFix
+            if (inqRes.data?.data?.status === 'Gagal') {
+                return res.json({success: false, message: inqRes.data.data.message || "Inquiry gagal."});
+            }
+
+            let tagihan = inqRes.data?.data?.selling_price || hargaFix; 
+            let atomicRes;
+            try {
+                atomicRes = atomicDeductBalance(targetKey, tagihan);
+            } catch (err) {
+                return res.json({success: false, message: err.message});
+            }
+
+            let u = atomicRes.uData;
+            let saldoSebelum = atomicRes.saldoTerkini + tagihan;
+
+            u.trx_count = (u.trx_count || 0) + 1;
+            u.history = u.history || [];
+            u.history.unshift({ 
+                ts: Date.now(), 
+                tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+                type: 'Order', nama: p.nama, tujuan: tujuan, status: 'Pending', sn: '-', amount: tagihan, ref_id: refId,
+                saldo_sebelumnya: saldoSebelum, saldo_sesudah: u.saldo
             });
-            statusOrder = response.data.data.status; 
-            snOrder = response.data.data.sn || '-';
+            if(u.history.length > 50) u.history.pop();
+            saveRecord('users', targetKey, u);
 
-            let emailUser = u.email || '-';
-            let namaUser = u.username || targetKey;
-            
-            // Refund HANYA BILA Digiflazz secara definitif menjawab "Gagal"
-            if (statusOrder === 'Gagal') {
-                let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + p.nama, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId };
-                u = atomicRefundBalance(targetKey, hargaFix, histObj);
-                
-                // Menghapus rekaman riwayat "Pending" awal agar tidak dobel
-                u.history = u.history.filter(h => !(h.ref_id === refId && h.status === 'Pending'));
-                saveRecord('users', targetKey, u);
-                deleteRecord('trx', refId);
-                
-                let teleMsgFail = `❌ <b>PESANAN GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${u.saldo.toLocaleString('id-ID')}`;
-                sendTelegramAdmin(teleMsgFail);
-                
-                return res.json({success: false, message: response.data.data.message});
-            } else {
-                // Update history jika berhasil atau tetap pending
-                u = getRecord('users', targetKey);
-                let idxHist = u.history.findIndex(h => h.ref_id === refId && h.type === 'Order');
-                if (idxHist !== -1) {
-                    u.history[idxHist].status = statusOrder;
-                    u.history[idxHist].sn = snOrder;
+            let targetJid = u.jid || targetKey + '@s.whatsapp.net';
+            saveRecord('trx', refId, { jid: targetJid, sku: realSku, tujuan: tujuan, harga: tagihan, nama: p.nama, tanggal: Date.now(), phone: targetKey });
+
+            try {
+                let payRes = await axios.post('https://api.digiflazz.com/v1/transaction', {
+                    commands: "pay-pasca", username: username, buyer_sku_code: realSku, customer_no: sanitizeInput(tujuan), ref_id: refId, sign: sign
+                });
+                let statusOrder = payRes.data?.data?.status;
+                let snOrder = payRes.data?.data?.sn || '-';
+
+                let emailUser = u.email || '-';
+                let namaUser = u.username || targetKey;
+
+                if (statusOrder === 'Gagal') {
+                    let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + p.nama, tujuan: tujuan, status: 'Refund', sn: '-', amount: tagihan, ref_id: refId };
+                    u = atomicRefundBalance(targetKey, tagihan, histObj);
+                    u.history = u.history.filter(h => !(h.ref_id === refId && h.status === 'Pending'));
                     saveRecord('users', targetKey, u);
+                    deleteRecord('trx', refId);
+                    
+                    let teleMsgFail = `❌ <b>PESANAN PASCABAYAR GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${payRes.data.data.message}\n💰 Nominal: Rp ${tagihan.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                    sendTelegramAdmin(teleMsgFail);
+                    
+                    return res.json({success: false, message: payRes.data.data.message});
+                } else {
+                    u = getRecord('users', targetKey);
+                    let idxHist = u.history.findIndex(h => h.ref_id === refId && h.type === 'Order');
+                    if (idxHist !== -1) {
+                        u.history[idxHist].status = statusOrder;
+                        u.history[idxHist].sn = snOrder;
+                        saveRecord('users', targetKey, u);
+                    }
+                    
+                    if (statusOrder === 'Sukses') {
+                        let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+                        let gStats = getRecord('global_stats', dateKey) || 0;
+                        saveRecord('global_stats', dateKey, gStats + 1);
+
+                        let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+                        unshiftRecordArray('global_trx', { time: timeStr, product: p.nama, user: namaUser, target: maskStringTarget(tujuan), price: tagihan, method: 'Saldo Akun' });
+                        sendBroadcastSuccess(p.nama, namaUser, tujuan, tagihan, 'Saldo Akun');
+                    }
+                    
+                    let teleMsg = `🔔 <b>PESANAN PASCABAYAR MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Tagihan: Rp ${tagihan.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                    sendTelegramAdmin(teleMsg);
+                    
+                    return res.json({success: true, saldo: u.saldo});
+                }
+            } catch (error) {
+                if (!res.headersSent) {
+                    return res.json({success: true, message: 'Request pembayaran sedang diproses oleh sistem...', saldo: u.saldo});
                 }
             }
 
-            if (statusOrder === 'Sukses') {
-                let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-                let gStats = getRecord('global_stats', dateKey) || 0;
-                saveRecord('global_stats', dateKey, gStats + 1);
-
-                let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-                unshiftRecordArray('global_trx', { time: timeStr, product: p.nama, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'Saldo Akun' });
-
-                sendBroadcastSuccess(p.nama, namaUser, tujuan, hargaFix, 'Saldo Akun');
+        } else {
+            // ALUR PRABAYAR (LAMA)
+            let atomicRes;
+            try {
+                atomicRes = atomicDeductBalance(targetKey, hargaFix);
+            } catch (err) {
+                return res.json({success: false, message: err.message});
             }
 
-            res.json({success: true, saldo: u.saldo});
+            let u = atomicRes.uData;
+            let saldoSebelum = atomicRes.saldoTerkini + hargaFix;
 
-            let teleMsg = `🔔 <b>PESANAN BARU MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${u.saldo.toLocaleString('id-ID')}`;
-            sendTelegramAdmin(teleMsg);
+            u.trx_count = (u.trx_count || 0) + 1;
+            u.history = u.history || [];
+            u.history.unshift({ 
+                ts: Date.now(), 
+                tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
+                type: 'Order', nama: p.nama, tujuan: tujuan, status: 'Pending', sn: '-', amount: hargaFix, ref_id: refId,
+                saldo_sebelumnya: saldoSebelum, saldo_sesudah: u.saldo
+            });
+            if(u.history.length > 50) u.history.pop();
+            saveRecord('users', targetKey, u);
+            
+            let targetJid = u.jid || targetKey + '@s.whatsapp.net';
+            saveRecord('trx', refId, { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: p.nama, tanggal: Date.now(), phone: targetKey });
 
-        } catch (error) { 
-            // Hapus blok 'atomicRefundBalance' ini agar Webhook bisa memperbarui statusnya.
-            if (!res.headersSent) {
-                return res.json({success: true, message: 'Request sedang diproses oleh sistem...', saldo: u.saldo});
+            let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
+
+            try {
+                const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
+                    username: username, buyer_sku_code: realSku, customer_no: sanitizeInput(tujuan), ref_id: refId, sign: sign, max_price: hargaFix
+                });
+                let statusOrder = response.data.data.status; 
+                let snOrder = response.data.data.sn || '-';
+
+                let emailUser = u.email || '-';
+                let namaUser = u.username || targetKey;
+                
+                if (statusOrder === 'Gagal') {
+                    let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + p.nama, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId };
+                    u = atomicRefundBalance(targetKey, hargaFix, histObj);
+                    
+                    u.history = u.history.filter(h => !(h.ref_id === refId && h.status === 'Pending'));
+                    saveRecord('users', targetKey, u);
+                    deleteRecord('trx', refId);
+                    
+                    let teleMsgFail = `❌ <b>PESANAN PRABAYAR GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                    sendTelegramAdmin(teleMsgFail);
+                    
+                    return res.json({success: false, message: response.data.data.message});
+                } else {
+                    u = getRecord('users', targetKey);
+                    let idxHist = u.history.findIndex(h => h.ref_id === refId && h.type === 'Order');
+                    if (idxHist !== -1) {
+                        u.history[idxHist].status = statusOrder;
+                        u.history[idxHist].sn = snOrder;
+                        saveRecord('users', targetKey, u);
+                    }
+                }
+
+                if (statusOrder === 'Sukses') {
+                    let dateKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+                    let gStats = getRecord('global_stats', dateKey) || 0;
+                    saveRecord('global_stats', dateKey, gStats + 1);
+
+                    let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+                    unshiftRecordArray('global_trx', { time: timeStr, product: p.nama, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'Saldo Akun' });
+
+                    sendBroadcastSuccess(p.nama, namaUser, tujuan, hargaFix, 'Saldo Akun');
+                }
+
+                res.json({success: true, saldo: u.saldo});
+
+                let teleMsg = `🔔 <b>PESANAN PRABAYAR BARU MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                sendTelegramAdmin(teleMsg);
+
+            } catch (error) { 
+                if (!res.headersSent) {
+                    return res.json({success: true, message: 'Request sedang diproses oleh sistem...', saldo: u.saldo});
+                }
             }
         }
     } catch (e) {
@@ -4437,7 +4536,6 @@ async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
     }
 }
 
-// BUG 2 FIXED: Memberi logika penanganan error dan refund saat axios.post ke PPOB gagal (Dana Hangus QRIS)
 async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, refIdAsal) {
     let hargaFix = parseInt(harga_asli);
     try {
@@ -4450,65 +4548,135 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         let refId = 'WEB-' + Date.now();
         let sign = crypto.createHash('md5').update(username + apiKey + refId).digest('hex');
 
-        const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
-            username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
-        });
-        
-        const statusOrder = response.data.data.status; 
-        
-        let u = getRecord('users', phone);
-        let saldoTerkini = parseInt(u.saldo);
-        let emailUser = u.email || '-';
-        let namaUser = u.username || phone;
+        let isPasca = p.kategori === 'PLN Pasca' || p.kategori === 'PDAM' || p.kategori === 'BPJS' || p.kategori === 'Gas Negara' || p.kategori === 'Internet & TV' || p.kategori === 'E-Money Pasca' || p.is_pasca_api === true;
 
-        if (statusOrder === 'Gagal') {
-            let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId };
-            u = atomicRefundBalance(phone, hargaFix, histObj);
+        if (isPasca) {
+            let inqRes = await axios.post('https://api.digiflazz.com/v1/transaction', {
+                commands: "inq-pasca", username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign
+            });
             
+            if (inqRes.data?.data?.status === 'Gagal') {
+                throw new Error(inqRes.data.data.message || "Inquiry Pasca Gagal");
+            }
+            
+            const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
+                commands: "pay-pasca", username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign
+            });
+            
+            const statusOrder = response.data.data.status; 
+            
+            let u = getRecord('users', phone);
+            let saldoTerkini = parseInt(u.saldo);
+            let emailUser = u.email || '-';
+            let namaUser = u.username || phone;
+
+            if (statusOrder === 'Gagal') {
+                let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId };
+                u = atomicRefundBalance(phone, hargaFix, histObj);
+                
+                let hist = u.history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
+                if(hist) hist.status = 'Refund';
+                saveRecord('users', phone, u);
+                
+                if(globalSock) {
+                    globalSock.sendMessage(u.jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf, pesanan ${nama_produk} tujuan ${tujuan} ditolak oleh sistem.\n\n💰 Saldo Anda sebesar Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan utuh ke akun Website.` }).catch(e=>{});
+                }
+
+                let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Status Digiflazz Gagal.\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
+                sendTelegramAdmin(teleMsgFail);
+                return;
+            }
+            
+            u.trx_count = (u.trx_count || 0) + 1;
             let hist = u.history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
-            if(hist) hist.status = 'Refund';
+            if(hist) {
+                hist.status = statusOrder;
+                hist.sn = response.data.data.sn || '-';
+                hist.nama = nama_produk;
+                hist.type = 'Order';
+                hist.amount = hargaFix;
+                hist.ref_id = refId;
+                hist.saldo_sebelumnya = saldoTerkini + hargaFix;
+                hist.saldo_sesudah = saldoTerkini;
+            } else {
+                u.history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoTerkini + hargaFix, saldo_sesudah: saldoTerkini });
+                if(u.history.length > 50) u.history.pop();
+            }
             saveRecord('users', phone, u);
             
-            if(globalSock) {
-                globalSock.sendMessage(u.jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf, pesanan ${nama_produk} tujuan ${tujuan} ditolak oleh sistem.\n\n💰 Saldo Anda sebesar Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan utuh ke akun Website.` }).catch(e=>{});
+            let targetJid = u.jid || phone + '@s.whatsapp.net';
+            saveRecord('trx', refId, { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: nama_produk, tanggal: Date.now(), phone: phone });
+
+            if (statusOrder === 'Sukses') {
+                let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+                unshiftRecordArray('global_trx', { time: timeStr, product: nama_produk, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'QRIS' });
+                sendBroadcastSuccess(nama_produk, namaUser, tujuan, hargaFix, 'QRIS');
             }
 
-            let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Status Digiflazz Gagal.\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
-            sendTelegramAdmin(teleMsgFail);
-            return;
-        }
-        
-        u.trx_count = (u.trx_count || 0) + 1;
-        let hist = u.history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
-        if(hist) {
-            hist.status = statusOrder;
-            hist.sn = response.data.data.sn || '-';
-            hist.nama = nama_produk;
-            hist.type = 'Order';
-            hist.amount = hargaFix;
-            hist.ref_id = refId;
-            hist.saldo_sebelumnya = saldoTerkini + hargaFix;
-            hist.saldo_sesudah = saldoTerkini;
+            let teleMsg = `🚀 <b>AUTO ORDER PASCABAYAR QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+            sendTelegramAdmin(teleMsg);
+
         } else {
-            u.history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoTerkini + hargaFix, saldo_sesudah: saldoTerkini });
-            if(u.history.length > 50) u.history.pop();
-        }
-        saveRecord('users', phone, u);
-        
-        let targetJid = u.jid || phone + '@s.whatsapp.net';
-        saveRecord('trx', refId, { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: nama_produk, tanggal: Date.now(), phone: phone });
+            // ALUR PRABAYAR QRIS
+            const response = await axios.post('https://api.digiflazz.com/v1/transaction', { 
+                username: username, buyer_sku_code: realSku, customer_no: tujuan, ref_id: refId, sign: sign, max_price: hargaFix
+            });
+            
+            const statusOrder = response.data.data.status; 
+            
+            let u = getRecord('users', phone);
+            let saldoTerkini = parseInt(u.saldo);
+            let emailUser = u.email || '-';
+            let namaUser = u.username || phone;
 
-        if (statusOrder === 'Sukses') {
-            let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-            unshiftRecordArray('global_trx', { time: timeStr, product: nama_produk, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'QRIS' });
-            sendBroadcastSuccess(nama_produk, namaUser, tujuan, hargaFix, 'QRIS');
-        }
+            if (statusOrder === 'Gagal') {
+                let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId };
+                u = atomicRefundBalance(phone, hargaFix, histObj);
+                
+                let hist = u.history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
+                if(hist) hist.status = 'Refund';
+                saveRecord('users', phone, u);
+                
+                if(globalSock) {
+                    globalSock.sendMessage(u.jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf, pesanan ${nama_produk} tujuan ${tujuan} ditolak oleh sistem.\n\n💰 Saldo Anda sebesar Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan utuh ke akun Website.` }).catch(e=>{});
+                }
 
-        let teleMsg = `🚀 <b>AUTO ORDER QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
-        sendTelegramAdmin(teleMsg);
+                let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Status Digiflazz Gagal.\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
+                sendTelegramAdmin(teleMsgFail);
+                return;
+            }
+            
+            u.trx_count = (u.trx_count || 0) + 1;
+            let hist = u.history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
+            if(hist) {
+                hist.status = statusOrder;
+                hist.sn = response.data.data.sn || '-';
+                hist.nama = nama_produk;
+                hist.type = 'Order';
+                hist.amount = hargaFix;
+                hist.ref_id = refId;
+                hist.saldo_sebelumnya = saldoTerkini + hargaFix;
+                hist.saldo_sesudah = saldoTerkini;
+            } else {
+                u.history.unshift({ ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Order', nama: nama_produk, tujuan: tujuan, status: statusOrder, sn: response.data.data.sn || '-', amount: hargaFix, ref_id: refId, saldo_sebelumnya: saldoTerkini + hargaFix, saldo_sesudah: saldoTerkini });
+                if(u.history.length > 50) u.history.pop();
+            }
+            saveRecord('users', phone, u);
+            
+            let targetJid = u.jid || phone + '@s.whatsapp.net';
+            saveRecord('trx', refId, { jid: targetJid, sku: realSku, tujuan: tujuan, harga: hargaFix, nama: nama_produk, tanggal: Date.now(), phone: phone });
+
+            if (statusOrder === 'Sukses') {
+                let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+                unshiftRecordArray('global_trx', { time: timeStr, product: nama_produk, user: namaUser, target: maskStringTarget(tujuan), price: hargaFix, method: 'QRIS' });
+                sendBroadcastSuccess(nama_produk, namaUser, tujuan, hargaFix, 'QRIS');
+            }
+
+            let teleMsg = `🚀 <b>AUTO ORDER QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+            sendTelegramAdmin(teleMsg);
+        }
 
     } catch(e) {
-        // PERBAIKAN: Refund otomatis ke pengguna bila koneksi API Digiflazz putus 
         let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refIdAsal };
         let uRefund = atomicRefundBalance(phone, hargaFix, histObj);
         
@@ -4592,7 +4760,6 @@ async function startBot() {
 
     let isCheckingQris = false;
     
-    // BUG 3 FIXED: Menghapus fallback JSON.stringify().includes() yang memicu saldo gratis.
     setInterval(async () => {
         if(isCheckingQris) return;
         isCheckingQris = true;
@@ -4785,6 +4952,9 @@ async function startBot() {
     });
 }
 
+// ==============================================================
+// KEBUTUHAN 2 FIX: SINKRONISASI PRODUK & PROTEKSI DB KOSONG
+// ==============================================================
 async function tarikDataLayananOtomatis() {
     try {
         let config = getRecord('config', 'main') || {};
@@ -4807,6 +4977,12 @@ async function tarikDataLayananOtomatis() {
 
         if (!Array.isArray(dataPrepaid)) dataPrepaid = [];
         if (!Array.isArray(dataPasca)) dataPasca = [];
+
+        // Proteksi JIKA API Digiflazz sedang error / mengembalikan array kosong
+        if (dataPrepaid.length === 0 && dataPasca.length === 0) {
+            console.log('\x1b[33m⚠️ Data produk dari Digiflazz kosong. Sinkronisasi dibatalkan untuk mencegah hilangnya database lokal.\x1b[0m');
+            return;
+        }
 
         dataPrepaid = dataPrepaid.map(item => ({ ...item, is_pasca_api: false }));
         dataPasca = dataPasca.map(item => ({ ...item, is_pasca_api: true }));
@@ -4832,13 +5008,15 @@ async function tarikDataLayananOtomatis() {
             let kategoriBarang = 'Lainnya';
             
             if (item.is_pasca_api) {
-                if (catLower.includes('pln')) kategoriBarang = 'PLN Pasca';
-                else if (catLower.includes('pdam')) kategoriBarang = 'PDAM';
-                else if (catLower.includes('bpjs')) kategoriBarang = 'BPJS';
-                else if (catLower.includes('gas')) kategoriBarang = 'Gas Negara';
-                else if (catLower.includes('internet') || catLower.includes('tv')) kategoriBarang = 'Internet & TV';
-                else if (catLower.includes('e-money') || catLower.includes('finance') || catLower.includes('tagihan')) kategoriBarang = 'E-Money Pasca';
-                else kategoriBarang = catDigi;
+                // Digiflazz sering mengosongkan category pascabayar, kita gabung pengecekan brand dan category
+                let combinedSearch = (catLower + ' ' + brandLower);
+                if (combinedSearch.includes('pln')) kategoriBarang = 'PLN Pasca';
+                else if (combinedSearch.includes('pdam')) kategoriBarang = 'PDAM';
+                else if (combinedSearch.includes('bpjs')) kategoriBarang = 'BPJS';
+                else if (combinedSearch.includes('gas')) kategoriBarang = 'Gas Negara';
+                else if (combinedSearch.includes('internet') || combinedSearch.includes('tv') || combinedSearch.includes('wifi')) kategoriBarang = 'Internet & TV';
+                else if (combinedSearch.includes('e-money') || combinedSearch.includes('finance') || combinedSearch.includes('tagihan') || combinedSearch.includes('multifinance')) kategoriBarang = 'E-Money Pasca';
+                else kategoriBarang = catDigi || 'Pascabayar Lainnya';
             } else {
                 if (catLower === 'pulsa') kategoriBarang = 'Pulsa';
                 else if (catLower === 'data') kategoriBarang = 'Data';
@@ -4846,10 +5024,10 @@ async function tarikDataLayananOtomatis() {
                 else if (catLower === 'games') kategoriBarang = 'Game';
                 else if (catLower === 'pln') kategoriBarang = 'PLN';
                 else if (catLower === 'voucher') kategoriBarang = 'Voucher';
-                else if (catLower === 'paket sms & telpon') kategoriBarang = 'Paket SMS & Telpon';
+                else if (catLower === 'paket sms & telpon' || catLower === 'paket sms & nelepon') kategoriBarang = 'Paket SMS & Telpon';
                 else if (catLower === 'masa aktif') kategoriBarang = 'Masa Aktif';
                 else if (catLower === 'aktivasi perdana' || catLower === 'perdana') kategoriBarang = 'Aktivasi Perdana';
-                else kategoriBarang = catDigi;
+                else kategoriBarang = catDigi || 'Lainnya';
             }
             
             let keuntungan = 0;
