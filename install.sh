@@ -345,7 +345,7 @@ EOF
         .btn { background: var(--bg-card); color: var(--nav-active); border: none; padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 800; cursor: pointer; transition: transform 0.1s, box-shadow 0.2s; box-shadow: var(--shadow-outer);}
         .btn:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-outline { background: var(--bg-card); color: var(--text-main); border: none; padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 10px; transition: transform 0.1s, box-shadow 0.2s; box-shadow: var(--shadow-outer);}
+        .btn-outline { background: var(--bg-card); color: var(--text-main); border: none; padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 700; cursor: margin-top: 10px; transition: transform 0.1s, box-shadow 0.2s; box-shadow: var(--shadow-outer);}
         .btn-outline:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
         .btn-danger { background: var(--bg-card); color: #ef4444; border: none; padding: 16px; width: 100%; border-radius: 14px; font-size: 14px; font-weight: 800; cursor: pointer; margin-top: 10px; box-shadow: var(--shadow-outer); transition: transform 0.1s, box-shadow 0.2s;}
         .btn-danger:active { transform: scale(0.95); box-shadow: var(--shadow-inner); }
@@ -3368,14 +3368,21 @@ function cleanupOldHistory() {
             })();
         }
         
-        // Membersihkan blacklist JWT lama (yg lebih dari 24 jam)
+        // Membersihkan blacklist JWT & OTP usang
         dbSqlite.prepare(`DELETE FROM jwt_blacklist`).run();
         
+        const deleteExpiredOtp = dbSqlite.prepare(`SELECT id, data FROM otp_sessions`);
+        dbSqlite.transaction(() => {
+            for (const row of deleteExpiredOtp.iterate()) {
+                let session = JSON.parse(row.data);
+                if (now > session.expiresAt) {
+                    dbSqlite.prepare(`DELETE FROM otp_sessions WHERE id = ?`).run(row.id);
+                }
+            }
+        })();
+
         // Membersihkan mutasi usang (> 24 jam)
         dbSqlite.prepare(`DELETE FROM used_mutations WHERE timestamp < ?`).run(Date.now() - 86400000);
-
-        // Membersihkan sesi OTP kadaluwarsa
-        dbSqlite.prepare(`DELETE FROM otp_sessions WHERE json_extract(data, '$.expiresAt') < ?`).run(now);
 
         let nowTime = Date.now();
         for (let key in loginAttempts) { if (nowTime - loginAttempts[key].time > 3600000) delete loginAttempts[key]; }
@@ -3547,7 +3554,7 @@ app.get('/api/stats', (req, res) => {
         res.json({ 
             success: true, daily, weekly, monthly, total, 
             maintStart: cfg.maintStart || '23:00', maintEnd: cfg.maintEnd || '00:30',
-            adminWa: cfg.botNumber || "6282224460678"
+            adminWa: cfg.botNumber || ""
         });
     } catch(e) { res.json({ success: false, daily: 0, weekly: 0, monthly: 0, total: 0 }); }
 });
@@ -3718,10 +3725,8 @@ app.post('/api/register', (req, res) => {
         if (isUsernameExist) return res.json({success: false, message: 'Username sudah digunakan!'});
 
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
-        let expiresAt = Date.now() + 300000; // 5 menit
-        let sessionData = { username, email, password: hashPassword(password), otp, attempts: 0, expiresAt };
-        
-        saveRecord('otp_sessions', phone, sessionData);
+        let expiresAt = Date.now() + 300000;
+        saveRecord('otp_sessions', phone, { username, email, password: hashPassword(password), otp, attempts: 0, expiresAt });
 
         res.json({success: true});
         setTimeout(() => {
@@ -3736,7 +3741,7 @@ app.post('/api/verify-otp', (req, res) => {
         let otp = req.body.otp; let phone = normalizePhone(req.body.phone);
         let session = getRecord('otp_sessions', phone);
         if(!session || Date.now() > session.expiresAt) {
-            if (session) deleteRecord('otp_sessions', phone);
+            if(session) deleteRecord('otp_sessions', phone);
             return res.json({success: false, message: 'Sesi pendaftaran kadaluwarsa. Silakan request OTP ulang.'});
         }
 
@@ -3754,7 +3759,7 @@ app.post('/api/verify-otp', (req, res) => {
             if(!u.id_pelanggan) u.id_pelanggan = idPelanggan;
             
             saveRecord('users', phone, u); 
-            deleteRecord('otp_sessions', phone); 
+            deleteRecord('otp_sessions', phone);
             res.json({success: true});
         } else {
             session.attempts = (session.attempts || 0) + 1;
@@ -3779,9 +3784,8 @@ app.post('/api/req-edit-otp', verifyToken, (req, res) => {
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
         if (type === 'password') newValue = hashPassword(newValue);
         let expiresAt = Date.now() + 300000;
-        let sessionData = { type, newValue, otp, attempts: 0, expiresAt };
+        saveRecord('otp_sessions', phone + '_edit', { type, newValue, otp, attempts: 0, expiresAt });
         
-        saveRecord('otp_sessions', phone + '_edit', sessionData);
         res.json({success: true});
 
         setTimeout(() => {
@@ -3793,10 +3797,9 @@ app.post('/api/req-edit-otp', verifyToken, (req, res) => {
 app.post('/api/verify-edit-otp', verifyToken, (req, res) => {
     try {
         let { phone, otp } = req.body; 
-        let sessionKey = phone + '_edit';
-        let session = getRecord('otp_sessions', sessionKey);
+        let session = getRecord('otp_sessions', phone + '_edit');
         if(!session || Date.now() > session.expiresAt) {
-            if (session) deleteRecord('otp_sessions', sessionKey);
+            if(session) deleteRecord('otp_sessions', phone + '_edit');
             return res.json({success: false, message: 'Sesi kadaluwarsa, silakan request ulang.'});
         }
 
@@ -3814,15 +3817,15 @@ app.post('/api/verify-edit-otp', verifyToken, (req, res) => {
             } else {
                 saveRecord('users', phone, u);
             }
-            deleteRecord('otp_sessions', sessionKey); 
+            deleteRecord('otp_sessions', phone + '_edit'); 
             res.json({success: true});
         } else {
             session.attempts = (session.attempts || 0) + 1;
             if(session.attempts >= 3) {
-                deleteRecord('otp_sessions', sessionKey);
+                deleteRecord('otp_sessions', phone + '_edit');
                 return res.json({success: false, message: 'Sesi diblokir, silakan request OTP ulang.'});
             }
-            saveRecord('otp_sessions', sessionKey, session);
+            saveRecord('otp_sessions', phone + '_edit', session);
             res.json({success: false, message: 'OTP Salah!'});
         }
     } catch(e) { res.json({success: false, message: 'Server error'}); }
@@ -3844,9 +3847,8 @@ app.post('/api/req-forgot-otp', (req, res) => {
 
         let otp = Math.floor(1000 + Math.random() * 9000).toString();
         let expiresAt = Date.now() + 300000;
-        let sessionData = { otp, attempts: 0, expiresAt };
+        saveRecord('otp_sessions', phone + '_forgot', { otp, attempts: 0, expiresAt });
         
-        saveRecord('otp_sessions', phone + '_forgot', sessionData);
         res.json({success: true});
 
         setTimeout(() => {
@@ -3858,24 +3860,24 @@ app.post('/api/req-forgot-otp', (req, res) => {
 app.post('/api/verify-forgot-otp', (req, res) => {
     try {
         let phone = normalizePhone(req.body.phone); let { otp, newPass } = req.body;
-        let sessionKey = phone + '_forgot';
-        let session = getRecord('otp_sessions', sessionKey);
+        let session = getRecord('otp_sessions', phone + '_forgot');
         if(!session || Date.now() > session.expiresAt) {
-            if (session) deleteRecord('otp_sessions', sessionKey);
+            if(session) deleteRecord('otp_sessions', phone + '_forgot');
             return res.json({success: false, message: 'Sesi OTP tidak ditemukan atau sudah expired.'});
         }
 
         if(session.otp === otp) {
             let u = getRecord('users', phone);
             if(u) { u.password = hashPassword(newPass); saveRecord('users', phone, u); }
-            deleteRecord('otp_sessions', sessionKey); res.json({success: true});
+            deleteRecord('otp_sessions', phone + '_forgot'); 
+            res.json({success: true});
         } else {
             session.attempts = (session.attempts || 0) + 1;
             if(session.attempts >= 3) {
-                deleteRecord('otp_sessions', sessionKey);
+                deleteRecord('otp_sessions', phone + '_forgot');
                 return res.json({success: false, message: 'Sesi diblokir, silakan request OTP ulang.'});
             }
-            saveRecord('otp_sessions', sessionKey, session);
+            saveRecord('otp_sessions', phone + '_forgot', session);
             res.json({success: false, message: 'Kode OTP Salah!'});
         }
     } catch(e) { res.json({success: false, message: 'Server error'}); }
@@ -3911,7 +3913,7 @@ app.post('/api/topup', verifyToken, async (req, res) => {
             finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
         }
 
-        let trxId = "TP-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+        let trxId = "TP-" + Date.now() + '-' + Math.floor(Math.random() * 1000);
         let expiredAt = Date.now() + 10 * 60 * 1000;
 
         saveRecord('topup', trxId, { 
@@ -3974,7 +3976,7 @@ app.post('/api/order-qris', verifyToken, async (req, res) => {
             finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
         }
 
-        let trxId = "OQ-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+        let trxId = "OQ-" + Date.now() + '-' + Math.floor(Math.random() * 1000);
         let expiredAt = Date.now() + 10 * 60 * 1000;
 
         saveRecord('topup', trxId, { 
@@ -4322,7 +4324,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
                 u.trial_claims[productId] = Date.now();
             }
             
-            let refId = refIdAsal || ("VPN-" + Date.now() + "-" + Math.floor(Math.random() * 1000));
+            let refId = refIdAsal || ("VPN-" + Date.now() + '-' + Math.floor(Math.random() * 1000));
             
             if (refIdAsal) {
                 let existingHist = u.history.find(h => h.sn === refIdAsal);
@@ -4367,7 +4369,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
         } else {
             // Revert Deduction if Failed (Dengan Atomic Refund + Unshift History Pembatalan)
             if (mode === 'reguler' && paymentMethod === 'Saldo Akun') {
-                let refHistObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + prod.name, tujuan: vpnUsername, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refIdAsal || 'VPN-'+Date.now() };
+                let refHistObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + prod.name, tujuan: vpnUsername, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refIdAsal || 'VPN-'+Date.now()+'-'+Math.floor(Math.random()*1000) };
                 atomicRefundBalance(targetKey, hargaFix, refHistObj);
             }
 
@@ -4383,7 +4385,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
         }
     } catch(e) {
         if (mode === 'reguler' && paymentMethod === 'Saldo Akun') {
-            let refHistObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + prod.name, tujuan: vpnUsername, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refIdAsal || 'VPN-'+Date.now() };
+            let refHistObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + prod.name, tujuan: vpnUsername, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refIdAsal || 'VPN-'+Date.now()+'-'+Math.floor(Math.random()*1000) };
             atomicRefundBalance(targetKey, hargaFix, refHistObj);
         }
         return { success: false, message: "Koneksi ke Server VPN Gagal / Timeout. Pesan: " + e.message };
@@ -4441,7 +4443,7 @@ app.post('/api/order-vpn-qris', verifyToken, async (req, res) => {
             finalQrisUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&format=jpeg&data=" + encodeURIComponent(dynQris);
         }
 
-        let trxId = "VQ-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+        let trxId = "VQ-" + Date.now() + '-' + Math.floor(Math.random() * 1000);
         let expiredAt = Date.now() + 10 * 60 * 1000;
         let prodName = prod.name;
 
@@ -5197,7 +5199,7 @@ install_dependencies() {
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
-    echo -ne "${C_MAG}>> Menginstall dependensi (curl, git, zip, unzip, build-essential, python3)...${C_RST}"
+    echo -ne "${C_MAG}>> Menginstall dependensi (curl, zip, unzip, build-essential, python3)...${C_RST}"
     sudo -E apt-get install -y curl git wget nano zip unzip build-essential python3 > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
@@ -5227,15 +5229,16 @@ install_dependencies() {
     echo -e "${C_CYAN}>> Menginstal PM2 Logrotate untuk mencegah hardisk penuh...${C_RST}"
     pm2 install pm2-logrotate >/dev/null 2>&1
 
-    echo -ne "${C_MAG}>> Mengambil Source Code dari Github...${C_RST}"
-    if [ -d "digital-tendo" ]; then rm -rf digital-tendo; fi
-    (git clone https://github.com/tendostore/Scrip-Install-Website-PPOB.git digital-tendo > /dev/null 2>&1) &
-    spin $!
-    cd digital-tendo || exit
+    echo -ne "${C_MAG}>> Meracik sistem utama & Web App...${C_RST}"
+    generate_bot_script
+    generate_cek_saldo_script
+    generate_web_app
+    if [ ! -f "package.json" ]; then npm init -y > /dev/null 2>&1; fi
+    rm -rf node_modules package-lock.json
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    echo -ne "${C_MAG}>> Mengunduh modul utama (Dependencies)...${C_RST}"
-    (npm install > install_npm.log 2>&1) &
+    echo -ne "${C_MAG}>> Mengunduh modul utama (termasuk SQLite & JWT)...${C_RST}"
+    npm install @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api better-sqlite3 jsonwebtoken > install_npm.log 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
@@ -5961,7 +5964,7 @@ menu_manajemen_produk_instan() {
                     let manualProds = [];
                     for(let r of rows) {
                         let p = JSON.parse(r.data);
-                        if(p.is_manual_cat) manualProds.push({id: r.id, data: p});
+                        if(p.is_manual_cat) manualProds.push({id: r.id});
                     }
                     if(manualProds.length === 0) { console.log('\x1b[33mBelum ada produk instan.\x1b[0m'); process.exit(0); }
                     manualProds.forEach((p, i) => {
@@ -6607,99 +6610,112 @@ menu_pemeliharaan() {
 menu_setup_cs() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_YELLOW}${C_BOLD}             📞 SETUP NOMOR CS / ADMIN 📞           ${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}        🎧 SETUP NOMOR ADMIN / CUSTOMER SERVICE       ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    read -p "Masukkan Nomor WhatsApp CS (Awali dengan 62): " cs_number
-    # Membersihkan dari karakter selain angka menggunakan Regex Bash
-    cs_clean=$(echo "$cs_number" | sed 's/[^0-9]//g')
+    read -p "Masukkan Nomor WA Admin Baru (Awali dengan 62): " input_wa
     
-    if [ -z "$cs_clean" ]; then
-        echo -e "${C_RED}❌ Gagal: Nomor tidak valid!${C_RST}"
-        sleep 2
-        return
+    # Membersihkan input dari karakter selain angka menggunakan sed
+    clean_wa=$(echo "$input_wa" | sed 's/[^0-9]//g')
+    
+    if [ ! -z "$clean_wa" ]; then
+        CLEAN_WA="$clean_wa" node -e "
+            const Database = require('better-sqlite3');
+            const db = new Database('tendo_database.db');
+            let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+            let config = row ? JSON.parse(row.data) : {};
+            config.botNumber = process.env.CLEAN_WA;
+            db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
+            console.log('\x1b[32m✅ Nomor Admin/CS berhasil diperbarui menjadi: ' + process.env.CLEAN_WA + '\x1b[0m');
+        "
+    else
+        echo -e "${C_RED}❌ Input tidak valid!${C_RST}"
     fi
-    
-    CS_NUM="$cs_clean" node -e "
-        const Database = require('better-sqlite3');
-        const db = new Database('tendo_database.db');
-        let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
-        let config = row ? JSON.parse(row.data) : {};
-        config.botNumber = process.env.CS_NUM;
-        db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
-    "
-    echo -e "${C_GREEN}✅ Nomor CS Admin ($cs_clean) berhasil disimpan ke Database SQLite!${C_RST}"
     read -p "Tekan Enter untuk kembali..."
 }
 
 menu_cek_log() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_YELLOW}${C_BOLD}             📊 LIVE LOG MONITOR (PM2) 📊           ${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}               📊 LIVE LOG MONITOR (PM2)            ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_MAG}>> Tekan CTRL+C untuk keluar dari Log Monitor dan kembali ke Panel Utama.${C_RST}\n"
+    echo -e "${C_MAG}>> Menampilkan log realtime dari PM2...${C_RST}"
+    echo -e "${C_RED}${C_BOLD}[INFO] Tekan CTRL+C untuk keluar dari monitor log ini.${C_RST}\n"
     pm2 logs
+    echo ""
+    read -p "Tekan Enter untuk kembali ke menu utama..."
 }
 
 menu_config_api() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_YELLOW}${C_BOLD}            ⚙️ KONFIGURASI API GATEWAY ⚙️           ${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}             ⚙️ KONFIGURASI API GATEWAY             ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_MAG}Kosongkan dan tekan Enter jika Anda tidak ingin mengubah data sebelumnya.${C_RST}"
-    read -p "Digiflazz Username Baru: " df_user
-    read -p "Digiflazz API Key Baru: " df_key
-    read -p "GoPay API Token Baru: " gp_token
-    read -p "GoPay Merchant ID Baru: " gp_merchant
-
-    DF_USER="$df_user" DF_KEY="$df_key" GP_TOKEN="$gp_token" GP_MERCHANT="$gp_merchant" node -e "
+    echo -e "${C_MAG}Kosongkan dan tekan Enter jika tidak ingin mengubah nilai yang ada.${C_RST}\n"
+    read -p "Digiflazz Username: " df_user
+    read -p "Digiflazz API Key: " df_key
+    read -p "GoPay Token: " gp_token
+    read -p "GoPay Merchant ID: " gp_mid
+    
+    DF_USER="$df_user" DF_KEY="$df_key" GP_TOKEN="$gp_token" GP_MID="$gp_mid" node -e "
         const Database = require('better-sqlite3');
         const db = new Database('tendo_database.db');
         let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
         let config = row ? JSON.parse(row.data) : {};
-        if(process.env.DF_USER !== '') config.digiflazzUsername = process.env.DF_USER.trim();
-        if(process.env.DF_KEY !== '') config.digiflazzApiKey = process.env.DF_KEY.trim();
-        if(process.env.GP_TOKEN !== '') config.gopayToken = process.env.GP_TOKEN.trim();
-        if(process.env.GP_MERCHANT !== '') config.gopayMerchantId = process.env.GP_MERCHANT.trim();
+        
+        if(process.env.DF_USER) config.digiflazzUsername = process.env.DF_USER;
+        if(process.env.DF_KEY) config.digiflazzApiKey = process.env.DF_KEY;
+        if(process.env.GP_TOKEN) config.gopayToken = process.env.GP_TOKEN;
+        if(process.env.GP_MID) config.gopayMerchantId = process.env.GP_MID;
+        
         db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
+        console.log('\x1b[32m\n✅ Konfigurasi API Gateway berhasil disimpan ke database!\x1b[0m');
     "
-    echo -e "\n${C_GREEN}✅ Kredensial API Gateway Anda berhasil diperbarui di database!${C_RST}"
     read -p "Tekan Enter untuk kembali..."
 }
 
 menu_restart_services() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_YELLOW}${C_BOLD}               🔄 RESTART SERVICES 🔄               ${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}               🔄 RESTART SEMUA SERVICES            ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_MAG}Sedang me-restart node PM2 dan Nginx...${C_RST}"
+    echo -e "${C_MAG}>> Memulai ulang layanan backend melalui PM2...${C_RST}"
     pm2 restart all
+    
+    echo -e "\n${C_MAG}>> Memulai ulang layanan Nginx...${C_RST}"
     sudo systemctl restart nginx
-    echo -e "\n${C_GREEN}✅ Seluruh layanan dan server berhasil di-restart dengan sukses!${C_RST}"
+    
+    echo -e "\n${C_GREEN}${C_BOLD}✅ Semua service berhasil di-restart! Sistem kembali fresh.${C_RST}"
     read -p "Tekan Enter untuk kembali..."
 }
 
 menu_db_stats() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-    echo -e "${C_YELLOW}${C_BOLD}             📈 STATISTIK DATABASE 📈               ${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}              📈 STATISTIK DATABASE SQLite          ${C_RST}"
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     node -e "
         const Database = require('better-sqlite3');
+        const db = new Database('tendo_database.db', { readonly: true });
+        
         try {
-            const db = new Database('tendo_database.db', { readonly: true });
-            let totalUsers = db.prepare(\"SELECT COUNT(*) as count FROM users\").get().count;
-            let totalProducts = db.prepare(\"SELECT COUNT(*) as count FROM produk\").get().count;
-            let totalTopups = db.prepare(\"SELECT COUNT(*) as count FROM topup\").get().count;
-            let totalTrx = db.prepare(\"SELECT COUNT(*) as count FROM trx\").get().count;
-            console.log('\x1b[32m- Total Pengguna Terdaftar    :\x1b[0m ' + totalUsers);
-            console.log('\x1b[32m- Total Produk di Katalog     :\x1b[0m ' + totalProducts);
-            console.log('\x1b[32m- Total Transaksi Topup       :\x1b[0m ' + totalTopups);
-            console.log('\x1b[32m- Total Transaksi Aktif (TRX) :\x1b[0m ' + totalTrx);
+            let userCount = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
+            let prodCount = db.prepare('SELECT COUNT(*) as c FROM produk').get().c;
+            let trxCount = db.prepare('SELECT COUNT(*) as c FROM trx').get().c;
+            let topupCount = db.prepare('SELECT COUNT(*) as c FROM topup').get().c;
+            let globalTrxCount = db.prepare('SELECT COUNT(*) as c FROM global_trx').get().c;
+            let optCount = db.prepare('SELECT COUNT(*) as c FROM otp_sessions').get().c;
+            
+            console.log('\x1b[32m👥 Total Pengguna Terdaftar : \x1b[1m' + userCount + '\x1b[0m');
+            console.log('\x1b[36m📦 Total Produk Tersedia    : \x1b[1m' + prodCount + '\x1b[0m');
+            console.log('\x1b[33m🛒 Transaksi Sedang Proses  : \x1b[1m' + trxCount + '\x1b[0m');
+            console.log('\x1b[35m💳 Topup Saldo Berjalan     : \x1b[1m' + topupCount + '\x1b[0m');
+            console.log('\x1b[34m🌐 Riwayat Transaksi Global : \x1b[1m' + globalTrxCount + '\x1b[0m');
+            console.log('\x1b[36m🔑 Sesi OTP Aktif (In-DB)   : \x1b[1m' + optCount + '\x1b[0m');
         } catch(e) {
-            console.log('\x1b[31m❌ Gagal membaca database. Pastikan sistem sudah ter-install dengan benar.\x1b[0m');
+            console.log('\x1b[31mGagal membaca database: ' + e.message + '\x1b[0m');
         }
     "
-    echo -e "${C_CYAN}======================================================${C_RST}"
+    echo ""
     read -p "Tekan Enter untuk kembali..."
 }
 
@@ -6721,7 +6737,7 @@ while true; do
     echo -e "  ${C_GREEN}[2]${C_RST}  Mulai Sistem (Terminal / Scan QR)"
     echo -e "  ${C_GREEN}[3]${C_RST}  Jalankan Sistem di Latar Belakang (PM2)"
     echo -e "  ${C_GREEN}[4]${C_RST}  Hentikan Sistem (PM2)"
-    echo -e "  ${C_GREEN}[5]${C_RST}  Lihat Log / Error"
+    echo -e "  ${C_GREEN}[5]${C_RST}  Lihat Log / Error (Lama)"
     echo ""
     echo -e "${C_MAG}▶ 📦 MANAJEMEN PRODUK & KATEGORI${C_RST}"
     echo -e "  ${C_GREEN}[6]${C_RST}  🔄 Sinkronisasi Produk Digiflazz"
@@ -6742,17 +6758,15 @@ while true; do
     echo -e "  ${C_GREEN}[17]${C_RST} 🌍 Setup Domain & HTTPS (SSL)"
     echo -e "  ${C_GREEN}[18]${C_RST} 🔄 Ganti Akun WA Web OTP (Reset Sesi)"
     echo -e "  ${C_GREEN}[19]${C_RST} 🛠️ Atur Waktu Pemeliharaan Sistem"
+    echo -e "  ${C_GREEN}[22]${C_RST} 🎧 Setup Nomor Admin / CS (Baru)"
+    echo -e "  ${C_GREEN}[23]${C_RST} ⚙️ Konfigurasi API Gateway (Baru)"
     echo ""
-    echo -e "${C_MAG}▶ 💾 BACKUP & RESTORE${C_RST}"
+    echo -e "${C_MAG}▶ 💾 SYSTEM TOOLS & UTILITIES${C_RST}"
     echo -e "  ${C_GREEN}[20]${C_RST} 💾 Backup & Restore Database"
     echo -e "  ${C_GREEN}[21]${C_RST} ⚙️ Pengaturan Auto-Backup Telegram"
-    echo ""
-    echo -e "${C_MAG}▶ 🧰 MENU UTILITAS TAMBAHAN${C_RST}"
-    echo -e "  ${C_GREEN}[22]${C_RST} 📞 Setup Nomor CS / Admin"
-    echo -e "  ${C_GREEN}[23]${C_RST} 📊 Cek Log Webhook & Error (Live Monitor)"
-    echo -e "  ${C_GREEN}[24]${C_RST} ⚙️ Konfigurasi API Gateway (Cepat)"
-    echo -e "  ${C_GREEN}[25]${C_RST} 🔄 Restart Services (PM2 & Nginx)"
-    echo -e "  ${C_GREEN}[26]${C_RST} 📈 Cek Statistik Database (Total User/Trx)"
+    echo -e "  ${C_GREEN}[24]${C_RST} 📊 Live Log Monitor (PM2) (Baru)"
+    echo -e "  ${C_GREEN}[25]${C_RST} 📈 Statistik Database SQLite (Baru)"
+    echo -e "  ${C_GREEN}[26]${C_RST} 🔄 Restart Services (Baru)"
     echo -e "${C_CYAN}======================================================${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
     echo -e "${C_CYAN}======================================================${C_RST}"
@@ -6762,6 +6776,7 @@ while true; do
     case $choice in
         1) install_dependencies ;;
         2) 
+            if [ ! -f "index.js" ]; then echo -e "${C_RED}❌ Jalankan Menu 1 (Install) dulu!${C_RST}"; sleep 2; continue; fi
             if [ ! -d "sesi_bot" ] || [ -z "$(ls -A sesi_bot 2>/dev/null)" ]; then
                 read -p "📲 Masukkan Nomor WA Bot (Awali 628...): " nomor_bot
                 if [ ! -z "$nomor_bot" ]; then
@@ -6776,21 +6791,26 @@ while true; do
                     "
                 fi
             fi
-            echo -e "${C_MAG}Memulai bot... (Tekan CTRL+C untuk berhenti)${C_RST}"
+            echo -e "${C_CYAN}Memulai bot... Jika muncul QR, segera scan menggunakan WA tertaut.${C_RST}"
             node index.js
             ;;
         3) 
-            pm2 start index.js --name "tendo-bot"
-            pm2 save
-            echo -e "${C_GREEN}✅ Bot berjalan di latar belakang!${C_RST}"
+            if [ ! -f "index.js" ]; then echo -e "${C_RED}❌ Jalankan Menu 1 (Install) dulu!${C_RST}"; sleep 2; continue; fi
+            pm2 start index.js --name tendobot > /dev/null 2>&1
+            pm2 save > /dev/null 2>&1
+            pm2 startup > /dev/null 2>&1
+            echo -e "${C_GREEN}✅ Sistem berhasil dijalankan di latar belakang!${C_RST}"
             sleep 2
             ;;
         4) 
-            pm2 stop tendo-bot
-            echo -e "${C_RED}Bot dihentikan!${C_RST}"
+            pm2 stop tendobot > /dev/null 2>&1
+            echo -e "${C_RED}🛑 Sistem telah dihentikan!${C_RST}"
             sleep 2
             ;;
-        5) pm2 logs tendo-bot ;;
+        5) 
+            pm2 logs tendobot --lines 100
+            read -p "Tekan Enter untuk kembali..."
+            ;;
         6) menu_sinkron ;;
         7) menu_keuntungan ;;
         8) menu_manajemen_produk_instan ;;
@@ -6799,9 +6819,12 @@ while true; do
         11) menu_tutorial ;;
         12) menu_member ;;
         13)
-            echo -e "\n${C_MAG}--- SETUP API DIGIFLAZZ ---${C_RST}"
-            read -p "Username Digiflazz: " df_user
-            read -p "API Key Digiflazz (Production): " df_key
+            clear
+            echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+            echo -e "${C_YELLOW}${C_BOLD}                🔌 SETUP API DIGIFLAZZ              ${C_RST}"
+            echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+            read -p "Masukkan Username Digiflazz: " df_user
+            read -p "Masukkan API Key (Production): " df_key
             DF_USER="$df_user" DF_KEY="$df_key" node -e "
                 const Database = require('better-sqlite3');
                 const db = new Database('tendo_database.db');
@@ -6810,53 +6833,84 @@ while true; do
                 if(process.env.DF_USER !== '') config.digiflazzUsername = process.env.DF_USER;
                 if(process.env.DF_KEY !== '') config.digiflazzApiKey = process.env.DF_KEY;
                 db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
-                console.log('\x1b[32m✅ API Digiflazz tersimpan!\x1b[0m');
             "
-            read -p "Tekan Enter untuk kembali..."
+            echo -e "${C_GREEN}✅ API Digiflazz berhasil disimpan!${C_RST}"
+            sleep 2
             ;;
         14)
-            echo -e "\n${C_MAG}--- SETUP SECRET DIGIFLAZZ (WEBHOOK) ---${C_RST}"
-            read -p "Masukkan Secret Webhook Digiflazz Anda: " df_secret
-            DF_SECRET="$df_secret" node -e "
+            clear
+            echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+            echo -e "${C_YELLOW}${C_BOLD}              🔐 SETUP SECRET DIGIFLAZZ             ${C_RST}"
+            echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+            echo -e "Secret Key digunakan untuk menerima laporan (Webhook) dari Digiflazz."
+            read -p "Masukkan Webhook Secret Key: " wh_secret
+            WH_SECRET="$wh_secret" node -e "
                 const Database = require('better-sqlite3');
                 const db = new Database('tendo_database.db');
                 let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                 let config = row ? JSON.parse(row.data) : {};
-                if(process.env.DF_SECRET !== '') config.webhookSecret = process.env.DF_SECRET;
+                if(process.env.WH_SECRET !== '') config.webhookSecret = process.env.WH_SECRET;
                 db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
-                console.log('\x1b[32m✅ Webhook Secret tersimpan!\x1b[0m');
             "
-            read -p "Tekan Enter untuk kembali..."
+            echo -e "${C_GREEN}✅ Secret Key Webhook berhasil disimpan!${C_RST}"
+            sleep 2
             ;;
         15)
-            echo -e "\n${C_MAG}--- SETUP GOPAY API ---${C_RST}"
-            read -p "Masukkan Token API GoPay: " gp_token
-            read -p "Masukkan Merchant ID GoPay: " gp_merchant
-            GP_TOKEN="$gp_token" GP_MERCHANT="$gp_merchant" node -e "
+            clear
+            echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+            echo -e "${C_YELLOW}${C_BOLD}               💳 SETUP API MERCHAN/QRIS            ${C_RST}"
+            echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+            read -p "Masukkan Token (GoPay / Gateway): " gp_token
+            read -p "Masukkan Teks QRIS / Link SVG Asli Anda: " gp_qris
+            
+            GP_TOKEN="$gp_token" GP_QRIS="$gp_qris" node -e "
                 const Database = require('better-sqlite3');
                 const db = new Database('tendo_database.db');
                 let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
                 let config = row ? JSON.parse(row.data) : {};
+                
                 if(process.env.GP_TOKEN !== '') config.gopayToken = process.env.GP_TOKEN;
-                if(process.env.GP_MERCHANT !== '') config.gopayMerchantId = process.env.GP_MERCHANT;
+                
+                let inputQris = process.env.GP_QRIS || '';
+                if(inputQris.startsWith('http')) {
+                    config.qrisUrl = inputQris;
+                    config.qrisText = '';
+                } else if(inputQris !== '') {
+                    config.qrisText = inputQris;
+                    config.qrisUrl = '';
+                    config.gopayMerchantId = 'CustomQRIS';
+                }
+                
                 db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
-                console.log('\x1b[32m✅ API GoPay tersimpan!\x1b[0m');
             "
-            read -p "Tekan Enter untuk kembali..."
+            echo -e "${C_GREEN}✅ Konfigurasi Pembayaran (QRIS) berhasil disimpan!${C_RST}"
+            sleep 2
             ;;
         16) menu_notifikasi ;;
         17)
-            echo -e "\n${C_MAG}--- SETUP DOMAIN & SSL ---${C_RST}"
-            read -p "Masukkan nama domain Anda (tanpa https://): " mydomain
-            if [ ! -z "$mydomain" ]; then
-                sudo apt install nginx certbot python3-certbot-nginx -y
-                sudo ufw allow 'Nginx Full'
-                
-                cat << EOF | sudo tee /etc/nginx/sites-available/$mydomain
+            clear
+            echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+            echo -e "${C_YELLOW}${C_BOLD}            🌍 SETUP DOMAIN & HTTPS (SSL)           ${C_RST}"
+            echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+            read -p "Masukkan Nama Domain (contoh: store.tendo.id): " domain_name
+            read -p "Masukkan Alamat Email (Untuk Notifikasi Expired SSL): " email_ssl
+            
+            if [ -z "$domain_name" ] || [ -z "$email_ssl" ]; then
+                echo -e "${C_RED}❌ Domain dan Email tidak boleh kosong!${C_RST}"
+                sleep 2
+                continue
+            fi
+            
+            echo -e "${C_MAG}>> Menginstal Nginx dan Certbot...${C_RST}"
+            sudo apt update > /dev/null 2>&1
+            sudo apt install nginx certbot python3-certbot-nginx -y > /dev/null 2>&1
+            
+            echo -e "${C_MAG}>> Konfigurasi Proxy Nginx ke Port 3000...${C_RST}"
+            sudo cat << EOF > /etc/nginx/sites-available/$domain_name
 server {
     listen 80;
-    server_name $mydomain;
-
+    server_name $domain_name;
+    
     location / {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
@@ -6864,41 +6918,64 @@ server {
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host \$host;
         proxy_cache_bypass \$http_upgrade;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     }
 }
 EOF
-                sudo ln -s /etc/nginx/sites-available/$mydomain /etc/nginx/sites-enabled/
-                sudo nginx -t && sudo systemctl reload nginx
-                sudo certbot --nginx -d $mydomain
-                echo -e "${C_GREEN}✅ Setup Domain dan SSL Selesai! Web dapat diakses di https://$mydomain${C_RST}"
-            fi
+            sudo ln -s /etc/nginx/sites-available/$domain_name /etc/nginx/sites-enabled/ > /dev/null 2>&1
+            sudo systemctl restart nginx > /dev/null 2>&1
+            
+            echo -e "${C_MAG}>> Mengajukan Sertifikat SSL Let's Encrypt...${C_RST}"
+            sudo certbot --nginx -d $domain_name --non-interactive --agree-tos -m $email_ssl
+            
+            echo -e "${C_GREEN}✅ Setup Domain dan HTTPS selesai! Silakan akses https://$domain_name${C_RST}"
             read -p "Tekan Enter untuk kembali..."
             ;;
         18)
-            echo -e "\n${C_RED}⚠️ HAPUS SESI WA BOT LAMA ⚠️${C_RST}"
-            read -p "Yakin ingin mereset login WA Bot? (y/n): " reset_wa
+            clear
+            echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+            echo -e "${C_YELLOW}${C_BOLD}             🔄 RESET AKUN WHATSAPP BOT             ${C_RST}"
+            echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+            echo -e "${C_RED}⚠️ PERINGATAN: Ini akan menghapus sesi WhatsApp Bot saat ini!${C_RST}"
+            read -p "Apakah Anda yakin ingin reset bot WA? (y/n): " reset_wa
+            
             if [ "$reset_wa" == "y" ] || [ "$reset_wa" == "Y" ]; then
+                pm2 stop tendobot > /dev/null 2>&1
                 rm -rf sesi_bot
-                pm2 restart tendo-bot 2>/dev/null
-                echo -e "${C_GREEN}✅ Sesi berhasil dihapus. Silakan mulai ulang sistem (Menu 2) untuk Pairing ulang.${C_RST}"
+                
+                read -p "Masukkan Nomor WA Bot BARU (Awali 628...): " nomor_bot
+                if [ ! -z "$nomor_bot" ]; then
+                    NOMOR_BOT="$nomor_bot" node -e "
+                        const Database = require('better-sqlite3');
+                        const db = new Database('tendo_database.db');
+                        let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+                        let config = row ? JSON.parse(row.data) : {};
+                        config.botNumber = process.env.NOMOR_BOT;
+                        db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
+                    "
+                fi
+                echo -e "${C_GREEN}✅ Sesi berhasil dihapus. Silakan pilih menu [2] untuk Scan Ulang.${C_RST}"
+            else
+                echo -e "${C_YELLOW}Reset dibatalkan.${C_RST}"
             fi
-            read -p "Tekan Enter untuk kembali..."
+            sleep 2
             ;;
         19) menu_pemeliharaan ;;
         20) menu_backup ;;
         21) menu_telegram ;;
         22) menu_setup_cs ;;
-        23) menu_cek_log ;;
-        24) menu_config_api ;;
-        25) menu_restart_services ;;
-        26) menu_db_stats ;;
+        23) menu_config_api ;;
+        24) menu_cek_log ;;
+        25) menu_db_stats ;;
+        26) menu_restart_services ;;
         0) 
-            echo -e "${C_GREEN}Terima kasih telah menggunakan Panel Digital Tendo Store.${C_RST}"
+            clear
+            echo -e "${C_GREEN}Terima kasih telah menggunakan Panel Digital Tendo Store!${C_RST}"
             exit 0 
             ;;
-        *) echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"; sleep 1 ;;
+        *) 
+            echo -e "${C_RED}❌ Pilihan tidak valid!${C_RST}"
+            sleep 1 
+            ;;
     esac
 done
 # === SELESAI ===
