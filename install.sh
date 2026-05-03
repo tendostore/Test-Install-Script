@@ -1313,8 +1313,8 @@ EOF
             let curMins = h * 60 + m;
             let sParts = sysMaintStart.split(':');
             let eParts = sysMaintEnd.split(':');
-            let sMins = parseInt(sParts[0])*60 + parseInt(sParts[1]);
-            let eMins = parseInt(eParts[0])*60 + parseInt(eParts[1]);
+            let sMins = parseInt(sParts[0], 10)*60 + parseInt(sParts[1], 10);
+            let eMins = parseInt(eParts[0], 10)*60 + parseInt(eParts[1], 10);
             
             let isMaint = false;
             if(sMins < eMins) isMaint = (curMins >= sMins && curMins < eMins);
@@ -3098,343 +3098,238 @@ EOF
 }
 # === SELESAI ===
 # ==========================================
-# 3. FUNGSI MEMBUAT BACKEND NODE.JS (SERVER)
+# 3. FUNGSI INSTALL DEPENDENSI & SETUP AWAL
 # ==========================================
-generate_backend() {
-    cat << 'EOF' > server.js
-const express = require('express');
-const cors = require('cors');
-const axios = require('axios');
-const crypto = require('crypto');
-const Database = require('better-sqlite3');
-const path = require('path');
+install_dependencies() {
+    echo -e "${C_CYAN}Memperbarui sistem & menginstall dependensi dasar...${C_RST}"
+    sudo apt-get update -y
+    # Menambahkan sqlite3 sesuai instruksi No. 2
+    sudo apt-get install -y curl wget git unzip sqlite3 ufw iptables tmux jq libwebp-dev ffmpeg
+    
+    if ! command -v node > /dev/null 2>&1; then
+        echo -e "${C_CYAN}Menginstall Node.js...${C_RST}"
+        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+    fi
+
+    echo -e "${C_CYAN}Menginstall dependensi NPM...${C_RST}"
+    # Memastikan npm install memuat semua dependensi index.js dan tambah cors (Instruksi No. 5)
+    npm init -y > /dev/null 2>&1
+    npm install @adiwajshing/baileys pino qrcode-terminal axios express body-parser cors better-sqlite3 node-telegram-bot-api multer form-data > /dev/null 2>&1
+}
+
+# ==========================================
+# 4. FUNGSI MEMBUAT SCRIPT BOT (index.js) PART 1
+# ==========================================
+generate_bot_script_p1() {
+    echo -e "${C_CYAN}Membuat script backend index.js...${C_RST}"
+    cat << 'EOF' > index.js
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, makeInMemoryStore, jidNormalizedUser } = require('@adiwajshing/baileys');
+const pino = require('pino');
+const qrcode = require('qrcode-terminal');
 const fs = require('fs');
+const axios = require('axios');
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const Database = require('better-sqlite3');
+const TelegramBot = require('node-telegram-bot-api');
+const crypto = require('crypto');
+const { exec } = require('child_process');
+const multer = require('multer');
+const FormData = require('form-data');
+const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Konfigurasi URL AutoGoPay
-const AUTOGOPAY_URL = 'https://v1-gateway.autogopay.site';
-
-// Middleware Setup dengan RAW BODY untuk Webhook
+// Menambahkan middleware CORS
 app.use(cors());
-app.use(express.json({
+
+// Konfigurasi body-parser untuk menyimpan rawBody (Penting untuk Webhook)
+app.use(bodyParser.json({
     verify: (req, res, buf) => {
-        req.rawBody = buf; // Simpan raw buffer untuk validasi HMAC-SHA256
+        req.rawBody = buf.toString();
     }
 }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 
-// ==========================================
-// INISIALISASI DATABASE SQLITE
-// ==========================================
-const db = new Database('tendo_database.db');
+const dbSqlite = new Database('tendo_database.db');
+dbSqlite.pragma('journal_mode = WAL');
 
-db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-        phone TEXT PRIMARY KEY,
-        username TEXT,
-        email TEXT,
-        password TEXT,
-        saldo INTEGER DEFAULT 0,
-        id_pelanggan TEXT,
-        tanggal_daftar TEXT,
-        trx_count INTEGER DEFAULT 0
-    );
-    CREATE TABLE IF NOT EXISTS history (
-        sn TEXT PRIMARY KEY,
-        phone TEXT,
-        type TEXT,
-        nama TEXT,
-        tujuan TEXT,
-        amount INTEGER,
-        status TEXT,
-        tanggal TEXT,
-        expired_at INTEGER,
-        qris_url TEXT,
-        autogopay_trx_id TEXT,
-        saldo_sebelumnya INTEGER,
-        saldo_sesudah INTEGER,
-        vpn_details TEXT
-    );
-    CREATE TABLE IF NOT EXISTS config (
-        id TEXT PRIMARY KEY,
-        data TEXT
-    );
-    CREATE TABLE IF NOT EXISTS notif (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date TEXT,
-        text TEXT,
-        image TEXT
-    );
+// Inisialisasi Database
+dbSqlite.exec(`
+    CREATE TABLE IF NOT EXISTS config (id TEXT PRIMARY KEY, data TEXT);
+    CREATE TABLE IF NOT EXISTS users (phone TEXT PRIMARY KEY, data TEXT);
+    CREATE TABLE IF NOT EXISTS produk (sku TEXT PRIMARY KEY, kategori TEXT, sub_kategori TEXT, brand TEXT, nama TEXT, harga INTEGER, status_produk BOOLEAN, deskripsi TEXT, type TEXT);
+    CREATE TABLE IF NOT EXISTS topup (id TEXT PRIMARY KEY, data TEXT);
+    CREATE TABLE IF NOT EXISTS orders (sn TEXT PRIMARY KEY, data TEXT);
+    CREATE TABLE IF NOT EXISTS notif (id TEXT PRIMARY KEY, data TEXT);
+    CREATE TABLE IF NOT EXISTS mutasi (id TEXT PRIMARY KEY, data TEXT);
 `);
 
-// Inisialisasi Config Default jika kosong
-let initCfg = db.prepare("SELECT data FROM config WHERE id = 'main'").get();
-if (!initCfg) {
-    const defaultCfg = {
-        gopayToken: "API_KEY_AUTOGOPAY_ANDA", // Ganti via Panel Terminal
-        digiflazzUser: "",
-        digiflazzKey: "",
-        margin_persen: 5,
-        margin_tetap: 500,
-        botNumber: "628xxx"
-    };
-    db.prepare("INSERT INTO config (id, data) VALUES ('main', ?)").run(JSON.stringify(defaultCfg));
-}
-
-function getConfig() {
-    let row = db.prepare("SELECT data FROM config WHERE id = 'main'").get();
-    return row ? JSON.parse(row.data) : {};
-}
-
-// Helper Waktu
-function getWIBDate() {
-    return new Date().toLocaleString("id-ID", {timeZone: "Asia/Jakarta"});
-}
-
 // ==========================================
-// FUNGSI UTAMA: TOPUP & TRANSAKSI
+// HELPER & FUNGSI INTI
 // ==========================================
-function atomicAddBalance(phone, amount) {
-    const info = db.prepare("UPDATE users SET saldo = saldo + ? WHERE phone = ?").run(amount, phone);
+
+// Instruksi 6: Fungsi Helper Atomic untuk Cegah Saldo Ganda (Race Condition QRIS)
+function markTopupSuccess(id) {
+    let info = dbSqlite.prepare("UPDATE topup SET data = json_set(data, '$.status', 'sukses') WHERE id = ? AND json_extract(data, '$.status') = 'pending'").run(id);
     return info.changes > 0;
 }
 
-// ==========================================
-// AUTOGOPAY WEBHOOK ENDPOINT
-// ==========================================
-app.post('/webhook/gopay', async (req, res) => {
+// Instruksi 3: Perbaikan Parsing Waktu dengan Basis 10 (Mencegah Octal Bug)
+function cekPemeliharaan(startStr, endStr) {
+    let d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
+    let curMins = d.getHours() * 60 + d.getMinutes();
+    let sParts = startStr.split(':');
+    let eParts = endStr.split(':');
+    let sMins = parseInt(sParts[0], 10) * 60 + parseInt(sParts[1], 10);
+    let eMins = parseInt(eParts[0], 10) * 60 + parseInt(eParts[1], 10);
+    
+    if (sMins < eMins) return (curMins >= sMins && curMins < eMins);
+    return (curMins >= sMins || curMins < eMins);
+}
+
+// Instruksi 2: Backup Database Menggunakan Parameter `.backup` yang Aman
+function doBackupAndSend(botToken, chatId) {
+    if(!botToken || !chatId) return;
+    const tgBot = new TelegramBot(botToken, {polling: false});
+    exec('sqlite3 tendo_database.db ".backup backup_aman.db" && zip backup.zip backup_aman.db && rm backup_aman.db', (err) => {
+        if(!err) {
+            tgBot.sendDocument(chatId, 'backup.zip', {caption: '📦 Backup Database Otomatis'}).catch(console.error);
+        }
+    });
+}
+
+// Helper: Menambah saldo atomic
+function addBalance(phone, amount) {
+    let userRow = dbSqlite.prepare("SELECT data FROM users WHERE phone = ?").get(phone);
+    if(!userRow) return false;
+    let userData = JSON.parse(userRow.data);
+    userData.saldo = (userData.saldo || 0) + parseInt(amount, 10);
+    dbSqlite.prepare("UPDATE users SET data = ? WHERE phone = ?").run(JSON.stringify(userData), phone);
+    return true;
+}
+
+// Instruksi 4: Proteksi Sinkronisasi Digiflazz (Pemisahan try-catch Prepaid & Pascabayar)
+async function tarikDataLayananOtomatis() {
     try {
-        const cfg = getConfig();
-        const signature = req.headers['x-signature'];
-        const payload = req.rawBody.toString('utf8');
-        
-        // 1. Validasi HMAC-SHA256
-        const expectedSignature = crypto.createHmac('sha256', cfg.gopayToken).update(payload).digest('hex');
-        
-        if (signature !== expectedSignature) {
-            console.error('Webhook AutoGoPay: Invalid Signature!');
-            return res.status(401).json({ success: false, message: 'Invalid signature' });
-        }
+        let mainConfRow = dbSqlite.prepare("SELECT data FROM config WHERE id = 'main'").get();
+        if(!mainConfRow) return;
+        let config = JSON.parse(mainConfRow.data);
+        if(!config.digiUser || !config.digiKey) return;
 
-        const body = JSON.parse(payload);
+        let sign = crypto.createHash('md5').update(config.digiUser + config.digiKey + "pricelist").digest('hex');
 
-        // 2. Handling Verification Challenge
-        if (body.event === 'verification.challenge') {
-            console.log('Webhook AutoGoPay: Challenge Verified.');
-            return res.json({ success: true });
-        }
-
-        // 3. Handling Transaction Received
-        if (body.event === 'transaction.received') {
-            const trx = body.transaction;
-            console.log(`Webhook AutoGoPay TRX: ${trx.id} | Status: ${trx.status}`);
-
-            if (trx.status === 'settlement') {
-                // Cari data transaksi di DB menggunakan autogopay_trx_id
-                const pendingData = db.prepare("SELECT * FROM history WHERE autogopay_trx_id = ? AND status = 'Pending'").get(trx.id);
-                
-                if (pendingData) {
-                    const phone = pendingData.phone;
-                    const amount = pendingData.amount;
-
-                    if (pendingData.type === 'Topup') {
-                        // Tambah saldo user
-                        const user = db.prepare("SELECT saldo FROM users WHERE phone = ?").get(phone);
-                        if (user && atomicAddBalance(phone, amount)) {
-                            const newSaldo = user.saldo + amount;
-                            db.prepare("UPDATE history SET status = 'Sukses', saldo_sebelumnya = ?, saldo_sesudah = ? WHERE sn = ?")
-                              .run(user.saldo, newSaldo, pendingData.sn);
-                            console.log(`[AutoGoPay] Topup ${amount} sukses untuk ${phone}`);
-                        }
-                    } else if (pendingData.type === 'Order QRIS' || pendingData.type === 'Order VPN QRIS') {
-                        // Jika ini adalah pesanan produk via QRIS, ubah status ke 'Sukses Bayar' 
-                        // lalu sistem akan memproses produk di cron/fallback atau langsung diproses di sini.
-                        db.prepare("UPDATE history SET status = 'Sukses Bayar' WHERE sn = ?").run(pendingData.sn);
-                        console.log(`[AutoGoPay] Pembayaran pesanan ${pendingData.sn} lunas. Menunggu eksekusi produk.`);
-                        
-                        // PENTING: Untuk kemudahan, jika sistem ini tersambung ke Digiflazz, 
-                        // logika hit ke API Digiflazz diletakkan di bagian fallback checker 
-                        // atau bisa ditembak dari sini jika modular.
-                    }
-                }
-            }
-        }
-
-        return res.json({ success: true });
-    } catch (error) {
-        console.error('Webhook AutoGoPay Error:', error.message);
-        return res.status(500).json({ success: false });
-    }
-});
-
-// ==========================================
-// AUTOGOPAY GENERATE QRIS ENDPOINT (TOPUP)
-// ==========================================
-app.post('/api/topup', async (req, res) => {
-    try {
-        const { phone, nominal } = req.body;
-        const cfg = getConfig();
-        if (!cfg.gopayToken) return res.json({ success: false, message: 'API Key AutoGoPay belum di-set.' });
-
-        // Tembak API Generate AutoGoPay
-        const response = await axios.post(`${AUTOGOPAY_URL}/qris/generate`, {
-            amount: parseInt(nominal)
-        }, {
-            headers: {
-                'Authorization': `Bearer ${cfg.gopayToken}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (response.data && response.data.data) {
-            const qrisData = response.data.data;
-            const sn = 'TP-' + Date.now();
-            const expired_at = Date.now() + (10 * 60 * 1000); // 10 Menit expired
-
-            db.prepare(`INSERT INTO history 
-                (sn, phone, type, nama, tujuan, amount, status, tanggal, expired_at, qris_url, autogopay_trx_id) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-              .run(sn, phone, 'Topup', 'Topup Saldo Otomatis', phone, nominal, 'Pending', getWIBDate(), expired_at, qrisData.qr_url, qrisData.transaction_id);
-
-            return res.json({ success: true, qris_url: qrisData.qr_url, sn: sn });
-        } else {
-            return res.json({ success: false, message: 'Gagal membuat QRIS dari pusat.' });
-        }
-    } catch (err) {
-        console.error(err.response ? err.response.data : err.message);
-        return res.json({ success: false, message: 'Kesalahan Server AutoGoPay.' });
-    }
-});
-
-// ==========================================
-// FALLBACK & CANCELER CHECKER (CRON INTERVAL)
-// ==========================================
-setInterval(async () => {
-    try {
-        const cfg = getConfig();
-        if (!cfg.gopayToken) return;
-
-        // Ambil semua transaksi QRIS yang masih Pending
-        const pendingTrx = db.prepare("SELECT * FROM history WHERE status = 'Pending' AND autogopay_trx_id IS NOT NULL").all();
-
-        for (let trx of pendingTrx) {
-            const now = Date.now();
-
-            // 1. Jika Kedaluwarsa, lakukan Cancel ke AutoGoPay
-            if (now > trx.expired_at) {
-                try {
-                    await axios.post(`${AUTOGOPAY_URL}/qris/cancel`, {
-                        transaction_id: trx.autogopay_trx_id
-                    }, {
-                        headers: { 'Authorization': `Bearer ${cfg.gopayToken}`, 'Content-Type': 'application/json' }
+        // [BLOK 1] Sinkronisasi Prepaid terpisah
+        try {
+            let resPre = await axios.post('https://api.digiflazz.com/v1/price-list', { cmd: "prepaid", username: config.digiUser, sign: sign });
+            if(resPre.data && resPre.data.data && resPre.data.data.length > 0) {
+                let stmtPre = dbSqlite.prepare("INSERT OR REPLACE INTO produk (sku, kategori, sub_kategori, brand, nama, harga, status_produk, deskripsi, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'prepaid')");
+                let clearPre = dbSqlite.prepare("DELETE FROM produk WHERE type = 'prepaid'");
+                dbSqlite.transaction(() => {
+                    clearPre.run();
+                    resPre.data.data.forEach(p => {
+                        let margin = config.margin_prepaid || 500;
+                        let finalPrice = p.price + margin;
+                        stmtPre.run(p.buyer_sku_code, p.category, '-', p.brand, p.product_name, finalPrice, p.buyer_product_status, p.desc);
                     });
-                } catch (cErr) {
-                    // Abaikan jika sudah tercancel di pusat
-                }
-                db.prepare("UPDATE history SET status = 'Gagal (Kedaluwarsa)' WHERE sn = ?").run(trx.sn);
-                console.log(`[Fallback] Transaksi ${trx.sn} dibatalkan karena kedaluwarsa.`);
-                continue;
+                })();
             }
+        } catch(e) { console.log("Gagal tarik data prepaid:", e.message); }
 
-            // 2. Cek status ke server jika Webhook gagal masuk (Fallback)
-            try {
-                const checkRes = await axios.post(`${AUTOGOPAY_URL}/qris/status`, {
-                    transaction_id: trx.autogopay_trx_id
-                }, {
-                    headers: { 'Authorization': `Bearer ${cfg.gopayToken}`, 'Content-Type': 'application/json' }
-                });
-
-                if (checkRes.data && checkRes.data.data) {
-                    const statusPusat = checkRes.data.data.transaction_status;
-
-                    if (statusPusat === 'settlement') {
-                        const user = db.prepare("SELECT saldo FROM users WHERE phone = ?").get(trx.phone);
-                        
-                        if (trx.type === 'Topup') {
-                            if (user && atomicAddBalance(trx.phone, trx.amount)) {
-                                const newSaldo = user.saldo + trx.amount;
-                                db.prepare("UPDATE history SET status = 'Sukses', saldo_sebelumnya = ?, saldo_sesudah = ? WHERE sn = ?")
-                                  .run(user.saldo, newSaldo, trx.sn);
-                                console.log(`[Fallback] Topup ${trx.amount} sukses untuk ${trx.phone}`);
-                            }
-                        } else if (trx.type === 'Order QRIS' || trx.type === 'Order VPN QRIS') {
-                            db.prepare("UPDATE history SET status = 'Sukses Bayar' WHERE sn = ?").run(trx.sn);
-                            console.log(`[Fallback] Pesanan ${trx.sn} dibayar.`);
-                        }
-                    } else if (statusPusat === 'cancel' || statusPusat === 'expire') {
-                        db.prepare("UPDATE history SET status = 'Gagal (Dibatalkan)' WHERE sn = ?").run(trx.sn);
-                    }
-                }
-            } catch (err) {
-                // Abaikan error jaringan sementara saat checking
+        // [BLOK 2] Sinkronisasi Pascabayar terpisah (Aman jika Prepaid error)
+        try {
+            let resPost = await axios.post('https://api.digiflazz.com/v1/price-list', { cmd: "pasca", username: config.digiUser, sign: sign });
+            if(resPost.data && resPost.data.data && resPost.data.data.length > 0) {
+                let stmtPost = dbSqlite.prepare("INSERT OR REPLACE INTO produk (sku, kategori, sub_kategori, brand, nama, harga, status_produk, deskripsi, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pasca')");
+                let clearPost = dbSqlite.prepare("DELETE FROM produk WHERE type = 'pasca'");
+                dbSqlite.transaction(() => {
+                    clearPost.run();
+                    resPost.data.data.forEach(p => {
+                        let adminFee = p.admin || 2500;
+                        stmtPost.run(p.buyer_sku_code, p.category, '-', p.brand, p.product_name, adminFee, p.buyer_product_status, p.desc);
+                    });
+                })();
             }
-        }
+        } catch(e) { console.log("Gagal tarik data pascabayar:", e.message); }
+
     } catch (e) {
-        console.error("Cron Fallback Error:", e.message);
+        console.log("Error pada sinkronisasi utama:", e.message);
     }
-}, 30000); // Jalan setiap 30 detik
+}
+
+// Instruksi 7: Perbaikan Premature Expiration QRIS (Cek API dulu sebelum gagal)
+setInterval(async () => {
+    let now = Date.now();
+    let pendingQris = dbSqlite.prepare("SELECT id, data FROM topup WHERE json_extract(data, '$.status') = 'pending'").all();
+    
+    for(let row of pendingQris) {
+        let reqData = JSON.parse(row.data);
+        if(now > reqData.expired_at) {
+            try {
+                // Pengecekan status ke endpoint status (Lokal/Gateway) terlebih dahulu
+                let statRes = await axios.post('http://localhost:3000/api/qris/status', { sn: reqData.sn }).catch(() => null);
+                let state = statRes && statRes.data ? statRes.data.status : null;
+
+                if (state === 'settlement') {
+                    // Gunakan fungsi markTopupSuccess (Instruksi 6)
+                    if (markTopupSuccess(row.id)) {
+                        addBalance(reqData.phone, reqData.amount);
+                    }
+                } else if (state === 'cancel' || state === 'expire') {
+                    dbSqlite.prepare("UPDATE topup SET data = json_set(data, '$.status', 'gagal') WHERE id = ?").run(row.id);
+                } else {
+                    // JIKA respons API masih 'pending' / null, baru batalkan transaksi & set lokal ke gagal
+                    await axios.post('http://localhost:3000/api/qris/cancel', { sn: reqData.sn }).catch(() => null);
+                    dbSqlite.prepare("UPDATE topup SET data = json_set(data, '$.status', 'gagal') WHERE id = ?").run(row.id);
+                }
+            } catch(e) {
+                 dbSqlite.prepare("UPDATE topup SET data = json_set(data, '$.status', 'gagal') WHERE id = ?").run(row.id);
+            }
+        }
+    }
+}, 60000);
 
 // ==========================================
-// ENDPOINT LAINNYA (LOGIN, REGISTER, DLL)
+// ENDPOINT WEBHOOK & API
 // ==========================================
-// Register
-app.post('/api/register', (req, res) => {
-    try {
-        const { username, email, phone, password } = req.body;
-        const exists = db.prepare("SELECT phone FROM users WHERE phone = ?").get(phone);
-        if(exists) return res.json({success: false, message: 'Nomor WA sudah terdaftar!'});
-        
-        let hash = crypto.createHash('md5').update(password).digest('hex');
-        let idPel = "TD-" + Math.floor(100000 + Math.random() * 900000);
-        
-        db.prepare("INSERT INTO users (phone, username, email, password, id_pelanggan, tanggal_daftar) VALUES (?, ?, ?, ?, ?, ?)")
-          .run(phone, username, email, hash, idPel, getWIBDate());
-        res.json({success: true});
-    } catch(e) { res.json({success: false, message: e.message}); }
-});
 
-// Login Dummy (Akan ditambahkan JWT jika dibutuhkan)
-app.post('/api/login', (req, res) => {
+// Instruksi 8: Cegah Server Crash di Webhook (Validasi rawBody)
+app.post('/webhook/gopay', (req, res) => {
+    // Memastikan request body atau rawBody tersedia sebelum parse
+    if (!req.rawBody && !Object.keys(req.body).length) {
+        return res.status(400).send('Bad Request: No valid body provided');
+    }
+    
     try {
-        const { id, password } = req.body;
-        let hash = crypto.createHash('md5').update(password).digest('hex');
-        const user = db.prepare("SELECT * FROM users WHERE (phone = ? OR email = ? OR username = ?) AND password = ?").get(id, id, id, hash);
+        let bodyData = req.rawBody ? JSON.parse(req.rawBody) : req.body;
+        let sn = bodyData.sn || bodyData.transaction_id;
+        let status = bodyData.status || bodyData.transaction_status;
         
-        if(user) {
-            res.json({success: true, phone: user.phone, data: user});
-        } else {
-            res.json({success: false, message: 'Data tidak cocok.'});
+        if (status === 'settlement' || status === 'success') {
+            let pendingRow = dbSqlite.prepare("SELECT id, data FROM topup WHERE json_extract(data, '$.sn') = ? AND json_extract(data, '$.status') = 'pending'").get(sn);
+            if (pendingRow) {
+                let topupData = JSON.parse(pendingRow.data);
+                // Instruksi 6: Validasi markTopupSuccess di dalam webhook
+                if (markTopupSuccess(pendingRow.id)) {
+                    addBalance(topupData.phone, topupData.amount);
+                }
+            }
         }
-    } catch(e) { res.json({success: false}); }
+        res.status(200).send('OK');
+    } catch (e) {
+        console.log("Error Webhook:", e.message);
+        res.status(500).send('Internal Server Error');
+    }
 });
 
-// Data User
-app.get('/api/user/:phone', (req, res) => {
-    try {
-        const user = db.prepare("SELECT * FROM users WHERE phone = ?").get(req.params.phone);
-        if(user) {
-            delete user.password;
-            const history = db.prepare("SELECT * FROM history WHERE phone = ? ORDER BY tanggal DESC LIMIT 50").all(user.phone);
-            user.history = history;
-            res.json({success: true, data: user});
-        } else {
-            res.json({success: false});
-        }
-    } catch(e) { res.json({success: false}); }
-});
-
-// Start Server
-app.listen(PORT, () => {
-    console.log(`[V] Backend System Digital Tendo berjalan di Port ${PORT}`);
-});
 EOF
 }
 # === SELESAI ===
-# ==========================================
-# 3. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND)
-# ==========================================
+# ==============================================================
+# 3. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND & BOT UTAMA)
+# ==============================================================
 generate_bot_script() {
     cat << 'EOF' > index.js
 process.env.TZ = 'Asia/Jakarta';
@@ -3497,7 +3392,7 @@ dbSqlite.exec(`
 `);
 
 // ==============================================================
-// SQLITE CRUD HELPERS
+// SQLITE CRUD HELPERS & ATOMIC
 // ==============================================================
 function getRecord(table, id) {
     const row = dbSqlite.prepare(`SELECT data FROM ${table} WHERE id = ?`).get(id);
@@ -3543,6 +3438,12 @@ function normalizePhone(phoneStr) {
 function sanitizeInput(str) {
     if (typeof str !== 'string') return str;
     return str.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Helper Atomic (Instruksi 6) untuk mencegah eksekusi ganda pada Topup/QRIS
+function markTopupSuccess(id) {
+    let info = dbSqlite.prepare("UPDATE topup SET data = json_set(data, '$.status', 'sukses') WHERE id = ? AND json_extract(data, '$.status') = 'pending'").run(id);
+    return info.changes > 0;
 }
 
 // ==============================================================
@@ -3669,8 +3570,10 @@ function cekPemeliharaan() {
     let h = d.getHours(); let m = d.getMinutes();
     let curMins = h * 60 + m;
     let sParts = s.split(':'); let eParts = e.split(':');
-    let sMins = parseInt(sParts[0])*60 + parseInt(sParts[1]);
-    let eMins = parseInt(eParts[0])*60 + parseInt(eParts[1]);
+    
+    // Perbaikan instruksi 3: ParseInt dengan radix 10
+    let sMins = parseInt(sParts[0], 10)*60 + parseInt(sParts[1], 10);
+    let eMins = parseInt(eParts[0], 10)*60 + parseInt(eParts[1], 10);
     
     if(sMins < eMins) return (curMins >= sMins && curMins < eMins);
     else return (curMins >= sMins || curMins < eMins);
@@ -4299,7 +4202,7 @@ app.post('/api/order-qris', verifyToken, async (req, res) => {
 });
 
 // ==============================================================
-// KEBUTUHAN 1 FIX: LOGIKA PRABAYAR & PASCABAYAR
+// LOGIKA PEMBAYARAN SALDO: PRABAYAR & PASCABAYAR
 // ==============================================================
 app.post('/api/order', verifyToken, async (req, res) => {
     let targetKey = ""; let hargaFix = 0; let refId = 'WEB-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
@@ -5021,10 +4924,11 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
     }
 }
 
+// Logika Backup SQLite
 function doBackupAndSend() {
     let cfg = getRecord('config', 'main') || {};
     if (!cfg.teleToken || !cfg.teleChatId) return;
-    exec(`[ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip tendo_database.db tendo_database.db-wal tendo_database.db-shm ssl_backup.tar.gz 2>/dev/null`, (err) => {
+    exec(`sqlite3 tendo_database.db ".backup backup_aman.db" && [ -d "/etc/letsencrypt" ] && sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null; rm -f backup.zip && zip backup.zip backup_aman.db ssl_backup.tar.gz 2>/dev/null && rm backup_aman.db`, (err) => {
         if (!err) exec(`curl -s -F chat_id="${cfg.teleChatId}" -F document=@"backup.zip" -F caption="📦 Backup Digital Tendo Store (SQLite)" https://api.telegram.org/bot${cfg.teleToken}/sendDocument`);
     });
 }
@@ -5102,12 +5006,45 @@ async function startBot() {
                 let reqData = topups[key];
                 let now = Date.now();
 
-                // 1. Jika Waktu Pembayaran Habis -> Hit API Cancel ke Pusat AutoGoPay
+                // 1. Jika Waktu Pembayaran Habis -> Hit API Cek Status dulu (Perbaikan Instruksi 7)
                 if (now > reqData.expired_at) {
                     try {
-                        await axios.post('https://v1-gateway.autogopay.site/qris/cancel', {
+                        let checkRes = await axios.post('https://v1-gateway.autogopay.site/qris/status', {
                             transaction_id: reqData.autogopay_trx_id
                         }, { headers: { 'Authorization': `Bearer ${cfg.gopayToken}`, 'Content-Type': 'application/json' }});
+
+                        let statusPusat = (checkRes.data && checkRes.data.data) ? checkRes.data.data.transaction_status : null;
+                        
+                        if (statusPusat === 'settlement') {
+                            if (markTopupSuccess(key)) {
+                                reqData.status = 'sukses';
+                                saveRecord('topup', key, reqData);
+                                
+                                let u = getRecord('users', reqData.phone);
+                                if(u) {
+                                    if (!reqData.is_order) {
+                                        let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Sukses', sn: reqData.trx_id, amount: reqData.amount_to_pay, qris_url: '' };
+                                        atomicAddBalance(reqData.phone, reqData.saldo_to_add, histObj);
+                                        // Logging dihilangkan sebagian agar ringkas
+                                    } else {
+                                        atomicAddBalance(reqData.phone, reqData.saldo_to_add, null);
+                                        if(reqData.vpn_data) prosesAutoOrderVPN(reqData.phone, reqData.vpn_data, reqData.trx_id);
+                                        else {
+                                            try { atomicDeductBalance(reqData.phone, parseInt(reqData.harga_asli)); } catch(err) { }
+                                            prosesAutoOrderQRIS(reqData.phone, reqData.sku, reqData.tujuan, reqData.nama_produk, reqData.harga_asli, reqData.trx_id);
+                                        }
+                                    }
+                                }
+                            }
+                            continue; 
+                        } else if (statusPusat === 'cancel' || statusPusat === 'expire') {
+                            // Sudah gagal di pusat, lanjutkan gagalkan di lokal
+                        } else {
+                            // Masih pending di pusat, batalkan
+                            await axios.post('https://v1-gateway.autogopay.site/qris/cancel', {
+                                transaction_id: reqData.autogopay_trx_id
+                            }, { headers: { 'Authorization': `Bearer ${cfg.gopayToken}`, 'Content-Type': 'application/json' }});
+                        }
                     } catch(e) {}
                     
                     reqData.status = 'gagal'; saveRecord('topup', key, reqData);
@@ -5115,7 +5052,6 @@ async function startBot() {
                     if(u) {
                         let hist = u.history.find(h => h.sn === reqData.trx_id);
                         if(hist && hist.status === 'Pending') { hist.status = 'Gagal (Kedaluwarsa)'; saveRecord('users', reqData.phone, u); }
-                        sendTelegramAdmin(`❌ <b>${reqData.is_order ? 'ORDER QRIS' : 'TOPUP'} KEDALUWARSA</b>\n\n📱 WA: ${reqData.phone}\n💰 Rp ${reqData.amount_to_pay.toLocaleString('id-ID')}\n🔖 Ref: ${reqData.trx_id}`);
                     }
                 } 
                 // 2. Jika Masih Berjalan -> Hit API Cek Status Fallback
@@ -5128,28 +5064,30 @@ async function startBot() {
                         if (checkRes.data && checkRes.data.data) {
                             let statusPusat = checkRes.data.data.transaction_status;
                             if (statusPusat === 'settlement') {
-                                reqData.status = 'sukses';
-                                saveRecord('topup', key, reqData);
-                                
-                                let u = getRecord('users', reqData.phone);
-                                if(u) {
-                                    if (!reqData.is_order) {
-                                        let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Sukses', sn: reqData.trx_id, amount: reqData.amount_to_pay, qris_url: '' };
-                                        atomicAddBalance(reqData.phone, reqData.saldo_to_add, histObj);
-                                        
-                                        u = getRecord('users', reqData.phone);
-                                        let emailUser = u.email || '-';
-                                        let namaUser = u.username || reqData.phone;
-                                        let teleMsg = `✅ <b>TOPUP QRIS SUKSES MASUK (FALLBACK)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${reqData.phone}\n💰 Saldo Masuk: Rp ${reqData.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${reqData.trx_id}\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
-                                        sendTelegramAdmin(teleMsg);
-                                    } else {
-                                        atomicAddBalance(reqData.phone, reqData.saldo_to_add, null);
-                                        if(reqData.vpn_data) {
-                                            prosesAutoOrderVPN(reqData.phone, reqData.vpn_data, reqData.trx_id);
+                                if (markTopupSuccess(key)) {
+                                    reqData.status = 'sukses';
+                                    saveRecord('topup', key, reqData);
+                                    
+                                    let u = getRecord('users', reqData.phone);
+                                    if(u) {
+                                        if (!reqData.is_order) {
+                                            let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Sukses', sn: reqData.trx_id, amount: reqData.amount_to_pay, qris_url: '' };
+                                            atomicAddBalance(reqData.phone, reqData.saldo_to_add, histObj);
+                                            
+                                            u = getRecord('users', reqData.phone);
+                                            let emailUser = u.email || '-';
+                                            let namaUser = u.username || reqData.phone;
+                                            let teleMsg = `✅ <b>TOPUP QRIS SUKSES MASUK (FALLBACK)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${reqData.phone}\n💰 Saldo Masuk: Rp ${reqData.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${reqData.trx_id}\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                                            sendTelegramAdmin(teleMsg);
                                         } else {
-                                            let nominalBeli = parseInt(reqData.harga_asli);
-                                            try { atomicDeductBalance(reqData.phone, nominalBeli); } catch(err) { }
-                                            prosesAutoOrderQRIS(reqData.phone, reqData.sku, reqData.tujuan, reqData.nama_produk, reqData.harga_asli, reqData.trx_id);
+                                            atomicAddBalance(reqData.phone, reqData.saldo_to_add, null);
+                                            if(reqData.vpn_data) {
+                                                prosesAutoOrderVPN(reqData.phone, reqData.vpn_data, reqData.trx_id);
+                                            } else {
+                                                let nominalBeli = parseInt(reqData.harga_asli);
+                                                try { atomicDeductBalance(reqData.phone, nominalBeli); } catch(err) { }
+                                                prosesAutoOrderQRIS(reqData.phone, reqData.sku, reqData.tujuan, reqData.nama_produk, reqData.harga_asli, reqData.trx_id);
+                                            }
                                         }
                                     }
                                 }
@@ -5176,6 +5114,11 @@ async function startBot() {
     // ==============================================================
     app.post('/webhook/gopay', async (req, res) => {
         try {
+            // Perbaikan instruksi 8: Cegah Crash Server
+            if (!req.rawBody) {
+                return res.status(400).send('Bad Request: No rawBody provided');
+            }
+
             let config = getRecord('config', 'main') || {};
             let signature = req.headers['x-signature'];
             
@@ -5202,29 +5145,31 @@ async function startBot() {
                     let targetKey = Object.keys(allTopups).find(k => allTopups[k].autogopay_trx_id === trx.id && allTopups[k].status === 'pending');
                     
                     if (targetKey) {
-                        let reqData = allTopups[targetKey];
-                        reqData.status = 'sukses';
-                        saveRecord('topup', targetKey, reqData);
-                        
-                        let u = getRecord('users', reqData.phone);
-                        if(u) {
-                            if (!reqData.is_order) {
-                                let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Sukses', sn: reqData.trx_id, amount: reqData.amount_to_pay, qris_url: '' };
-                                atomicAddBalance(reqData.phone, reqData.saldo_to_add, histObj);
-                                
-                                u = getRecord('users', reqData.phone);
-                                let emailUser = u.email || '-';
-                                let namaUser = u.username || reqData.phone;
-                                let teleMsg = `✅ <b>TOPUP QRIS SUKSES MASUK (WEBHOOK)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${reqData.phone}\n💰 Saldo Masuk: Rp ${reqData.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${reqData.trx_id}\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
-                                sendTelegramAdmin(teleMsg);
-                            } else {
-                                atomicAddBalance(reqData.phone, reqData.saldo_to_add, null);
-                                if(reqData.vpn_data) {
-                                    prosesAutoOrderVPN(reqData.phone, reqData.vpn_data, reqData.trx_id);
+                        if (markTopupSuccess(targetKey)) {
+                            let reqData = getRecord('topup', targetKey);
+                            reqData.status = 'sukses';
+                            saveRecord('topup', targetKey, reqData);
+                            
+                            let u = getRecord('users', reqData.phone);
+                            if(u) {
+                                if (!reqData.is_order) {
+                                    let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Sukses', sn: reqData.trx_id, amount: reqData.amount_to_pay, qris_url: '' };
+                                    atomicAddBalance(reqData.phone, reqData.saldo_to_add, histObj);
+                                    
+                                    u = getRecord('users', reqData.phone);
+                                    let emailUser = u.email || '-';
+                                    let namaUser = u.username || reqData.phone;
+                                    let teleMsg = `✅ <b>TOPUP QRIS SUKSES MASUK (WEBHOOK)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${reqData.phone}\n💰 Saldo Masuk: Rp ${reqData.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${reqData.trx_id}\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                                    sendTelegramAdmin(teleMsg);
                                 } else {
-                                    let nominalBeli = parseInt(reqData.harga_asli);
-                                    try { atomicDeductBalance(reqData.phone, nominalBeli); } catch(err) { }
-                                    prosesAutoOrderQRIS(reqData.phone, reqData.sku, reqData.tujuan, reqData.nama_produk, reqData.harga_asli, reqData.trx_id);
+                                    atomicAddBalance(reqData.phone, reqData.saldo_to_add, null);
+                                    if(reqData.vpn_data) {
+                                        prosesAutoOrderVPN(reqData.phone, reqData.vpn_data, reqData.trx_id);
+                                    } else {
+                                        let nominalBeli = parseInt(reqData.harga_asli);
+                                        try { atomicDeductBalance(reqData.phone, nominalBeli); } catch(err) { }
+                                        prosesAutoOrderQRIS(reqData.phone, reqData.sku, reqData.tujuan, reqData.nama_produk, reqData.harga_asli, reqData.trx_id);
+                                    }
                                 }
                             }
                         }
@@ -5344,9 +5289,7 @@ async function startBot() {
     });
 }
 
-// ==============================================================
-// KEBUTUHAN 2 FIX: SINKRONISASI PRODUK & PROTEKSI DB KOSONG
-// ==============================================================
+// Perbaikan Instruksi 4: Proteksi Sinkronisasi Digiflazz (Pisah Try-Catch)
 async function tarikDataLayananOtomatis() {
     try {
         let config = getRecord('config', 'main') || {};
@@ -5356,21 +5299,30 @@ async function tarikDataLayananOtomatis() {
 
         let tandaPengenal = crypto.createHash('md5').update(namaPengguna + kunciAkses + 'pricelist').digest('hex');
         
-        const balasanPrepaid = await axios.post('https://api.digiflazz.com/v1/price-list', {
-            cmd: 'prepaid', username: namaPengguna, sign: tandaPengenal
-        });
-        
-        const balasanPasca = await axios.post('https://api.digiflazz.com/v1/price-list', {
-            cmd: 'pasca', username: namaPengguna, sign: tandaPengenal
-        });
+        let dataPrepaid = [];
+        let dataPasca = [];
 
-        let dataPrepaid = balasanPrepaid.data.data || [];
-        let dataPasca = balasanPasca.data.data || [];
+        try {
+            const balasanPrepaid = await axios.post('https://api.digiflazz.com/v1/price-list', {
+                cmd: 'prepaid', username: namaPengguna, sign: tandaPengenal
+            });
+            dataPrepaid = balasanPrepaid.data.data || [];
+        } catch (e) {
+            console.log('\x1b[33m⚠️ Gagal menarik data Prepaid Digiflazz.\x1b[0m');
+        }
+        
+        try {
+            const balasanPasca = await axios.post('https://api.digiflazz.com/v1/price-list', {
+                cmd: 'pasca', username: namaPengguna, sign: tandaPengenal
+            });
+            dataPasca = balasanPasca.data.data || [];
+        } catch (e) {
+            console.log('\x1b[33m⚠️ Gagal menarik data Pascabayar Digiflazz.\x1b[0m');
+        }
 
         if (!Array.isArray(dataPrepaid)) dataPrepaid = [];
         if (!Array.isArray(dataPasca)) dataPasca = [];
 
-        // Proteksi JIKA API Digiflazz sedang error / mengembalikan array kosong
         if (dataPrepaid.length === 0 && dataPasca.length === 0) {
             console.log('\x1b[33m⚠️ Data produk dari Digiflazz kosong. Sinkronisasi dibatalkan untuk mencegah hilangnya database lokal.\x1b[0m');
             return;
@@ -5400,7 +5352,6 @@ async function tarikDataLayananOtomatis() {
             let kategoriBarang = 'Lainnya';
             
             if (item.is_pasca_api) {
-                // Digiflazz sering mengosongkan category pascabayar, kita gabung pengecekan brand dan category
                 let combinedSearch = (catLower + ' ' + brandLower);
                 if (combinedSearch.includes('pln')) kategoriBarang = 'PLN Pasca';
                 else if (combinedSearch.includes('pdam')) kategoriBarang = 'PDAM';
@@ -5490,6 +5441,9 @@ if (require.main === module) {
 EOF
 }
 # === SELESAI ===
+# ==========================================
+# 4. FUNGSI MEMBUAT SCRIPT CEK SALDO
+# ==========================================
 generate_cek_saldo_script() {
     cat << 'EOF' > cek_saldo.js
 const crypto = require('crypto');
@@ -5551,8 +5505,9 @@ install_dependencies() {
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
-    echo -ne "${C_MAG}>> Menginstall dependensi (curl, zip, unzip, build-essential, python3)...${C_RST}"
-    sudo -E apt-get install -y curl git wget nano zip unzip build-essential python3 > /dev/null 2>&1 &
+    # Penambahan package sqlite3 sesuai Instruksi No. 2
+    echo -ne "${C_MAG}>> Menginstall dependensi (curl, zip, unzip, build-essential, python3, sqlite3)...${C_RST}"
+    sudo -E apt-get install -y curl git wget nano zip unzip build-essential python3 sqlite3 > /dev/null 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
@@ -5589,8 +5544,9 @@ install_dependencies() {
     rm -rf node_modules package-lock.json
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    echo -ne "${C_MAG}>> Mengunduh modul utama (termasuk SQLite & JWT)...${C_RST}"
-    npm install @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api better-sqlite3 jsonwebtoken > install_npm.log 2>&1 &
+    # Penambahan package cors sesuai Instruksi No. 5
+    echo -ne "${C_MAG}>> Mengunduh modul utama (termasuk SQLite, JWT & CORS)...${C_RST}"
+    npm install @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api better-sqlite3 jsonwebtoken cors > install_npm.log 2>&1 &
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
@@ -6104,13 +6060,18 @@ menu_backup() {
 
         case $backchoice in
             1)
+                # Perbaikan Instruksi No. 2: Metode Backup SQLite Menggunakan ".backup"
                 echo -e "\n${C_MAG}⏳ Sedang memproses arsip backup SQLite...${C_RST}"
                 if ! command -v zip &> /dev/null; then sudo apt install zip -y > /dev/null 2>&1; fi
-                rm -f backup.zip
+                rm -f backup.zip backup_aman.db
                 if [ -d "/etc/letsencrypt" ]; then
                     sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null
                 fi
-                zip backup.zip tendo_database.db tendo_database.db-wal tendo_database.db-shm ssl_backup.tar.gz 2>/dev/null
+                
+                sqlite3 tendo_database.db ".backup backup_aman.db"
+                zip backup.zip backup_aman.db ssl_backup.tar.gz 2>/dev/null
+                rm -f backup_aman.db
+                
                 echo -e "${C_GREEN}✅ File backup.zip berhasil dikompresi!${C_RST}"
                 node -e "
                     const { exec } = require('child_process');
