@@ -3098,6 +3098,341 @@ EOF
 }
 # === SELESAI ===
 # ==========================================
+# 3. FUNGSI MEMBUAT BACKEND NODE.JS (SERVER)
+# ==========================================
+generate_backend() {
+    cat << 'EOF' > server.js
+const express = require('express');
+const cors = require('cors');
+const axios = require('axios');
+const crypto = require('crypto');
+const Database = require('better-sqlite3');
+const path = require('path');
+const fs = require('fs');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Konfigurasi URL AutoGoPay
+const AUTOGOPAY_URL = 'https://v1-gateway.autogopay.site';
+
+// Middleware Setup dengan RAW BODY untuk Webhook
+app.use(cors());
+app.use(express.json({
+    verify: (req, res, buf) => {
+        req.rawBody = buf; // Simpan raw buffer untuk validasi HMAC-SHA256
+    }
+}));
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ==========================================
+// INISIALISASI DATABASE SQLITE
+// ==========================================
+const db = new Database('tendo_database.db');
+
+db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+        phone TEXT PRIMARY KEY,
+        username TEXT,
+        email TEXT,
+        password TEXT,
+        saldo INTEGER DEFAULT 0,
+        id_pelanggan TEXT,
+        tanggal_daftar TEXT,
+        trx_count INTEGER DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS history (
+        sn TEXT PRIMARY KEY,
+        phone TEXT,
+        type TEXT,
+        nama TEXT,
+        tujuan TEXT,
+        amount INTEGER,
+        status TEXT,
+        tanggal TEXT,
+        expired_at INTEGER,
+        qris_url TEXT,
+        autogopay_trx_id TEXT,
+        saldo_sebelumnya INTEGER,
+        saldo_sesudah INTEGER,
+        vpn_details TEXT
+    );
+    CREATE TABLE IF NOT EXISTS config (
+        id TEXT PRIMARY KEY,
+        data TEXT
+    );
+    CREATE TABLE IF NOT EXISTS notif (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT,
+        text TEXT,
+        image TEXT
+    );
+`);
+
+// Inisialisasi Config Default jika kosong
+let initCfg = db.prepare("SELECT data FROM config WHERE id = 'main'").get();
+if (!initCfg) {
+    const defaultCfg = {
+        gopayToken: "API_KEY_AUTOGOPAY_ANDA", // Ganti via Panel Terminal
+        digiflazzUser: "",
+        digiflazzKey: "",
+        margin_persen: 5,
+        margin_tetap: 500,
+        botNumber: "628xxx"
+    };
+    db.prepare("INSERT INTO config (id, data) VALUES ('main', ?)").run(JSON.stringify(defaultCfg));
+}
+
+function getConfig() {
+    let row = db.prepare("SELECT data FROM config WHERE id = 'main'").get();
+    return row ? JSON.parse(row.data) : {};
+}
+
+// Helper Waktu
+function getWIBDate() {
+    return new Date().toLocaleString("id-ID", {timeZone: "Asia/Jakarta"});
+}
+
+// ==========================================
+// FUNGSI UTAMA: TOPUP & TRANSAKSI
+// ==========================================
+function atomicAddBalance(phone, amount) {
+    const info = db.prepare("UPDATE users SET saldo = saldo + ? WHERE phone = ?").run(amount, phone);
+    return info.changes > 0;
+}
+
+// ==========================================
+// AUTOGOPAY WEBHOOK ENDPOINT
+// ==========================================
+app.post('/webhook/gopay', async (req, res) => {
+    try {
+        const cfg = getConfig();
+        const signature = req.headers['x-signature'];
+        const payload = req.rawBody.toString('utf8');
+        
+        // 1. Validasi HMAC-SHA256
+        const expectedSignature = crypto.createHmac('sha256', cfg.gopayToken).update(payload).digest('hex');
+        
+        if (signature !== expectedSignature) {
+            console.error('Webhook AutoGoPay: Invalid Signature!');
+            return res.status(401).json({ success: false, message: 'Invalid signature' });
+        }
+
+        const body = JSON.parse(payload);
+
+        // 2. Handling Verification Challenge
+        if (body.event === 'verification.challenge') {
+            console.log('Webhook AutoGoPay: Challenge Verified.');
+            return res.json({ success: true });
+        }
+
+        // 3. Handling Transaction Received
+        if (body.event === 'transaction.received') {
+            const trx = body.transaction;
+            console.log(`Webhook AutoGoPay TRX: ${trx.id} | Status: ${trx.status}`);
+
+            if (trx.status === 'settlement') {
+                // Cari data transaksi di DB menggunakan autogopay_trx_id
+                const pendingData = db.prepare("SELECT * FROM history WHERE autogopay_trx_id = ? AND status = 'Pending'").get(trx.id);
+                
+                if (pendingData) {
+                    const phone = pendingData.phone;
+                    const amount = pendingData.amount;
+
+                    if (pendingData.type === 'Topup') {
+                        // Tambah saldo user
+                        const user = db.prepare("SELECT saldo FROM users WHERE phone = ?").get(phone);
+                        if (user && atomicAddBalance(phone, amount)) {
+                            const newSaldo = user.saldo + amount;
+                            db.prepare("UPDATE history SET status = 'Sukses', saldo_sebelumnya = ?, saldo_sesudah = ? WHERE sn = ?")
+                              .run(user.saldo, newSaldo, pendingData.sn);
+                            console.log(`[AutoGoPay] Topup ${amount} sukses untuk ${phone}`);
+                        }
+                    } else if (pendingData.type === 'Order QRIS' || pendingData.type === 'Order VPN QRIS') {
+                        // Jika ini adalah pesanan produk via QRIS, ubah status ke 'Sukses Bayar' 
+                        // lalu sistem akan memproses produk di cron/fallback atau langsung diproses di sini.
+                        db.prepare("UPDATE history SET status = 'Sukses Bayar' WHERE sn = ?").run(pendingData.sn);
+                        console.log(`[AutoGoPay] Pembayaran pesanan ${pendingData.sn} lunas. Menunggu eksekusi produk.`);
+                        
+                        // PENTING: Untuk kemudahan, jika sistem ini tersambung ke Digiflazz, 
+                        // logika hit ke API Digiflazz diletakkan di bagian fallback checker 
+                        // atau bisa ditembak dari sini jika modular.
+                    }
+                }
+            }
+        }
+
+        return res.json({ success: true });
+    } catch (error) {
+        console.error('Webhook AutoGoPay Error:', error.message);
+        return res.status(500).json({ success: false });
+    }
+});
+
+// ==========================================
+// AUTOGOPAY GENERATE QRIS ENDPOINT (TOPUP)
+// ==========================================
+app.post('/api/topup', async (req, res) => {
+    try {
+        const { phone, nominal } = req.body;
+        const cfg = getConfig();
+        if (!cfg.gopayToken) return res.json({ success: false, message: 'API Key AutoGoPay belum di-set.' });
+
+        // Tembak API Generate AutoGoPay
+        const response = await axios.post(`${AUTOGOPAY_URL}/qris/generate`, {
+            amount: parseInt(nominal)
+        }, {
+            headers: {
+                'Authorization': `Bearer ${cfg.gopayToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.data && response.data.data) {
+            const qrisData = response.data.data;
+            const sn = 'TP-' + Date.now();
+            const expired_at = Date.now() + (10 * 60 * 1000); // 10 Menit expired
+
+            db.prepare(`INSERT INTO history 
+                (sn, phone, type, nama, tujuan, amount, status, tanggal, expired_at, qris_url, autogopay_trx_id) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+              .run(sn, phone, 'Topup', 'Topup Saldo Otomatis', phone, nominal, 'Pending', getWIBDate(), expired_at, qrisData.qr_url, qrisData.transaction_id);
+
+            return res.json({ success: true, qris_url: qrisData.qr_url, sn: sn });
+        } else {
+            return res.json({ success: false, message: 'Gagal membuat QRIS dari pusat.' });
+        }
+    } catch (err) {
+        console.error(err.response ? err.response.data : err.message);
+        return res.json({ success: false, message: 'Kesalahan Server AutoGoPay.' });
+    }
+});
+
+// ==========================================
+// FALLBACK & CANCELER CHECKER (CRON INTERVAL)
+// ==========================================
+setInterval(async () => {
+    try {
+        const cfg = getConfig();
+        if (!cfg.gopayToken) return;
+
+        // Ambil semua transaksi QRIS yang masih Pending
+        const pendingTrx = db.prepare("SELECT * FROM history WHERE status = 'Pending' AND autogopay_trx_id IS NOT NULL").all();
+
+        for (let trx of pendingTrx) {
+            const now = Date.now();
+
+            // 1. Jika Kedaluwarsa, lakukan Cancel ke AutoGoPay
+            if (now > trx.expired_at) {
+                try {
+                    await axios.post(`${AUTOGOPAY_URL}/qris/cancel`, {
+                        transaction_id: trx.autogopay_trx_id
+                    }, {
+                        headers: { 'Authorization': `Bearer ${cfg.gopayToken}`, 'Content-Type': 'application/json' }
+                    });
+                } catch (cErr) {
+                    // Abaikan jika sudah tercancel di pusat
+                }
+                db.prepare("UPDATE history SET status = 'Gagal (Kedaluwarsa)' WHERE sn = ?").run(trx.sn);
+                console.log(`[Fallback] Transaksi ${trx.sn} dibatalkan karena kedaluwarsa.`);
+                continue;
+            }
+
+            // 2. Cek status ke server jika Webhook gagal masuk (Fallback)
+            try {
+                const checkRes = await axios.post(`${AUTOGOPAY_URL}/qris/status`, {
+                    transaction_id: trx.autogopay_trx_id
+                }, {
+                    headers: { 'Authorization': `Bearer ${cfg.gopayToken}`, 'Content-Type': 'application/json' }
+                });
+
+                if (checkRes.data && checkRes.data.data) {
+                    const statusPusat = checkRes.data.data.transaction_status;
+
+                    if (statusPusat === 'settlement') {
+                        const user = db.prepare("SELECT saldo FROM users WHERE phone = ?").get(trx.phone);
+                        
+                        if (trx.type === 'Topup') {
+                            if (user && atomicAddBalance(trx.phone, trx.amount)) {
+                                const newSaldo = user.saldo + trx.amount;
+                                db.prepare("UPDATE history SET status = 'Sukses', saldo_sebelumnya = ?, saldo_sesudah = ? WHERE sn = ?")
+                                  .run(user.saldo, newSaldo, trx.sn);
+                                console.log(`[Fallback] Topup ${trx.amount} sukses untuk ${trx.phone}`);
+                            }
+                        } else if (trx.type === 'Order QRIS' || trx.type === 'Order VPN QRIS') {
+                            db.prepare("UPDATE history SET status = 'Sukses Bayar' WHERE sn = ?").run(trx.sn);
+                            console.log(`[Fallback] Pesanan ${trx.sn} dibayar.`);
+                        }
+                    } else if (statusPusat === 'cancel' || statusPusat === 'expire') {
+                        db.prepare("UPDATE history SET status = 'Gagal (Dibatalkan)' WHERE sn = ?").run(trx.sn);
+                    }
+                }
+            } catch (err) {
+                // Abaikan error jaringan sementara saat checking
+            }
+        }
+    } catch (e) {
+        console.error("Cron Fallback Error:", e.message);
+    }
+}, 30000); // Jalan setiap 30 detik
+
+// ==========================================
+// ENDPOINT LAINNYA (LOGIN, REGISTER, DLL)
+// ==========================================
+// Register
+app.post('/api/register', (req, res) => {
+    try {
+        const { username, email, phone, password } = req.body;
+        const exists = db.prepare("SELECT phone FROM users WHERE phone = ?").get(phone);
+        if(exists) return res.json({success: false, message: 'Nomor WA sudah terdaftar!'});
+        
+        let hash = crypto.createHash('md5').update(password).digest('hex');
+        let idPel = "TD-" + Math.floor(100000 + Math.random() * 900000);
+        
+        db.prepare("INSERT INTO users (phone, username, email, password, id_pelanggan, tanggal_daftar) VALUES (?, ?, ?, ?, ?, ?)")
+          .run(phone, username, email, hash, idPel, getWIBDate());
+        res.json({success: true});
+    } catch(e) { res.json({success: false, message: e.message}); }
+});
+
+// Login Dummy (Akan ditambahkan JWT jika dibutuhkan)
+app.post('/api/login', (req, res) => {
+    try {
+        const { id, password } = req.body;
+        let hash = crypto.createHash('md5').update(password).digest('hex');
+        const user = db.prepare("SELECT * FROM users WHERE (phone = ? OR email = ? OR username = ?) AND password = ?").get(id, id, id, hash);
+        
+        if(user) {
+            res.json({success: true, phone: user.phone, data: user});
+        } else {
+            res.json({success: false, message: 'Data tidak cocok.'});
+        }
+    } catch(e) { res.json({success: false}); }
+});
+
+// Data User
+app.get('/api/user/:phone', (req, res) => {
+    try {
+        const user = db.prepare("SELECT * FROM users WHERE phone = ?").get(req.params.phone);
+        if(user) {
+            delete user.password;
+            const history = db.prepare("SELECT * FROM history WHERE phone = ? ORDER BY tanggal DESC LIMIT 50").all(user.phone);
+            user.history = history;
+            res.json({success: true, data: user});
+        } else {
+            res.json({success: false});
+        }
+    } catch(e) { res.json({success: false}); }
+});
+
+// Start Server
+app.listen(PORT, () => {
+    console.log(`[V] Backend System Digital Tendo berjalan di Port ${PORT}`);
+});
+EOF
+}
+# === SELESAI ===
+# ==========================================
 # 3. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND)
 # ==========================================
 generate_bot_script() {
@@ -3126,7 +3461,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// Modifikasi body-parser untuk mendapatkan rawBody demi validasi Webhook HMAC SHA1
+// Modifikasi body-parser untuk mendapatkan rawBody demi validasi Webhook HMAC SHA1 & SHA256 (AutoGoPay)
 app.use(bodyParser.json({
     verify: (req, res, buf) => {
         req.rawBody = buf;
@@ -3437,49 +3772,10 @@ function sendBroadcastSuccess(productName, rawUser, rawTarget, price, method) {
     } catch(e) {}
 }
 
-function convertToDynamicQris(staticQris, amount) {
-    try {
-        if(!staticQris || staticQris.length < 30) return staticQris;
-        let qris = staticQris.substring(0, staticQris.length - 8);
-        qris = qris.replace("010211", "010212");
-        let parsed = ""; let i = 0;
-        while (i < qris.length) {
-            let id = qris.substring(i, i+2);
-            let lenStr = qris.substring(i+2, i+4);
-            let len = parseInt(lenStr, 10);
-            if (isNaN(len)) break;
-            let val = qris.substring(i+4, i+4+len);
-            if (id !== "54") parsed += id + lenStr + val;
-            i += 4 + len;
-        }
-        let amtStr = amount.toString();
-        let amtLen = amtStr.length.toString().padStart(2, '0');
-        let tag54 = "54" + amtLen + amtStr;
-        let finalQris = "";
-        if (parsed.includes("5802ID")) finalQris = parsed.replace("5802ID", tag54 + "5802ID");
-        else finalQris = parsed + tag54;
-        finalQris += "6304";
-        
-        let crc = 0xFFFF;
-        for(let j=0; j<finalQris.length; j++){
-            crc ^= finalQris.charCodeAt(j) << 8;
-            for(let k=0; k<8; k++){
-                if(crc & 0x8000) crc = (crc << 1) ^ 0x1021;
-                else crc = crc << 1;
-            }
-        }
-        let crcStr = (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
-        return finalQris + crcStr;
-    } catch(e) { return staticQris; }
-}
-
 let configAwal = getRecord('config', 'main') || {};
 configAwal.botName = configAwal.botName || "Digital Tendo Store";
 configAwal.botNumber = configAwal.botNumber || "";
 configAwal.gopayToken = configAwal.gopayToken || "";
-configAwal.gopayMerchantId = configAwal.gopayMerchantId || "";
-configAwal.qrisUrl = configAwal.qrisUrl || "https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg";
-configAwal.qrisText = configAwal.qrisText || "";
 configAwal.teleTokenInfo = configAwal.teleTokenInfo || ""; 
 configAwal.margin = configAwal.margin || { t1:50, t2:100, t3:250, t4:500, t5:1000, t6:1500, t7:2000, t8:2500, t9:3000, t10:4000, t11:5000, t12:7500, t13:10000 };
 saveRecord('config', 'main', configAwal);
@@ -3497,7 +3793,7 @@ if(!fs.existsSync('./public/maint_images')) fs.mkdirSync('./public/maint_images'
 
 let globalSock = null;
 let otpCooldown = {}; 
-let loginAttempts = {}; // Menyimpan percobaan login rate limit
+let loginAttempts = {}; 
 let ipOtpLimit = {};
 let isMaintenanceNow = cekPemeliharaan();
 
@@ -3619,6 +3915,7 @@ app.post('/api/cancel-topup', verifyToken, (req, res) => {
         let topup = getRecord('topup', sn);
         
         if(topup && topup.phone === phone) {
+            // Kita biarkan Fallback Cron yang membatalkan ke AutoGoPay jika belum di-cancel
             topup.status = 'gagal';
             saveRecord('topup', sn, topup);
         }
@@ -3662,7 +3959,6 @@ app.post('/api/login', (req, res) => {
         let hashedInput = hashPassword(password);
         let normInput = normalizePhone(id);
         
-        // Optimasi Pencarian User: Cek via Key (Phone) Dulu
         let uDirect = getRecord('users', normInput) || getRecord('users', id);
         let userPhone = null;
 
@@ -3670,7 +3966,6 @@ app.post('/api/login', (req, res) => {
             userPhone = uDirect.jid ? uDirect.jid.split('@')[0] : (getRecord('users', normInput) ? normInput : id);
             if(uDirect.password === password) { uDirect.password = hashedInput; saveRecord('users', userPhone, uDirect); }
         } else {
-            // Pencarian via Email/Username jika Phone gagal
             let users = getAllRecords('users');
             userPhone = Object.keys(users).find(k => {
                 let usr = users[k];
@@ -3687,7 +3982,7 @@ app.post('/api/login', (req, res) => {
         }
 
         if (userPhone) {
-            delete loginAttempts[limitKey]; // Reset rate limit on success
+            delete loginAttempts[limitKey]; 
             let uFinal = getRecord('users', userPhone);
             let safeData = { ...uFinal }; delete safeData.password;
             const token = jwt.sign({ phone: userPhone }, SECRET_KEY, { expiresIn: '1d' });
@@ -3883,47 +4178,42 @@ app.post('/api/verify-forgot-otp', (req, res) => {
     } catch(e) { res.json({success: false, message: 'Server error'}); }
 });
 
+// ==============================================================
+// ENDPOINT: GENERATE AUTOGOPAY QRIS (TOPUP)
+// ==============================================================
 app.post('/api/topup', verifyToken, async (req, res) => {
     try {
         if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
         let config = getRecord('config', 'main') || {};
-        if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
+        if(!config.gopayToken) return res.json({success: false, message: "Token AutoGoPay belum diatur Admin."});
         
         let { phone, nominal } = req.body;
         let u = getRecord('users', phone);
         if(!u) return res.json({success: false, message: "User tidak ditemukan."});
         
         let nominalAsli = parseInt(nominal);
+        let trxId = "TP-" + Date.now() + '-' + Math.floor(Math.random() * 1000);
         
-        // MENCEGAH COLLISION KODE UNIK
-        let uniqueCode = Math.floor(Math.random() * 999) + 1;
-        let totalPay = nominalAsli + uniqueCode;
-        let allTopups = getAllRecords('topup');
-        let attempts = 0;
-        while(Object.values(allTopups).some(t => t.status === 'pending' && t.amount_to_pay === totalPay)) {
-            uniqueCode = Math.floor(Math.random() * 999) + 1;
-            totalPay = nominalAsli + uniqueCode;
-            attempts++;
-            if (attempts > 1000) break;
+        // MINTA QRIS DARI AUTOGOPAY
+        let response;
+        try {
+            response = await axios.post('https://v1-gateway.autogopay.site/qris/generate', {
+                amount: nominalAsli
+            }, {
+                headers: { 'Authorization': 'Bearer ' + config.gopayToken, 'Content-Type': 'application/json' }
+            });
+        } catch(err) {
+            return res.json({success: false, message: "Gagal memanggil API AutoGoPay dari server."});
         }
 
-        let finalQrisUrl = "";
-        let autogopayTrxId = "";
-        try {
-            let apiKey = config.autoGopayKey;
-            if(!apiKey) return res.json({success: false, message: "API Key AutoGopay belum disetting admin!"});
-            const agpRes = await axios.post('https://v1-gateway.autogopay.site/qris/generate', { amount: totalPay }, { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` } });
-            if(agpRes.data.success) {
-                finalQrisUrl = agpRes.data.data.qr_url;
-                autogopayTrxId = agpRes.data.data.transaction_id;
-            } else throw new Error();
-        } catch(e) { return res.json({success: false, message: "Gagal Generate QRIS AutoGopay."}); }
-
-        let trxId = "TP-" + Date.now() + '-' + Math.floor(Math.random() * 1000);
+        if (!response.data || !response.data.data) return res.json({success: false, message: "Respons AutoGoPay tidak valid."});
+        
+        let finalQrisUrl = response.data.data.qr_url;
+        let autogopay_trx_id = response.data.data.transaction_id;
         let expiredAt = Date.now() + 10 * 60 * 1000;
 
         saveRecord('topup', trxId, { 
-            phone, trx_id: trxId, autogopay_id: autogopayTrxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
+            phone, trx_id: trxId, autogopay_trx_id: autogopay_trx_id, amount_to_pay: nominalAsli, saldo_to_add: nominalAsli, 
             status: 'pending', timestamp: Date.now(), expired_at: expiredAt, is_order: false 
         });
 
@@ -3931,7 +4221,7 @@ app.post('/api/topup', verifyToken, async (req, res) => {
         u.history.unshift({ 
             ts: Date.now(), 
             tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-            type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
+            type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Pending', sn: trxId, amount: nominalAsli, qris_url: finalQrisUrl, expired_at: expiredAt
         });
         if(u.history.length > 50) u.history.pop();
         saveRecord('users', phone, u);
@@ -3940,17 +4230,19 @@ app.post('/api/topup', verifyToken, async (req, res) => {
         
         let emailUser = u.email || '-';
         let namaUser = u.username || phone;
-        let teleMsg = `⏳ <b>TOPUP PENDING (QRIS)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+        let teleMsg = `⏳ <b>TOPUP PENDING (AUTOGOPAY)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n💰 Nominal: Rp ${nominalAsli.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS AutoGoPay\n💳 Saldo Saat Ini: Rp ${u.saldo.toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
 });
 
+// ==============================================================
+// ENDPOINT: GENERATE AUTOGOPAY QRIS (ORDER PPOB)
+// ==============================================================
 app.post('/api/order-qris', verifyToken, async (req, res) => {
     try {
         if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
-        
         let config = getRecord('config', 'main') || {};
-        if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
+        if(!config.gopayToken) return res.json({success: false, message: "Token AutoGoPay belum diatur Admin."});
         
         let { phone, sku, tujuan } = req.body; let pNorm = normalizePhone(phone);
         let uNorm = getRecord('users', pNorm);
@@ -3961,38 +4253,29 @@ app.post('/api/order-qris', verifyToken, async (req, res) => {
         
         let p = getRecord('produk', sku);
         if (!p) return res.json({success: false, message: 'Produk tidak ditemukan.'});
-        
         let nominalAsli = parseInt(p.harga);
-        
-        // MENCEGAH COLLISION
-        let uniqueCode = Math.floor(Math.random() * 999) + 1; 
-        let totalPay = nominalAsli + uniqueCode;
-        let allTopups = getAllRecords('topup');
-        let attempts = 0;
-        while(Object.values(allTopups).some(t => t.status === 'pending' && t.amount_to_pay === totalPay)) {
-            uniqueCode = Math.floor(Math.random() * 999) + 1;
-            totalPay = nominalAsli + uniqueCode;
-            attempts++;
-            if (attempts > 1000) break;
+        let trxId = "OQ-" + Date.now() + '-' + Math.floor(Math.random() * 1000);
+
+        // MINTA QRIS DARI AUTOGOPAY
+        let response;
+        try {
+            response = await axios.post('https://v1-gateway.autogopay.site/qris/generate', {
+                amount: nominalAsli
+            }, {
+                headers: { 'Authorization': 'Bearer ' + config.gopayToken, 'Content-Type': 'application/json' }
+            });
+        } catch(err) {
+            return res.json({success: false, message: "Gagal memanggil API AutoGoPay dari server."});
         }
 
-        let finalQrisUrl = "";
-        let autogopayTrxId = "";
-        try {
-            let apiKey = config.autoGopayKey;
-            if(!apiKey) return res.json({success: false, message: "API Key AutoGopay belum disetting admin!"});
-            const agpRes = await axios.post('https://v1-gateway.autogopay.site/qris/generate', { amount: totalPay }, { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` } });
-            if(agpRes.data.success) {
-                finalQrisUrl = agpRes.data.data.qr_url;
-                autogopayTrxId = agpRes.data.data.transaction_id;
-            } else throw new Error();
-        } catch(e) { return res.json({success: false, message: "Gagal Generate QRIS AutoGopay."}); }
-
-        let trxId = "OQ-" + Date.now() + '-' + Math.floor(Math.random() * 1000);
+        if (!response.data || !response.data.data) return res.json({success: false, message: "Respons AutoGoPay tidak valid."});
+        
+        let finalQrisUrl = response.data.data.qr_url;
+        let autogopay_trx_id = response.data.data.transaction_id;
         let expiredAt = Date.now() + 10 * 60 * 1000;
 
         saveRecord('topup', trxId, { 
-            phone: targetKey, trx_id: trxId, autogopay_id: autogopayTrxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
+            phone: targetKey, trx_id: trxId, autogopay_trx_id: autogopay_trx_id, amount_to_pay: nominalAsli, saldo_to_add: nominalAsli, 
             status: 'pending', timestamp: Date.now(), expired_at: expiredAt, 
             is_order: true, sku: sku, tujuan: sanitizeInput(tujuan), nama_produk: p.nama, harga_asli: nominalAsli 
         });
@@ -4001,7 +4284,7 @@ app.post('/api/order-qris', verifyToken, async (req, res) => {
         u.history.unshift({ 
             ts: Date.now(), 
             tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-            type: 'Order QRIS', nama: p.nama + ' (QRIS)', tujuan: sanitizeInput(tujuan), status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
+            type: 'Order QRIS', nama: p.nama + ' (QRIS)', tujuan: sanitizeInput(tujuan), status: 'Pending', sn: trxId, amount: nominalAsli, qris_url: finalQrisUrl, expired_at: expiredAt
         });
         if(u.history.length > 50) u.history.pop();
         saveRecord('users', targetKey, u);
@@ -4010,7 +4293,7 @@ app.post('/api/order-qris', verifyToken, async (req, res) => {
         
         let emailUser = u.email || '-';
         let namaUser = u.username || targetKey;
-        let teleMsg = `🛒 <b>ORDER QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Saat Ini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+        let teleMsg = `🛒 <b>ORDER QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n💰 Nominal: Rp ${nominalAsli.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS AutoGoPay\n💳 Saldo Saat Ini: Rp ${u.saldo.toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS."}); }
 });
@@ -4404,6 +4687,9 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
     }
 }
 
+// ==============================================================
+// ENDPOINT: ORDER VPN SALDO
+// ==============================================================
 app.post('/api/order-vpn', verifyToken, async (req, res) => {
     if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
     let { phone, protocol, product_id, mode, username, password, expired } = req.body;
@@ -4411,12 +4697,15 @@ app.post('/api/order-vpn', verifyToken, async (req, res) => {
     res.json(result);
 });
 
+// ==============================================================
+// ENDPOINT: ORDER VPN QRIS (AUTOGOPAY)
+// ==============================================================
 app.post('/api/order-vpn-qris', verifyToken, async (req, res) => {
     try {
         if(cekPemeliharaan()) return res.json({success: false, message: 'Sistem sedang pemeliharaan.'});
         
         let config = getRecord('config', 'main') || {};
-        if(!config.gopayToken || (!config.qrisUrl && !config.qrisText)) return res.json({success: false, message: "Sistem QRIS belum diatur Admin."});
+        if(!config.gopayToken) return res.json({success: false, message: "Token AutoGoPay belum diatur Admin."});
         
         let { phone, protocol, product_id, mode, username, password, expired } = req.body;
         username = sanitizeInput(username); password = sanitizeInput(password);
@@ -4437,36 +4726,29 @@ app.post('/api/order-vpn-qris', verifyToken, async (req, res) => {
         let hari = parseInt(expired) || 30;
         if(hari > 30) hari = 30; if(hari < 1) hari = 1;
         let nominalAsli = Math.ceil((basePrice / 30) * hari);
-        
-        let uniqueCode = Math.floor(Math.random() * 999) + 1; 
-        let totalPay = nominalAsli + uniqueCode;
-        let allTopups = getAllRecords('topup');
-        let attempts = 0;
-        while(Object.values(allTopups).some(t => t.status === 'pending' && t.amount_to_pay === totalPay)) {
-            uniqueCode = Math.floor(Math.random() * 999) + 1;
-            totalPay = nominalAsli + uniqueCode;
-            attempts++;
-            if (attempts > 1000) break;
+        let trxId = "VQ-" + Date.now() + '-' + Math.floor(Math.random() * 1000);
+
+        // MINTA QRIS DARI AUTOGOPAY
+        let response;
+        try {
+            response = await axios.post('https://v1-gateway.autogopay.site/qris/generate', {
+                amount: nominalAsli
+            }, {
+                headers: { 'Authorization': 'Bearer ' + config.gopayToken, 'Content-Type': 'application/json' }
+            });
+        } catch(err) {
+            return res.json({success: false, message: "Gagal memanggil API AutoGoPay dari server."});
         }
 
-        let finalQrisUrl = "";
-        let autogopayTrxId = "";
-        try {
-            let apiKey = config.autoGopayKey;
-            if(!apiKey) return res.json({success: false, message: "API Key AutoGopay belum disetting admin!"});
-            const agpRes = await axios.post('https://v1-gateway.autogopay.site/qris/generate', { amount: totalPay }, { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` } });
-            if(agpRes.data.success) {
-                finalQrisUrl = agpRes.data.data.qr_url;
-                autogopayTrxId = agpRes.data.data.transaction_id;
-            } else throw new Error();
-        } catch(e) { return res.json({success: false, message: "Gagal Generate QRIS AutoGopay."}); }
-
-        let trxId = "VQ-" + Date.now() + '-' + Math.floor(Math.random() * 1000);
+        if (!response.data || !response.data.data) return res.json({success: false, message: "Respons AutoGoPay tidak valid."});
+        
+        let finalQrisUrl = response.data.data.qr_url;
+        let autogopay_trx_id = response.data.data.transaction_id;
         let expiredAt = Date.now() + 10 * 60 * 1000;
         let prodName = prod.name;
 
         saveRecord('topup', trxId, { 
-            phone: targetKey, trx_id: trxId, autogopay_id: autogopayTrxId, amount_to_pay: totalPay, saldo_to_add: totalPay, 
+            phone: targetKey, trx_id: trxId, autogopay_trx_id: autogopay_trx_id, amount_to_pay: nominalAsli, saldo_to_add: nominalAsli, 
             status: 'pending', timestamp: Date.now(), expired_at: expiredAt, 
             is_order: true, vpn_data: { protocol, product_id, mode, username, password, expired, nama_produk: prodName, harga_asli: nominalAsli }
         });
@@ -4474,7 +4756,7 @@ app.post('/api/order-vpn-qris', verifyToken, async (req, res) => {
         u.history.unshift({ 
             ts: Date.now(), 
             tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), 
-            type: 'Order VPN QRIS', nama: prodName + ' (QRIS)', tujuan: username, status: 'Pending', sn: trxId, amount: totalPay, qris_url: finalQrisUrl, expired_at: expiredAt
+            type: 'Order VPN QRIS', nama: prodName + ' (QRIS)', tujuan: username, status: 'Pending', sn: trxId, amount: nominalAsli, qris_url: finalQrisUrl, expired_at: expiredAt
         });
         if(u.history.length > 50) u.history.pop();
         saveRecord('users', targetKey, u);
@@ -4483,7 +4765,7 @@ app.post('/api/order-vpn-qris', verifyToken, async (req, res) => {
         
         let emailUser = u.email || '-';
         let namaUser = u.username || targetKey;
-        let teleMsg = `🛒 <b>ORDER VPN QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${username}\n💰 Nominal: Rp ${totalPay.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+        let teleMsg = `🛒 <b>ORDER VPN QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${username}\n💰 Nominal: Rp ${nominalAsli.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS AutoGoPay\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
         sendTelegramAdmin(teleMsg);
     } catch(e) { res.json({success: false, message: "Gagal memproses QRIS VPN."}); }
 });
@@ -4571,7 +4853,7 @@ async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
         let failMsg = result.message || "GAGAL VPS";
         let emailUser = uRefund.email || '-';
         let namaUser = uRefund.username || phone;
-        let teleMsg = `⚠️ <b>INFO ORDER VPN QRIS: GAGAL VPS</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Alasan: ${failMsg}\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
+        let teleMsg = `⚠️ <b>INFO ORDER VPN QRIS: GAGAL VPS</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Alasan: ${failMsg}\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS AutoGoPay`;
         sendTelegramAdmin(teleMsg);
     }
 }
@@ -4622,7 +4904,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
                     globalSock.sendMessage(u.jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf, pesanan ${nama_produk} tujuan ${tujuan} ditolak oleh sistem.\n\n💰 Saldo Anda sebesar Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan utuh ke akun Website.` }).catch(e=>{});
                 }
 
-                let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Status Digiflazz Gagal.\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
+                let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Status Digiflazz Gagal.\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS AutoGoPay`;
                 sendTelegramAdmin(teleMsgFail);
                 return;
             }
@@ -4653,7 +4935,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
                 sendBroadcastSuccess(nama_produk, namaUser, tujuan, hargaFix, 'QRIS');
             }
 
-            let teleMsg = `🚀 <b>AUTO ORDER PASCABAYAR QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+            let teleMsg = `🚀 <b>AUTO ORDER PASCABAYAR QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS AutoGoPay\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
             sendTelegramAdmin(teleMsg);
 
         } else {
@@ -4681,7 +4963,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
                     globalSock.sendMessage(u.jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf, pesanan ${nama_produk} tujuan ${tujuan} ditolak oleh sistem.\n\n💰 Saldo Anda sebesar Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan utuh ke akun Website.` }).catch(e=>{});
                 }
 
-                let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Status Digiflazz Gagal.\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS Auto`;
+                let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Status Digiflazz Gagal.\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS AutoGoPay`;
                 sendTelegramAdmin(teleMsgFail);
                 return;
             }
@@ -4712,7 +4994,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
                 sendBroadcastSuccess(nama_produk, namaUser, tujuan, hargaFix, 'QRIS');
             }
 
-            let teleMsg = `🚀 <b>AUTO ORDER QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS Auto\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+            let teleMsg = `🚀 <b>AUTO ORDER QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS AutoGoPay\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
             sendTelegramAdmin(teleMsg);
         }
 
@@ -4730,7 +5012,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         let namaUser = uRefund.username || phone;
         let errMsg = e.response && e.response.data && e.response.data.data ? e.response.data.data.message : e.message;
 
-        let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: KONEKSI PPOB ERROR</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Error: ${errMsg}\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan otomatis ke akun pengguna.\n💳 Metode: QRIS Auto`;
+        let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: KONEKSI PPOB ERROR</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Error: ${errMsg}\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan otomatis ke akun pengguna.\n💳 Metode: QRIS AutoGoPay`;
         sendTelegramAdmin(teleMsgFail);
         
         if(globalSock) {
@@ -4797,60 +5079,165 @@ async function startBot() {
             if (globalSock && cfg.waBroadcastId) globalSock.sendMessage(cfg.waBroadcastId, { text: msg }).catch(e=>{});
         }
     }, 60000); 
- 
+
+    let isCheckingQris = false;
+    
     // ==============================================================
-    // WEBHOOK AUTOGOPAY (PENGGANTI POLLING BHM)
+    // FALLBACK & CANCELER CHECKER (INTERVAL) AUTOGOPAY
+    // ==============================================================
+    setInterval(async () => {
+        if(isCheckingQris) return;
+        isCheckingQris = true;
+        try {
+            let cfg = getRecord('config', 'main') || {};
+            let topups = getAllRecords('topup');
+            let pendingKeys = Object.keys(topups).filter(k => topups[k].status === 'pending');
+            
+            if(pendingKeys.length === 0 || !cfg.gopayToken) {
+                isCheckingQris = false;
+                return;
+            }
+
+            for(let key of pendingKeys) {
+                let reqData = topups[key];
+                let now = Date.now();
+
+                // 1. Jika Waktu Pembayaran Habis -> Hit API Cancel ke Pusat AutoGoPay
+                if (now > reqData.expired_at) {
+                    try {
+                        await axios.post('https://v1-gateway.autogopay.site/qris/cancel', {
+                            transaction_id: reqData.autogopay_trx_id
+                        }, { headers: { 'Authorization': `Bearer ${cfg.gopayToken}`, 'Content-Type': 'application/json' }});
+                    } catch(e) {}
+                    
+                    reqData.status = 'gagal'; saveRecord('topup', key, reqData);
+                    let u = getRecord('users', reqData.phone);
+                    if(u) {
+                        let hist = u.history.find(h => h.sn === reqData.trx_id);
+                        if(hist && hist.status === 'Pending') { hist.status = 'Gagal (Kedaluwarsa)'; saveRecord('users', reqData.phone, u); }
+                        sendTelegramAdmin(`❌ <b>${reqData.is_order ? 'ORDER QRIS' : 'TOPUP'} KEDALUWARSA</b>\n\n📱 WA: ${reqData.phone}\n💰 Rp ${reqData.amount_to_pay.toLocaleString('id-ID')}\n🔖 Ref: ${reqData.trx_id}`);
+                    }
+                } 
+                // 2. Jika Masih Berjalan -> Hit API Cek Status Fallback
+                else {
+                    try {
+                        let checkRes = await axios.post('https://v1-gateway.autogopay.site/qris/status', {
+                            transaction_id: reqData.autogopay_trx_id
+                        }, { headers: { 'Authorization': `Bearer ${cfg.gopayToken}`, 'Content-Type': 'application/json' }});
+
+                        if (checkRes.data && checkRes.data.data) {
+                            let statusPusat = checkRes.data.data.transaction_status;
+                            if (statusPusat === 'settlement') {
+                                reqData.status = 'sukses';
+                                saveRecord('topup', key, reqData);
+                                
+                                let u = getRecord('users', reqData.phone);
+                                if(u) {
+                                    if (!reqData.is_order) {
+                                        let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Sukses', sn: reqData.trx_id, amount: reqData.amount_to_pay, qris_url: '' };
+                                        atomicAddBalance(reqData.phone, reqData.saldo_to_add, histObj);
+                                        
+                                        u = getRecord('users', reqData.phone);
+                                        let emailUser = u.email || '-';
+                                        let namaUser = u.username || reqData.phone;
+                                        let teleMsg = `✅ <b>TOPUP QRIS SUKSES MASUK (FALLBACK)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${reqData.phone}\n💰 Saldo Masuk: Rp ${reqData.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${reqData.trx_id}\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                                        sendTelegramAdmin(teleMsg);
+                                    } else {
+                                        atomicAddBalance(reqData.phone, reqData.saldo_to_add, null);
+                                        if(reqData.vpn_data) {
+                                            prosesAutoOrderVPN(reqData.phone, reqData.vpn_data, reqData.trx_id);
+                                        } else {
+                                            let nominalBeli = parseInt(reqData.harga_asli);
+                                            try { atomicDeductBalance(reqData.phone, nominalBeli); } catch(err) { }
+                                            prosesAutoOrderQRIS(reqData.phone, reqData.sku, reqData.tujuan, reqData.nama_produk, reqData.harga_asli, reqData.trx_id);
+                                        }
+                                    }
+                                }
+                            } else if (statusPusat === 'cancel' || statusPusat === 'expire') {
+                                reqData.status = 'gagal'; saveRecord('topup', key, reqData);
+                                let u = getRecord('users', reqData.phone);
+                                if(u) {
+                                    let hist = u.history.find(h => h.sn === reqData.trx_id);
+                                    if(hist && hist.status === 'Pending') { hist.status = 'Gagal (Dibatalkan)'; saveRecord('users', reqData.phone, u); }
+                                }
+                            }
+                        }
+                    } catch(e) {}
+                }
+            }
+        } catch(e) {
+            console.log("Error cek Fallback QRIS AutoGoPay:", e.message);
+        }
+        isCheckingQris = false;
+    }, 30000); 
+
+    // ==============================================================
+    // AUTOGOPAY WEBHOOK ENDPOINT
     // ==============================================================
     app.post('/webhook/gopay', async (req, res) => {
         try {
             let config = getRecord('config', 'main') || {};
-            let apiKey = config.autoGopayKey;
-            if (!apiKey) return res.status(403).json({error: 'AutoGopay Key belum diatur'});
+            let signature = req.headers['x-signature'];
+            
+            if (!signature || !config.gopayToken) {
+                return res.status(401).json({ success: false, message: 'Invalid signature or token missing' });
+            }
 
-            const signature = req.headers['x-signature'];
-            const payload = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);
-            const expectedSignature = crypto.createHmac('sha256', apiKey).update(payload).digest('hex');
+            const expectedSignature = crypto.createHmac('sha256', config.gopayToken).update(req.rawBody).digest('hex');
+            if (signature !== expectedSignature) {
+                return res.status(401).json({ success: false, message: 'Invalid signature' });
+            }
+
+            const body = req.body;
             
-            if (signature !== expectedSignature) return res.status(401).json({ error: 'Invalid signature' });
-            
-            const { event, transaction } = req.body;
-            if (event === 'verification.challenge') return res.json({ success: true });
-            
-            if (event === 'transaction.received' && transaction.status === 'settlement') {
-                let amount = transaction.amount;
-                let autogopayTrxId = transaction.id;
-                let topups = getAllRecords('topup');
-                
-                let reqKey = Object.keys(topups).find(k => topups[k].status === 'pending' && (topups[k].autogopay_id === autogopayTrxId || topups[k].amount_to_pay === amount));
-                
-                if (reqKey) {
-                    let req = topups[reqKey];
-                    req.status = 'sukses';
-                    saveRecord('topup', reqKey, req);
+            if (body.event === 'verification.challenge') {
+                return res.json({ success: true });
+            }
+
+            if (body.event === 'transaction.received') {
+                const trx = body.transaction;
+                if (trx.status === 'settlement') {
+                    // Temukan Trx di DB Topup lokal
+                    let allTopups = getAllRecords('topup');
+                    let targetKey = Object.keys(allTopups).find(k => allTopups[k].autogopay_trx_id === trx.id && allTopups[k].status === 'pending');
                     
-                    let u = getRecord('users', req.phone);
-                    if(u) {
-                        if (!req.is_order) {
-                            let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Sukses', sn: req.trx_id, amount: req.amount_to_pay, qris_url: '' };
-                            atomicAddBalance(req.phone, req.saldo_to_add, histObj);
-                            
-                            u = getRecord('users', req.phone); 
-                            sendTelegramAdmin(`✅ <b>TOPUP QRIS SUKSES MASUK (AUTOGOPAY)</b>\n\n👤 Username: ${u.username || req.phone}\n📱 WA: ${req.phone}\n💰 Saldo Masuk: Rp ${req.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${req.trx_id}`);
-                        } else {
-                            atomicAddBalance(req.phone, req.saldo_to_add, null);
-                            if(req.vpn_data) prosesAutoOrderVPN(req.phone, req.vpn_data, req.trx_id);
-                            else {
-                                try { atomicDeductBalance(req.phone, parseInt(req.harga_asli)); } catch(err) { }
-                                prosesAutoOrderQRIS(req.phone, req.sku, req.tujuan, req.nama_produk, req.harga_asli, req.trx_id);
+                    if (targetKey) {
+                        let reqData = allTopups[targetKey];
+                        reqData.status = 'sukses';
+                        saveRecord('topup', targetKey, reqData);
+                        
+                        let u = getRecord('users', reqData.phone);
+                        if(u) {
+                            if (!reqData.is_order) {
+                                let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Topup', nama: 'Topup Saldo QRIS', tujuan: 'Sistem Pembayaran', status: 'Sukses', sn: reqData.trx_id, amount: reqData.amount_to_pay, qris_url: '' };
+                                atomicAddBalance(reqData.phone, reqData.saldo_to_add, histObj);
+                                
+                                u = getRecord('users', reqData.phone);
+                                let emailUser = u.email || '-';
+                                let namaUser = u.username || reqData.phone;
+                                let teleMsg = `✅ <b>TOPUP QRIS SUKSES MASUK (WEBHOOK)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${reqData.phone}\n💰 Saldo Masuk: Rp ${reqData.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${reqData.trx_id}\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                                sendTelegramAdmin(teleMsg);
+                            } else {
+                                atomicAddBalance(reqData.phone, reqData.saldo_to_add, null);
+                                if(reqData.vpn_data) {
+                                    prosesAutoOrderVPN(reqData.phone, reqData.vpn_data, reqData.trx_id);
+                                } else {
+                                    let nominalBeli = parseInt(reqData.harga_asli);
+                                    try { atomicDeductBalance(reqData.phone, nominalBeli); } catch(err) { }
+                                    prosesAutoOrderQRIS(reqData.phone, reqData.sku, reqData.tujuan, reqData.nama_produk, reqData.harga_asli, reqData.trx_id);
+                                }
                             }
                         }
                     }
                 }
+                return res.json({ success: true });
             }
-            res.json({ success: true });
-        } catch (err) { res.status(500).send("Server Error"); }
+            return res.json({ success: true });
+        } catch (error) {
+            console.error('Webhook AutoGoPay Error:', error.message);
+            return res.status(500).json({ success: false });
+        }
     });
-    
 
     // Webhook Endpoint Digiflazz Pengganti Sistem Polling
     app.post('/api/webhook', (req, res) => {
@@ -5102,7 +5489,7 @@ if (require.main === module) {
 }
 EOF
 }
-
+# === SELESAI ===
 generate_cek_saldo_script() {
     cat << 'EOF' > cek_saldo.js
 const crypto = require('crypto');
@@ -5131,7 +5518,7 @@ async function getSaldo() {
 getSaldo();
 EOF
 }
-# === SELESAI ===
+
 install_dependencies() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
@@ -6823,24 +7210,34 @@ while true; do
         15)
             clear
             echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-            echo -e "${C_YELLOW}${C_BOLD}               💳 SETUP API AUTOGOPAY               ${C_RST}"
+            echo -e "${C_YELLOW}${C_BOLD}               💳 SETUP API MERCHAN/QRIS            ${C_RST}"
             echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
-            read -p "Masukkan API Key AutoGopay (agp_...): " agp_key
-            if [ ! -z "$agp_key" ]; then
-                AGP_KEY="$agp_key" node -e "
-                    const Database = require('better-sqlite3');
-                    const db = new Database('tendo_database.db');
-                    let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
-                    let config = row ? JSON.parse(row.data) : {};
-                    config.autoGopayKey = process.env.AGP_KEY;
-                    db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
-                "
-                echo -e "${C_GREEN}✅ API Key AutoGopay berhasil disimpan!${C_RST}"
-                pm2 restart tendobot > /dev/null 2>&1
-            fi
+            read -p "Masukkan Token (GoPay / Gateway): " gp_token
+            read -p "Masukkan Teks QRIS / Link SVG Asli Anda: " gp_qris
+            
+            GP_TOKEN="$gp_token" GP_QRIS="$gp_qris" node -e "
+                const Database = require('better-sqlite3');
+                const db = new Database('tendo_database.db');
+                let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+                let config = row ? JSON.parse(row.data) : {};
+                
+                if(process.env.GP_TOKEN !== '') config.gopayToken = process.env.GP_TOKEN;
+                
+                let inputQris = process.env.GP_QRIS || '';
+                if(inputQris.startsWith('http')) {
+                    config.qrisUrl = inputQris;
+                    config.qrisText = '';
+                } else if(inputQris !== '') {
+                    config.qrisText = inputQris;
+                    config.qrisUrl = '';
+                    config.gopayMerchantId = 'CustomQRIS';
+                }
+                
+                db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
+            "
+            echo -e "${C_GREEN}✅ Konfigurasi Pembayaran (QRIS) berhasil disimpan!${C_RST}"
             sleep 2
             ;;
-
         16) menu_notifikasi ;;
         17)
             clear
