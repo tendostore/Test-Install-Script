@@ -6891,6 +6891,103 @@ menu_db_stats() {
     "
     read -p "Tekan Enter untuk kembali..."
 }
+menu_setup_nginx() {
+    clear
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}            🌐 SETUP NGINX & DOMAIN (SSL) 🌐        ${C_RST}"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    read -p "Masukkan Nama Domain (Contoh: store.domainanda.com): " domain_name
+    read -p "Masukkan Alamat Email (Untuk SSL Certbot): " email_ssl
+
+    if [ -z "$domain_name" ] || [ -z "$email_ssl" ]; then
+        echo -e "${C_RED}❌ Domain dan Email tidak boleh kosong!${C_RST}"
+        read -p "Tekan Enter untuk kembali..."
+        return
+    fi
+
+    echo -e "\n${C_MAG}>> Memastikan Nginx & Certbot terinstall...${C_RST}"
+    sudo apt-get update > /dev/null 2>&1
+    sudo apt-get install -y nginx certbot python3-certbot-nginx > /dev/null 2>&1
+
+    echo -e "${C_MAG}>> Membuat file konfigurasi reverse proxy...${C_RST}"
+    # Menggunakan 'EOF' (quoted) agar aman dari eksekusi variabel bash prematur
+    cat << 'EOF' | sudo tee /etc/nginx/sites-available/tendo_temp_config > /dev/null
+server {
+    listen 80;
+    server_name DOMAIN_PLACEHOLDER;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+EOF
+
+    # Mengganti placeholder nama domain dan merename filenya
+    sudo sed -i "s/DOMAIN_PLACEHOLDER/$domain_name/g" /etc/nginx/sites-available/tendo_temp_config
+    sudo mv /etc/nginx/sites-available/tendo_temp_config /etc/nginx/sites-available/$domain_name
+
+    echo -e "${C_MAG}>> Mengaktifkan konfigurasi dan menonaktifkan site default...${C_RST}"
+    sudo ln -sf /etc/nginx/sites-available/$domain_name /etc/nginx/sites-enabled/
+    sudo rm -f /etc/nginx/sites-enabled/default
+
+    echo -e "${C_MAG}>> Me-restart service Nginx...${C_RST}"
+    sudo systemctl restart nginx
+
+    echo -e "${C_MAG}>> Meminta sertifikat SSL (HTTPS) ke Let's Encrypt...${C_RST}"
+    sudo certbot --nginx -d "$domain_name" --non-interactive --agree-tos -m "$email_ssl"
+
+    echo -e "\n${C_GREEN}✅ Setup Nginx & SSL Berhasil! Domain $domain_name sekarang mengarah ke sistem Anda (Port 3000).${C_RST}"
+    read -p "Tekan Enter untuk kembali..."
+}
+
+menu_reset_bot() {
+    clear
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}               🔄 RESET SESI WA BOT 🔄              ${C_RST}"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_RED}${C_BOLD}⚠️ PERINGATAN: Fitur ini akan menghapus sesi login WhatsApp Bot saat ini.${C_RST}"
+    echo -e "${C_MAG}Gunakan jika bot error, ter-logout dari perangkat, atau ingin mengganti nomor bot.${C_RST}\n"
+    
+    read -p "Apakah Anda yakin ingin mereset sesi bot? [y/n]: " konfirmasi
+    if [[ "$konfirmasi" != "y" && "$konfirmasi" != "Y" ]]; then
+        echo -e "${C_YELLOW}Dibatalkan.${C_RST}"
+        sleep 1
+        return
+    fi
+
+    echo -e "\n${C_MAG}>> Menghapus folder sesi_bot...${C_RST}"
+    rm -rf sesi_bot
+    echo -e "${C_GREEN}[Selesai]${C_RST}"
+
+    read -p "Masukkan Nomor WA Bot Baru (Kosongkan jika nomor sama): " input_wa_baru
+    
+    if [ ! -z "$input_wa_baru" ]; then
+        # Membersihkan karakter non-angka
+        clean_wa=$(echo "$input_wa_baru" | sed 's/[^0-9]//g')
+        CLEAN_WA="$clean_wa" node -e "
+            const Database = require('better-sqlite3');
+            const db = new Database('tendo_database.db');
+            let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+            let config = row ? JSON.parse(row.data) : {};
+            config.botNumber = process.env.CLEAN_WA;
+            db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
+            console.log('\x1b[32m✅ Nomor Bot berhasil diperbarui di database menjadi: ' + process.env.CLEAN_WA + '\x1b[0m');
+        "
+    fi
+
+    echo -e "\n${C_MAG}>> Me-restart sistem bot...${C_RST}"
+    pm2 restart all > /dev/null 2>&1
+    echo -e "${C_GREEN}✅ Reset selesai! Buka 'Live Log Monitor' untuk melihat Kode Pairing yang baru.${C_RST}"
+    read -p "Tekan Enter untuk kembali..."
+}
 
 # ==========================================
 # MAIN MENU LOOP
@@ -6922,10 +7019,12 @@ while true; do
     echo -e "  ${C_GREEN}[14]${C_RST} Live Log Monitor (PM2)"
     echo -e "  ${C_GREEN}[15]${C_RST} Restart Service (PM2 & Nginx)"
     echo -e "  ${C_GREEN}[16]${C_RST} Setup Notifikasi & Broadcast"
+    echo -e "  ${C_GREEN}[17]${C_RST} Setup Domain Nginx & SSL (HTTPS)"
+    echo -e "  ${C_GREEN}[18]${C_RST} Reset Sesi WA Bot (Ganti Nomor)"
     echo -e "${C_CYAN}------------------------------------------------------${C_RST}"
     echo -e "  ${C_RED}[0]${C_RST}  Keluar dari Panel"
     echo -e "${C_CYAN}======================================================${C_RST}"
-    echo -ne "${C_YELLOW}Pilih Menu [0-16]: ${C_RST}"
+    echo -ne "${C_YELLOW}Pilih Menu [0-18]: ${C_RST}"
     read main_choice
 
     case $main_choice in
@@ -6945,9 +7044,9 @@ while true; do
         14) menu_cek_log ;;
         15) menu_restart_services ;;
         16) menu_notifikasi ;;
+        17) menu_setup_nginx ;;
+        18) menu_reset_bot ;;
         0) clear; echo -e "${C_GREEN}Sampai jumpa! Menutup panel...${C_RST}"; exit 0 ;;
         *) echo -e "${C_RED}❌ Pilihan tidak valid! Coba lagi.${C_RST}"; sleep 1 ;;
     esac
 done
-
-# === SELESAI ===
