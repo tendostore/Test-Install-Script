@@ -2316,7 +2316,7 @@ EOF
                             
                             let displayTujuan = h.tujuan; 
                             
-                            let safeH = JSON.stringify(h).replace(/"/g, '&quot;');
+                            let safeH = JSON.stringify(h).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                             histHTML += `
                                 <div class="hist-item" onclick='openHistoryDetail(${safeH})'>
                                     <div class="hist-top"><span>${h.tanggal}</span> <span class="stat-badge ${statClass}">${h.status}</span></div>
@@ -3103,27 +3103,6 @@ EOF
 EOF
 }
 # === SELESAI ===
-# ==========================================
-# 3. FUNGSI INSTALL DEPENDENSI & SETUP AWAL
-# ==========================================
-install_dependencies() {
-    echo -e "${C_CYAN}Memperbarui sistem & menginstall dependensi dasar...${C_RST}"
-    sudo apt-get update -y
-    # Menambahkan sqlite3 sesuai instruksi No. 2
-    sudo apt-get install -y curl wget git unzip sqlite3 ufw iptables tmux jq libwebp-dev ffmpeg
-    
-    if ! command -v node > /dev/null 2>&1; then
-        echo -e "${C_CYAN}Menginstall Node.js...${C_RST}"
-        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-        sudo apt-get install -y nodejs
-    fi
-
-    echo -e "${C_CYAN}Menginstall dependensi NPM...${C_RST}"
-    # Memastikan npm install memuat semua dependensi index.js dan tambah cors (Instruksi No. 5)
-    npm init -y > /dev/null 2>&1
-    npm install @adiwajshing/baileys pino qrcode-terminal axios express body-parser cors better-sqlite3 node-telegram-bot-api multer form-data > /dev/null 2>&1
-}
-
 # ==============================================================
 # 3. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND & BOT UTAMA)
 # ==============================================================
@@ -3298,13 +3277,13 @@ const atomicDeductBalance = dbSqlite.transaction((phone, amount) => {
     if (!row) throw new Error("User tidak valid.");
     
     let u = JSON.parse(row.data);
-    let hargaFix = parseInt(amount);
+    let hargaFix = parseInt(amount) || 0; // BUG 24 FIX
     
-    if (parseInt(u.saldo) < hargaFix) {
+    if (parseInt(u.saldo || 0) < hargaFix) {
         throw new Error("Saldo tidak cukup.");
     }
     
-    u.saldo = parseInt(u.saldo) - hargaFix;
+    u.saldo = parseInt(u.saldo || 0) - hargaFix;
     dbSqlite.prepare(`UPDATE users SET data = ? WHERE id = ?`).run(JSON.stringify(u), phone);
     
     return { saldoTerkini: u.saldo, uData: u };
@@ -3315,8 +3294,8 @@ const atomicRefundBalance = dbSqlite.transaction((phone, amount, historyObj = nu
     if (!row) return null;
     
     let u = JSON.parse(row.data);
-    let saldoSebelum = parseInt(u.saldo);
-    u.saldo = saldoSebelum + parseInt(amount);
+    let saldoSebelum = parseInt(u.saldo || 0);
+    u.saldo = saldoSebelum + (parseInt(amount) || 0); // BUG 24 FIX
     
     if (historyObj) {
         historyObj.saldo_sebelumnya = saldoSebelum;
@@ -3335,8 +3314,8 @@ const atomicAddBalance = dbSqlite.transaction((phone, amount, historyObj = null)
     if (!row) return null;
     
     let u = JSON.parse(row.data);
-    let saldoSebelum = parseInt(u.saldo);
-    u.saldo = saldoSebelum + parseInt(amount);
+    let saldoSebelum = parseInt(u.saldo || 0);
+    u.saldo = saldoSebelum + (parseInt(amount) || 0); // BUG 24 FIX
     
     if (historyObj) {
         historyObj.saldo_sebelumnya = saldoSebelum;
@@ -3377,7 +3356,6 @@ function cekPemeliharaan() {
     let curMins = h * 60 + m;
     let sParts = s.split(':'); let eParts = e.split(':');
     
-    // Perbaikan instruksi 3: ParseInt dengan radix 10
     let sMins = parseInt(sParts[0], 10)*60 + parseInt(sParts[1], 10);
     let eMins = parseInt(eParts[0], 10)*60 + parseInt(eParts[1], 10);
     
@@ -3457,7 +3435,7 @@ function sendBroadcastSuccess(productName, rawUser, rawTarget, price, method) {
         let cfg = getRecord('config', 'main') || {};
         let maskTarget = maskStringTarget(rawTarget); 
         let timeStr = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
-        let priceStr = price ? `\n💰 Harga: Rp ${price.toLocaleString('id-ID')}` : '';
+        let priceStr = price ? `\n💰 Harga: Rp ${(price ? price.toLocaleString('id-ID') : '0')}` : ''; // BUG 23 FIX
         let methodStr = method ? `\n💳 Metode: ${method}` : '';
         
         let msgTele = `✅ <b>PEMBELIAN BERHASIL</b>\n\n👤 Pelanggan: ${rawUser}\n📦 Layanan: ${productName}\n🎯 Tujuan: ${maskTarget}${priceStr}${methodStr}\n🕒 Waktu: ${timeStr} WIB\n\n<i>🌐 Transaksi diproses otomatis oleh sistem.</i>`;
@@ -3638,9 +3616,16 @@ app.post('/api/cancel-topup', verifyToken, (req, res) => {
         let topup = getRecord('topup', sn);
         
         if(topup && topup.phone === phone) {
-            // Kita biarkan Fallback Cron yang membatalkan ke AutoGoPay jika belum di-cancel
             topup.status = 'gagal';
             saveRecord('topup', sn, topup);
+            
+            // BUG 20 FIX: Tembak auto cancel ke GoPay jika dibatalkan oleh user
+            let config = getRecord('config', 'main') || {};
+            if (topup.autogopay_trx_id && config.gopayToken) {
+                axios.post('https://v1-gateway.autogopay.site/qris/cancel', {
+                    transaction_id: topup.autogopay_trx_id
+                }, { headers: { 'Authorization': 'Bearer ' + config.gopayToken, 'Content-Type': 'application/json' }}).catch(e=>{});
+            }
         }
         
         let u = getRecord('users', phone);
@@ -3952,12 +3937,12 @@ app.post('/api/topup', verifyToken, async (req, res) => {
 
         res.json({success: true});
         
+        // BUG 23 FIX: Gunakan fallback ternary
         let emailUser = u.email || '-';
         let namaUser = u.username || phone;
-        let teleMsg = `⏳ <b>TOPUP PENDING (AUTOGOPAY)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n💰 Nominal: Rp ${nominalBayar.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS AutoGoPay\n💳 Saldo Saat Ini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+        let teleMsg = `⏳ <b>TOPUP PENDING (AUTOGOPAY)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n💰 Nominal: Rp ${(nominalBayar ? nominalBayar.toLocaleString('id-ID') : '0')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS AutoGoPay\n💳 Saldo Saat Ini: Rp ${(u.saldo ? u.saldo.toLocaleString('id-ID') : '0')}`;
         sendTelegramAdmin(teleMsg);
     } catch(e) { 
-        // BUG 3 FIX: Cek apakah headers belum terkirim
         if (!res.headersSent) {
             res.json({success: false, message: "Gagal memproses QRIS."}); 
         } else {
@@ -4027,12 +4012,12 @@ app.post('/api/order-qris', verifyToken, async (req, res) => {
 
         res.json({success: true});
         
+        // BUG 23 FIX: Gunakan fallback ternary
         let emailUser = u.email || '-';
         let namaUser = u.username || targetKey;
-        let teleMsg = `🛒 <b>ORDER QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n💰 Nominal: Rp ${nominalBayar.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS AutoGoPay\n💳 Saldo Saat Ini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+        let teleMsg = `🛒 <b>ORDER QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n💰 Nominal: Rp ${(nominalBayar ? nominalBayar.toLocaleString('id-ID') : '0')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS AutoGoPay\n💳 Saldo Saat Ini: Rp ${(u.saldo ? u.saldo.toLocaleString('id-ID') : '0')}`;
         sendTelegramAdmin(teleMsg);
     } catch(e) { 
-        // BUG 3 FIX: Cek apakah headers belum terkirim
         if (!res.headersSent) {
             res.json({success: false, message: "Gagal memproses QRIS."}); 
         } else {
@@ -4124,7 +4109,8 @@ app.post('/api/order', verifyToken, async (req, res) => {
                     saveRecord('users', targetKey, u);
                     deleteRecord('trx', refId);
                     
-                    let teleMsgFail = `❌ <b>PESANAN PASCABAYAR GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${payRes.data.data.message}\n💰 Nominal: Rp ${tagihan.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                    // BUG 23 FIX: Ternary fallback
+                    let teleMsgFail = `❌ <b>PESANAN PASCABAYAR GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${payRes.data.data.message}\n💰 Nominal: Rp ${(tagihan ? tagihan.toLocaleString('id-ID') : '0')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${(u.saldo ? u.saldo.toLocaleString('id-ID') : '0')}`;
                     sendTelegramAdmin(teleMsgFail);
                     
                     return res.json({success: false, message: payRes.data.data.message});
@@ -4147,7 +4133,7 @@ app.post('/api/order', verifyToken, async (req, res) => {
                         sendBroadcastSuccess(p.nama, namaUser, tujuan, tagihan, 'Saldo Akun');
                     }
                     
-                    let teleMsg = `🔔 <b>PESANAN PASCABAYAR MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Tagihan: Rp ${tagihan.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                    let teleMsg = `🔔 <b>PESANAN PASCABAYAR MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Tagihan: Rp ${(tagihan ? tagihan.toLocaleString('id-ID') : '0')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${(u.saldo ? u.saldo.toLocaleString('id-ID') : '0')}`;
                     sendTelegramAdmin(teleMsg);
                     
                     return res.json({success: true, saldo: u.saldo});
@@ -4204,7 +4190,7 @@ app.post('/api/order', verifyToken, async (req, res) => {
                     saveRecord('users', targetKey, u);
                     deleteRecord('trx', refId);
                     
-                    let teleMsgFail = `❌ <b>PESANAN PRABAYAR GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                    let teleMsgFail = `❌ <b>PESANAN PRABAYAR GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Alasan: ${response.data.data.message}\n💰 Nominal: Rp ${(hargaFix ? hargaFix.toLocaleString('id-ID') : '0')}\n💳 Metode: Saldo Akun\n💰 Saldo Kembali: Rp ${(u.saldo ? u.saldo.toLocaleString('id-ID') : '0')}`;
                     sendTelegramAdmin(teleMsgFail);
                     
                     return res.json({success: false, message: response.data.data.message});
@@ -4231,7 +4217,7 @@ app.post('/api/order', verifyToken, async (req, res) => {
 
                 res.json({success: true, saldo: u.saldo});
 
-                let teleMsg = `🔔 <b>PESANAN PRABAYAR BARU MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Nominal: Rp ${hargaFix.toLocaleString('id-ID')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                let teleMsg = `🔔 <b>PESANAN PRABAYAR BARU MASUK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${p.nama}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status: <b>${statusOrder}</b>\n💰 Nominal: Rp ${(hargaFix ? hargaFix.toLocaleString('id-ID') : '0')}\n💳 Metode: Saldo Akun\n💳 Saldo Sisa: Rp ${(u.saldo ? u.saldo.toLocaleString('id-ID') : '0')}`;
                 sendTelegramAdmin(teleMsg);
 
             } catch (error) { 
@@ -4400,7 +4386,7 @@ async function executeVpnOrder(phone, protocol, productId, mode, vpnUsername, vp
 
             let emailUser = u.email || '-';
             let vpnConfNew = getRecord('vpn_config', 'main');
-            // BUG 2 FIX: Gunakan Safe Navigation (Ternary) untuk toLocaleString pada laporan sukses
+            // BUG 23 FIX: Gunakan Safe Navigation (Ternary) untuk toLocaleString pada laporan sukses
             let teleSuccess = `🚀 <b>ORDER VPN PREMIUM SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${vpnUser}\n💰 Nominal: Rp ${(hargaFix ? hargaFix.toLocaleString('id-ID') : '0')}\n💳 Metode: ${mode === 'trial' ? 'Gratis (Trial)' : paymentMethod}\n📦 Sisa Stok: ${mode === 'reguler' ? vpnConfNew.products[productId].stok : 'Trial'}\n💳 Saldo Terkini: Rp ${(u.saldo ? u.saldo.toLocaleString('id-ID') : '0')}`;
             sendTelegramAdmin(teleSuccess);
 
@@ -4511,10 +4497,9 @@ app.post('/api/order-vpn-qris', verifyToken, async (req, res) => {
         
         let emailUser = u.email || '-';
         let namaUser = u.username || targetKey;
-        let teleMsg = `🛒 <b>ORDER VPN QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${username}\n💰 Nominal: Rp ${nominalBayar.toLocaleString('id-ID')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS AutoGoPay\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+        let teleMsg = `🛒 <b>ORDER VPN QRIS PENDING</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${targetKey}\n📦 Produk: ${prodName}\n🎯 Username VPN: ${username}\n💰 Nominal: Rp ${(nominalBayar ? nominalBayar.toLocaleString('id-ID') : '0')}\n🔖 Ref: ${trxId}\n💳 Metode: QRIS AutoGoPay\n💳 Saldo Terkini: Rp ${(u.saldo ? u.saldo.toLocaleString('id-ID') : '0')}`;
         sendTelegramAdmin(teleMsg);
     } catch(e) { 
-        // BUG 3 FIX: Cek apakah headers belum terkirim
         if (!res.headersSent) {
             res.json({success: false, message: "Gagal memproses QRIS VPN."}); 
         } else {
@@ -4588,7 +4573,7 @@ app.post('/api/manual-vpn', verifyToken, async (req, res) => {
     }
 });
 
-// BUG 2 FIX: Bungkus dengan Try-Catch dan perbaiki toLocaleString null error
+// BUG 23 FIX: Gunakan Safe Navigation (Ternary) untuk toLocaleString pada fungsi ini
 async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
     try {
         let result = await executeVpnOrder(phone, vpnData.protocol, vpnData.product_id, vpnData.mode, vpnData.username, vpnData.password, vpnData.expired, refIdAsal, 'QRIS');
@@ -4659,10 +4644,10 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
                 saveRecord('users', phone, u);
                 
                 if(globalSock) {
-                    globalSock.sendMessage(u.jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf, pesanan ${nama_produk} tujuan ${tujuan} ditolak oleh sistem.\n\n💰 Saldo Anda sebesar Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan utuh ke akun Website.` }).catch(e=>{});
+                    globalSock.sendMessage(u.jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf, pesanan ${nama_produk} tujuan ${tujuan} ditolak oleh sistem.\n\n💰 Saldo Anda sebesar Rp ${(hargaFix ? hargaFix.toLocaleString('id-ID') : '0')} telah dikembalikan utuh ke akun Website.` }).catch(e=>{});
                 }
 
-                let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Status Digiflazz Gagal.\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS AutoGoPay`;
+                let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Status Digiflazz Gagal.\n💰 Saldo Rp ${(hargaFix ? hargaFix.toLocaleString('id-ID') : '0')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS AutoGoPay`;
                 sendTelegramAdmin(teleMsgFail);
                 return;
             }
@@ -4693,7 +4678,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
                 sendBroadcastSuccess(nama_produk, namaUser, tujuan, hargaFix, 'QRIS');
             }
 
-            let teleMsg = `🚀 <b>AUTO ORDER PASCABAYAR QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS AutoGoPay\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+            let teleMsg = `🚀 <b>AUTO ORDER PASCABAYAR QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS AutoGoPay\n💳 Saldo Terkini: Rp ${(u.saldo ? u.saldo.toLocaleString('id-ID') : '0')}`;
             sendTelegramAdmin(teleMsg);
 
         } else {
@@ -4718,10 +4703,10 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
                 saveRecord('users', phone, u);
                 
                 if(globalSock) {
-                    globalSock.sendMessage(u.jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf, pesanan ${nama_produk} tujuan ${tujuan} ditolak oleh sistem.\n\n💰 Saldo Anda sebesar Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan utuh ke akun Website.` }).catch(e=>{});
+                    globalSock.sendMessage(u.jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf, pesanan ${nama_produk} tujuan ${tujuan} ditolak oleh sistem.\n\n💰 Saldo Anda sebesar Rp ${(hargaFix ? hargaFix.toLocaleString('id-ID') : '0')} telah dikembalikan utuh ke akun Website.` }).catch(e=>{});
                 }
 
-                let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Status Digiflazz Gagal.\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS AutoGoPay`;
+                let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: GAGAL DIGIFLAZZ</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Status Digiflazz Gagal.\n💰 Saldo Rp ${(hargaFix ? hargaFix.toLocaleString('id-ID') : '0')} telah otomatis di-refund ke akun pengguna.\n💳 Metode: QRIS AutoGoPay`;
                 sendTelegramAdmin(teleMsgFail);
                 return;
             }
@@ -4752,7 +4737,7 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
                 sendBroadcastSuccess(nama_produk, namaUser, tujuan, hargaFix, 'QRIS');
             }
 
-            let teleMsg = `🚀 <b>AUTO ORDER QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS AutoGoPay\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+            let teleMsg = `🚀 <b>AUTO ORDER QRIS BERHASIL DITEMBAK</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n📦 Produk: ${nama_produk}\n🎯 Tujuan: ${tujuan}\n🔖 Ref: ${refId}\n⚙️ Status Awal: <b>${statusOrder}</b>\n💳 Metode: QRIS AutoGoPay\n💳 Saldo Terkini: Rp ${(u.saldo ? u.saldo.toLocaleString('id-ID') : '0')}`;
             sendTelegramAdmin(teleMsg);
         }
 
@@ -4770,11 +4755,11 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
         let namaUser = uRefund.username || phone;
         let errMsg = e.response && e.response.data && e.response.data.data ? e.response.data.data.message : e.message;
 
-        let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: KONEKSI PPOB ERROR</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Error: ${errMsg}\n💰 Saldo Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan otomatis ke akun pengguna.\n💳 Metode: QRIS AutoGoPay`;
+        let teleMsgFail = `⚠️ <b>INFO ORDER QRIS: KONEKSI PPOB ERROR</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phone}\n🔖 Ref: ${refIdAsal}\n⚙️ Error: ${errMsg}\n💰 Saldo Rp ${(hargaFix ? hargaFix.toLocaleString('id-ID') : '0')} telah dikembalikan otomatis ke akun pengguna.\n💳 Metode: QRIS AutoGoPay`;
         sendTelegramAdmin(teleMsgFail);
         
         if(globalSock) {
-            globalSock.sendMessage(uRefund.jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL PPOB*\n\nMaaf, pesanan ${nama_produk} gagal diproses karena gangguan pusat.\n\n💰 Saldo Anda sebesar Rp ${hargaFix.toLocaleString('id-ID')} telah dikembalikan ke akun Website.` }).catch(err=>{});
+            globalSock.sendMessage(uRefund.jid || phone + '@s.whatsapp.net', { text: `❌ *PESANAN GAGAL PPOB*\n\nMaaf, pesanan ${nama_produk} gagal diproses karena gangguan pusat.\n\n💰 Saldo Anda sebesar Rp ${(hargaFix ? hargaFix.toLocaleString('id-ID') : '0')} telah dikembalikan ke akun Website.` }).catch(err=>{});
         }
     }
 }
@@ -4935,7 +4920,7 @@ async function startBot() {
                                             u = getRecord('users', reqData.phone);
                                             let emailUser = u.email || '-';
                                             let namaUser = u.username || reqData.phone;
-                                            let teleMsg = `✅ <b>TOPUP QRIS SUKSES MASUK (FALLBACK)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${reqData.phone}\n💰 Saldo Masuk: Rp ${reqData.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${reqData.trx_id}\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                                            let teleMsg = `✅ <b>TOPUP QRIS SUKSES MASUK (FALLBACK)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${reqData.phone}\n💰 Saldo Masuk: Rp ${(reqData.saldo_to_add ? reqData.saldo_to_add.toLocaleString('id-ID') : '0')}\n🔖 Ref: ${reqData.trx_id}\n💳 Saldo Terkini: Rp ${(u.saldo ? u.saldo.toLocaleString('id-ID') : '0')}`;
                                             sendTelegramAdmin(teleMsg);
                                         } else {
                                             atomicAddBalance(reqData.phone, reqData.saldo_to_add, null);
@@ -4974,7 +4959,6 @@ async function startBot() {
     // ==============================================================
     app.post('/webhook/gopay', async (req, res) => {
         try {
-            // Perbaikan instruksi 8: Cegah Crash Server
             if (!req.rawBody) {
                 return res.status(400).send('Bad Request: No rawBody provided');
             }
@@ -5019,7 +5003,7 @@ async function startBot() {
                                     u = getRecord('users', reqData.phone);
                                     let emailUser = u.email || '-';
                                     let namaUser = u.username || reqData.phone;
-                                    let teleMsg = `✅ <b>TOPUP QRIS SUKSES MASUK (WEBHOOK)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${reqData.phone}\n💰 Saldo Masuk: Rp ${reqData.saldo_to_add.toLocaleString('id-ID')}\n🔖 Ref: ${reqData.trx_id}\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                                    let teleMsg = `✅ <b>TOPUP QRIS SUKSES MASUK (WEBHOOK)</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${reqData.phone}\n💰 Saldo Masuk: Rp ${(reqData.saldo_to_add ? reqData.saldo_to_add.toLocaleString('id-ID') : '0')}\n🔖 Ref: ${reqData.trx_id}\n💳 Saldo Terkini: Rp ${(u.saldo ? u.saldo.toLocaleString('id-ID') : '0')}`;
                                     sendTelegramAdmin(teleMsg);
                                 } else {
                                     atomicAddBalance(reqData.phone, reqData.saldo_to_add, null);
@@ -5056,7 +5040,8 @@ async function startBot() {
             let signature = req.headers['x-hub-signature'];
             if (!signature) return res.status(403).json({success: false, message: 'No signature found'});
 
-            let hmac = crypto.createHmac('sha1', secret).update(req.rawBody).digest('hex');
+            // BUG 18 FIX: Menghindari error HMAC jika rawBody undefined
+            let hmac = crypto.createHmac('sha1', secret).update(req.rawBody || '').digest('hex');
             let expectedSignature = 'sha1=' + hmac;
 
             if (signature !== expectedSignature) {
@@ -5110,7 +5095,7 @@ async function startBot() {
 
                     sendBroadcastSuccess(trx.nama, namaUser, trx.tujuan, parseInt(trx.harga), 'Sistem Otomatis');
 
-                    let teleSuccess = `✅ <b>PESANAN SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${refId}\n🔑 SN: ${sn}\n💳 Saldo Terkini: Rp ${u.saldo.toLocaleString('id-ID')}`;
+                    let teleSuccess = `✅ <b>PESANAN SUKSES</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${refId}\n🔑 SN: ${sn}\n💳 Saldo Terkini: Rp ${(u.saldo ? u.saldo.toLocaleString('id-ID') : '0')}`;
                     sendTelegramAdmin(teleSuccess);
                 }
                 deleteRecord('trx', refId);
@@ -5120,7 +5105,8 @@ async function startBot() {
                 let uRefund = atomicRefundBalance(phoneKey, parseInt(trx.harga), histObj);
                 
                 if (globalSock) {
-                    globalSock.sendMessage(trx.jid, { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf pesanan ${trx.nama} tujuan ${trx.tujuan} gagal diproses pusat.\nAlasan: ${message}\n\n💰 Saldo Rp ${parseInt(trx.harga).toLocaleString('id-ID')} telah dikembalikan utuh ke akun Anda.` }).catch(e=>{});
+                    let hargaTrxFallback = parseInt(trx.harga) || 0;
+                    globalSock.sendMessage(trx.jid, { text: `❌ *PESANAN GAGAL & DI-REFUND*\n\nMaaf pesanan ${trx.nama} tujuan ${trx.tujuan} gagal diproses pusat.\nAlasan: ${message}\n\n💰 Saldo Rp ${(hargaTrxFallback ? hargaTrxFallback.toLocaleString('id-ID') : '0')} telah dikembalikan utuh ke akun Anda.` }).catch(e=>{});
                 }
                 
                 let teleFail = `❌ <b>PESANAN GAGAL & REFUND</b>\n\n👤 Username: ${namaUser}\n📧 Email: ${emailUser}\n📱 WA: ${phoneKey}\n📦 Produk: ${trx.nama}\n🎯 Tujuan: ${trx.tujuan}\n🔖 Ref: ${refId}\n📝 Alasan: ${message}\n\n💰 Saldo telah otomatis dikembalikan.`;
@@ -5151,7 +5137,6 @@ async function startBot() {
     });
 }
 
-// Perbaikan Instruksi 4: Proteksi Sinkronisasi Digiflazz (Pisah Try-Catch)
 async function tarikDataLayananOtomatis() {
     try {
         let config = getRecord('config', 'main') || {};
@@ -5367,7 +5352,6 @@ install_dependencies() {
     spin $!
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
-    # Penambahan package sqlite3 sesuai Instruksi No. 2
     echo -ne "${C_MAG}>> Menginstall dependensi (curl, zip, unzip, build-essential, python3, sqlite3)...${C_RST}"
     sudo -E apt-get install -y curl git wget nano zip unzip build-essential python3 sqlite3 > /dev/null 2>&1 &
     spin $!
@@ -5406,7 +5390,6 @@ install_dependencies() {
     rm -rf node_modules package-lock.json
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
-    # Penambahan package cors sesuai Instruksi No. 5
     echo -ne "${C_MAG}>> Mengunduh modul utama (termasuk SQLite, JWT & CORS)...${C_RST}"
     npm install @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api better-sqlite3 jsonwebtoken cors > install_npm.log 2>&1 &
     spin $!
@@ -5417,7 +5400,7 @@ install_dependencies() {
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     read -p "Tekan Enter untuk kembali..."
 }
-
+# === SELESAI ===
 menu_tutorial() {
     while true; do
         clear
@@ -5922,7 +5905,6 @@ menu_backup() {
 
         case $backchoice in
             1)
-                # Perbaikan Instruksi No. 2: Metode Backup SQLite Menggunakan ".backup"
                 echo -e "\n${C_MAG}⏳ Sedang memproses arsip backup SQLite...${C_RST}"
                 if ! command -v zip &> /dev/null; then sudo apt install zip -y > /dev/null 2>&1; fi
                 rm -f backup.zip backup_aman.db
@@ -5966,9 +5948,11 @@ menu_backup() {
                             if ! command -v unzip &> /dev/null; then sudo apt install unzip -y > /dev/null 2>&1; fi
                             unzip -o restore.zip > /dev/null 2>&1
                             
-                            # RENAME FILE DATABASE AGAR TERBACA SISTEM
-                            if [ -f "backup_aman.db" ]; then
-                                mv backup_aman.db tendo_database.db
+                            # BUG 17 FIX: RENAME FILE DATABASE AGAR TERBACA SISTEM LALU RESTART
+                            mv backup_aman.db tendo_database.db 2>/dev/null || true
+                            pm2 restart tendobot > /dev/null 2>&1
+                            
+                            if [ -f "tendo_database.db" ]; then
                                 echo -e "${C_GREEN}✅ Database berhasil dipulihkan!${C_RST}"
                             fi
                             
@@ -5978,9 +5962,6 @@ menu_backup() {
                             fi
                             rm -f restore.zip
                             npm install > /dev/null 2>&1
-                            
-                            # RESTART PM2 AGAR DATABASE BARU TERBACA
-                            pm2 restart tendobot > /dev/null 2>&1
                             
                             echo -e "\n${C_GREEN}${C_BOLD}✅ RESTORE BERHASIL SEPENUHNYA!${C_RST}"
                         else
