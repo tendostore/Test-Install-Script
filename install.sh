@@ -49,6 +49,14 @@ fi
 # 2. FUNGSI MEMBUAT TAMPILAN WEB APLIKASI
 # ==========================================
 generate_web_app() {
+    if [ -f "public/index.html" ]; then
+        read -p "File public/index.html sudah ada, apakah ingin ditimpa? [y/n]: " overwrite_web
+        if [[ "$overwrite_web" != "y" && "$overwrite_web" != "Y" ]]; then
+            echo "Melewati pembuatan web app..."
+            return
+        fi
+    fi
+
     mkdir -p public/baner1 public/baner2 public/baner3 public/baner4 public/baner5 public/info_images public/maint_images public/tutorials
 
     cat << 'EOF' > public/manifest.json
@@ -3107,6 +3115,14 @@ EOF
 # 3. FUNGSI UNTUK MEMBUAT FILE INDEX.JS (BACKEND & BOT UTAMA)
 # ==============================================================
 generate_bot_script() {
+    if [ -f "index.js" ]; then
+        read -p "File index.js sudah ada, apakah ingin ditimpa? [y/n]: " overwrite_bot
+        if [[ "$overwrite_bot" != "y" && "$overwrite_bot" != "Y" ]]; then
+            echo "Melewati pembuatan script bot..."
+            return
+        fi
+    fi
+
     cat << 'EOF' > index.js
 process.env.TZ = 'Asia/Jakarta';
 const fs = require('fs');
@@ -3229,6 +3245,7 @@ let cfgJwt = getRecord('config', 'main') || {};
 if (!cfgJwt.jwt_secret) {
     cfgJwt.jwt_secret = crypto.randomBytes(64).toString('hex');
     saveRecord('config', 'main', cfgJwt);
+    dbSqlite.pragma('wal_checkpoint(FULL)');
 }
 const SECRET_KEY = cfgJwt.jwt_secret;
 
@@ -4587,6 +4604,8 @@ async function prosesAutoOrderVPN(phone, vpnData, refIdAsal) {
             let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + vpnData.nama_produk, tujuan: vpnData.username, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refIdAsal };
             let uRefund = atomicRefundBalance(phone, hargaFix, histObj);
             
+            if (!uRefund) return;
+
             hist.status = 'Refund';
             saveRecord('users', phone, uRefund);
             
@@ -4639,6 +4658,8 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
                 let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId };
                 u = atomicRefundBalance(phone, hargaFix, histObj);
                 
+                if (!u) return;
+
                 let hist = u.history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
                 if(hist) hist.status = 'Refund';
                 saveRecord('users', phone, u);
@@ -4698,6 +4719,8 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
                 let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refId };
                 u = atomicRefundBalance(phone, hargaFix, histObj);
                 
+                if (!u) return;
+                
                 let hist = u.history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
                 if(hist) hist.status = 'Refund';
                 saveRecord('users', phone, u);
@@ -4744,6 +4767,8 @@ async function prosesAutoOrderQRIS(phone, sku, tujuan, nama_produk, harga_asli, 
     } catch(e) {
         let histObj = { ts: Date.now(), tanggal: new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }), type: 'Refund', nama: 'Refund: ' + nama_produk, tujuan: tujuan, status: 'Refund', sn: '-', amount: hargaFix, ref_id: refIdAsal };
         let uRefund = atomicRefundBalance(phone, hargaFix, histObj);
+        
+        if (!uRefund) return;
         
         let hist = uRefund.history.find(h => h.sn === refIdAsal && h.type === 'Order QRIS');
         if(hist) {
@@ -5341,6 +5366,8 @@ install_dependencies() {
             printf "\b\b\b\b\b"
         done
         printf "      \b\b\b\b\b\b"
+        wait $pid
+        return $?
     }
 
     echo -ne "${C_MAG}>> Mengatur zona waktu (Asia/Jakarta)...${C_RST}"
@@ -5350,11 +5377,13 @@ install_dependencies() {
     echo -ne "${C_MAG}>> Mengupdate repositori sistem...${C_RST}"
     (sudo -E apt-get update > /dev/null 2>&1 && sudo -E apt-get upgrade -y > /dev/null 2>&1) &
     spin $!
+    if [ $? -ne 0 ]; then echo -e "${C_RED}[Gagal] Cek koneksi internet Anda.${C_RST}"; exit 1; fi
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
     echo -ne "${C_MAG}>> Menginstall dependensi (curl, zip, unzip, build-essential, python3, sqlite3)...${C_RST}"
     sudo -E apt-get install -y curl git wget nano zip unzip build-essential python3 sqlite3 > /dev/null 2>&1 &
     spin $!
+    if [ $? -ne 0 ]; then echo -e "${C_RED}[Gagal] Menginstall dependensi.${C_RST}"; exit 1; fi
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
     echo -ne "${C_MAG}>> Memeriksa dan membuat Swap RAM 2GB...${C_RST}"
@@ -5372,11 +5401,13 @@ install_dependencies() {
     echo -ne "${C_MAG}>> Menginstall Node.js...${C_RST}"
     (curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - > /dev/null 2>&1 && sudo -E apt-get install -y nodejs > /dev/null 2>&1) &
     spin $!
+    if [ $? -ne 0 ]; then echo -e "${C_RED}[Gagal] Menginstall Node.js.${C_RST}"; exit 1; fi
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
     echo -ne "${C_MAG}>> Menginstall PM2...${C_RST}"
     (sudo npm install -g pm2 > /dev/null 2>&1) &
     spin $!
+    if [ $? -ne 0 ]; then echo -e "${C_RED}[Gagal] Menginstall PM2.${C_RST}"; exit 1; fi
     echo -e "${C_GREEN}[Selesai]${C_RST}"
 
     echo -e "${C_CYAN}>> Menginstal PM2 Logrotate untuk mencegah hardisk penuh...${C_RST}"
@@ -5393,6 +5424,7 @@ install_dependencies() {
     echo -ne "${C_MAG}>> Mengunduh modul utama (termasuk SQLite, JWT & CORS)...${C_RST}"
     npm install @whiskeysockets/baileys@latest pino qrcode-terminal axios express body-parser node-telegram-bot-api better-sqlite3 jsonwebtoken cors > install_npm.log 2>&1 &
     spin $!
+    if [ $? -ne 0 ]; then echo -e "${C_RED}[Gagal] Mengunduh modul npm. Cek install_npm.log.${C_RST}"; exit 1; fi
     echo -e "${C_GREEN}[Selesai]${C_RST}"
     
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
@@ -5400,7 +5432,7 @@ install_dependencies() {
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
     read -p "Tekan Enter untuk kembali..."
 }
-# === SELESAI ===
+
 menu_tutorial() {
     while true; do
         clear
@@ -5907,14 +5939,18 @@ menu_backup() {
             1)
                 echo -e "\n${C_MAG}⏳ Sedang memproses arsip backup SQLite...${C_RST}"
                 if ! command -v zip &> /dev/null; then sudo apt install zip -y > /dev/null 2>&1; fi
-                rm -f backup.zip backup_aman.db
-                if [ -d "/etc/letsencrypt" ]; then
-                    sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null
-                fi
+                rm -f backup.zip backup_aman.db ssl_backup.tar.gz
                 
                 sqlite3 tendo_database.db ".backup backup_aman.db"
-                zip backup.zip backup_aman.db ssl_backup.tar.gz 2>/dev/null
-                rm -f backup_aman.db
+                
+                if [ -d "/etc/letsencrypt" ]; then
+                    sudo tar -czf ssl_backup.tar.gz -C / etc/letsencrypt 2>/dev/null
+                    zip backup.zip backup_aman.db ssl_backup.tar.gz 2>/dev/null
+                else
+                    zip backup.zip backup_aman.db 2>/dev/null
+                fi
+                
+                rm -f backup_aman.db ssl_backup.tar.gz
                 
                 echo -e "${C_GREEN}✅ File backup.zip berhasil dikompresi!${C_RST}"
                 node -e "
@@ -5948,7 +5984,6 @@ menu_backup() {
                             if ! command -v unzip &> /dev/null; then sudo apt install unzip -y > /dev/null 2>&1; fi
                             unzip -o restore.zip > /dev/null 2>&1
                             
-                            # BUG 17 FIX: RENAME FILE DATABASE AGAR TERBACA SISTEM LALU RESTART
                             mv backup_aman.db tendo_database.db 2>/dev/null || true
                             pm2 restart tendobot > /dev/null 2>&1
                             
@@ -6462,6 +6497,16 @@ menu_etalase_custom() {
     done
 }
 
+menu_manajemen_produk_instan() {
+    clear
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}        📦 MANAJEMEN PRODUK INSTAN (CUSTOM)         ${C_RST}"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_MAG}Menu Manajemen Produk Instan Sedang Dalam Pengembangan${C_RST}"
+    echo ""
+    read -p "Tekan Enter untuk kembali..."
+}
+
 menu_pemeliharaan() {
     clear
     echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
@@ -6604,6 +6649,29 @@ menu_db_stats() {
         }
     "
     echo ""
+    read -p "Tekan Enter untuk kembali..."
+}
+
+menu_notifikasi() {
+    clear
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    echo -e "${C_YELLOW}${C_BOLD}          📢 SETUP INTEGRASI NOTIFIKASI             ${C_RST}"
+    echo -e "${C_CYAN}${C_BOLD}======================================================${C_RST}"
+    read -p "Masukkan Token Bot Telegram Info: " teleTokenInfo
+    read -p "Masukkan Chat/Channel ID Telegram (Cth: -100xxx): " teleChannelId
+    
+    TOKEN_INFO="$teleTokenInfo" CHANNEL_ID="$teleChannelId" node -e "
+        const Database = require('better-sqlite3');
+        const db = new Database('tendo_database.db');
+        let row = db.prepare(\"SELECT data FROM config WHERE id = 'main'\").get();
+        let config = row ? JSON.parse(row.data) : {};
+        
+        if(process.env.TOKEN_INFO !== '') config.teleTokenInfo = process.env.TOKEN_INFO;
+        if(process.env.CHANNEL_ID !== '') config.teleChannelId = process.env.CHANNEL_ID;
+        
+        db.prepare(\"INSERT OR REPLACE INTO config (id, data) VALUES ('main', ?)\").run(JSON.stringify(config));
+        console.log('\x1b[32m\n✅ Konfigurasi Notifikasi Telegram berhasil disimpan!\x1b[0m');
+    "
     read -p "Tekan Enter untuk kembali..."
 }
 
@@ -6794,7 +6862,7 @@ while true; do
             sudo apt install nginx certbot python3-certbot-nginx -y > /dev/null 2>&1
             
             echo -e "${C_MAG}>> Konfigurasi Proxy Nginx ke Port 3000...${C_RST}"
-            sudo cat << EOF > /etc/nginx/sites-available/$domain_name
+            cat << EOF | sudo tee /etc/nginx/sites-available/$domain_name > /dev/null
 server {
     listen 80;
     server_name $domain_name;
